@@ -8,7 +8,7 @@ const openai = new OpenAI({
 export async function generateLyrics(songDescription: string): Promise<string> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o", // Using gpt-4o instead of gpt-5 due to organization verification requirements
       messages: [
         {
           role: "system",
@@ -32,7 +32,7 @@ export async function generateLyrics(songDescription: string): Promise<string> {
 export async function generateScenePrompts(songDescription: string): Promise<string[]> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o", // Using gpt-4o instead of gpt-5 due to organization verification requirements
       messages: [
         {
           role: "system",
