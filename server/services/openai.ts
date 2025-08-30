@@ -37,15 +37,15 @@ Bridge lyrics here...`
 
     const rawLyrics = response.choices[0].message.content || "";
     
-    // Post-process to fix formatting: convert **Section:** to [Section]
+    // Post-process to fix formatting: convert *Section:* or **Section:** to [Section]
     const processedLyrics = rawLyrics
-      .replace(/\*\*(Verse \d+)\*\*:?/g, '[$1]')
-      .replace(/\*\*(Chorus)\*\*:?/g, '[$1]')
-      .replace(/\*\*(Bridge)\*\*:?/g, '[$1]')
-      .replace(/\*\*(Outro)\*\*:?/g, '[$1]')
-      .replace(/\*\*(Intro)\*\*:?/g, '[$1]')
-      .replace(/\*\*(Pre-Chorus)\*\*:?/g, '[$1]')
-      .replace(/\*\*(Refrain)\*\*:?/g, '[$1]');
+      .replace(/\*{1,2}(Verse \d+)\*{1,2}:?/g, '[$1]')
+      .replace(/\*{1,2}(Chorus)\*{1,2}:?/g, '[$1]')
+      .replace(/\*{1,2}(Bridge)\*{1,2}:?/g, '[$1]')
+      .replace(/\*{1,2}(Outro)\*{1,2}:?/g, '[$1]')
+      .replace(/\*{1,2}(Intro)\*{1,2}:?/g, '[$1]')
+      .replace(/\*{1,2}(Pre-Chorus)\*{1,2}:?/g, '[$1]')
+      .replace(/\*{1,2}(Refrain)\*{1,2}:?/g, '[$1]');
     
     return processedLyrics;
   } catch (error) {
