@@ -34,7 +34,7 @@ export async function generateCharacterImage(prompt: string): Promise<string> {
     const maxAttempts = 30; // 5 minutes with 10-second intervals
 
     while (attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
+      await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
       
       const statusResponse = await fetch(`https://queue.fal.run/fal-ai/imagen4/requests/${requestId}/status`, {
         headers: {
@@ -51,9 +51,8 @@ export async function generateCharacterImage(prompt: string): Promise<string> {
       console.log("Fal.ai status result:", statusResult);
       
       if (statusResult.status === "completed") {
-        if (statusResult.data && statusResult.data.images && statusResult.data.images.length > 0) {
-          return statusResult.data.images[0].url;
-        } else if (statusResult.images && statusResult.images.length > 0) {
+        // Fal.ai returns images directly in the images array
+        if (statusResult.images && statusResult.images.length > 0) {
           return statusResult.images[0].url;
         } else {
           console.log("No images found in completed response:", statusResult);
@@ -109,7 +108,7 @@ export async function generateSceneImages(prompts: string[], characterImageUrl: 
       const maxAttempts = 30;
 
       while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 10000));
+        await new Promise(resolve => setTimeout(resolve, 3000));
         
         const statusResponse = await fetch(`https://queue.fal.run/fal-ai/nano-banana/requests/${requestId}`, {
           headers: {
