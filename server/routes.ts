@@ -134,7 +134,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate character
   app.post("/api/projects/:id/generate-character", async (req, res) => {
     try {
+      console.log("Character generation route called with body:", req.body);
       const { prompt } = req.body;
+      console.log("Extracted prompt:", prompt);
+      
+      if (!prompt || !prompt.trim()) {
+        throw new Error("No prompt provided");
+      }
       
       await storage.addGenerationLog({
         projectId: req.params.id,
@@ -144,7 +150,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { prompt }
       });
 
+      console.log("About to call generateCharacterImage...");
       const imageUrl = await generateCharacterImage(prompt);
+      console.log("generateCharacterImage returned:", imageUrl);
       
       await storage.updateProject(req.params.id, {
         characterImageUrl: imageUrl,
