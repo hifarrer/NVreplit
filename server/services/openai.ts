@@ -12,7 +12,7 @@ export async function generateLyrics(songDescription: string): Promise<string> {
       messages: [
         {
           role: "system",
-          content: "You are a creative songwriter. Generate meaningful lyrics based on the provided description. Include verses, chorus, and bridge sections as appropriate."
+          content: "You are a creative songwriter. Generate meaningful lyrics based on the provided description. Include verses, chorus, and bridge sections as appropriate. Format section headers using square brackets like [Verse 1], [Chorus], [Bridge], [Verse 2], etc. Do not use asterisks or markdown formatting."
         },
         {
           role: "user",

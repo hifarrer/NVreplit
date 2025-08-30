@@ -27,12 +27,26 @@ export async function generateSong(tags: string, lyrics?: string): Promise<{ aud
       throw new Error(`ElevenLabs API error: ${response.status} - ${errorText}`);
     }
 
-    // Check if response is audio (binary) or JSON
-    const contentType = response.headers.get("content-type");
+    // ElevenLabs typically returns binary audio data directly
+    // Get the response as ArrayBuffer to handle binary data
+    const audioBuffer = await response.arrayBuffer();
     
-    if (contentType?.includes("audio") || contentType?.includes("application/octet-stream")) {
-      // Handle binary audio response
-      const audioBuffer = await response.arrayBuffer();
+    // Check if this is actually JSON by looking at the first few bytes
+    const firstBytes = new Uint8Array(audioBuffer.slice(0, 10));
+    const isJSON = firstBytes[0] === 123; // 123 is '{' in ASCII
+    
+    if (isJSON) {
+      // Convert buffer back to text and parse as JSON
+      const textDecoder = new TextDecoder();
+      const jsonText = textDecoder.decode(audioBuffer);
+      const result = JSON.parse(jsonText);
+      
+      return {
+        audioUrl: result.audio_url || result.url || result.audio,
+        duration: result.duration || 120
+      };
+    } else {
+      // Handle as binary audio data
       const audioData = new Uint8Array(audioBuffer);
       
       // Save the audio file locally
@@ -43,14 +57,6 @@ export async function generateSong(tags: string, lyrics?: string): Promise<{ aud
       return {
         audioUrl: `/${fileName}`,
         duration: 120 // 2 minutes in seconds
-      };
-    } else {
-      // Handle JSON response (URL or status)
-      const result = await response.json();
-      
-      return {
-        audioUrl: result.audio_url || result.url || result.audio,
-        duration: result.duration || 120
       };
     }
   } catch (error) {
