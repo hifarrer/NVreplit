@@ -8,6 +8,10 @@ export async function generateSong(tags: string, lyrics?: string): Promise<{ aud
   if (lyrics && lyrics.trim()) {
     prompt += ` and these lyrics: ${lyrics}`;
   }
+  
+  console.log("ElevenLabs prompt:", prompt);
+  console.log("Tags:", tags);
+  console.log("Lyrics:", lyrics);
 
   try {
     const response = await fetch("https://api.elevenlabs.io/v1/music", {
