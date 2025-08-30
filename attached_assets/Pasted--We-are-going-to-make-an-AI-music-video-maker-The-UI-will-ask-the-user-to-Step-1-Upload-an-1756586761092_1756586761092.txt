@@ -1,0 +1,209 @@
+
+We are going to make an AI music video maker .
+
+The UI will ask the user to:
+Step 1.
+Upload an audio file.
+Or
+Generate a song from a prompt
+	Generating a song from a prompt will open a new modal:
+	1. What is your song about? (i.e A lonely cowboy cat...)
+	2. Tags: electronic, pop, female singer, 
+	3. Lyrics: A user can enter lyrics or click a generate lyrics button that will
+		3.1 if a user clicks on generate lyrics,then we will ask OpenAI to generate lyrics for that song based on the text entered in "What is your song about".
+	4. Once we hace Tags and lyrics, we will use ElevenLabs api to generate the song.
+	This is the ElevenLabs Request:
+	curl -X POST https://api.elevenlabs.io/v1/music \
+     	-H "xi-api-key: xi-api-key" \
+     	-H "Content-Type: application/json" \
+     	-d '{
+  	"prompt": "",
+	"music_length_ms": 120000,
+	}
+	For the prompt we will use this:
+	prompt = `Create a song with this style: ${tags}`;
+  	if (lyrics && lyrics.trim()) {
+    	prompt += ` and these lyrics: ${lyrics}`;
+  	}
+For now every song will be 2 minutes, so we will always send music_length_ms = 120000
+
+ElevenLabs APIkey: sk_5bf8f177633d87f37c096114bb424d36907c101fdc6268e4
+After a song is generated, display the song with a player.
+
+Then below we will show a "Generate Video" section:
+
+1. Character: We will ask user to upload a picture or generate a picture of the character
+  If users clicks on generate Character, we will open a modal to ask the user for a prompt to describe the character.
+  We will have a generate character button, 
+	To generate the Image we will use Imagen4 model on fal.ai.
+	FAL_KEY="b479bcce-ae9a-439a-a9d6-3bf0ab5cf8f0:d9afcc34d42d7e0f0dc04607a81c60a0"
+	
+	Request:
+response=$(curl --request POST \
+  --url https://queue.fal.run/fal-ai/imagen4/preview \
+  --header "Authorization: Key $FAL_KEY" \
+  --header "Content-Type: application/json" \
+  --data '{
+     "prompt": "${prompt}"
+   }')
+REQUEST_ID=$(echo "$response" | grep -o '"request_id": *"[^"]*"' | sed 's/"request_id": *//; s/"//g')
+
+To get the results:
+curl --request GET \
+  --url https://queue.fal.run/fal-ai/imagen4/requests/$REQUEST_ID/status \
+  --header "Authorization: Key $FAL_KEY"
+
+once the image is generated the user can click Save or Generate another one.
+
+Step 2.
+2. We will use OpenAI to ask to generate 4 prompts to generate 4 images based on what the user entered in "What is your song about" prompt.
+   Ask OpenAI to respond in JSON format and give 4 prompts as output. Example:
+	Request: Generate 4 image prompts to generate 4 images that will be used as frames for a music video based on the following prompt "A lonely rockstar cat". Be creative generating completely different scenes with the same character, be detailed describing everything in the scene as well as the character clothes an expression.
+	Response:
+	[{prompt_1: "A cat is looking at the moon through the window",
+	prompt_2: "A cat is driving a ferrari",
+prompt_3: "A cat is singing to the crowd",
+prompt_4: "A cat is with his girlfriend cat"
+	}]
+
+Step 3.
+3. Once we have the prompts from OpenAI, we will use those to generate 4 images using the "character" image as reference.
+ Again we will use Fal.ai but we will use the model nano-banana which takes an image as a reference, we will use the character image in step 1 and each of the generated prompts from OpenAI.
+
+response=$(curl --request POST \
+  --url https://queue.fal.run/fal-ai/nano-banana/edit \
+  --header "Authorization: Key $FAL_KEY" \
+  --header "Content-Type: application/json" \
+  --data '{
+     "prompt": "${prompt_1}",
+     "image_urls": [
+       "{character_image_url}"
+     ]
+   }')
+REQUEST_ID=$(echo "$response" | grep -o '"request_id": *"[^"]*"' | sed 's/"request_id": *//; s/"//g')
+
+To get the results:
+curl --request GET \
+  --url https://queue.fal.run/fal-ai/nano-banana/requests/$REQUEST_ID \
+  --header "Authorization: Key $FAL_KEY"
+
+For now we can just display a small thumbnail of the images generated (later we will remove this since we just want a video, but for debugging purposes we will still display the thumbnails).
+
+Step 4.
+4. We will split the audio (generated song in step 1) in 4 equal parts using this FFMPEG API:
+curl -X POST "https://ffmpegapi.net/api/split_audio" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: ffmpeg_KfTAf98EY9OCuriwBtLT34ZtWZLJtnXX" \
+  -d '{
+    "audio_url": "https://example.com/audio.mp3",
+    "parts": 4
+  }'
+API_KEY: ffmpeg_KfTAf98EY9OCuriwBtLT34ZtWZLJtnXX
+
+Response Example:
+{
+  "success": true,
+  "message": "Audio successfully split into 4 parts",
+  "parts": 4,
+  "audio_parts": [
+    {
+      "part": "split_part_01.mp3",
+      "download_url": "https://ffmpegapi.net/download/uuid/split_part_01.mp3"
+    },
+    {
+      "part": "split_part_02.mp3", 
+      "download_url": "https://ffmpegapi.net/download/uuid/split_part_02.mp3"
+    },
+    {
+      "part": "split_part_03.mp3",
+      "download_url": "https://ffmpegapi.net/download/uuid/split_part_03.mp3"
+    },
+    {
+      "part": "split_part_04.mp3",
+      "download_url": "https://ffmpegapi.net/download/uuid/split_part_04.mp3"
+    }
+  ]
+}
+
+For debugging purposes, display the 4 audio files generated (no player needed)
+
+Step 5.
+5. Now that we have 4 images and 4 audios we will now generate 4 videos using 1 image with each audio from previous step.
+We will use Wavespeed.ai to generate the videos.
+curl --location --request POST 'https://api.wavespeed.ai/api/v3/wavespeed-ai/multitalk' \
+--header "Content-Type: application/json" \
+--header "Authorization: Bearer ${WAVESPEED_API_KEY}" \
+--data-raw '{
+  "audio": "${audio_url_part1.mp3}",
+  "image": "${image_url_1.png}",
+  "prompt": "${prompt_1}",
+  "seed": -1
+}'
+You will get a JSON with an "id" as a result, this id is the request_id that will be used to check for results like this:
+
+curl --location --request GET "https://api.wavespeed.ai/api/v3/predictions/${requestId}/result" \
+--header "Authorization: Bearer ${WAVESPEED_API_KEY}"
+
+Sample response:
+{
+    "code": 200,
+    "message": "success",
+    "data": {
+        "id": "1e79ab9254b64b118bcf060919dd412d",
+        "model": "wavespeed-ai/multitalk",
+        "outputs": [
+            "https://d2p7pge43lyniu.cloudfront.net/output/f7a50fd0-5f78-49e9-86d1-028acc639d9f-u1_6a21357a-b917-420e-96d9-f6aa94e447fd.mp4"
+        ],
+        "urls": {
+            "get": "https://api.wavespeed.ai/api/v3/predictions/1e79ab9254b64b118bcf060919dd412d/result"
+        },
+        "has_nsfw_contents": null,
+        "status": "completed",
+        "created_at": "2025-08-26T22:47:00.312292967Z",
+        "error": "",
+        "executionTime": 620161,
+        "timings": {
+            "inference": 620161
+        }
+    }
+}
+
+You will query for each of the videos until the 4 videos have been generated.
+
+
+Step 6.
+Once we have 4 video parts we will merge all of them using FFMPEG API again.
+
+https://ffmpegapi.net/api/merge_videos
+API_KEY: ffmpeg_KfTAf98EY9OCuriwBtLT34ZtWZLJtnXX
+
+Headers:
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: ffmpeg_KfTAf98EY9OCuriwBtLT34ZtWZLJtnXX" \
+Request:
+{
+  "video_urls": [
+    "https://example.com/video1.mp4",
+    "https://example.com/video2.mp4",
+    "https://example.com/video3.mp4",
+"https://example.com/video4.mp4"
+  ],
+  "async": false
+}
+
+Response:
+{
+  "success": true,
+  "message": "Videos merged successfully",
+  "download_url": "https://ffmpegapi.net/download/merged_filename.mp4",
+  "filename": "unique_merged_filename.mp4"
+}
+
+On every step while things are generating we will show a progress bar.
+Then will show the generated video after it is done.
+
+Add logging messages on every step for debugging purposes.
+
+We will use SUPABASE as database for all the information and user the authentication.
+
+The UI design should be a modern dark theme with gradient pink buttons and fonts.
