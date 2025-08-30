@@ -12,11 +12,24 @@ export async function generateLyrics(songDescription: string): Promise<string> {
       messages: [
         {
           role: "system",
-          content: "You are a creative songwriter. Generate meaningful lyrics based on the provided description. Include verses, chorus, and bridge sections as appropriate. Format section headers using square brackets like [Verse 1], [Chorus], [Bridge], [Verse 2], etc. Do not use asterisks or markdown formatting."
+          content: "You are a creative songwriter. Generate meaningful lyrics based on the provided description. Include verses, chorus, and bridge sections as appropriate. IMPORTANT: Format section headers ONLY using square brackets like [Verse 1], [Chorus], [Bridge], [Verse 2], etc. NEVER use asterisks (**), markdown formatting, or any other symbols for section headers. Only use square brackets [ ]."
         },
         {
           role: "user",
-          content: `Generate lyrics for a song about: ${songDescription}`
+          content: `Generate lyrics for a song about: ${songDescription}
+
+Example format:
+[Verse 1]
+Your lyrics here...
+
+[Chorus]
+Your chorus here...
+
+[Verse 2]
+More lyrics here...
+
+[Bridge]
+Bridge lyrics here...`
         }
       ],
       max_tokens: 1000,
