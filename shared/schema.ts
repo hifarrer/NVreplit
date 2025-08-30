@@ -1,0 +1,69 @@
+import { sql } from "drizzle-orm";
+import { pgTable, text, varchar, timestamp, jsonb, integer, boolean } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  email: text("email").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const projects = pgTable("projects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  currentStep: integer("current_step").default(1).notNull(),
+  audioUrl: text("audio_url"),
+  audioType: text("audio_type"), // 'uploaded' | 'generated'
+  audioPrompt: text("audio_prompt"),
+  audioTags: text("audio_tags"),
+  audioLyrics: text("audio_lyrics"),
+  characterImageUrl: text("character_image_url"),
+  characterType: text("character_type"), // 'uploaded' | 'generated'
+  characterPrompt: text("character_prompt"),
+  scenePrompts: jsonb("scene_prompts"), // Array of scene prompts
+  sceneImages: jsonb("scene_images"), // Array of generated scene image URLs
+  audioSegments: jsonb("audio_segments"), // Array of split audio URLs
+  videoSegments: jsonb("video_segments"), // Array of generated video URLs
+  finalVideoUrl: text("final_video_url"),
+  isCompleted: boolean("is_completed").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const generationLogs = pgTable("generation_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").references(() => projects.id).notNull(),
+  step: text("step").notNull(),
+  message: text("message").notNull(),
+  status: text("status").notNull(), // 'started' | 'progress' | 'completed' | 'error'
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertProjectSchema = createInsertSchema(projects).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertGenerationLogSchema = createInsertSchema(generationLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
+export type InsertProject = z.infer<typeof insertProjectSchema>;
+export type Project = typeof projects.$inferSelect;
+export type InsertGenerationLog = z.infer<typeof insertGenerationLogSchema>;
+export type GenerationLog = typeof generationLogs.$inferSelect;
