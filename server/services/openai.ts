@@ -35,7 +35,19 @@ Bridge lyrics here...`
       max_tokens: 1000,
     });
 
-    return response.choices[0].message.content || "";
+    const rawLyrics = response.choices[0].message.content || "";
+    
+    // Post-process to fix formatting: convert **Section:** to [Section]
+    const processedLyrics = rawLyrics
+      .replace(/\*\*(Verse \d+)\*\*:?/g, '[$1]')
+      .replace(/\*\*(Chorus)\*\*:?/g, '[$1]')
+      .replace(/\*\*(Bridge)\*\*:?/g, '[$1]')
+      .replace(/\*\*(Outro)\*\*:?/g, '[$1]')
+      .replace(/\*\*(Intro)\*\*:?/g, '[$1]')
+      .replace(/\*\*(Pre-Chorus)\*\*:?/g, '[$1]')
+      .replace(/\*\*(Refrain)\*\*:?/g, '[$1]');
+    
+    return processedLyrics;
   } catch (error) {
     console.error("OpenAI lyrics generation error:", error);
     throw new Error("Failed to generate lyrics: " + (error as Error).message);
