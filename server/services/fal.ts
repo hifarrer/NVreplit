@@ -20,11 +20,14 @@ export async function generateCharacterImage(prompt: string): Promise<string> {
     }
 
     const result = await response.json();
+    console.log("Fal.ai submission result:", result);
     const requestId = result.request_id;
 
     if (!requestId) {
       throw new Error("No request ID received from Fal.ai");
     }
+    
+    console.log("Fal.ai request ID:", requestId);
 
     // Poll for results
     let attempts = 0;
@@ -45,10 +48,20 @@ export async function generateCharacterImage(prompt: string): Promise<string> {
 
       const statusResult = await statusResponse.json();
       
-      if (statusResult.status === "completed" && statusResult.images && statusResult.images.length > 0) {
-        return statusResult.images[0].url;
+      console.log("Fal.ai status result:", statusResult);
+      
+      if (statusResult.status === "completed") {
+        if (statusResult.data && statusResult.data.images && statusResult.data.images.length > 0) {
+          return statusResult.data.images[0].url;
+        } else if (statusResult.images && statusResult.images.length > 0) {
+          return statusResult.images[0].url;
+        } else {
+          console.log("No images found in completed response:", statusResult);
+          throw new Error("No images in completed response");
+        }
       } else if (statusResult.status === "failed") {
-        throw new Error("Image generation failed");
+        console.log("Fal.ai generation failed:", statusResult.error);
+        throw new Error(`Image generation failed: ${statusResult.error || "Unknown error"}`);
       }
 
       attempts++;
