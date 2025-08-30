@@ -1,5 +1,8 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, users, projects, generationLogs } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -74,6 +77,22 @@ export class MemStorage implements IStorage {
     const project: Project = { 
       ...insertProject, 
       id,
+      description: insertProject.description || null,
+      currentStep: insertProject.currentStep || 1,
+      audioUrl: insertProject.audioUrl || null,
+      audioType: insertProject.audioType || null,
+      audioPrompt: insertProject.audioPrompt || null,
+      audioTags: insertProject.audioTags || null,
+      audioLyrics: insertProject.audioLyrics || null,
+      characterImageUrl: insertProject.characterImageUrl || null,
+      characterType: insertProject.characterType || null,
+      characterPrompt: insertProject.characterPrompt || null,
+      scenePrompts: insertProject.scenePrompts || null,
+      sceneImages: insertProject.sceneImages || null,
+      audioSegments: insertProject.audioSegments || null,
+      videoSegments: insertProject.videoSegments || null,
+      finalVideoUrl: insertProject.finalVideoUrl || null,
+      isCompleted: insertProject.isCompleted || false,
       createdAt: now,
       updatedAt: now
     };
@@ -103,6 +122,7 @@ export class MemStorage implements IStorage {
     const log: GenerationLog = {
       ...insertLog,
       id,
+      metadata: insertLog.metadata || null,
       createdAt: new Date()
     };
     this.generationLogs.set(id, log);
@@ -116,4 +136,92 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database Storage Implementation
+export class DbStorage implements IStorage {
+  private db: ReturnType<typeof drizzle>;
+
+  constructor() {
+    try {
+      const client = postgres(process.env.DATABASE_URL!);
+      this.db = drizzle(client);
+    } catch (error) {
+      throw new Error("Failed to connect to database: " + (error as Error).message);
+    }
+  }
+
+  async getUser(id: string): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.username, username)).limit(1);
+    return result[0];
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.email, email)).limit(1);
+    return result[0];
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const result = await this.db.insert(users).values(insertUser).returning();
+    return result[0];
+  }
+
+  async getProject(id: string): Promise<Project | undefined> {
+    const result = await this.db.select().from(projects).where(eq(projects.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getProjectsByUser(userId: string): Promise<Project[]> {
+    return await this.db.select().from(projects).where(eq(projects.userId, userId));
+  }
+
+  async createProject(insertProject: InsertProject): Promise<Project> {
+    const result = await this.db.insert(projects).values(insertProject).returning();
+    return result[0];
+  }
+
+  async updateProject(id: string, updates: Partial<Project>): Promise<Project | undefined> {
+    const result = await this.db.update(projects)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(projects.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteProject(id: string): Promise<boolean> {
+    const result = await this.db.delete(projects).where(eq(projects.id, id));
+    return result.length > 0;
+  }
+
+  async addGenerationLog(insertLog: InsertGenerationLog): Promise<GenerationLog> {
+    const result = await this.db.insert(generationLogs).values(insertLog).returning();
+    return result[0];
+  }
+
+  async getGenerationLogs(projectId: string): Promise<GenerationLog[]> {
+    return await this.db.select().from(generationLogs)
+      .where(eq(generationLogs.projectId, projectId))
+      .orderBy(generationLogs.createdAt);
+  }
+}
+
+// Use database storage if DATABASE_URL is available, otherwise fallback to memory storage
+let storage: IStorage;
+
+try {
+  if (process.env.DATABASE_URL) {
+    storage = new DbStorage();
+    console.log("Using database storage");
+  } else {
+    storage = new MemStorage();
+    console.log("Using memory storage");
+  }
+} catch (error) {
+  console.warn("Database connection failed, using memory storage:", error);
+  storage = new MemStorage();
+}
+
+export { storage };

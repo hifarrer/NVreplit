@@ -14,7 +14,7 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResul
   const [showLogs, setShowLogs] = useState(false);
   const { toast } = useToast();
 
-  const { data: logs = [] } = useQuery({
+  const { data: logs = [] } = useQuery<any[]>({
     queryKey: ["/api/projects", projectId, "logs"],
     enabled: showLogs,
   });
