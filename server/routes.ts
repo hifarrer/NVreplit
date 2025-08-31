@@ -548,10 +548,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Convert relative path to full URL for FFMPEG API
       let audioUrl = project.audioUrl;
       if (audioUrl.startsWith('/uploads/')) {
-        audioUrl = `https://${req.get('host')}${audioUrl}`;
+        // Use the actual Replit dev domain from environment
+        const replitDevDomain = process.env.REPLIT_DEV_DOMAIN;
+        
+        if (replitDevDomain) {
+          // Use the actual Replit dev domain
+          audioUrl = `https://${replitDevDomain}${audioUrl}`;
+        } else {
+          // Fallback to constructing from environment variables
+          const replSlug = process.env.REPL_SLUG;
+          const replOwner = process.env.REPL_OWNER;
+          
+          if (replSlug && replOwner) {
+            audioUrl = `https://${replSlug}-${replOwner}.replit.app${audioUrl}`;
+          } else {
+            // Final fallback to host header
+            const host = req.get('host') || 'localhost:5000';
+            audioUrl = host.includes('localhost') ? `http://${host}${audioUrl}` : `https://${host}${audioUrl}`;
+          }
+        }
       }
       
-      console.log("Audio URL for FFMPEG:", audioUrl);
+      console.log("Original audio URL:", project.audioUrl);
+      console.log("Host:", req.get('host'));
+      console.log("Final audio URL for FFMPEG:", audioUrl);
       const audioSegments = await splitAudio(audioUrl);
       const audioUrls = audioSegments.map(segment => segment.download_url);
 
