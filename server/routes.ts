@@ -367,8 +367,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/projects/:id/generate-character", async (req, res) => {
     try {
       console.log("Character generation route called with body:", req.body);
-      const { prompt } = req.body;
+      const { prompt, aspectRatio = "16:9" } = req.body;
       console.log("Extracted prompt:", prompt);
+      console.log("Aspect ratio:", aspectRatio);
       
       if (!prompt || !prompt.trim()) {
         throw new Error("No prompt provided");
@@ -382,8 +383,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { prompt }
       });
 
-      console.log("About to call generateCharacterImage...");
-      const imageUrl = await generateCharacterImage(prompt);
+      console.log("About to call generateCharacterImage with aspect ratio:", aspectRatio);
+      const imageUrl = await generateCharacterImage(prompt, aspectRatio);
       console.log("generateCharacterImage returned:", imageUrl);
       
       await storage.updateProject(req.params.id, {

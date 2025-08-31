@@ -24,9 +24,16 @@ const artStyles = [
   { id: "pixel", name: "Pixel Art", description: "Retro 8-bit style" }
 ];
 
+const videoFormats = [
+  { id: "16:9", name: "Horizontal", description: "Standard widescreen" },
+  { id: "1:1", name: "Square", description: "Perfect for social media" },
+  { id: "9:16", name: "Vertical", description: "Mobile and stories" }
+];
+
 export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated, projectId }: CharacterGeneratorModalProps) {
   const [description, setDescription] = useState("");
   const [selectedStyle, setSelectedStyle] = useState("cartoon");
+  const [selectedFormat, setSelectedFormat] = useState("16:9");
   const [generatedImageUrl, setGeneratedImageUrl] = useState("");
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
@@ -48,7 +55,8 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
       }, 2000);
 
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-character`, {
-        prompt: fullPrompt
+        prompt: fullPrompt,
+        aspectRatio: selectedFormat
       });
 
       clearInterval(progressInterval);
@@ -84,6 +92,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
   const handleClose = () => {
     setDescription("");
     setSelectedStyle("cartoon");
+    setSelectedFormat("16:9");
     setGeneratedImageUrl("");
     setProgress(0);
     onClose();
@@ -137,6 +146,32 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
                 >
                   <div className="font-semibold text-sm">{style.name}</div>
                   <div className="text-xs text-muted-foreground">{style.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Video Format */}
+          <div>
+            <Label className="flex items-center text-sm font-semibold mb-3">
+              <i className="fas fa-video text-primary mr-2"></i>
+              Video Format
+            </Label>
+            <div className="grid grid-cols-3 gap-3">
+              {videoFormats.map((format) => (
+                <button
+                  key={format.id}
+                  onClick={() => setSelectedFormat(format.id)}
+                  className={cn(
+                    "p-3 border rounded-lg text-left transition-colors",
+                    selectedFormat === format.id 
+                      ? "border-primary bg-primary/10" 
+                      : "border-border hover:border-primary"
+                  )}
+                  data-testid={`format-${format.id}`}
+                >
+                  <div className="font-semibold text-sm">{format.name}</div>
+                  <div className="text-xs text-muted-foreground">{format.description}</div>
                 </button>
               ))}
             </div>

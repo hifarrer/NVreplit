@@ -1,7 +1,8 @@
 const FAL_KEY = process.env.FAL_KEY || "b479bcce-ae9a-439a-a9d6-3bf0ab5cf8f0:d9afcc34d42d7e0f0dc04607a81c60a0";
 
-export async function generateCharacterImage(prompt: string): Promise<string> {
+export async function generateCharacterImage(prompt: string, aspectRatio: string = "16:9"): Promise<string> {
   console.log("Starting Fal.ai character generation with prompt:", prompt);
+  console.log("Aspect ratio:", aspectRatio);
   console.log("Using FAL_KEY:", FAL_KEY ? "Key present" : "Key missing");
   
   try {
@@ -16,6 +17,7 @@ export async function generateCharacterImage(prompt: string): Promise<string> {
       },
       body: JSON.stringify({
         prompt: prompt,
+        aspect_ratio: aspectRatio,
       }),
     });
 
