@@ -8,6 +8,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { RefreshCw } from "lucide-react";
 
 interface CharacterGeneratorModalProps {
   isOpen: boolean;
@@ -168,7 +169,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
                   className="absolute top-2 right-2 w-8 h-8 p-0 bg-black/50 backdrop-blur-sm rounded-full hover:bg-black/70"
                   data-testid="regenerate-character-button"
                 >
-                  <i className="fas fa-redo text-xs" />
+                  <RefreshCw className="w-4 h-4" />
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground mt-3">Click the refresh button to generate another variation</p>
