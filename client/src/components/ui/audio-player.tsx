@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Play, Pause, Download } from "lucide-react";
 
 interface AudioPlayerProps {
   audioUrl: string;
@@ -56,10 +57,29 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
     <div className={cn("p-6 media-player rounded-lg", className)} data-testid="audio-player">
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
       
-      <h4 className="text-lg font-semibold mb-4 flex items-center">
-        <i className="fas fa-play text-primary mr-2"></i>
-        {title}
-      </h4>
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-lg font-semibold flex items-center">
+          <Play className="w-5 h-5 text-primary mr-2" />
+          {title}
+        </h4>
+        <Button
+          onClick={() => {
+            const link = document.createElement('a');
+            link.href = audioUrl;
+            link.download = `${title}.mp3`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }}
+          variant="outline"
+          size="sm"
+          className="flex items-center space-x-2"
+          data-testid="audio-download-button"
+        >
+          <Download className="w-4 h-4" />
+          <span>Download</span>
+        </Button>
+      </div>
       
       <div className="flex items-center space-x-4">
         <Button
@@ -67,7 +87,11 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
           className="w-12 h-12 floating-button rounded-full flex items-center justify-center p-0"
           data-testid="audio-play-button"
         >
-          <i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'} text-primary-foreground`} />
+          {isPlaying ? (
+            <Pause className="w-5 h-5 text-primary-foreground" />
+          ) : (
+            <Play className="w-5 h-5 text-primary-foreground" />
+          )}
         </Button>
         
         <div className="flex-1">
