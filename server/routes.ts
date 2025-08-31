@@ -6,6 +6,7 @@ import fs from "fs";
 import { storage } from "./storage";
 import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema } from "@shared/schema";
 import { generateLyrics, generateScenePrompts } from "./services/openai";
+import { ObjectStorageService } from "./objectStorage";
 import { generateSong } from "./services/elevenlabs";
 import { generateCharacterImage, generateSceneImages } from "./services/fal";
 import { generateAllVideoSegments } from "./services/wavespeed";
@@ -621,6 +622,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("=== STARTING PICTURE-IN-PICTURE COMPOSITIONS ===");
       console.log("Number of segment pairs:", segmentPairs.length);
       
+      const objectStorageService = new ObjectStorageService();
       const pipVideos: string[] = [];
       for (let i = 0; i < segmentPairs.length; i++) {
         console.log(`\n--- PiP Composition ${i + 1}/4 ---`);
@@ -629,8 +631,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         try {
           const pipResult = await pictureInPicture(segmentPairs[i].a, segmentPairs[i].b);
-          pipVideos.push(pipResult.download_url);
           console.log(`PiP composition ${i + 1} successful:`, pipResult.download_url);
+          
+          // Save the PiP video to object storage to prevent expiration
+          console.log(`Saving PiP segment ${i + 1} to object storage...`);
+          const savedVideoUrl = await objectStorageService.uploadVideoFromUrl(
+            pipResult.download_url,
+            `pip_segment_${i + 1}_${Date.now()}.mp4`
+          );
+          pipVideos.push(savedVideoUrl);
+          console.log(`PiP segment ${i + 1} saved to storage:`, savedVideoUrl);
           
           await storage.addGenerationLog({
             projectId: req.params.id,
@@ -675,9 +685,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("PiP video URLs to merge:", pipVideos);
       
       let finalVideo;
+      let savedFinalVideoUrl: string;
       try {
         finalVideo = await mergeVideos(pipVideos);
         console.log("Final video merge successful:", finalVideo.download_url);
+        
+        // Save the final video to object storage as well
+        console.log("Saving final video to object storage...");
+        const objectStorageService = new ObjectStorageService();
+        savedFinalVideoUrl = await objectStorageService.uploadVideoFromUrl(
+          finalVideo.download_url,
+          `final_video_${Date.now()}.mp4`
+        );
+        console.log("Final video saved to storage:", savedFinalVideoUrl);
       } catch (mergeError) {
         console.error("Final video merge failed:", mergeError);
         await storage.addGenerationLog({
@@ -694,7 +714,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.updateProject(req.params.id, {
-        finalVideoUrl: finalVideo.download_url,
+        finalVideoUrl: savedFinalVideoUrl,
         isCompleted: true,
         currentStep: 6
       });
@@ -704,10 +724,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         step: "video_generation",
         message: "Video generation completed",
         status: "completed",
-        metadata: { finalVideoUrl: finalVideo.download_url }
+        metadata: { finalVideoUrl: savedFinalVideoUrl }
       });
 
-      res.json({ finalVideoUrl: finalVideo.download_url });
+      res.json({ finalVideoUrl: savedFinalVideoUrl });
     } catch (error) {
       console.error("Generate video error:", error);
       const errorMessage = (error as Error).message;
