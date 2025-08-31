@@ -629,7 +629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Convert relative path to full URL for FFMPEG API
       let audioUrl = project.audioUrl;
-      if (audioUrl.startsWith('/uploads/')) {
+      if (audioUrl.startsWith('/')) {
         // Use the actual Replit dev domain from environment
         const replitDevDomain = process.env.REPLIT_DEV_DOMAIN;
         
