@@ -340,15 +340,15 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
             </div>
 
             <div>
-              <Label className="flex items-center text-sm font-semibold mb-2">
-                <i className="fas fa-pencil-alt text-accent mr-2"></i>
-                Lyrics
-              </Label>
-              <div className="space-y-3">
+              <div className="flex items-center justify-between mb-2">
+                <Label className="flex items-center text-sm font-semibold">
+                  <i className="fas fa-pencil-alt text-accent mr-2"></i>
+                  Lyrics
+                </Label>
                 <Button
-                  variant="secondary"
                   onClick={() => generateLyricsMutation.mutate()}
                   disabled={!description.trim() || generateLyricsMutation.isPending}
+                  className="bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white"
                   data-testid="generate-lyrics-button"
                 >
                   {generateLyricsMutation.isPending ? (
@@ -363,6 +363,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
                     </>
                   )}
                 </Button>
+              </div>
+              <div className="space-y-3">
                 <Textarea
                   value={lyrics}
                   onChange={(e) => setLyrics(e.target.value)}
