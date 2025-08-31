@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { AudioSegment } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Check, X, Clock, Bug, Music, Image, Scissors, Images, Video, Film } from "lucide-react";
 
 interface VideoGenerationStepProps {
   projectId: string;
@@ -164,13 +164,17 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
                   )}
                 >
                   {status === "completed" ? (
-                    <i className="fas fa-check text-white text-sm" />
+                    <Check className="w-4 h-4 text-white" />
                   ) : status === "active" ? (
                     <div className="loading-spinner w-4 h-4" />
                   ) : status === "error" ? (
-                    <i className="fas fa-times text-white text-sm" />
+                    <X className="w-4 h-4 text-white" />
                   ) : (
-                    <i className={`fas fa-${step.icon} text-muted-foreground text-sm`} />
+                    step.icon === "scissors" ? <Scissors className="w-4 h-4 text-muted-foreground" /> :
+                    step.icon === "images" ? <Images className="w-4 h-4 text-muted-foreground" /> :
+                    step.icon === "video" ? <Video className="w-4 h-4 text-muted-foreground" /> :
+                    step.icon === "film" ? <Film className="w-4 h-4 text-muted-foreground" /> :
+                    null
                   )}
                 </div>
                 <div className="flex-1">
@@ -178,7 +182,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
                   <p className="text-sm text-muted-foreground">{step.description}</p>
                 </div>
                 {status === "pending" && (
-                  <i className="fas fa-clock text-muted-foreground" />
+                  <Clock className="w-4 h-4 text-muted-foreground" />
                 )}
               </div>
             );
@@ -188,7 +192,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
         {/* Debug Information */}
         <div className="bg-muted/20 rounded-lg p-6 mb-8" data-testid="debug-section">
           <h4 className="text-lg font-semibold mb-4 flex items-center">
-            <i className="fas fa-bug text-accent mr-2"></i>
+            <Bug className="w-4 h-4 text-accent mr-2" />
             Debug Information
           </h4>
           
@@ -199,7 +203,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
               {[1, 2, 3, 4].map((part) => (
                 <div key={part} className="bg-card rounded-lg p-3 border border-border" data-testid={`audio-segment-${part}`}>
                   <div className="flex items-center space-x-2 mb-2">
-                    <i className="fas fa-music text-primary"></i>
+                    <Music className="w-4 h-4 text-primary" />
                     <span className="text-sm font-semibold">Part {part}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -228,7 +232,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
                 >
                   {stepStatuses.images === "completed" ? (
                     <div className="text-center">
-                      <i className="fas fa-image text-2xl text-muted-foreground mb-2"></i>
+                      <Image className="w-8 h-8 text-muted-foreground mb-2 mx-auto" />
                       <p className="text-xs text-muted-foreground">Scene {scene}</p>
                     </div>
                   ) : (
@@ -247,7 +251,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
             onClick={cancelGeneration}
             data-testid="cancel-generation-button"
           >
-            <i className="fas fa-times mr-2"></i>
+            <X className="w-4 h-4 mr-2" />
             Cancel Generation
           </Button>
         </div>

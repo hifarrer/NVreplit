@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { VideoPlayer } from "@/components/ui/video-player";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Clock, Film, Download, Share2, Plus, List, ChevronUp, ChevronDown } from "lucide-react";
 
 interface VideoResultStepProps {
   projectId: string;
@@ -88,17 +88,17 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResul
         <div className="bg-muted/20 rounded-lg p-6 mb-8">
           <div className="grid md:grid-cols-3 gap-6 text-center">
             <div>
-              <i className="fas fa-clock text-primary text-2xl mb-2"></i>
+              <Clock className="w-8 h-8 text-primary mx-auto mb-2" />
               <h5 className="font-semibold">Duration</h5>
               <p className="text-muted-foreground" data-testid="video-duration">2:00 minutes</p>
             </div>
             <div>
-              <i className="fas fa-film text-accent text-2xl mb-2"></i>
+              <Film className="w-8 h-8 text-accent mx-auto mb-2" />
               <h5 className="font-semibold">Resolution</h5>
               <p className="text-muted-foreground" data-testid="video-resolution">1920x1080 HD</p>
             </div>
             <div>
-              <i className="fas fa-download text-primary text-2xl mb-2"></i>
+              <Download className="w-8 h-8 text-primary mx-auto mb-2" />
               <h5 className="font-semibold">File Size</h5>
               <p className="text-muted-foreground" data-testid="video-size">~45 MB</p>
             </div>
@@ -112,7 +112,7 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResul
             className="floating-button"
             data-testid="download-video-button"
           >
-            <i className="fas fa-download mr-2"></i>
+            <Download className="w-4 h-4 mr-2" />
             Download Video
           </Button>
           <Button 
@@ -120,7 +120,7 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResul
             onClick={shareVideo}
             data-testid="share-video-button"
           >
-            <i className="fas fa-share mr-2"></i>
+            <Share2 className="w-4 h-4 mr-2" />
             Share Video
           </Button>
           <Button 
@@ -128,7 +128,7 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResul
             onClick={onCreateNew}
             data-testid="create-new-video-button"
           >
-            <i className="fas fa-plus mr-2"></i>
+            <Plus className="w-4 h-4 mr-2" />
             Create New Video
           </Button>
         </div>
@@ -141,9 +141,9 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResul
               onClick={() => setShowLogs(!showLogs)}
               data-testid="generation-log-toggle"
             >
-              <i className="fas fa-list text-accent mr-2"></i>
+              <List className="w-4 h-4 text-accent mr-2" />
               View Generation Log
-              <i className={`fas fa-chevron-${showLogs ? 'up' : 'down'} ml-auto`}></i>
+              {showLogs ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
             </summary>
             <div className="p-4 pt-0">
               <div className="space-y-2 text-sm font-mono" data-testid="generation-log-content">

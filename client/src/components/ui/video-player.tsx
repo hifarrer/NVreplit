@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Play } from "lucide-react";
 
 interface VideoPlayerProps {
   videoUrl: string;
@@ -48,7 +49,7 @@ export function VideoPlayer({ videoUrl, title = "Video", className, poster }: Vi
               className="w-20 h-20 floating-button rounded-full flex items-center justify-center pointer-events-auto"
               data-testid="video-play-button"
             >
-              <i className="fas fa-play text-2xl text-primary-foreground ml-1" />
+              <Play className="w-8 h-8 text-white fill-white" />
             </Button>
           </div>
         )}

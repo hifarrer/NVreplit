@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw } from "lucide-react";
+import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
 interface AudioCreationStepProps {
@@ -310,7 +310,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
           <TabsContent value="generate" className="mt-6 space-y-6">
             <div>
               <Label className="flex items-center text-sm font-semibold mb-2">
-                <i className="fas fa-lightbulb text-accent mr-2"></i>
+                <Lightbulb className="w-4 h-4 text-accent mr-2" />
                 What is your song about?
               </Label>
               <Textarea
@@ -326,7 +326,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
 
             <div>
               <Label className="flex items-center text-sm font-semibold mb-2">
-                <i className="fas fa-tags text-primary mr-2"></i>
+                <Tags className="w-4 h-4 text-primary mr-2" />
                 Musical Style & Tags
               </Label>
               <Input
@@ -354,7 +354,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label className="flex items-center text-sm font-semibold">
-                  <i className="fas fa-pencil-alt text-accent mr-2"></i>
+                  <PenTool className="w-4 h-4 text-accent mr-2" />
                   Lyrics
                 </Label>
                 <Button
@@ -365,12 +365,12 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
                 >
                   {generateLyricsMutation.isPending ? (
                     <>
-                      <i className="fas fa-spinner fa-spin mr-2"></i>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Generating...
                     </>
                   ) : (
                     <>
-                      <i className="fas fa-magic mr-2"></i>
+                      <Sparkles className="w-4 h-4 mr-2" />
                       Generate Lyrics with AI
                     </>
                   )}
@@ -411,7 +411,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
               className="w-full floating-button"
               data-testid="generate-song-button"
             >
-              <i className="fas fa-magic mr-2"></i>
+              <Sparkles className="w-4 h-4 mr-2" />
               Generate Song
             </Button>
           </TabsContent>

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 
 interface ProgressIndicatorProps {
   currentStep: number;
@@ -30,9 +31,9 @@ export function ProgressIndicator({ currentStep, totalSteps = 6, className }: Pr
                 data-testid={`step-indicator-${step.number}`}
               >
                 {index < currentStep ? (
-                  <i className="fas fa-check text-sm" />
+                  <Check className="w-4 h-4" />
                 ) : (
-                  step.number
+                  <span>{step.number}</span>
                 )}
               </div>
               {index < steps.slice(0, totalSteps).length - 1 && (

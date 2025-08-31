@@ -5,7 +5,7 @@ import { CharacterLibraryModal } from "@/components/modals/character-library-mod
 import { SaveCharacterModal } from "@/components/modals/save-character-modal";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Images, Image, User, Upload, Sparkles, Bot, UserCheck, Bookmark, ArrowLeft, ArrowRight } from "lucide-react";
 
 interface CharacterCreationStepProps {
   projectId: string;
@@ -95,7 +95,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
               className="hover:bg-muted/50"
               data-testid="button-character-library"
             >
-              <i className="fas fa-images mr-2"></i>
+              <Images className="w-4 h-4 mr-2" />
               My Character Library
             </Button>
           </div>
@@ -105,12 +105,12 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
           {/* Upload Character Image */}
           <div className="space-y-4">
             <h4 className="text-lg font-semibold flex items-center">
-              <i className="fas fa-image text-primary mr-2"></i>
+              <Image className="w-4 h-4 text-primary mr-2" />
               Upload Character Image
             </h4>
             
             <div className="upload-zone rounded-lg p-12 text-center cursor-pointer" data-testid="character-upload-zone">
-              <i className="fas fa-user text-4xl text-muted-foreground mb-4"></i>
+              <User className="w-12 h-12 text-muted-foreground mb-4 mx-auto" />
               <p className="text-muted-foreground mb-2">Drag and drop your character image</p>
               <p className="text-sm text-muted-foreground">or click to browse</p>
               <p className="text-xs text-muted-foreground mt-2">PNG, JPG, GIF (Max 5MB)</p>
@@ -121,7 +121,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
               className="w-full floating-button"
               data-testid="upload-character-button"
             >
-              <i className="fas fa-upload mr-2"></i>
+              <Upload className="w-4 h-4 mr-2" />
               Upload Character
             </Button>
           </div>
@@ -129,12 +129,12 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
           {/* Generate Character */}
           <div className="space-y-4">
             <h4 className="text-lg font-semibold flex items-center">
-              <i className="fas fa-sparkles text-accent mr-2"></i>
+              <Sparkles className="w-4 h-4 text-accent mr-2" />
               Generate AI Character
             </h4>
             
             <div className="bg-muted/30 rounded-lg p-8 text-center">
-              <i className="fas fa-robot text-4xl text-accent mb-4"></i>
+              <Bot className="w-12 h-12 text-accent mb-4 mx-auto" />
               <p className="text-muted-foreground mb-4">Create a unique character using AI image generation</p>
               <ul className="text-sm text-muted-foreground space-y-1 mb-4">
                 <li>• Describe your character's appearance</li>
@@ -148,7 +148,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
               className="w-full floating-button"
               data-testid="generate-character-button"
             >
-              <i className="fas fa-sparkles mr-2"></i>
+              <Sparkles className="w-4 h-4 mr-2" />
               Generate Character
             </Button>
           </div>
@@ -158,7 +158,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
         {currentCharacterUrl && (
           <div className="mt-8 p-6 media-player rounded-lg" data-testid="character-preview-section">
             <h4 className="text-lg font-semibold mb-4 flex items-center">
-              <i className="fas fa-user-check text-primary mr-2"></i>
+              <UserCheck className="w-4 h-4 text-primary mr-2" />
               Your Character
             </h4>
             <div className="flex items-center justify-between">
@@ -192,7 +192,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
                   className="hover:bg-muted/50"
                   data-testid="button-save-character"
                 >
-                  <i className="fas fa-bookmark mr-2"></i>
+                  <Bookmark className="w-4 h-4 mr-2" />
                   Save Character
                 </Button>
               )}
@@ -207,7 +207,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
             onClick={onBack}
             data-testid="back-to-audio-button"
           >
-            <i className="fas fa-arrow-left mr-2"></i>
+            <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Audio
           </Button>
           <Button
@@ -216,7 +216,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
             className="floating-button py-3 px-8"
             data-testid="proceed-to-scenes-button"
           >
-            <i className="fas fa-arrow-right mr-2"></i>
+            <ArrowRight className="w-4 h-4 mr-2" />
             Generate Video Scenes
           </Button>
         </div>
