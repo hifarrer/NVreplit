@@ -5,6 +5,7 @@ import { CharacterCreationStep } from "@/components/steps/character-creation-ste
 import { SceneGenerationStep } from "@/components/steps/scene-generation-step";
 import { VideoGenerationStep } from "@/components/steps/video-generation-step";
 import { VideoResultStep } from "@/components/steps/video-result-step";
+import { MyVideos } from "@/components/my-videos";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Project } from "@/lib/types";
@@ -111,6 +112,9 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
+        {/* My Videos Section */}
+        <MyVideos />
+        
         <ProgressIndicator currentStep={currentStep} />
 
         {currentStep === 1 && (

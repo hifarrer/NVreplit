@@ -192,6 +192,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all user's completed videos
+  app.get("/api/my-videos", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const projects = await storage.getProjectsByUser(userId);
+      // Filter only completed projects with final videos
+      const completedVideos = projects
+        .filter(p => p.isCompleted && p.finalVideoUrl)
+        .map(p => ({
+          id: p.id,
+          title: p.title,
+          videoUrl: p.finalVideoUrl,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt
+        }));
+      res.json(completedVideos);
+    } catch (error) {
+      console.error("Get my videos error:", error);
+      res.status(500).json({ error: "Failed to get videos" });
+    }
+  });
+
   // Get project by ID
   app.get("/api/projects/:id", authenticateToken, async (req, res) => {
     try {
