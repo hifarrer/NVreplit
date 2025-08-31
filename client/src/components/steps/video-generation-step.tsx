@@ -18,32 +18,81 @@ interface VideoGenerationStepProps {
 export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: VideoGenerationStepProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [overallProgress, setOverallProgress] = useState(0);
+  const [progressInterval, setProgressInterval] = useState<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
   const generateVideoMutation = useMutation({
     mutationFn: async () => {
-      const steps = [
-        { progress: 16, step: 1, text: 'Splitting audio into segments...' },
-        { progress: 33, step: 2, text: 'Generating scene images...' },
-        { progress: 50, step: 3, text: 'Creating video segment 1...' },
-        { progress: 66, step: 4, text: 'Creating video segment 2...' },
-        { progress: 83, step: 5, text: 'Creating video segments 3 & 4...' },
-        { progress: 100, step: 6, text: 'Merging final video...' }
-      ];
-
-      for (let i = 0; i < steps.length; i++) {
-        const step = steps[i];
-        setOverallProgress(step.progress);
-        setCurrentStep(step.step);
+      return new Promise<any>((resolve, reject) => {
+        // Start realistic progress simulation
+        setOverallProgress(5);
+        setCurrentStep(1);
         
-        // Simulate step completion
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
-
-      const response = await apiRequest("POST", `/api/projects/${projectId}/generate-video`, {});
-      return response.json();
+        const steps = [
+          { progress: 15, step: 1, delay: 30000 }, // 30s - Splitting audio
+          { progress: 25, step: 2, delay: 45000 }, // 45s - Generating scene images  
+          { progress: 45, step: 3, delay: 120000 }, // 2min - Creating video segment 1
+          { progress: 65, step: 4, delay: 120000 }, // 2min - Creating video segment 2
+          { progress: 85, step: 5, delay: 180000 }, // 3min - Creating segments 3 & 4
+          { progress: 95, step: 6, delay: 60000 }, // 1min - Merging final video
+        ];
+        
+        let currentStepIndex = 0;
+        let startTime = Date.now();
+        
+        const updateProgress = () => {
+          const elapsed = Date.now() - startTime;
+          
+          // Find current step based on elapsed time
+          let totalTime = 0;
+          let activeStep = steps[0];
+          
+          for (let i = 0; i < steps.length; i++) {
+            totalTime += steps[i].delay;
+            if (elapsed < totalTime) {
+              activeStep = steps[i];
+              currentStepIndex = i;
+              break;
+            }
+          }
+          
+          // Interpolate progress within current step
+          const stepStartTime = currentStepIndex === 0 ? 0 : 
+            steps.slice(0, currentStepIndex).reduce((sum, step) => sum + step.delay, 0);
+          const stepProgress = Math.min(1, (elapsed - stepStartTime) / activeStep.delay);
+          const prevProgress = currentStepIndex === 0 ? 5 : steps[currentStepIndex - 1].progress;
+          const interpolatedProgress = prevProgress + (activeStep.progress - prevProgress) * stepProgress;
+          
+          setOverallProgress(Math.round(interpolatedProgress));
+          setCurrentStep(activeStep.step);
+        };
+        
+        // Update progress every 2 seconds
+        const interval = setInterval(updateProgress, 2000);
+        setProgressInterval(interval);
+        
+        // Start the actual API call
+        apiRequest("POST", `/api/projects/${projectId}/generate-video`, {})
+          .then(response => response.json())
+          .then(data => {
+            clearInterval(interval);
+            setProgressInterval(null);
+            setOverallProgress(100);
+            setCurrentStep(6);
+            resolve(data);
+          })
+          .catch(error => {
+            clearInterval(interval);
+            setProgressInterval(null);
+            reject(error);
+          });
+      });
     },
     onSuccess: (data) => {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        setProgressInterval(null);
+      }
       onVideoComplete(data.finalVideoUrl);
       toast({
         title: "Success",
@@ -51,6 +100,10 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
       });
     },
     onError: (error) => {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        setProgressInterval(null);
+      }
       toast({
         title: "Generation Failed",
         description: error instanceof Error ? error.message : "Failed to generate video",
@@ -63,7 +116,14 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
 
   useEffect(() => {
     generateVideoMutation.mutate();
-  }, []);
+    
+    // Cleanup interval on unmount
+    return () => {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+    };
+  }, [progressInterval]);
 
   const cancelGeneration = () => {
     generateVideoMutation.reset();
