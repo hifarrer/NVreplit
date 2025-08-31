@@ -545,7 +545,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { step: 1, total: 4 }
       });
 
-      const audioSegments = await splitAudio(project.audioUrl);
+      // Convert relative path to full URL for FFMPEG API
+      let audioUrl = project.audioUrl;
+      if (audioUrl.startsWith('/uploads/')) {
+        audioUrl = `https://${req.get('host')}${audioUrl}`;
+      }
+      
+      console.log("Audio URL for FFMPEG:", audioUrl);
+      const audioSegments = await splitAudio(audioUrl);
       const audioUrls = audioSegments.map(segment => segment.download_url);
 
       await storage.updateProject(req.params.id, {
