@@ -142,7 +142,12 @@ export class DbStorage implements IStorage {
 
   constructor() {
     try {
-      const client = postgres(process.env.DATABASE_URL!);
+      // Handle the case where DATABASE_URL might just be the database name
+      const connectionString = process.env.DATABASE_URL!.includes('postgresql://') 
+        ? process.env.DATABASE_URL!
+        : `postgresql://${process.env.PGUSER}:${process.env.PGPASSWORD}@${process.env.PGHOST}:${process.env.PGPORT}/${process.env.PGDATABASE}?sslmode=require`;
+      
+      const client = postgres(connectionString);
       this.db = drizzle(client);
     } catch (error) {
       throw new Error("Failed to connect to database: " + (error as Error).message);
