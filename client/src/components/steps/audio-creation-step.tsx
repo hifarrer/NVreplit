@@ -271,8 +271,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
   };
 
   return (
-    <div className="max-w-5xl mx-auto mb-12" data-testid="audio-creation-step">
-      <div className="bg-card border border-border rounded-lg p-8">
+    <div className="max-w-5xl mx-auto mb-12 bg-card rounded-lg p-4" data-testid="audio-creation-step">
+      <div className="bg-background border border-border rounded-lg p-8">
         <div className="flex justify-end mb-4">
           <Button
             variant="outline"
