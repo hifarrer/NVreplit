@@ -53,6 +53,19 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
 
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || !duration) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percentage = x / rect.width;
+    const newTime = percentage * duration;
+    
+    audio.currentTime = newTime;
+    setCurrentTime(newTime);
+  };
+
   return (
     <div className={cn("p-6 media-player rounded-lg", className)} data-testid="audio-player">
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
@@ -95,10 +108,18 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
         </Button>
         
         <div className="flex-1">
-          <div className="bg-muted rounded-full h-2 mb-2">
+          <div 
+            className="bg-muted rounded-full h-2 mb-2 cursor-pointer relative"
+            onClick={handleSeek}
+            data-testid="audio-progress-bar"
+          >
             <div 
-              className="progress-bar h-full rounded-full"
+              className="progress-bar h-full rounded-full pointer-events-none"
               style={{ width: `${progressPercentage}%` }}
+            />
+            <div 
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full shadow-md pointer-events-none"
+              style={{ left: `calc(${progressPercentage}% - 6px)` }}
             />
           </div>
           <div className="flex justify-between text-sm text-muted-foreground">
