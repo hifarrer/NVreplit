@@ -614,19 +614,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { step: 3, total: 5 }
       });
 
+      console.log("=== STARTING PICTURE-IN-PICTURE COMPOSITIONS ===");
+      console.log("Number of segment pairs:", segmentPairs.length);
+      
       const pipVideos: string[] = [];
       for (let i = 0; i < segmentPairs.length; i++) {
-        const pipResult = await pictureInPicture(segmentPairs[i].a, segmentPairs[i].b);
-        pipVideos.push(pipResult.download_url);
+        console.log(`\n--- PiP Composition ${i + 1}/4 ---`);
+        console.log(`Main video (${i + 1}a):`, segmentPairs[i].a);
+        console.log(`PiP video (${i + 1}b):`, segmentPairs[i].b);
         
-        await storage.addGenerationLog({
-          projectId: req.params.id,
-          step: "video_generation",
-          message: `Created PiP composition ${i + 1}/4`,
-          status: "progress",
-          metadata: { pipSegment: i + 1 }
-        });
+        try {
+          const pipResult = await pictureInPicture(segmentPairs[i].a, segmentPairs[i].b);
+          pipVideos.push(pipResult.download_url);
+          console.log(`PiP composition ${i + 1} successful:`, pipResult.download_url);
+          
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "video_generation",
+            message: `Created PiP composition ${i + 1}/4`,
+            status: "progress",
+            metadata: { 
+              pipSegment: i + 1,
+              resultUrl: pipResult.download_url
+            }
+          });
+        } catch (pipError) {
+          console.error(`PiP composition ${i + 1} failed:`, pipError);
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "video_generation",
+            message: `PiP composition ${i + 1} failed: ${(pipError as Error).message}`,
+            status: "error",
+            metadata: { 
+              pipSegment: i + 1,
+              error: (pipError as Error).message
+            }
+          });
+          throw new Error(`Picture-in-Picture failed at segment ${i + 1}: ${(pipError as Error).message}`);
+        }
       }
+      
+      console.log("\n=== ALL PiP COMPOSITIONS COMPLETED ===");
+      console.log("PiP video URLs:", pipVideos);
 
       // Step 4: Merge final video
       await storage.addGenerationLog({
@@ -637,7 +666,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { step: 4, total: 5 }
       });
 
-      const finalVideo = await mergeVideos(pipVideos);
+      console.log("\n=== STARTING FINAL VIDEO MERGE ===");
+      console.log("Number of PiP videos to merge:", pipVideos.length);
+      console.log("PiP video URLs to merge:", pipVideos);
+      
+      let finalVideo;
+      try {
+        finalVideo = await mergeVideos(pipVideos);
+        console.log("Final video merge successful:", finalVideo.download_url);
+      } catch (mergeError) {
+        console.error("Final video merge failed:", mergeError);
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "video_generation",
+          message: `Final video merge failed: ${(mergeError as Error).message}`,
+          status: "error",
+          metadata: { 
+            error: (mergeError as Error).message,
+            videosAttempted: pipVideos
+          }
+        });
+        throw new Error(`Final video merge failed: ${(mergeError as Error).message}`);
+      }
 
       await storage.updateProject(req.params.id, {
         finalVideoUrl: finalVideo.download_url,
@@ -656,14 +706,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ finalVideoUrl: finalVideo.download_url });
     } catch (error) {
       console.error("Generate video error:", error);
+      const errorMessage = (error as Error).message;
+      
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "video_generation",
-        message: `Video generation failed: ${(error as Error).message}`,
+        message: `Video generation failed: ${errorMessage}`,
         status: "error",
-        metadata: { error: (error as Error).message }
+        metadata: { error: errorMessage }
       });
-      res.status(500).json({ error: "Failed to generate video" });
+      
+      // Send specific error message to help with debugging
+      res.status(500).json({ 
+        error: errorMessage || "Failed to generate video",
+        details: "Check server logs for detailed FFMPEG API requests and responses"
+      });
     }
   });
 

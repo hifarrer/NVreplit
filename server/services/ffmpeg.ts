@@ -34,19 +34,25 @@ export async function splitAudio(audioUrl: string): Promise<{ part: string; down
 
 export async function pictureInPicture(mainVideoUrl: string, pipVideoUrl: string): Promise<{ download_url: string; filename: string }> {
   try {
+    const requestBody = {
+      main_video_url: mainVideoUrl,
+      pip_video_url: pipVideoUrl,
+      position: "middle",
+      scale: "iw:ih",
+      audio_option: "video1"
+    };
+    
+    console.log("=== FFMPEG PICTURE-IN-PICTURE REQUEST ===");
+    console.log("Endpoint: https://ffmpegapi.net/api/picture_in_picture");
+    console.log("Request body:", JSON.stringify(requestBody, null, 2));
+    
     const response = await fetch("https://ffmpegapi.net/api/picture_in_picture", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-API-Key": FFMPEG_API_KEY,
       },
-      body: JSON.stringify({
-        main_video_url: mainVideoUrl,
-        pip_video_url: pipVideoUrl,
-        position: "middle",
-        scale: "iw:ih",
-        audio_option: "video1"
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -72,16 +78,23 @@ export async function pictureInPicture(mainVideoUrl: string, pipVideoUrl: string
 
 export async function mergeVideos(videoUrls: string[]): Promise<{ download_url: string; filename: string }> {
   try {
+    const requestBody = {
+      video_urls: videoUrls,
+      async: false,
+    };
+    
+    console.log("=== FFMPEG MERGE VIDEOS REQUEST ===");
+    console.log("Endpoint: https://ffmpegapi.net/api/merge_videos");
+    console.log("Number of videos to merge:", videoUrls.length);
+    console.log("Request body:", JSON.stringify(requestBody, null, 2));
+    
     const response = await fetch("https://ffmpegapi.net/api/merge_videos", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-API-Key": FFMPEG_API_KEY,
       },
-      body: JSON.stringify({
-        video_urls: videoUrls,
-        async: false,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
