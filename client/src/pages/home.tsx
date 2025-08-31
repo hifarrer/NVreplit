@@ -46,9 +46,19 @@ export default function Home() {
     }
   }, [project]);
 
-  const handleStepChange = (step: number) => {
+  const handleStepChange = async (step: number) => {
     setCurrentStep(step);
-    refetchProject();
+    // Update the project in the database to persist the step change
+    if (projectId) {
+      try {
+        await apiRequest("PATCH", `/api/projects/${projectId}`, {
+          currentStep: step
+        });
+        refetchProject();
+      } catch (error) {
+        console.error("Failed to update project step:", error);
+      }
+    }
   };
 
   const resetProject = () => {
