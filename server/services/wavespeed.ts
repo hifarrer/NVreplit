@@ -3,25 +3,37 @@ const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY || process.env.WAVESPEED
 export async function generateVideoSegment(
   audioUrl: string,
   imageUrl: string,
-  prompt: string
+  prompt: string,
+  model: 'multitalk' | 'seedance' = 'multitalk'
 ): Promise<string> {
   try {
     console.log("=== GENERATING VIDEO SEGMENT ===");
     console.log("Audio URL:", audioUrl);
     console.log("Image URL:", imageUrl);
     console.log("Prompt:", prompt);
+    console.log("Model:", model);
     
     // Submit video generation request
-    const requestBody = {
+    const requestBody = model === 'multitalk' ? {
       audio: audioUrl,
+      image: imageUrl,
+      prompt: prompt,
+      seed: -1,
+    } : {
+      camera_fixed: false,
+      duration: 10,
       image: imageUrl,
       prompt: prompt,
       seed: -1,
     };
     
+    const endpoint = model === 'multitalk' 
+      ? "https://api.wavespeed.ai/api/v3/wavespeed-ai/multitalk"
+      : "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1-lite-i2v-480p";
+    
     console.log("Wavespeed request body:", JSON.stringify(requestBody, null, 2));
     
-    const response = await fetch("https://api.wavespeed.ai/api/v3/wavespeed-ai/multitalk", {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -84,21 +96,39 @@ export async function generateAllVideoSegments(
   audioSegments: string[],
   imageUrls: string[],
   prompts: string[]
-): Promise<string[]> {
+): Promise<{ videoUrls: string[], segmentPairs: Array<{a: string, b: string}> }> {
   console.log(`Starting parallel video generation for ${audioSegments.length} segments`);
   
-  // Generate all video segments in parallel
+  if (audioSegments.length !== 8 || imageUrls.length !== 8 || prompts.length !== 8) {
+    throw new Error(`Expected 8 segments, got ${audioSegments.length} audio, ${imageUrls.length} images, ${prompts.length} prompts`);
+  }
+  
+  // Generate all video segments in parallel, alternating between models
   const videoPromises = audioSegments.map(async (audioUrl, index) => {
-    console.log(`Generating video segment ${index + 1}/${audioSegments.length}`);
+    // Determine which model to use based on index
+    // 0 (1a) -> multitalk, 1 (1b) -> seedance, 2 (2a) -> multitalk, etc.
+    const model = index % 2 === 0 ? 'multitalk' : 'seedance';
+    const segmentLabel = `${Math.floor(index / 2) + 1}${index % 2 === 0 ? 'a' : 'b'}`;
+    
+    console.log(`Generating video segment ${segmentLabel} (${index + 1}/8) using ${model} model`);
     console.log(`Audio URL: ${audioUrl}`);
     console.log(`Image URL: ${imageUrls[index]}`);
     console.log(`Prompt: ${prompts[index]}`);
     
-    return await generateVideoSegment(audioUrl, imageUrls[index], prompts[index]);
+    return await generateVideoSegment(audioUrl, imageUrls[index], prompts[index], model);
   });
   
   const videoUrls = await Promise.all(videoPromises);
   console.log(`All ${videoUrls.length} video segments generated successfully`);
   
-  return videoUrls;
+  // Group videos into pairs for picture-in-picture
+  const segmentPairs: Array<{a: string, b: string}> = [];
+  for (let i = 0; i < videoUrls.length; i += 2) {
+    segmentPairs.push({
+      a: videoUrls[i],   // multitalk video (1a, 2a, 3a, 4a)
+      b: videoUrls[i + 1] // seedance video (1b, 2b, 3b, 4b)
+    });
+  }
+  
+  return { videoUrls, segmentPairs };
 }

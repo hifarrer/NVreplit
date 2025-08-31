@@ -9,7 +9,7 @@ import { generateLyrics, generateScenePrompts } from "./services/openai";
 import { generateSong } from "./services/elevenlabs";
 import { generateCharacterImage, generateSceneImages } from "./services/fal";
 import { generateAllVideoSegments } from "./services/wavespeed";
-import { splitAudio, mergeVideos } from "./services/ffmpeg";
+import { splitAudio, mergeVideos, pictureInPicture } from "./services/ffmpeg";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
@@ -590,31 +590,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "video_generation",
-        message: "Generating video segments",
+        message: "Generating 8 video segments with alternating models",
         status: "progress",
-        metadata: { step: 2, total: 4 }
+        metadata: { step: 2, total: 5 }
       });
 
-      const videoUrls = await generateAllVideoSegments(
+      const { videoUrls: allVideoUrls, segmentPairs } = await generateAllVideoSegments(
         audioUrls,
         project.sceneImages as string[],
         project.scenePrompts as string[]
       );
 
       await storage.updateProject(req.params.id, {
-        videoSegments: videoUrls
+        videoSegments: allVideoUrls
       });
 
-      // Step 3: Merge videos
+      // Step 3: Create picture-in-picture compositions
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "video_generation",
-        message: "Merging final video",
+        message: "Creating picture-in-picture compositions",
         status: "progress",
-        metadata: { step: 3, total: 4 }
+        metadata: { step: 3, total: 5 }
       });
 
-      const finalVideo = await mergeVideos(videoUrls);
+      const pipVideos: string[] = [];
+      for (let i = 0; i < segmentPairs.length; i++) {
+        const pipResult = await pictureInPicture(segmentPairs[i].a, segmentPairs[i].b);
+        pipVideos.push(pipResult.download_url);
+        
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "video_generation",
+          message: `Created PiP composition ${i + 1}/4`,
+          status: "progress",
+          metadata: { pipSegment: i + 1 }
+        });
+      }
+
+      // Step 4: Merge final video
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "video_generation",
+        message: "Merging final video from 4 PiP segments",
+        status: "progress",
+        metadata: { step: 4, total: 5 }
+      });
+
+      const finalVideo = await mergeVideos(pipVideos);
 
       await storage.updateProject(req.params.id, {
         finalVideoUrl: finalVideo.download_url,
