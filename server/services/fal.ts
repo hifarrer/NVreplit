@@ -137,19 +137,23 @@ export async function generateSceneImages(prompts: string[], characterImageUrl: 
     const submissionPromises = prompts.map(async (prompt, index) => {
       console.log(`Submitting scene ${index + 1}: ${prompt}`);
       
+      const requestBody = {
+        enable_base64_output: false,
+        enable_sync_mode: false,
+        images: [characterImageUrl],
+        output_format: "jpeg",
+        prompt: prompt
+      };
+      
+      console.log(`Scene ${index + 1} request body:`, JSON.stringify(requestBody, null, 2));
+      
       const response = await fetch("https://api.wavespeed.ai/api/v3/google/nano-banana/edit", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${WAVESPEED_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          enable_base64_output: false,
-          enable_sync_mode: false,
-          images: [characterImageUrl],
-          output_format: "jpeg",
-          prompt: prompt
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {

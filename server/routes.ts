@@ -418,18 +418,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Save selected character to project
   app.post("/api/projects/:id/save-character", authenticateToken, async (req, res) => {
     try {
+      console.log("Save character request body:", JSON.stringify(req.body, null, 2));
+      console.log("Project ID:", req.params.id);
+      
       const { imageUrl, prompt } = req.body;
       
       if (!imageUrl || !prompt) {
+        console.log("Missing required fields - imageUrl:", !!imageUrl, "prompt:", !!prompt);
         return res.status(400).json({ error: "Image URL and prompt are required" });
       }
 
-      await storage.updateProject(req.params.id, {
+      const updateData = {
         characterImageUrl: imageUrl,
         characterPrompt: prompt,
         characterType: "selected",
         currentStep: 3
-      });
+      };
+      
+      console.log("Updating project with data:", JSON.stringify(updateData, null, 2));
+      
+      const updatedProject = await storage.updateProject(req.params.id, updateData);
+      
+      console.log("Updated project result:", JSON.stringify(updatedProject, null, 2));
 
       res.json({ success: true });
     } catch (error) {
@@ -442,8 +452,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/projects/:id/generate-scenes", async (req, res) => {
     try {
       const project = await storage.getProject(req.params.id);
-      if (!project || !project.characterImageUrl) {
-        return res.status(400).json({ error: "Missing required project data" });
+      console.log("Project data for scene generation:", JSON.stringify(project, null, 2));
+      
+      if (!project) {
+        console.log("No project found for ID:", req.params.id);
+        return res.status(400).json({ error: "Project not found" });
+      }
+      
+      if (!project.characterImageUrl) {
+        console.log("Missing characterImageUrl in project:", project.characterImageUrl);
+        return res.status(400).json({ error: "Character image URL is required. Please create or select a character first." });
       }
 
       // For uploaded audio files, we need to create a generic prompt
