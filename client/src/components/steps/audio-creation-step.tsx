@@ -345,40 +345,29 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
                 Lyrics
               </Label>
               <div className="space-y-3">
-                <div className="flex space-x-3">
-                  <Button
-                    variant="secondary"
-                    onClick={() => generateLyricsMutation.mutate()}
-                    disabled={!description.trim() || generateLyricsMutation.isPending}
-                    className="flex-1"
-                    data-testid="generate-lyrics-button"
-                  >
-                    {generateLyricsMutation.isPending ? (
-                      <>
-                        <i className="fas fa-spinner fa-spin mr-2"></i>
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <i className="fas fa-magic mr-2"></i>
-                        Generate Lyrics
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setLyrics("")}
-                    className="flex-1"
-                    data-testid="write-lyrics-button"
-                  >
-                    <i className="fas fa-edit mr-2"></i>
-                    Write My Own
-                  </Button>
-                </div>
+                <Button
+                  variant="secondary"
+                  onClick={() => generateLyricsMutation.mutate()}
+                  disabled={!description.trim() || generateLyricsMutation.isPending}
+                  className="w-full"
+                  data-testid="generate-lyrics-button"
+                >
+                  {generateLyricsMutation.isPending ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin mr-2"></i>
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-magic mr-2"></i>
+                      Generate Lyrics with AI
+                    </>
+                  )}
+                </Button>
                 <Textarea
                   value={lyrics}
                   onChange={(e) => setLyrics(e.target.value)}
-                  placeholder="Enter your lyrics here or click 'Generate Lyrics' to create them automatically..."
+                  placeholder="Enter your lyrics here or click 'Generate Lyrics with AI' to create them automatically..."
                   rows={6}
                   className="resize-none"
                   data-testid="lyrics-textarea"
