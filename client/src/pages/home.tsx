@@ -5,13 +5,13 @@ import { CharacterCreationStep } from "@/components/steps/character-creation-ste
 import { SceneGenerationStep } from "@/components/steps/scene-generation-step";
 import { VideoGenerationStep } from "@/components/steps/video-generation-step";
 import { VideoResultStep } from "@/components/steps/video-result-step";
-import { MyVideos } from "@/components/my-videos";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Project } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Video, Home as HomeIcon } from "lucide-react";
+import { Link } from "wouter";
 
 export default function Home() {
   const { user, logout } = useAuth();
@@ -88,6 +88,18 @@ export default function Home() {
               <h1 className="text-2xl font-bold gradient-text" data-testid="app-title">
                 AI Music Video Maker
               </h1>
+              <nav className="flex items-center space-x-4">
+                <Button variant="ghost" size="sm" disabled className="text-foreground">
+                  <HomeIcon className="h-4 w-4 mr-2" />
+                  Create
+                </Button>
+                <Link href="/my-videos">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                    <Video className="h-4 w-4 mr-2" />
+                    My Videos
+                  </Button>
+                </Link>
+              </nav>
             </div>
             
             <div className="flex items-center space-x-4">
@@ -112,9 +124,6 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        {/* My Videos Section */}
-        <MyVideos />
-        
         <ProgressIndicator currentStep={currentStep} />
 
         {currentStep === 1 && (
