@@ -69,15 +69,41 @@ export async function generateCharacterImage(prompt: string): Promise<string> {
       const statusResult = await statusResponse.json();
       console.log("Status result:", JSON.stringify(statusResult, null, 2));
       
-      if (statusResult.status === "completed") {
-        console.log("Generation completed!");
-        // Fal.ai returns images directly in the images array
-        if (statusResult.images && statusResult.images.length > 0) {
+      if (statusResult.status === "COMPLETED") {
+        console.log("Generation completed! Fetching results...");
+        
+        // When status is COMPLETED, we need to fetch the actual results from response_url
+        if (statusResult.response_url) {
+          console.log("Fetching results from:", statusResult.response_url);
+          
+          const resultsResponse = await fetch(statusResult.response_url, {
+            headers: {
+              "Authorization": `Key ${FAL_KEY}`,
+            },
+          });
+          
+          if (!resultsResponse.ok) {
+            throw new Error(`Failed to fetch results: ${resultsResponse.status}`);
+          }
+          
+          const resultsData = await resultsResponse.json();
+          console.log("Final results:", JSON.stringify(resultsData, null, 2));
+          
+          if (resultsData.images && resultsData.images.length > 0) {
+            const imageUrl = resultsData.images[0].url;
+            console.log("Found image URL:", imageUrl);
+            return imageUrl;
+          } else {
+            console.error("No images found in results:", resultsData);
+            throw new Error("No images in results");
+          }
+        } else if (statusResult.images && statusResult.images.length > 0) {
+          // Fallback: images directly in status response
           const imageUrl = statusResult.images[0].url;
           console.log("Found image URL:", imageUrl);
           return imageUrl;
         } else {
-          console.error("No images found in completed response:", statusResult);
+          console.error("No images or response_url found:", statusResult);
           throw new Error("No images in completed response");
         }
       } else if (statusResult.status === "failed") {
