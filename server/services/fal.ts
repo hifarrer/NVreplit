@@ -124,133 +124,110 @@ export async function generateCharacterImage(prompt: string): Promise<string> {
 }
 
 export async function generateSceneImages(prompts: string[], characterImageUrl: string): Promise<string[]> {
-  const imageUrls: string[] = [];
+  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
 
-  for (const prompt of prompts) {
-    try {
-      console.log(`Starting scene generation for prompt: ${prompt}`);
-      console.log(`Using character image: ${characterImageUrl}`);
+  console.log(`Starting parallel scene generation for ${prompts.length} scenes`);
+  console.log(`Using character image: ${characterImageUrl}`);
+
+  try {
+    // Submit all scene generation requests in parallel
+    const submissionPromises = prompts.map(async (prompt, index) => {
+      console.log(`Submitting scene ${index + 1}: ${prompt}`);
       
-      // Submit generation request
-      const response = await fetch("https://queue.fal.run/fal-ai/nano-banana/edit", {
+      const response = await fetch("https://api.wavespeed.ai/api/v3/google/nano-banana/edit", {
         method: "POST",
         headers: {
-          "Authorization": `Key ${FAL_KEY}`,
+          "Authorization": `Bearer ${WAVESPEED_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          prompt: prompt,
-          image_urls: [characterImageUrl],
+          enable_base64_output: false,
+          enable_sync_mode: false,
+          images: [characterImageUrl],
+          output_format: "jpeg",
+          prompt: prompt
         }),
       });
 
-      console.log("Scene submission response status:", response.status);
-
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Scene submission error:", errorText);
-        throw new Error(`Fal.ai submission error: ${response.status} - ${errorText}`);
+        console.error(`Scene ${index + 1} submission failed:`, errorText);
+        throw new Error(`Scene submission failed: ${response.status} - ${errorText}`);
       }
 
       const result = await response.json();
-      console.log("Scene submission result:", JSON.stringify(result, null, 2));
+      console.log(`Scene ${index + 1} submission result:`, JSON.stringify(result, null, 2));
       
-      const requestId = result.request_id;
-
+      const requestId = result.data?.id;
       if (!requestId) {
-        throw new Error("No request ID received from Fal.ai");
+        throw new Error(`No request ID received for scene ${index + 1}`);
       }
 
-      console.log(`Got scene request ID: ${requestId}`);
+      console.log(`Got scene ${index + 1} request ID: ${requestId}`);
+      return { requestId, index, prompt };
+    });
 
-      // Poll for results using the same pattern as character generation
+    // Wait for all submissions to complete
+    const submissions = await Promise.all(submissionPromises);
+    console.log("All scene submissions completed, starting parallel polling...");
+
+    // Poll for results in parallel
+    const resultPromises = submissions.map(async ({ requestId, index, prompt }) => {
       let attempts = 0;
       const maxAttempts = 60;
 
-      console.log("Starting polling for scene completion...");
-
       while (attempts < maxAttempts) {
-        console.log(`Scene polling attempt ${attempts + 1}/${maxAttempts}...`);
-        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
         
-        const statusUrl = `https://queue.fal.run/fal-ai/nano-banana/requests/${requestId}/status`;
-        console.log("Checking scene status at:", statusUrl);
-        
-        const statusResponse = await fetch(statusUrl, {
+        const statusResponse = await fetch(`https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`, {
           headers: {
-            "Authorization": `Key ${FAL_KEY}`,
+            "Authorization": `Bearer ${WAVESPEED_API_KEY}`,
           },
         });
 
-        console.log("Scene status response status:", statusResponse.status);
-
         if (!statusResponse.ok) {
           const errorText = await statusResponse.text();
-          console.error("Scene status check failed:", errorText);
-          throw new Error(`Status check failed: ${statusResponse.status} - ${errorText}`);
+          console.error(`Scene ${index + 1} status check failed:`, errorText);
+          throw new Error(`Status check failed for scene ${index + 1}: ${statusResponse.status} - ${errorText}`);
         }
 
         const statusResult = await statusResponse.json();
-        console.log("Scene status result:", JSON.stringify(statusResult, null, 2));
         
-        if (statusResult.status === "COMPLETED") {
-          console.log("Scene generation completed! Fetching results...");
+        if (statusResult.data?.status === "completed") {
+          console.log(`Scene ${index + 1} generation completed!`);
           
-          // When status is COMPLETED, we need to fetch the actual results from response_url
-          if (statusResult.response_url) {
-            console.log("Fetching scene results from:", statusResult.response_url);
-            
-            const resultsResponse = await fetch(statusResult.response_url, {
-              headers: {
-                "Authorization": `Key ${FAL_KEY}`,
-              },
-            });
-            
-            if (!resultsResponse.ok) {
-              throw new Error(`Failed to fetch scene results: ${resultsResponse.status}`);
-            }
-            
-            const resultsData = await resultsResponse.json();
-            console.log("Scene final results:", JSON.stringify(resultsData, null, 2));
-            
-            if (resultsData.images && resultsData.images.length > 0) {
-              const imageUrl = resultsData.images[0].url;
-              console.log("Found scene image URL:", imageUrl);
-              imageUrls.push(imageUrl);
-              break;
-            } else {
-              console.error("No images found in scene results:", resultsData);
-              throw new Error("No images in scene results");
-            }
-          } else if (statusResult.images && statusResult.images.length > 0) {
-            // Fallback: images directly in status response
-            const imageUrl = statusResult.images[0].url;
-            console.log("Found scene image URL:", imageUrl);
-            imageUrls.push(imageUrl);
-            break;
+          if (statusResult.data.outputs && statusResult.data.outputs.length > 0) {
+            const imageUrl = statusResult.data.outputs[0];
+            console.log(`Found scene ${index + 1} image URL: ${imageUrl}`);
+            return { index, imageUrl };
           } else {
-            console.error("No images or response_url found in scene status:", statusResult);
-            throw new Error("No images in completed scene response");
+            console.error(`No outputs found in scene ${index + 1} results:`, statusResult);
+            throw new Error(`No outputs in scene ${index + 1} results`);
           }
-        } else if (statusResult.status === "failed") {
-          console.error("Fal.ai scene generation failed:", statusResult.error || statusResult);
-          throw new Error(`Scene image generation failed: ${statusResult.error || "Unknown error"}`);
-        } else {
-          console.log(`Scene status: ${statusResult.status}, continuing to poll...`);
+        } else if (statusResult.data?.status === "failed") {
+          console.error(`Scene ${index + 1} generation failed:`, statusResult);
+          throw new Error(`Scene ${index + 1} generation failed: ${statusResult.data?.error || "Unknown error"}`);
         }
 
         attempts++;
       }
 
-      if (imageUrls.length !== prompts.indexOf(prompt) + 1) {
-        throw new Error("Scene image generation timed out");
-      }
-    } catch (error) {
-      console.error(`Scene image generation error for prompt "${prompt}":`, error);
-      throw new Error(`Failed to generate scene image: ${(error as Error).message}`);
-    }
-  }
+      throw new Error(`Scene ${index + 1} generation timed out after ${maxAttempts} attempts`);
+    });
 
-  console.log(`Successfully generated ${imageUrls.length} scene images`);
-  return imageUrls;
+    // Wait for all results and sort by original index
+    const results = await Promise.all(resultPromises);
+    results.sort((a, b) => a.index - b.index);
+    
+    const imageUrls = results.map(result => result.imageUrl);
+    console.log("All scene images generated successfully:", imageUrls);
+    return imageUrls;
+
+  } catch (error) {
+    console.error("Scene generation error:", error);
+    throw new Error(`Failed to generate scene images: ${error instanceof Error ? error.message : "Unknown error"}`);
+  }
 }
