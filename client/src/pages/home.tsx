@@ -8,15 +8,18 @@ import { VideoResultStep } from "@/components/steps/video-result-step";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Project } from "@/lib/types";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { LogOut, User } from "lucide-react";
 
 export default function Home() {
+  const { user, logout } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [projectId, setProjectId] = useState<string>("");
 
   const createProjectMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/projects", {
-        userId: "user-1", // TODO: Replace with actual user ID from auth
         title: "My Music Video",
         description: "AI-generated music video project",
         currentStep: 1,
@@ -77,15 +80,20 @@ export default function Home() {
             </div>
             
             <div className="flex items-center space-x-4">
-              <button className="text-muted-foreground hover:text-foreground transition-colors">
-                <i className="fas fa-bell text-lg"></i>
-              </button>
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center">
-                  <span className="text-xs font-semibold">U</span>
-                </div>
-                <span className="text-sm text-muted-foreground">User</span>
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">{user?.username}</span>
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={logout}
+                className="text-muted-foreground hover:text-foreground"
+                data-testid="button-logout"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </Button>
             </div>
           </div>
         </div>

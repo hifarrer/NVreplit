@@ -4,12 +4,14 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { storage } from "./storage";
-import { insertProjectSchema, insertGenerationLogSchema } from "@shared/schema";
+import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema } from "@shared/schema";
 import { generateLyrics, generateScenePrompts } from "./services/openai";
 import { generateSong } from "./services/elevenlabs";
 import { generateCharacterImage, generateSceneImages } from "./services/fal";
 import { generateAllVideoSegments } from "./services/wavespeed";
 import { splitAudio, mergeVideos } from "./services/ffmpeg";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 // Configure multer for audio uploads
 const uploadDir = path.join(process.cwd(), 'public', 'uploads');
@@ -38,12 +40,142 @@ const audioUpload = multer({
   }
 });
 
+const JWT_SECRET = process.env.JWT_SECRET || "music-video-maker-secret-key";
+
+// Middleware to verify JWT token
+function authenticateToken(req: any, res: any, next: any) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+    req.user = user;
+    next();
+  });
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Create a new project
-  app.post("/api/projects", async (req, res) => {
+  // Authentication routes
+  app.post("/api/register", async (req, res) => {
     try {
-      console.log("Creating project with data:", req.body);
-      const validatedData = insertProjectSchema.parse(req.body);
+      const { username, email, password } = insertUserSchema.parse(req.body);
+      
+      // Check if user already exists
+      const existingUserByUsername = await storage.getUserByUsername(username);
+      if (existingUserByUsername) {
+        return res.status(400).json({ error: "Username already exists" });
+      }
+      
+      const existingUserByEmail = await storage.getUserByEmail(email);
+      if (existingUserByEmail) {
+        return res.status(400).json({ error: "Email already exists" });
+      }
+      
+      // Hash password
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+      
+      // Create user
+      const user = await storage.createUser({
+        username,
+        email,
+        password: hashedPassword
+      });
+      
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user.id, username: user.username },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      
+      res.status(201).json({
+        user: { id: user.id, username: user.username, email: user.email },
+        token
+      });
+    } catch (error) {
+      console.error("Register error:", error);
+      const message = error instanceof Error ? error.message : 'Registration failed';
+      res.status(400).json({ error: message });
+    }
+  });
+
+  app.post("/api/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ error: "Username and password are required" });
+      }
+      
+      // Find user by username or email
+      let user = await storage.getUserByUsername(username);
+      if (!user) {
+        user = await storage.getUserByEmail(username); // Allow login with email
+      }
+      
+      if (!user) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user.id, username: user.username },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      
+      res.json({
+        user: { id: user.id, username: user.username, email: user.email },
+        token
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  app.get("/api/me", authenticateToken, async (req, res) => {
+    try {
+      const user = await storage.getUser((req as any).user.userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email
+      });
+    } catch (error) {
+      console.error("Get user error:", error);
+      res.status(500).json({ error: "Failed to get user info" });
+    }
+  });
+
+  // Create a new project
+  app.post("/api/projects", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const projectData = {
+        ...req.body,
+        userId // Use authenticated user ID
+      };
+      
+      console.log("Creating project with data:", projectData);
+      const validatedData = insertProjectSchema.parse(projectData);
       console.log("Validated data:", validatedData);
       const project = await storage.createProject(validatedData);
       res.json(project);
@@ -60,7 +192,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get project by ID
-  app.get("/api/projects/:id", async (req, res) => {
+  app.get("/api/projects/:id", authenticateToken, async (req, res) => {
     try {
       const project = await storage.getProject(req.params.id);
       if (!project) {
@@ -74,7 +206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update project
-  app.patch("/api/projects/:id", async (req, res) => {
+  app.patch("/api/projects/:id", authenticateToken, async (req, res) => {
     try {
       const project = await storage.updateProject(req.params.id, req.body);
       if (!project) {
