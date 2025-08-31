@@ -95,7 +95,7 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResul
             <div>
               <Film className="w-8 h-8 text-accent mx-auto mb-2" />
               <h5 className="font-semibold">Resolution</h5>
-              <p className="text-muted-foreground" data-testid="video-resolution">1920x1080 HD</p>
+              <p className="text-muted-foreground" data-testid="video-resolution">864 x 448</p>
             </div>
             <div>
               <Download className="w-8 h-8 text-primary mx-auto mb-2" />
