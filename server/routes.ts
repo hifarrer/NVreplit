@@ -465,13 +465,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Character image URL is required. Please create or select a character first." });
       }
 
-      // For uploaded audio files, we need to create a generic prompt
+      // Create a prompt based on what we have
       let audioPrompt = project.audioPrompt;
       if (!audioPrompt) {
         if (project.audioType === 'uploaded') {
           audioPrompt = "Create a music video with dramatic scenes";
+        } else if (project.audioType === 'generated' && project.audioLyrics) {
+          // Use the lyrics/tags to create a prompt for generated songs
+          const tags = project.audioTags || "music";
+          audioPrompt = `${tags} music video based on these lyrics: ${project.audioLyrics.substring(0, 200)}`;
         } else {
-          return res.status(400).json({ error: "Audio prompt is required for scene generation" });
+          audioPrompt = "Create an engaging music video";
         }
       }
 
