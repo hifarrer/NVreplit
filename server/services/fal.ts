@@ -223,11 +223,132 @@ export async function generateSceneImages(prompts: string[], characterImageUrl: 
     });
 
     // Wait for all results and sort by original index
-    const results = await Promise.all(resultPromises);
-    results.sort((a, b) => a.index - b.index);
+    let results: { index: number; imageUrl: string }[] = [];
+    let failedIndices: number[] = [];
+    
+    try {
+      results = await Promise.all(resultPromises);
+      results.sort((a, b) => a.index - b.index);
+    } catch (error) {
+      // If any scene failed, we need to handle it gracefully
+      console.log("Some scenes failed, implementing retry logic...");
+      
+      // Process each promise individually to identify failures
+      const individualResults = await Promise.allSettled(resultPromises);
+      
+      for (let i = 0; i < individualResults.length; i++) {
+        const result = individualResults[i];
+        if (result.status === "fulfilled") {
+          results.push(result.value);
+        } else {
+          failedIndices.push(i);
+          console.log(`Scene ${i + 1} failed:`, result.reason.message);
+        }
+      }
+      
+      results.sort((a, b) => a.index - b.index);
+    }
+    
+    // Retry failed scenes using successful prompts
+    if (failedIndices.length > 0 && results.length > 0) {
+      console.log(`Retrying ${failedIndices.length} failed scenes using successful prompts...`);
+      
+      for (const failedIndex of failedIndices) {
+        // Choose a fallback prompt based on the failed index
+        let fallbackPromptIndex: number;
+        if (failedIndex === 0 && results.find(r => r.index === 1)) {
+          fallbackPromptIndex = 1;
+        } else if (failedIndex === 1 && results.find(r => r.index === 0)) {
+          fallbackPromptIndex = 0;
+        } else if (failedIndex === 2 && results.find(r => r.index === 1)) {
+          fallbackPromptIndex = 1;
+        } else if (failedIndex === 3 && results.find(r => r.index === 2)) {
+          fallbackPromptIndex = 2;
+        } else {
+          // Use the first successful result's index
+          fallbackPromptIndex = results[0].index;
+        }
+        
+        const fallbackPrompt = prompts[fallbackPromptIndex];
+        console.log(`Retrying scene ${failedIndex + 1} with fallback prompt from scene ${fallbackPromptIndex + 1}: ${fallbackPrompt}`);
+        
+        try {
+          // Submit retry request
+          const retryRequestBody = {
+            enable_base64_output: false,
+            enable_sync_mode: false,
+            images: [characterImageUrl],
+            output_format: "jpeg",
+            prompt: fallbackPrompt
+          };
+          
+          const retryResponse = await fetch("https://api.wavespeed.ai/api/v3/google/nano-banana/edit", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${WAVESPEED_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(retryRequestBody),
+          });
+
+          if (retryResponse.ok) {
+            const retrySubmission = await retryResponse.json();
+            const retryRequestId = retrySubmission.data.id;
+            console.log(`Retry for scene ${failedIndex + 1} submitted with ID: ${retryRequestId}`);
+            
+            // Poll for retry result using the same logic
+            const maxAttempts = 20;
+            let attempts = 0;
+            
+            while (attempts < maxAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 3000));
+              
+              const statusResponse = await fetch(`https://api.wavespeed.ai/api/v3/predictions/${retryRequestId}/result`, {
+                headers: {
+                  "Authorization": `Bearer ${WAVESPEED_API_KEY}`,
+                },
+              });
+
+              if (statusResponse.ok) {
+                const statusResult = await statusResponse.json();
+                
+                if (statusResult.data?.status === "completed") {
+                  if (statusResult.data.outputs && statusResult.data.outputs.length > 0) {
+                    const retryImageUrl = statusResult.data.outputs[0];
+                    console.log(`Retry for scene ${failedIndex + 1} succeeded: ${retryImageUrl}`);
+                    results.push({ index: failedIndex, imageUrl: retryImageUrl });
+                    break;
+                  }
+                } else if (statusResult.data?.status === "failed") {
+                  console.log(`Retry for scene ${failedIndex + 1} also failed:`, statusResult.data);
+                  break;
+                }
+              }
+              
+              attempts++;
+            }
+          }
+        } catch (retryError) {
+          console.error(`Retry failed for scene ${failedIndex + 1}:`, retryError);
+        }
+      }
+      
+      results.sort((a, b) => a.index - b.index);
+    }
+    
+    // Check if we have all 4 images
+    if (results.length < 4) {
+      const missingIndices = [];
+      for (let i = 0; i < 4; i++) {
+        if (!results.find(r => r.index === i)) {
+          missingIndices.push(i + 1);
+        }
+      }
+      throw new Error(`Failed to generate ${missingIndices.length} scene images after retries. Missing scenes: ${missingIndices.join(', ')}`);
+    }
     
     const imageUrls = results.map(result => result.imageUrl);
-    console.log("All scene images generated successfully:", imageUrls);
+    console.log("All scene images generated successfully (including retries):", imageUrls);
     return imageUrls;
 
   } catch (error) {
