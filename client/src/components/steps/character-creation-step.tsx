@@ -4,6 +4,7 @@ import { CharacterGeneratorModal } from "@/components/modals/character-generator
 import { CharacterLibraryModal } from "@/components/modals/character-library-modal";
 import { SaveCharacterModal } from "@/components/modals/save-character-modal";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface CharacterCreationStepProps {
   projectId: string;
@@ -37,13 +38,31 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
     });
   };
 
-  const handleSavedCharacterSelected = (character: { imageUrl: string; prompt: string }) => {
-    setCurrentCharacterUrl(character.imageUrl);
-    setCurrentCharacterPrompt(character.prompt);
-    toast({
-      title: "Character loaded",
-      description: "Your saved character has been loaded successfully!",
-    });
+  const handleSavedCharacterSelected = async (character: { imageUrl: string; prompt: string }) => {
+    try {
+      // Save the selected character to the current project
+      const response = await apiRequest('POST', `/api/projects/${projectId}/save-character`, {
+        imageUrl: character.imageUrl,
+        prompt: character.prompt
+      });
+
+      if (response.ok) {
+        setCurrentCharacterUrl(character.imageUrl);
+        setCurrentCharacterPrompt(character.prompt);
+        toast({
+          title: "Character loaded",
+          description: "Your saved character has been loaded successfully!",
+        });
+      } else {
+        throw new Error('Failed to save character to project');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load the selected character. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

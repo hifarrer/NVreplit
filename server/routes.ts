@@ -415,6 +415,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Save selected character to project
+  app.post("/api/projects/:id/save-character", authenticateToken, async (req, res) => {
+    try {
+      const { imageUrl, prompt } = req.body;
+      
+      if (!imageUrl || !prompt) {
+        return res.status(400).json({ error: "Image URL and prompt are required" });
+      }
+
+      await storage.updateProject(req.params.id, {
+        characterImageUrl: imageUrl,
+        characterPrompt: prompt,
+        characterType: "selected",
+        currentStep: 3
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Save character to project error:", error);
+      res.status(500).json({ error: "Failed to save character to project" });
+    }
+  });
+
   // Generate scenes
   app.post("/api/projects/:id/generate-scenes", async (req, res) => {
     try {
