@@ -61,11 +61,11 @@ export async function generateScenePrompts(songDescription: string): Promise<str
       messages: [
         {
           role: "system",
-          content: "You are a creative director for music videos. Generate 4 detailed scene prompts that would make compelling visuals for a music video. Each prompt should describe a complete scene with the character, setting, mood, and visual elements. Respond with JSON in this format: {\"prompts\": [\"scene 1 description\", \"scene 2 description\", \"scene 3 description\", \"scene 4 description\"]}"
+          content: "You are a creative director for music videos. Generate 8 detailed scene prompts that would make compelling visuals for a music video. Each prompt should describe a complete scene with the character, setting, mood, and visual elements. Respond with JSON in this format: {\"prompts\": [\"scene 1 description\", \"scene 2 description\", \"scene 3 description\", \"scene 4 description\", \"scene 5 description\", \"scene 6 description\", \"scene 7 description\", \"scene 8 description\"]}"
         },
         {
           role: "user",
-          content: `Generate 4 image prompts to generate 4 images that will be used as frames for a music video based on the following prompt "${songDescription}". Be creative generating completely different scenes with the same character, be detailed describing everything in the scene as well as the character clothes and expression.`
+          content: `Generate 8 image prompts to generate 8 images that will be used as frames for a music video based on the following prompt "${songDescription}". Be creative generating completely different scenes with the same character, be detailed describing everything in the scene as well as the character clothes and expression.`
         }
       ],
       response_format: { type: "json_object" },

@@ -10,7 +10,7 @@ export async function splitAudio(audioUrl: string): Promise<{ part: string; down
       },
       body: JSON.stringify({
         audio_url: audioUrl,
-        parts: 4,
+        parts: 8,
       }),
     });
 
@@ -29,6 +29,44 @@ export async function splitAudio(audioUrl: string): Promise<{ part: string; down
   } catch (error) {
     console.error("Audio splitting error:", error);
     throw new Error("Failed to split audio: " + (error as Error).message);
+  }
+}
+
+export async function pictureInPicture(mainVideoUrl: string, pipVideoUrl: string): Promise<{ download_url: string; filename: string }> {
+  try {
+    const response = await fetch("https://ffmpegapi.net/api/picture_in_picture", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": FFMPEG_API_KEY,
+      },
+      body: JSON.stringify({
+        main_video_url: mainVideoUrl,
+        pip_video_url: pipVideoUrl,
+        position: "middle",
+        scale: "iw:ih",
+        audio_option: "video1"
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`FFMPEG PiP API error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(`Picture-in-picture failed: ${result.message || "Unknown error"}`);
+    }
+
+    return {
+      download_url: result.download_url,
+      filename: result.filename,
+    };
+  } catch (error) {
+    console.error("Picture-in-picture error:", error);
+    throw new Error("Failed to create picture-in-picture: " + (error as Error).message);
   }
 }
 
