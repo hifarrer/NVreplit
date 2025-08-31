@@ -97,36 +97,51 @@ export async function generateAllVideoSegments(
   imageUrls: string[],
   prompts: string[]
 ): Promise<{ videoUrls: string[], segmentPairs: Array<{a: string, b: string}> }> {
-  console.log(`Starting parallel video generation for ${audioSegments.length} segments`);
+  console.log(`Starting video generation for ${audioSegments.length} audio segments and ${imageUrls.length} scenes`);
   
-  if (audioSegments.length !== 8 || imageUrls.length !== 8 || prompts.length !== 8) {
-    throw new Error(`Expected 8 segments, got ${audioSegments.length} audio, ${imageUrls.length} images, ${prompts.length} prompts`);
+  if (audioSegments.length !== 4 || imageUrls.length !== 8 || prompts.length !== 8) {
+    throw new Error(`Expected 4 audio segments and 8 scenes, got ${audioSegments.length} audio, ${imageUrls.length} images, ${prompts.length} prompts`);
   }
   
-  // Generate all video segments in parallel, alternating between models
-  const videoPromises = audioSegments.map(async (audioUrl, index) => {
-    // Determine which model to use based on index
-    // 0 (1a) -> multitalk, 1 (1b) -> seedance, 2 (2a) -> multitalk, etc.
-    const model = index % 2 === 0 ? 'multitalk' : 'seedance';
-    const segmentLabel = `${Math.floor(index / 2) + 1}${index % 2 === 0 ? 'a' : 'b'}`;
+  // Generate videos in parallel
+  const videoPromises: Promise<string>[] = [];
+  
+  // Generate 4 videos with audio using multitalk (part_1a, part_2a, etc.)
+  for (let i = 0; i < 4; i++) {
+    const segmentLabel = `${i + 1}a`;
+    console.log(`Generating video segment ${segmentLabel} using multitalk model with audio`);
+    console.log(`Audio URL: ${audioSegments[i]}`);
+    console.log(`Image URL: ${imageUrls[i * 2]}`); // Use every other image for 'a' videos
+    console.log(`Prompt: ${prompts[i * 2]}`);
     
-    console.log(`Generating video segment ${segmentLabel} (${index + 1}/8) using ${model} model`);
-    console.log(`Audio URL: ${audioUrl}`);
-    console.log(`Image URL: ${imageUrls[index]}`);
-    console.log(`Prompt: ${prompts[index]}`);
+    videoPromises.push(
+      generateVideoSegment(audioSegments[i], imageUrls[i * 2], prompts[i * 2], 'multitalk')
+    );
+  }
+  
+  // Generate 4 short videos without audio using seedance (part_1b, part_2b, etc.)
+  for (let i = 0; i < 4; i++) {
+    const segmentLabel = `${i + 1}b`;
+    console.log(`Generating video segment ${segmentLabel} using seedance model (no audio, 10 seconds)`);
+    console.log(`Image URL: ${imageUrls[i * 2 + 1]}`); // Use alternate images for 'b' videos
+    console.log(`Prompt: ${prompts[i * 2 + 1]}`);
     
-    return await generateVideoSegment(audioUrl, imageUrls[index], prompts[index], model);
-  });
+    // Seedance doesn't use audio, pass empty string
+    videoPromises.push(
+      generateVideoSegment('', imageUrls[i * 2 + 1], prompts[i * 2 + 1], 'seedance')
+    );
+  }
   
   const videoUrls = await Promise.all(videoPromises);
   console.log(`All ${videoUrls.length} video segments generated successfully`);
   
   // Group videos into pairs for picture-in-picture
+  // First 4 are 'a' videos, last 4 are 'b' videos
   const segmentPairs: Array<{a: string, b: string}> = [];
-  for (let i = 0; i < videoUrls.length; i += 2) {
+  for (let i = 0; i < 4; i++) {
     segmentPairs.push({
-      a: videoUrls[i],   // multitalk video (1a, 2a, 3a, 4a)
-      b: videoUrls[i + 1] // seedance video (1b, 2b, 3b, 4b)
+      a: videoUrls[i],     // multitalk video with audio (1a, 2a, 3a, 4a)
+      b: videoUrls[i + 4]  // seedance video without audio (1b, 2b, 3b, 4b)
     });
   }
   

@@ -590,7 +590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "video_generation",
-        message: "Generating 8 video segments with alternating models",
+        message: "Generating 4 videos with audio (multitalk) and 4 without audio (seedance)",
         status: "progress",
         metadata: { step: 2, total: 5 }
       });

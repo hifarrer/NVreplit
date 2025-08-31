@@ -10,7 +10,7 @@ export async function splitAudio(audioUrl: string): Promise<{ part: string; down
       },
       body: JSON.stringify({
         audio_url: audioUrl,
-        parts: 8,
+        parts: 4,
       }),
     });
 
