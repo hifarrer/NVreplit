@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AudioSegment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { RotateCcw } from "lucide-react";
-import loadingAnimation from "@assets/loading_1756672445398.webm";
+import loadingAnimation from "@assets/loading_1756677254636.mp4";
 
 interface VideoGenerationStepProps {
   projectId: string;
