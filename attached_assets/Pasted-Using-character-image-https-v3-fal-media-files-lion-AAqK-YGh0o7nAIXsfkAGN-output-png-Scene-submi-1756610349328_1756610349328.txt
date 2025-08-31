@@ -1,0 +1,27 @@
+Using character image: https://v3.fal.media/files/lion/AAqK-YGh0o7nAIXsfkAGN_output.png
+Scene submission response status: 200
+Scene submission result: {
+  "status": "IN_QUEUE",
+  "request_id": "5171ceb2-bda2-41af-b585-0677dfcefc56",
+  "response_url": "https://queue.fal.run/fal-ai/nano-banana/requests/5171ceb2-bda2-41af-b585-0677dfcefc56",
+  "status_url": "https://queue.fal.run/fal-ai/nano-banana/requests/5171ceb2-bda2-41af-b585-0677dfcefc56/status",
+  "cancel_url": "https://queue.fal.run/fal-ai/nano-banana/requests/5171ceb2-bda2-41af-b585-0677dfcefc56/cancel",
+  "logs": null,
+  "metrics": {},
+  "queue_position": 0
+}
+Got scene request ID: 5171ceb2-bda2-41af-b585-0677dfcefc56
+Starting polling for scene completion...
+Scene polling attempt 1/60...
+Checking scene status at: https://queue.fal.run/fal-ai/nano-banana/edit/requests/5171ceb2-bda2-41af-b585-0677dfcefc56/status
+Scene status response status: 405
+Scene status check failed: 405: Method Not Allowed
+Scene image generation error for prompt "Scene 1: In a dimly lit, abandoned warehouse, the character, a young woman in her mid-20s, stands alone amidst scattered debris. She wears a flowing, tattered black dress that brushes against the cold concrete floor, her dark, curly hair falling in waves around her shoulders. The soft glow of a single hanging light bulb casts dramatic shadows across her face, highlighting her deep, contemplative gaze as she reaches out to touch an old, rusted piece of machinery, as if seeking connection to the past. A low, haunting melody plays, enhancing the atmosphere of longing and isolation. The camera slowly zooms in on her face, capturing the flicker of vulnerability in her expression as tears well up in her eyes.": Error: Status check failed: 405 - 405: Method Not Allowed
+    at generateSceneImages (/home/runner/workspace/server/services/fal.ts:190:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:454:27)
+Generate scenes error: Error: Failed to generate scene image: Status check failed: 405 - 405: Method Not Allowed
+    at generateSceneImages (/home/runner/workspace/server/services/fal.ts:250:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:454:27)
+3:18:06 AM [express] POST /api/projects/683728b4-3154-409d-8da1-37e4203ff5c5/generate-scenes 500

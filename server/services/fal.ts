@@ -173,7 +173,7 @@ export async function generateSceneImages(prompts: string[], characterImageUrl: 
         console.log(`Scene polling attempt ${attempts + 1}/${maxAttempts}...`);
         await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
         
-        const statusUrl = `https://queue.fal.run/fal-ai/nano-banana/edit/requests/${requestId}/status`;
+        const statusUrl = `https://queue.fal.run/fal-ai/nano-banana/requests/${requestId}/status`;
         console.log("Checking scene status at:", statusUrl);
         
         const statusResponse = await fetch(statusUrl, {
