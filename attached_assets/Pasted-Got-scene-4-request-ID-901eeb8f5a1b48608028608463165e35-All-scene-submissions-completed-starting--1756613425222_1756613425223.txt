@@ -1,0 +1,29 @@
+Got scene 4 request ID: 901eeb8f5a1b48608028608463165e35
+All scene submissions completed, starting parallel polling...
+Scene 3 generation completed!
+Found scene 3 image URL: https://d1q70pf5vjeyhc.cloudfront.net/predictions/f4dbe2c3b1c642bfa5996921a57a96aa/1.jpeg
+Scene 1 generation completed!
+Found scene 1 image URL: https://d1q70pf5vjeyhc.cloudfront.net/predictions/c925d5d6290546dfbf111b5e9ac96d85/1.jpeg
+Scene 2 generation completed!
+Found scene 2 image URL: https://d1q70pf5vjeyhc.cloudfront.net/predictions/2933c8f177454e16ac2c6ead899a583a/1.jpeg
+Scene 4 generation completed!
+Found scene 4 image URL: https://d1q70pf5vjeyhc.cloudfront.net/predictions/901eeb8f5a1b48608028608463165e35/1.jpeg
+All scene images generated successfully (including retries): [
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/c925d5d6290546dfbf111b5e9ac96d85/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/2933c8f177454e16ac2c6ead899a583a/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/f4dbe2c3b1c642bfa5996921a57a96aa/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/901eeb8f5a1b48608028608463165e35/1.jpeg'
+]
+4:08:01 AM [express] POST /api/projects/43eeeb8f-6f82-4e35-aa37-72f0029ec058/generate-scenes 200 in …
+4:08:04 AM [express] GET /api/projects/43eeeb8f-6f82-4e35-aa37-72f0029ec058 200 in 127ms :: {"id":"4…
+=== AUDIO URL DEBUG ===
+Original audio URL: /uploads/audio-1756613235314-520296191.mp3
+REPLIT_DEV_DOMAIN: 046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev
+Host: 046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev
+Final audio URL for FFMPEG: https://046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev/uploads/audio-1756613235314-520296191.mp3
+=== END DEBUG ===
+Wavespeed generation error: Error: No request ID received from Wavespeed
+    at generateVideoSegment (/home/runner/workspace/server/services/wavespeed.ts:33:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async generateAllVideoSegments (/home/runner/workspace/server/services/wavespeed.ts:79:22)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:594:25)

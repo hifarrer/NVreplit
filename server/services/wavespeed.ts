@@ -27,11 +27,14 @@ export async function generateVideoSegment(
     }
 
     const result = await response.json();
-    const requestId = result.id;
+    const requestId = result.data?.id || result.id;
 
     if (!requestId) {
+      console.error("Wavespeed response:", JSON.stringify(result, null, 2));
       throw new Error("No request ID received from Wavespeed");
     }
+    
+    console.log(`Video segment submission successful, request ID: ${requestId}`);
 
     // Poll for results
     let attempts = 0;
@@ -73,12 +76,20 @@ export async function generateAllVideoSegments(
   imageUrls: string[],
   prompts: string[]
 ): Promise<string[]> {
-  const videoUrls: string[] = [];
-
-  for (let i = 0; i < audioSegments.length; i++) {
-    const videoUrl = await generateVideoSegment(audioSegments[i], imageUrls[i], prompts[i]);
-    videoUrls.push(videoUrl);
-  }
-
+  console.log(`Starting parallel video generation for ${audioSegments.length} segments`);
+  
+  // Generate all video segments in parallel
+  const videoPromises = audioSegments.map(async (audioUrl, index) => {
+    console.log(`Generating video segment ${index + 1}/${audioSegments.length}`);
+    console.log(`Audio URL: ${audioUrl}`);
+    console.log(`Image URL: ${imageUrls[index]}`);
+    console.log(`Prompt: ${prompts[index]}`);
+    
+    return await generateVideoSegment(audioUrl, imageUrls[index], prompts[index]);
+  });
+  
+  const videoUrls = await Promise.all(videoPromises);
+  console.log(`All ${videoUrls.length} video segments generated successfully`);
+  
   return videoUrls;
 }
