@@ -433,15 +433,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Combine audio description with character description for better scene generation
+      let combinedPrompt = audioPrompt;
+      if (project.characterPrompt) {
+        combinedPrompt = `Music theme: ${audioPrompt}. Character: ${project.characterPrompt}`;
+      }
+
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "scene_generation",
         message: "Generating scene prompts",
         status: "started",
-        metadata: {}
+        metadata: { combinedPrompt }
       });
 
-      const scenePrompts = await generateScenePrompts(audioPrompt);
+      const scenePrompts = await generateScenePrompts(combinedPrompt);
       
       await storage.addGenerationLog({
         projectId: req.params.id,
