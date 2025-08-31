@@ -29,7 +29,7 @@ interface GeneratedSong {
   updatedAt: string;
 }
 
-const suggestedTags = ["pop", "electronic", "rock", "acoustic", "jazz", "hip-hop", "country", "reggae"];
+const suggestedTags = ["pop", "electronic", "rock", "acoustic", "jazz", "hip-hop", "country", "reggae", "synthwave", "kpop", "female singer", "male singer"];
 
 export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreationStepProps) {
   const [currentAudioUrl, setCurrentAudioUrl] = useState(audioUrl);
