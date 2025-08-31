@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import Home from "@/pages/home";
 import AuthPage from "@/pages/auth";
 import MyVideosPage from "@/pages/my-videos";
+import MySongsPage from "@/pages/my-songs";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -48,6 +49,7 @@ function AppRouter() {
   return (
     <Switch>
       <Route path="/" component={() => <ProtectedRoute component={Home} />} />
+      <Route path="/my-songs" component={() => <ProtectedRoute component={MySongsPage} />} />
       <Route path="/my-videos" component={() => <ProtectedRoute component={MyVideosPage} />} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />

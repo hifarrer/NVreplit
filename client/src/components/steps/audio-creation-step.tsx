@@ -2,10 +2,11 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { AudioPlayer } from "@/components/ui/audio-player";
 import { SongGeneratorModal } from "@/components/modals/song-generator-modal";
+import { SongLibraryModal } from "@/components/song-library-modal";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Upload, Music } from "lucide-react";
+import { Upload, Music, Library } from "lucide-react";
 
 interface AudioCreationStepProps {
   projectId: string;
@@ -15,6 +16,7 @@ interface AudioCreationStepProps {
 
 export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreationStepProps) {
   const [showSongModal, setShowSongModal] = useState(false);
+  const [showLibraryModal, setShowLibraryModal] = useState(false);
   const [currentAudioUrl, setCurrentAudioUrl] = useState(audioUrl);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -124,6 +126,36 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
     });
   };
 
+  const selectFromLibraryMutation = useMutation({
+    mutationFn: async (song: any) => {
+      const response = await apiRequest("POST", `/api/projects/${projectId}/select-song`, {
+        audioUrl: song.audioUrl,
+        audioTags: song.audioTags,
+        audioLyrics: song.audioLyrics,
+        audioType: 'generated'
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setCurrentAudioUrl(data.audioUrl);
+      toast({
+        title: "Success",
+        description: "Song selected from library!",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Selection Failed",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleLibrarySongSelect = (song: any) => {
+    selectFromLibraryMutation.mutate(song);
+  };
+
   return (
     <div className="max-w-4xl mx-auto mb-12" data-testid="audio-creation-step">
       <div className="bg-card border border-border rounded-lg p-8">
@@ -198,14 +230,25 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
               </ul>
             </div>
 
-            <Button 
-              onClick={() => setShowSongModal(true)}
-              className="w-full floating-button"
-              data-testid="generate-song-button"
-            >
-              <Music className="w-4 h-4 mr-2" />
-              Generate Song
-            </Button>
+            <div className="space-y-2">
+              <Button 
+                onClick={() => setShowSongModal(true)}
+                className="w-full floating-button"
+                data-testid="generate-song-button"
+              >
+                <Music className="w-4 h-4 mr-2" />
+                Generate New Song
+              </Button>
+              <Button 
+                onClick={() => setShowLibraryModal(true)}
+                variant="outline"
+                className="w-full"
+                data-testid="select-from-library-button"
+              >
+                <Library className="w-4 h-4 mr-2" />
+                Select from Library
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -234,6 +277,12 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
         onClose={() => setShowSongModal(false)}
         onSongGenerated={handleSongGenerated}
         projectId={projectId}
+      />
+
+      <SongLibraryModal
+        isOpen={showLibraryModal}
+        onClose={() => setShowLibraryModal(false)}
+        onSelectSong={handleLibrarySongSelect}
       />
     </div>
   );

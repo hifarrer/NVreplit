@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Video, Calendar, Download, Play, ArrowLeft, LogOut, User, Home } from "lucide-react";
+import { Video, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeIcon, Music } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -47,8 +47,14 @@ export default function MyVideosPage() {
               <nav className="flex items-center space-x-4">
                 <Link href="/">
                   <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <Home className="h-4 w-4 mr-2" />
+                    <HomeIcon className="h-4 w-4 mr-2" />
                     Create
+                  </Button>
+                </Link>
+                <Link href="/my-songs">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                    <Music className="h-4 w-4 mr-2" />
+                    My Songs
                   </Button>
                 </Link>
                 <Button variant="ghost" size="sm" disabled className="text-foreground">

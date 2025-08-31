@@ -10,7 +10,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Project } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Video, Home as HomeIcon } from "lucide-react";
+import { LogOut, User, Video, Home as HomeIcon, Music } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Home() {
@@ -93,6 +93,12 @@ export default function Home() {
                   <HomeIcon className="h-4 w-4 mr-2" />
                   Create
                 </Button>
+                <Link href="/my-songs">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                    <Music className="h-4 w-4 mr-2" />
+                    My Songs
+                  </Button>
+                </Link>
                 <Link href="/my-videos">
                   <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                     <Video className="h-4 w-4 mr-2" />

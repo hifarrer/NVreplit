@@ -214,6 +214,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all user's generated songs
+  app.get("/api/my-songs", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const projects = await storage.getProjectsByUser(userId);
+      // Filter projects with generated audio
+      const generatedSongs = projects
+        .filter(p => p.audioUrl && p.audioType === 'generated')
+        .map(p => ({
+          id: p.id,
+          title: p.title,
+          audioUrl: p.audioUrl,
+          audioTags: p.audioTags,
+          audioLyrics: p.audioLyrics,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt
+        }));
+      res.json(generatedSongs);
+    } catch (error) {
+      console.error("Get my songs error:", error);
+      res.status(500).json({ error: "Failed to get songs" });
+    }
+  });
+
   // Get project by ID
   app.get("/api/projects/:id", authenticateToken, async (req, res) => {
     try {
@@ -436,6 +460,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { error: (error as Error).message }
       });
       res.status(500).json({ error: "Failed to generate character" });
+    }
+  });
+
+  // Select song from library for project
+  app.post("/api/projects/:id/select-song", authenticateToken, async (req, res) => {
+    try {
+      const { audioUrl, audioTags, audioLyrics, audioType } = req.body;
+      
+      const project = await storage.updateProject(req.params.id, {
+        audioUrl,
+        audioTags,
+        audioLyrics,
+        audioType,
+        currentStep: 2,
+      });
+      
+      res.json({ 
+        audioUrl: project.audioUrl,
+        message: 'Song selected from library successfully' 
+      });
+    } catch (error) {
+      console.error("Select song error:", error);
+      res.status(500).json({ error: "Failed to select song from library" });
     }
   });
 
