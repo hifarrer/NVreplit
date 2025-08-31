@@ -279,8 +279,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/projects/:id/generate-scenes", async (req, res) => {
     try {
       const project = await storage.getProject(req.params.id);
-      if (!project || !project.audioPrompt || !project.characterImageUrl) {
+      if (!project || !project.characterImageUrl) {
         return res.status(400).json({ error: "Missing required project data" });
+      }
+
+      // For uploaded audio files, we need to create a generic prompt
+      let audioPrompt = project.audioPrompt;
+      if (!audioPrompt) {
+        if (project.audioType === 'uploaded') {
+          audioPrompt = "Create a music video with dramatic scenes";
+        } else {
+          return res.status(400).json({ error: "Audio prompt is required for scene generation" });
+        }
       }
 
       await storage.addGenerationLog({
@@ -291,7 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: {}
       });
 
-      const scenePrompts = await generateScenePrompts(project.audioPrompt);
+      const scenePrompts = await generateScenePrompts(audioPrompt);
       
       await storage.addGenerationLog({
         projectId: req.params.id,

@@ -1,0 +1,72 @@
+Character generation route called with body: { prompt: 'a cyberpunk cute cat in realistic style' }
+Extracted prompt: a cyberpunk cute cat in realistic style
+About to call generateCharacterImage...
+Starting Fal.ai character generation with prompt: a cyberpunk cute cat in realistic style
+Using FAL_KEY: Key present
+Submitting request to Fal.ai...
+Submission response status: 200
+Submission response headers: {
+  connection: 'keep-alive',
+  'content-length': '442',
+  'content-type': 'application/json; charset=utf-8',
+  date: 'Sun, 31 Aug 2025 02:04:14 GMT',
+  'strict-transport-security': 'max-age=31536000; includeSubDomains',
+  'x-robots-tag': 'noindex'
+}
+Fal.ai submission result: {
+  "status": "IN_QUEUE",
+  "request_id": "0f5535f2-59e3-4d40-9882-734d926af4ee",
+  "response_url": "https://queue.fal.run/fal-ai/imagen4/requests/0f5535f2-59e3-4d40-9882-734d926af4ee",
+  "status_url": "https://queue.fal.run/fal-ai/imagen4/requests/0f5535f2-59e3-4d40-9882-734d926af4ee/status",
+  "cancel_url": "https://queue.fal.run/fal-ai/imagen4/requests/0f5535f2-59e3-4d40-9882-734d926af4ee/cancel",
+  "logs": null,
+  "metrics": {},
+  "queue_position": 0
+}
+Got request ID: 0f5535f2-59e3-4d40-9882-734d926af4ee
+Starting polling for completion...
+Polling attempt 1/60...
+Checking status at: https://queue.fal.run/fal-ai/imagen4/requests/0f5535f2-59e3-4d40-9882-734d926af4ee/status
+Status response status: 202
+Status result: {
+  "status": "IN_PROGRESS",
+  "request_id": "0f5535f2-59e3-4d40-9882-734d926af4ee",
+  "response_url": "https://queue.fal.run/fal-ai/imagen4/requests/0f5535f2-59e3-4d40-9882-734d926af4ee",
+  "status_url": "https://queue.fal.run/fal-ai/imagen4/requests/0f5535f2-59e3-4d40-9882-734d926af4ee/status",
+  "cancel_url": "https://queue.fal.run/fal-ai/imagen4/requests/0f5535f2-59e3-4d40-9882-734d926af4ee/cancel",
+  "logs": null,
+  "metrics": {}
+}
+Status: IN_PROGRESS, continuing to poll...
+Polling attempt 2/60...
+Checking status at: https://queue.fal.run/fal-ai/imagen4/requests/0f5535f2-59e3-4d40-9882-734d926af4ee/status
+Status response status: 200
+Status result: {
+  "status": "COMPLETED",
+  "request_id": "0f5535f2-59e3-4d40-9882-734d926af4ee",
+  "response_url": "https://queue.fal.run/fal-ai/imagen4/requests/0f5535f2-59e3-4d40-9882-734d926af4ee",
+  "status_url": "https://queue.fal.run/fal-ai/imagen4/requests/0f5535f2-59e3-4d40-9882-734d926af4ee/status",
+  "cancel_url": "https://queue.fal.run/fal-ai/imagen4/requests/0f5535f2-59e3-4d40-9882-734d926af4ee/cancel",
+  "logs": null,
+  "metrics": {
+    "inference_time": 8.90969204902649
+  }
+}
+Generation completed! Fetching results...
+Fetching results from: https://queue.fal.run/fal-ai/imagen4/requests/0f5535f2-59e3-4d40-9882-734d926af4ee
+Final results: {
+  "images": [
+    {
+      "url": "https://v3.fal.media/files/penguin/HgASdXzGEA9pjsl-z7ucL_output.png",
+      "content_type": "image/png",
+      "file_name": "output.png",
+      "file_size": 1432604
+    }
+  ],
+  "seed": 1116386463
+}
+Found image URL: https://v3.fal.media/files/penguin/HgASdXzGEA9pjsl-z7ucL_output.png
+generateCharacterImage returned: https://v3.fal.media/files/penguin/HgASdXzGEA9pjsl-z7ucL_output.png
+2:04:25 AM [express] POST /api/projects/e6a85513-487e-4b39-924b-95bdf032a69c/generate-character 200 …
+2:04:34 AM [express] GET /api/projects/e6a85513-487e-4b39-924b-95bdf032a69c 200 in 1ms :: {"userId":…
+2:04:44 AM [express] POST /api/projects/e6a85513-487e-4b39-924b-95bdf032a69c/generate-scenes 400 in
