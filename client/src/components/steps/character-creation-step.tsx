@@ -67,8 +67,8 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
   };
 
   return (
-    <div className="max-w-4xl mx-auto mb-12" data-testid="character-creation-step">
-      <div className="bg-card border border-border rounded-lg p-8">
+    <div className="max-w-4xl mx-auto mb-12 bg-card rounded-lg p-4" data-testid="character-creation-step">
+      <div className="bg-background border border-border rounded-lg p-8">
         <div className="flex justify-end mb-4">
           <Button
             variant="outline"
