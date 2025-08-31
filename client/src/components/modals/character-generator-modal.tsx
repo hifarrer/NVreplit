@@ -13,7 +13,7 @@ import { RefreshCw } from "lucide-react";
 interface CharacterGeneratorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCharacterGenerated: (result: { imageUrl: string }) => void;
+  onCharacterGenerated: (result: { imageUrl: string; prompt: string }) => void;
   projectId: string;
 }
 
@@ -75,7 +75,8 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
 
   const handleSaveCharacter = () => {
     if (generatedImageUrl) {
-      onCharacterGenerated({ imageUrl: generatedImageUrl });
+      const fullPrompt = `${description} in ${selectedStyle} style`;
+      onCharacterGenerated({ imageUrl: generatedImageUrl, prompt: fullPrompt });
       handleClose();
     }
   };

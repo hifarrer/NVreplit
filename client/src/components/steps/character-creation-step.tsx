@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CharacterGeneratorModal } from "@/components/modals/character-generator-modal";
+import { CharacterLibraryModal } from "@/components/modals/character-library-modal";
+import { SaveCharacterModal } from "@/components/modals/save-character-modal";
 import { useToast } from "@/hooks/use-toast";
 
 interface CharacterCreationStepProps {
@@ -12,7 +14,10 @@ interface CharacterCreationStepProps {
 
 export function CharacterCreationStep({ projectId, characterImageUrl, onNext, onBack }: CharacterCreationStepProps) {
   const [showCharacterModal, setShowCharacterModal] = useState(false);
+  const [showLibraryModal, setShowLibraryModal] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
   const [currentCharacterUrl, setCurrentCharacterUrl] = useState(characterImageUrl);
+  const [currentCharacterPrompt, setCurrentCharacterPrompt] = useState('');
   const { toast } = useToast();
 
   const handleCharacterUpload = () => {
@@ -23,11 +28,21 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
     });
   };
 
-  const handleCharacterGenerated = (result: { imageUrl: string }) => {
+  const handleCharacterGenerated = (result: { imageUrl: string; prompt: string }) => {
     setCurrentCharacterUrl(result.imageUrl);
+    setCurrentCharacterPrompt(result.prompt);
     toast({
       title: "Success",
       description: "Your character has been generated successfully!",
+    });
+  };
+
+  const handleSavedCharacterSelected = (character: { imageUrl: string; prompt: string }) => {
+    setCurrentCharacterUrl(character.imageUrl);
+    setCurrentCharacterPrompt(character.prompt);
+    toast({
+      title: "Character loaded",
+      description: "Your saved character has been loaded successfully!",
     });
   };
 
@@ -36,7 +51,22 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
       <div className="bg-card border border-border rounded-lg p-8">
         <div className="text-center mb-8">
           <h3 className="text-2xl font-bold gradient-text mb-4">Create Your Character</h3>
-          <p className="text-muted-foreground">Upload an image or generate an AI character for your music video</p>
+          <p className="text-muted-foreground">Upload an image, generate an AI character, or choose from your saved characters</p>
+        </div>
+
+        {/* Character Library Section */}
+        <div className="mb-8">
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              onClick={() => setShowLibraryModal(true)}
+              className="hover:bg-muted/50"
+              data-testid="button-character-library"
+            >
+              <i className="fas fa-images mr-2"></i>
+              My Character Library
+            </Button>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-8">
@@ -99,26 +129,41 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
               <i className="fas fa-user-check text-primary mr-2"></i>
               Your Character
             </h4>
-            <div className="flex items-center space-x-6">
-              <img 
-                src={currentCharacterUrl}
-                alt="Generated character" 
-                className="w-24 h-24 rounded-lg object-cover border-2 border-primary" 
-                data-testid="character-preview-image"
-              />
-              <div>
-                <p className="font-semibold" data-testid="character-description">AI Generated Character</p>
-                <p className="text-sm text-muted-foreground">Generated with AI</p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowCharacterModal(true)}
-                  className="text-sm text-primary hover:underline mt-1 p-0 h-auto"
-                  data-testid="regenerate-character-button"
-                >
-                  Generate another
-                </Button>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-6">
+                <img 
+                  src={currentCharacterUrl}
+                  alt="Generated character" 
+                  className="w-24 h-24 rounded-lg object-cover border-2 border-primary" 
+                  data-testid="character-preview-image"
+                />
+                <div>
+                  <p className="font-semibold" data-testid="character-description">AI Generated Character</p>
+                  <p className="text-sm text-muted-foreground">Generated with AI</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowCharacterModal(true)}
+                    className="text-sm text-primary hover:underline mt-1 p-0 h-auto"
+                    data-testid="regenerate-character-button"
+                  >
+                    Generate another
+                  </Button>
+                </div>
               </div>
+              
+              {/* Save Character Button */}
+              {currentCharacterPrompt && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowSaveModal(true)}
+                  className="hover:bg-muted/50"
+                  data-testid="button-save-character"
+                >
+                  <i className="fas fa-bookmark mr-2"></i>
+                  Save Character
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -151,6 +196,21 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
         onCharacterGenerated={handleCharacterGenerated}
         projectId={projectId}
       />
+      
+      <CharacterLibraryModal
+        isOpen={showLibraryModal}
+        onClose={() => setShowLibraryModal(false)}
+        onSelect={handleSavedCharacterSelected}
+      />
+      
+      {currentCharacterUrl && currentCharacterPrompt && (
+        <SaveCharacterModal
+          isOpen={showSaveModal}
+          onClose={() => setShowSaveModal(false)}
+          imageUrl={currentCharacterUrl}
+          prompt={currentCharacterPrompt}
+        />
+      )}
     </div>
   );
 }

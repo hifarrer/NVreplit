@@ -45,6 +45,15 @@ export const generationLogs = pgTable("generation_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const savedCharacters = pgTable("saved_characters", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  name: text("name").notNull(),
+  prompt: text("prompt").notNull(),
+  imageUrl: text("image_url").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -61,9 +70,16 @@ export const insertGenerationLogSchema = createInsertSchema(generationLogs).omit
   createdAt: true,
 });
 
+export const insertSavedCharacterSchema = createInsertSchema(savedCharacters).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type Project = typeof projects.$inferSelect;
 export type InsertGenerationLog = z.infer<typeof insertGenerationLogSchema>;
 export type GenerationLog = typeof generationLogs.$inferSelect;
+export type InsertSavedCharacter = z.infer<typeof insertSavedCharacterSchema>;
+export type SavedCharacter = typeof savedCharacters.$inferSelect;

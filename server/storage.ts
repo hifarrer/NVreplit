@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, users, projects, generationLogs } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, users, projects, generationLogs, savedCharacters } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -21,17 +21,24 @@ export interface IStorage {
   // Generation log methods
   addGenerationLog(log: InsertGenerationLog): Promise<GenerationLog>;
   getGenerationLogs(projectId: string): Promise<GenerationLog[]>;
+
+  // Saved character methods
+  getSavedCharacters(userId: string): Promise<SavedCharacter[]>;
+  saveCharacter(character: InsertSavedCharacter): Promise<SavedCharacter>;
+  deleteSavedCharacter(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private projects: Map<string, Project>;
   private generationLogs: Map<string, GenerationLog>;
+  private savedCharacters: Map<string, SavedCharacter>;
 
   constructor() {
     this.users = new Map();
     this.projects = new Map();
     this.generationLogs = new Map();
+    this.savedCharacters = new Map();
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -134,6 +141,27 @@ export class MemStorage implements IStorage {
       .filter((log) => log.projectId === projectId)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }
+
+  async getSavedCharacters(userId: string): Promise<SavedCharacter[]> {
+    return Array.from(this.savedCharacters.values())
+      .filter((character) => character.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async saveCharacter(insertCharacter: InsertSavedCharacter): Promise<SavedCharacter> {
+    const id = randomUUID();
+    const character: SavedCharacter = {
+      ...insertCharacter,
+      id,
+      createdAt: new Date()
+    };
+    this.savedCharacters.set(id, character);
+    return character;
+  }
+
+  async deleteSavedCharacter(id: string): Promise<boolean> {
+    return this.savedCharacters.delete(id);
+  }
 }
 
 // Database Storage Implementation
@@ -210,6 +238,22 @@ export class DbStorage implements IStorage {
     return await this.db.select().from(generationLogs)
       .where(eq(generationLogs.projectId, projectId))
       .orderBy(generationLogs.createdAt);
+  }
+
+  async getSavedCharacters(userId: string): Promise<SavedCharacter[]> {
+    return await this.db.select().from(savedCharacters)
+      .where(eq(savedCharacters.userId, userId))
+      .orderBy(savedCharacters.createdAt);
+  }
+
+  async saveCharacter(insertCharacter: InsertSavedCharacter): Promise<SavedCharacter> {
+    const result = await this.db.insert(savedCharacters).values(insertCharacter).returning();
+    return result[0];
+  }
+
+  async deleteSavedCharacter(id: string): Promise<boolean> {
+    const result = await this.db.delete(savedCharacters).where(eq(savedCharacters.id, id));
+    return result.rowCount > 0;
   }
 }
 

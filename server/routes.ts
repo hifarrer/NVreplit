@@ -4,7 +4,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { storage } from "./storage";
-import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema } from "@shared/schema";
+import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema } from "@shared/schema";
 import { generateLyrics, generateScenePrompts } from "./services/openai";
 import { generateSong } from "./services/elevenlabs";
 import { generateCharacterImage, generateSceneImages } from "./services/fal";
@@ -571,6 +571,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get logs error:", error);
       res.status(500).json({ error: "Failed to get logs" });
+    }
+  });
+
+  // Saved characters routes
+  app.get("/api/characters", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const characters = await storage.getSavedCharacters(userId);
+      res.json(characters);
+    } catch (error) {
+      console.error("Get saved characters error:", error);
+      res.status(500).json({ error: "Failed to get saved characters" });
+    }
+  });
+
+  app.post("/api/characters", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const characterData = {
+        ...req.body,
+        userId
+      };
+      
+      const validatedData = insertSavedCharacterSchema.parse(characterData);
+      const character = await storage.saveCharacter(validatedData);
+      res.status(201).json(character);
+    } catch (error) {
+      console.error("Save character error:", error);
+      const message = error instanceof Error ? error.message : 'Failed to save character';
+      res.status(400).json({ error: message });
+    }
+  });
+
+  app.delete("/api/characters/:id", authenticateToken, async (req, res) => {
+    try {
+      const deleted = await storage.deleteSavedCharacter(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Character not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete character error:", error);
+      res.status(500).json({ error: "Failed to delete character" });
     }
   });
 
