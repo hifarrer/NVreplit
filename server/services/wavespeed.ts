@@ -6,19 +6,28 @@ export async function generateVideoSegment(
   prompt: string
 ): Promise<string> {
   try {
+    console.log("=== GENERATING VIDEO SEGMENT ===");
+    console.log("Audio URL:", audioUrl);
+    console.log("Image URL:", imageUrl);
+    console.log("Prompt:", prompt);
+    
     // Submit video generation request
+    const requestBody = {
+      audio: audioUrl,
+      image: imageUrl,
+      prompt: prompt,
+      seed: -1,
+    };
+    
+    console.log("Wavespeed request body:", JSON.stringify(requestBody, null, 2));
+    
     const response = await fetch("https://api.wavespeed.ai/api/v3/wavespeed-ai/multitalk", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${WAVESPEED_API_KEY}`,
       },
-      body: JSON.stringify({
-        audio: audioUrl,
-        image: imageUrl,
-        prompt: prompt,
-        seed: -1,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
