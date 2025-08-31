@@ -349,7 +349,6 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
                   variant="secondary"
                   onClick={() => generateLyricsMutation.mutate()}
                   disabled={!description.trim() || generateLyricsMutation.isPending}
-                  className="w-full"
                   data-testid="generate-lyrics-button"
                 >
                   {generateLyricsMutation.isPending ? (
