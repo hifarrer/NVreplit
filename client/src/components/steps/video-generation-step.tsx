@@ -93,7 +93,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
         </div>
         <div className="text-center mb-8">
           <h3 className="text-2xl font-bold gradient-text mb-4">Creating Your Music Video</h3>
-          <p className="text-muted-foreground">AI is generating your music video. This process may take a few minutes.</p>
+          <p className="text-muted-foreground">Creating your video, this could take up to 15 minutes.</p>
         </div>
 
         {/* Loading Animation */}
