@@ -5,7 +5,7 @@ import path from "path";
 import fs from "fs";
 import { storage } from "./storage";
 import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema } from "@shared/schema";
-import { generateLyrics, generateScenePrompts } from "./services/openai";
+import { generateLyrics, generateScenePrompts, splitLyricsIntoSections } from "./services/openai";
 import { ObjectStorageService } from "./objectStorage";
 import { generateSong } from "./services/elevenlabs";
 import { generateCharacterImage, generateSceneImages } from "./services/fal";
@@ -554,16 +554,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (project.characterPrompt) {
         combinedPrompt = `Music theme: ${audioPrompt}. Character: ${project.characterPrompt}`;
       }
+      
+      // Split lyrics into 4 sections if available
+      let lyricsSections: string[] | undefined;
+      if (project.audioLyrics) {
+        lyricsSections = splitLyricsIntoSections(project.audioLyrics);
+        console.log("Split lyrics into sections:", lyricsSections.map(s => s.substring(0, 50) + "..."));
+      }
 
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "scene_generation",
         message: "Generating scene prompts",
         status: "started",
-        metadata: { combinedPrompt }
+        metadata: { combinedPrompt, hasSections: !!lyricsSections }
       });
 
-      const scenePrompts = await generateScenePrompts(combinedPrompt);
+      const scenePrompts = await generateScenePrompts(combinedPrompt, lyricsSections);
       
       await storage.addGenerationLog({
         projectId: req.params.id,

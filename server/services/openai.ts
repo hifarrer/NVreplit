@@ -58,21 +58,80 @@ Bridge lyrics here...`,
   }
 }
 
+// Helper function to split lyrics into 4 sections
+export function splitLyricsIntoSections(lyrics: string): string[] {
+  const sections: string[] = [];
+  
+  // Common section patterns
+  const sectionPatterns = [
+    /\[Verse 1\]([\s\S]*?)(?=\[|$)/i,
+    /\[Chorus\]([\s\S]*?)(?=\[|$)/i,
+    /\[Verse 2\]([\s\S]*?)(?=\[|$)/i,
+    /\[Bridge\]([\s\S]*?)(?=\[|$)/i,
+  ];
+  
+  // Try to extract the 4 main sections
+  for (const pattern of sectionPatterns) {
+    const match = lyrics.match(pattern);
+    if (match && match[1]) {
+      sections.push(match[0].trim()); // Include the section header
+    }
+  }
+  
+  // If we don't have exactly 4 sections, fall back to splitting by any section headers
+  if (sections.length !== 4) {
+    const allSections = lyrics.split(/\[(?:Verse \d+|Chorus|Bridge|Outro|Intro|Pre-Chorus|Refrain)\]/i)
+      .filter(section => section.trim().length > 0)
+      .slice(0, 4);
+    
+    // If still not enough sections, split the lyrics into 4 equal parts
+    if (allSections.length < 4) {
+      const lines = lyrics.split('\n').filter(line => line.trim().length > 0);
+      const linesPerSection = Math.ceil(lines.length / 4);
+      
+      return [
+        lines.slice(0, linesPerSection).join('\n'),
+        lines.slice(linesPerSection, linesPerSection * 2).join('\n'),
+        lines.slice(linesPerSection * 2, linesPerSection * 3).join('\n'),
+        lines.slice(linesPerSection * 3).join('\n')
+      ];
+    }
+    
+    return allSections;
+  }
+  
+  return sections;
+}
+
 export async function generateScenePrompts(
   songDescription: string,
+  lyricsSections?: string[]
 ): Promise<string[]> {
   try {
+    // Create prompts for each pair of scenes (8 total scenes, 4 sections)
+    let userContent = `Generate 8 image prompts to generate 8 images that will be used as frames for a music video based on the following prompt "${songDescription}". Be creative generating completely different scenes with the same character, be detailed describing everything in the scene as well as the character clothes and expression. Also include camera movements like zoom in, zoom out, pan left, pan right, tilt up, tilt down, etc. as well as visual effects.`;
+    
+    // If we have lyrics sections, add them to the prompt for better scene generation
+    if (lyricsSections && lyricsSections.length > 0) {
+      userContent += "\n\nThe scenes should be related to these lyrics sections:\n";
+      userContent += "Scenes 1-2 (part_1a & part_1b) should relate to: " + (lyricsSections[0] || "[Instrumental]") + "\n";
+      userContent += "Scenes 3-4 (part_2a & part_2b) should relate to: " + (lyricsSections[1] || "[Instrumental]") + "\n";
+      userContent += "Scenes 5-6 (part_3a & part_3b) should relate to: " + (lyricsSections[2] || "[Instrumental]") + "\n";
+      userContent += "Scenes 7-8 (part_4a & part_4b) should relate to: " + (lyricsSections[3] || "[Instrumental]") + "\n";
+      userContent += "\nMake sure each pair of scenes relates to the corresponding lyrics section while maintaining visual continuity.";
+    }
+    
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
           content:
-            'You are a creative director for music videos. Generate 8 detailed scene prompts that would make compelling visuals for a music video. Each prompt should describe a complete scene with the character, setting, mood, and visual elements. Respond with JSON in this format: {"prompts": ["scene 1 description", "scene 2 description", "scene 3 description", "scene 4 description", "scene 5 description", "scene 6 description", "scene 7 description", "scene 8 description"]}',
+            'You are a creative director for music videos. Generate 8 detailed scene prompts that would make compelling visuals for a music video. Each prompt should describe a complete scene with the character, setting, mood, and visual elements and have a related sequence. Respond with JSON in this format: {"prompts": ["scene 1 description", "scene 2 description", "scene 3 description", "scene 4 description", "scene 5 description", "scene 6 description", "scene 7 description", "scene 8 description"]}',
         },
         {
           role: "user",
-          content: `Generate 8 image prompts to generate 8 images that will be used as frames for a music video based on the following prompt "${songDescription}". Be creative generating completely different scenes with the same character, be detailed describing everything in the scene as well as the character clothes and expression. Also include camera movements like zoom in, zoom out, pan left, pan right, tilt up, tilt down, etc. as well as visual effects.`,
+          content: userContent,
         },
       ],
       response_format: { type: "json_object" },
