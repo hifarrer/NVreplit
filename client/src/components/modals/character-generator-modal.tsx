@@ -21,7 +21,7 @@ const artStyles = [
   { id: "cartoon", name: "Cartoon", description: "Fun and animated" },
   { id: "realistic", name: "Realistic", description: "Photorealistic style" },
   { id: "anime", name: "Anime", description: "Japanese animation style" },
-  { id: "pixel", name: "Pixel Art", description: "Retro 8-bit style" }
+  { id: "3d", name: "3D Animation", description: "Modern 3D rendered style" }
 ];
 
 const videoFormats = [
