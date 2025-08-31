@@ -103,7 +103,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
             loop 
             muted 
             playsInline
-            className="w-48 h-48 mb-6"
+            className="mb-6"
             src={loadingAnimation}
           />
         </div>
