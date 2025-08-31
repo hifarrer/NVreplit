@@ -1,5 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { storage } from "./storage";
 import { insertProjectSchema, insertGenerationLogSchema } from "@shared/schema";
 import { generateLyrics, generateScenePrompts } from "./services/openai";
@@ -7,6 +10,33 @@ import { generateSong } from "./services/elevenlabs";
 import { generateCharacterImage, generateSceneImages } from "./services/fal";
 import { generateAllVideoSegments } from "./services/wavespeed";
 import { splitAudio, mergeVideos } from "./services/ffmpeg";
+
+// Configure multer for audio uploads
+const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const audioUpload = multer({
+  storage: multer.diskStorage({
+    destination: uploadDir,
+    filename: (req: any, file: any, cb: any) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, `audio-${uniqueSuffix}${path.extname(file.originalname)}`);
+    }
+  }),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req: any, file: any, cb: any) => {
+    const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/mp3'];
+    if (allowedTypes.includes(file.mimetype) || file.originalname.match(/\.(mp3|wav|aac)$/i)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only MP3, WAV, and AAC files are allowed.'));
+    }
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new project
@@ -46,6 +76,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Update project error:", error);
       res.status(500).json({ error: "Failed to update project" });
+    }
+  });
+
+  // Upload audio file
+  app.post("/api/projects/:id/upload-audio", audioUpload.single('audio'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No audio file provided" });
+      }
+
+      const audioUrl = `/uploads/${req.file.filename}`;
+      
+      // Update project with audio URL
+      const project = await storage.updateProject(req.params.id, { 
+        audioUrl,
+        audioType: 'uploaded'
+      });
+      
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "audio_upload",
+        message: "Audio file uploaded successfully",
+        status: "completed",
+        metadata: { 
+          filename: req.file.filename,
+          originalName: req.file.originalname,
+          size: req.file.size,
+          audioUrl 
+        }
+      });
+
+      res.json({ 
+        audioUrl,
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size
+      });
+    } catch (error) {
+      console.error("Upload audio error:", error);
+      
+      // Clean up file if it was uploaded but processing failed
+      if (req.file) {
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch (cleanupError) {
+          console.error("Failed to clean up uploaded file:", cleanupError);
+        }
+      }
+
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "audio_upload",
+        message: `Audio upload failed: ${(error as Error).message}`,
+        status: "error",
+        metadata: { error: (error as Error).message }
+      });
+
+      res.status(500).json({ error: "Failed to upload audio file" });
     }
   });
 
