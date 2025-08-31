@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SceneData } from "@/lib/types";
+import { RotateCcw } from "lucide-react";
 
 interface SceneGenerationStepProps {
   projectId: string;
@@ -73,6 +74,18 @@ export function SceneGenerationStep({ projectId, scenes = [], onNext, onBack }: 
   return (
     <div className="max-w-6xl mx-auto mb-12" data-testid="scene-generation-step">
       <div className="bg-card border border-border rounded-lg p-8">
+        <div className="flex justify-end mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-2"
+            data-testid="start-over-button"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Start over
+          </Button>
+        </div>
         <div className="text-center mb-8">
           <h3 className="text-2xl font-bold gradient-text mb-4">Generate Video Scenes</h3>
           <p className="text-muted-foreground">AI will create 4 unique scenes for your music video based on your song concept</p>

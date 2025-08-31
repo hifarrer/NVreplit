@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Upload, Music, Library, Calendar, Tag, Check, Play } from "lucide-react";
+import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 
 interface AudioCreationStepProps {
@@ -273,6 +273,18 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
   return (
     <div className="max-w-5xl mx-auto mb-12" data-testid="audio-creation-step">
       <div className="bg-card border border-border rounded-lg p-8">
+        <div className="flex justify-end mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-2"
+            data-testid="start-over-button"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Start over
+          </Button>
+        </div>
         <div className="text-center mb-8">
           <h3 className="text-2xl font-bold gradient-text mb-4">Create Your Music</h3>
           <p className="text-muted-foreground">Choose how you want to create the soundtrack for your music video</p>

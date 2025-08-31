@@ -1,8 +1,11 @@
 import OpenAI from "openai";
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
+const openai = new OpenAI({
+  apiKey:
+    process.env.OPENAI_API_KEY ||
+    process.env.OPENAI_API_KEY_ENV_VAR ||
+    "default_key",
 });
 
 export async function generateLyrics(songDescription: string): Promise<string> {
@@ -12,7 +15,8 @@ export async function generateLyrics(songDescription: string): Promise<string> {
       messages: [
         {
           role: "system",
-          content: "You are a creative songwriter. Generate meaningful lyrics based on the provided description. Include verses, chorus, and bridge sections as appropriate. IMPORTANT: Format section headers ONLY using square brackets like [Verse 1], [Chorus], [Bridge], [Verse 2], etc. NEVER use asterisks (**), markdown formatting, or any other symbols for section headers. Only use square brackets [ ]."
+          content:
+            "You are a creative songwriter. Generate meaningful lyrics based on the provided description. Include verses, chorus, and bridge sections as appropriate. IMPORTANT: Format section headers ONLY using square brackets like [Verse 1], [Chorus], [Bridge], [Verse 2], etc. NEVER use asterisks (**), markdown formatting, or any other symbols for section headers. Only use square brackets [ ].",
         },
         {
           role: "user",
@@ -29,24 +33,24 @@ Your chorus here...
 More lyrics here...
 
 [Bridge]
-Bridge lyrics here...`
-        }
+Bridge lyrics here...`,
+        },
       ],
       max_tokens: 1000,
     });
 
     const rawLyrics = response.choices[0].message.content || "";
-    
+
     // Post-process to fix formatting: convert *Section:* or **Section:** to [Section]
     const processedLyrics = rawLyrics
-      .replace(/\*{1,2}(Verse \d+)\*{1,2}:?/g, '[$1]')
-      .replace(/\*{1,2}(Chorus)\*{1,2}:?/g, '[$1]')
-      .replace(/\*{1,2}(Bridge)\*{1,2}:?/g, '[$1]')
-      .replace(/\*{1,2}(Outro)\*{1,2}:?/g, '[$1]')
-      .replace(/\*{1,2}(Intro)\*{1,2}:?/g, '[$1]')
-      .replace(/\*{1,2}(Pre-Chorus)\*{1,2}:?/g, '[$1]')
-      .replace(/\*{1,2}(Refrain)\*{1,2}:?/g, '[$1]');
-    
+      .replace(/\*{1,2}(Verse \d+)\*{1,2}:?/g, "[$1]")
+      .replace(/\*{1,2}(Chorus)\*{1,2}:?/g, "[$1]")
+      .replace(/\*{1,2}(Bridge)\*{1,2}:?/g, "[$1]")
+      .replace(/\*{1,2}(Outro)\*{1,2}:?/g, "[$1]")
+      .replace(/\*{1,2}(Intro)\*{1,2}:?/g, "[$1]")
+      .replace(/\*{1,2}(Pre-Chorus)\*{1,2}:?/g, "[$1]")
+      .replace(/\*{1,2}(Refrain)\*{1,2}:?/g, "[$1]");
+
     return processedLyrics;
   } catch (error) {
     console.error("OpenAI lyrics generation error:", error);
@@ -54,19 +58,22 @@ Bridge lyrics here...`
   }
 }
 
-export async function generateScenePrompts(songDescription: string): Promise<string[]> {
+export async function generateScenePrompts(
+  songDescription: string,
+): Promise<string[]> {
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: "You are a creative director for music videos. Generate 8 detailed scene prompts that would make compelling visuals for a music video. Each prompt should describe a complete scene with the character, setting, mood, and visual elements. Respond with JSON in this format: {\"prompts\": [\"scene 1 description\", \"scene 2 description\", \"scene 3 description\", \"scene 4 description\", \"scene 5 description\", \"scene 6 description\", \"scene 7 description\", \"scene 8 description\"]}"
+          content:
+            'You are a creative director for music videos. Generate 8 detailed scene prompts that would make compelling visuals for a music video. Each prompt should describe a complete scene with the character, setting, mood, and visual elements. Respond with JSON in this format: {"prompts": ["scene 1 description", "scene 2 description", "scene 3 description", "scene 4 description", "scene 5 description", "scene 6 description", "scene 7 description", "scene 8 description"]}',
         },
         {
           role: "user",
-          content: `Generate 8 image prompts to generate 8 images that will be used as frames for a music video based on the following prompt "${songDescription}". Be creative generating completely different scenes with the same character, be detailed describing everything in the scene as well as the character clothes and expression.`
-        }
+          content: `Generate 8 image prompts to generate 8 images that will be used as frames for a music video based on the following prompt "${songDescription}". Be creative generating completely different scenes with the same character, be detailed describing everything in the scene as well as the character clothes and expression. Also include camera movements like zoom in, zoom out, pan left, pan right, tilt up, tilt down, etc. as well as visual effects.`,
+        },
       ],
       response_format: { type: "json_object" },
     });
@@ -75,6 +82,8 @@ export async function generateScenePrompts(songDescription: string): Promise<str
     return result.prompts || [];
   } catch (error) {
     console.error("OpenAI scene generation error:", error);
-    throw new Error("Failed to generate scene prompts: " + (error as Error).message);
+    throw new Error(
+      "Failed to generate scene prompts: " + (error as Error).message,
+    );
   }
 }

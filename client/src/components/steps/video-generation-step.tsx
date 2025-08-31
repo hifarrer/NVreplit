@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { AudioSegment } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { RotateCcw } from "lucide-react";
 
 interface VideoGenerationStepProps {
   projectId: string;
@@ -100,6 +101,18 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
   return (
     <div className="max-w-6xl mx-auto mb-12" data-testid="video-generation-step">
       <div className="bg-card border border-border rounded-lg p-8">
+        <div className="flex justify-end mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-2"
+            data-testid="start-over-button"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Start over
+          </Button>
+        </div>
         <div className="text-center mb-8">
           <h3 className="text-2xl font-bold gradient-text mb-4">Creating Your Music Video</h3>
           <p className="text-muted-foreground">AI is generating your music video. This process may take a few minutes.</p>
