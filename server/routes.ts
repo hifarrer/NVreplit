@@ -402,12 +402,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).user.userId;
       const projects = await storage.getProjectsByUser(userId);
-      // Filter projects with generated audio
+      // Filter projects with generated audio and sort by newest first
       const generatedSongs = projects
         .filter(p => p.audioUrl && p.audioType === 'generated')
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .map(p => ({
           id: p.id,
-          title: p.title,
+          title: p.audioTags || p.title, // Use audioTags as title if available, fallback to project title
           audioUrl: p.audioUrl,
           audioTags: p.audioTags,
           audioLyrics: p.audioLyrics,
