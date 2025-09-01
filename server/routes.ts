@@ -11,6 +11,7 @@ import { generateSong } from "./services/elevenlabs";
 import { generateCharacterImage, generateSceneImages, generateSingleSceneImage } from "./services/fal";
 import { generateAllVideoSegments } from "./services/wavespeed";
 import { splitAudio, mergeVideos, pictureInPicture } from "./services/ffmpeg";
+import { VideoQueueService } from "./services/videoQueue";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
@@ -42,6 +43,9 @@ const audioUpload = multer({
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || "music-video-maker-secret-key";
+
+// Initialize video queue service
+const videoQueueService = new VideoQueueService();
 
 // Middleware to verify JWT token
 function authenticateToken(req: any, res: any, next: any) {
@@ -1138,7 +1142,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get video queue status
   app.get("/api/video-queue/status", async (req, res) => {
     try {
-      const { videoQueueService } = await import("./services/videoQueue");
       const stats = await videoQueueService.getQueueStats();
       res.json(stats);
     } catch (error) {
@@ -1150,7 +1153,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get queue position for a specific project
   app.get("/api/projects/:id/queue-position", async (req, res) => {
     try {
-      const { videoQueueService } = await import("./services/videoQueue");
       const position = await videoQueueService.getQueuePosition(req.params.id);
       res.json({ queuePosition: position });
     } catch (error) {

@@ -1,0 +1,39 @@
+All scene images generated successfully (including retries): [
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/e51a58474abf46078f3c2e1a26727a3f/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/a1d8dee789f34f09a8a749727e67aa71/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/97f88109b3f14394946a31f4a416bd2f/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/a81012d90a4b43b8ba97c03b3bca16ec/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/7b0ef1532bb84652ac03f14ce47b778b/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/3d49a8a497e142d4ac58ea802ea3eca9/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/3bd4991719dc4229942bf10d8f8e6034/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/a693a6b3827448f18d0d3c92650d3af9/1.jpeg'
+]
+5:20:18 PM [express] POST /api/projects/cfc4ba4c-a3c1-4307-8039-7dfa07ba1f91/generate-scenes 200 in …
+5:20:31 PM [express] PATCH /api/projects/cfc4ba4c-a3c1-4307-8039-7dfa07ba1f91 200 in 128ms :: {"id":…
+Generate video error: PostgresError: relation "video_queue" does not exist
+    at ErrorResponse (file:///home/runner/workspace/node_modules/postgres/src/connection.js:794:26)
+    at handle (file:///home/runner/workspace/node_modules/postgres/src/connection.js:480:6)
+    at TLSSocket.data (file:///home/runner/workspace/node_modules/postgres/src/connection.js:315:9)
+    at TLSSocket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23) {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: '42P01',
+  position: '8',
+  file: 'parse_relation.c',
+  line: '1449',
+  routine: 'parserOpenTable'
+}
+/home/runner/workspace/server/routes.ts:1117
+      await videoQueueService.completeVideoGeneration(req.params.id, false);
+      ^
+
+
+ReferenceError: videoQueueService is not defined
+    at <anonymous> (/home/runner/workspace/server/routes.ts:1117:7)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+Node.js v20.19.3
