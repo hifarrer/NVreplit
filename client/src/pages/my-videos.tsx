@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Video, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeIcon, Music } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -71,7 +72,15 @@ export default function MyVideosPage() {
             <div className="flex items-center space-x-4">
               <Link href="/profile">
                 <div className="flex items-center space-x-2 hover:text-foreground cursor-pointer transition-colors">
-                  <User className="h-4 w-4 text-muted-foreground" />
+                  <Avatar className="h-6 w-6">
+                    {user?.avatarUrl ? (
+                      <AvatarImage src={user.avatarUrl} alt={user.username} />
+                    ) : (
+                      <AvatarFallback className="text-xs bg-gradient-to-br from-primary/20 to-secondary/20">
+                        {user?.username?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
                   <span className="text-sm text-muted-foreground hover:text-foreground">{user?.username}</span>
                 </div>
               </Link>

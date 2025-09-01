@@ -6,15 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut, Upload } from "lucide-react";
+import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { ObjectUploader } from "@/components/ObjectUploader";
 import logoImage from "@assets/neonlogo_1756693857051.png";
-import type { UploadResult } from "@uppy/core";
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
@@ -24,6 +22,18 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+
+  // Predefined avatar options
+  const avatarOptions = [
+    "/public-objects/avatars/avatar1.png",
+    "/public-objects/avatars/avatar2.png", 
+    "/public-objects/avatars/avatar3.png",
+    "/public-objects/avatars/avatar4.png",
+    "/public-objects/avatars/avatar5.png",
+    "/public-objects/avatars/avatar6.png",
+    "/public-objects/avatars/avatar7.png",
+    "/public-objects/avatars/avatar8.png",
+  ];
 
   const updateAvatarMutation = useMutation({
     mutationFn: async (avatarUrl: string) => {
@@ -48,26 +58,8 @@ export default function ProfilePage() {
     },
   });
 
-  const handleAvatarUpload = async () => {
-    try {
-      const response = await apiRequest("POST", "/api/user/avatar/upload-url");
-      const data = await response.json();
-      return {
-        method: "PUT" as const,
-        url: data.uploadURL,
-      };
-    } catch (error) {
-      throw new Error("Failed to get upload URL");
-    }
-  };
-
-  const handleAvatarComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    if (result.successful && result.successful.length > 0) {
-      const uploadedFile = result.successful[0];
-      if (uploadedFile.uploadURL) {
-        updateAvatarMutation.mutate(uploadedFile.uploadURL);
-      }
-    }
+  const handleAvatarSelect = (avatarUrl: string) => {
+    updateAvatarMutation.mutate(avatarUrl);
   };
 
   const updateUsernameMutation = useMutation({
@@ -245,37 +237,69 @@ export default function ProfilePage() {
                   Profile Avatar
                 </CardTitle>
                 <CardDescription>
-                  Upload a profile picture to personalize your account
+                  Choose a profile picture from the available options
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-6">
-                  <Avatar className="h-24 w-24">
-                    {user?.avatarUrl ? (
-                      <AvatarImage 
-                        src={user.avatarUrl} 
-                        alt={user.username}
-                        data-testid="avatar-image"
-                      />
-                    ) : (
-                      <AvatarFallback className="text-2xl bg-gradient-to-br from-primary/20 to-secondary/20">
-                        {user?.username?.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                  <div className="flex flex-col gap-2">
-                    <ObjectUploader
-                      maxNumberOfFiles={1}
-                      maxFileSize={5242880} // 5MB
-                      onGetUploadParameters={handleAvatarUpload}
-                      onComplete={handleAvatarComplete}
-                      buttonClassName="w-fit"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      {user?.avatarUrl ? "Change Avatar" : "Upload Avatar"}
-                    </ObjectUploader>
-                    <p className="text-sm text-muted-foreground">
-                      Recommended: Square image, max 5MB
+                <div className="space-y-4">
+                  {/* Current Avatar */}
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-20 w-20">
+                      {user?.avatarUrl ? (
+                        <AvatarImage 
+                          src={user.avatarUrl} 
+                          alt={user.username}
+                          data-testid="current-avatar-image"
+                        />
+                      ) : (
+                        <AvatarFallback className="text-xl bg-gradient-to-br from-primary/20 to-secondary/20">
+                          {user?.username?.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div>
+                      <p className="text-sm font-medium">Current Avatar</p>
+                      <p className="text-sm text-muted-foreground">
+                        {user?.avatarUrl ? "Custom avatar selected" : "Default initial avatar"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Avatar Selection Grid */}
+                  <div>
+                    <Label className="text-sm font-medium">Choose New Avatar</Label>
+                    <div className="grid grid-cols-4 gap-3 mt-2">
+                      {avatarOptions.map((avatarUrl, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleAvatarSelect(avatarUrl)}
+                          disabled={updateAvatarMutation.isPending}
+                          className={`relative h-16 w-16 rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
+                            user?.avatarUrl === avatarUrl 
+                              ? "border-primary ring-2 ring-primary/20" 
+                              : "border-border hover:border-primary/50"
+                          }`}
+                          data-testid={`avatar-option-${index + 1}`}
+                        >
+                          <img
+                            src={avatarUrl}
+                            alt={`Avatar option ${index + 1}`}
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              // Hide broken images
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                          {user?.avatarUrl === avatarUrl && (
+                            <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+                              <div className="h-2 w-2 bg-primary rounded-full" />
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Click on any avatar to select it as your profile picture
                     </p>
                   </div>
                 </div>

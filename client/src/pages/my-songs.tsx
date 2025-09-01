@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Music, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeIcon, Video, Tag } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -80,7 +81,15 @@ export default function MySongsPage() {
             <div className="flex items-center space-x-4">
               <Link href="/profile">
                 <div className="flex items-center space-x-2 hover:text-foreground cursor-pointer transition-colors">
-                  <User className="h-4 w-4 text-muted-foreground" />
+                  <Avatar className="h-6 w-6">
+                    {user?.avatarUrl ? (
+                      <AvatarImage src={user.avatarUrl} alt={user.username} />
+                    ) : (
+                      <AvatarFallback className="text-xs bg-gradient-to-br from-primary/20 to-secondary/20">
+                        {user?.username?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
                   <span className="text-sm text-muted-foreground hover:text-foreground">{user?.username}</span>
                 </div>
               </Link>

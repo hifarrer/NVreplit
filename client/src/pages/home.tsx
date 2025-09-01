@@ -11,6 +11,7 @@ import { Project } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, Video, Home as HomeIcon, Music } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link } from "wouter";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
@@ -115,7 +116,15 @@ export default function Home() {
             <div className="flex items-center space-x-4">
               <Link href="/profile">
                 <div className="flex items-center space-x-2 hover:text-foreground cursor-pointer transition-colors">
-                  <User className="h-4 w-4 text-muted-foreground" />
+                  <Avatar className="h-6 w-6">
+                    {user?.avatarUrl ? (
+                      <AvatarImage src={user.avatarUrl} alt={user.username} />
+                    ) : (
+                      <AvatarFallback className="text-xs bg-gradient-to-br from-primary/20 to-secondary/20">
+                        {user?.username?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
                   <span className="text-sm text-muted-foreground hover:text-foreground">{user?.username}</span>
                 </div>
               </Link>
