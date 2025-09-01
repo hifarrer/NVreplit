@@ -1,6 +1,6 @@
 import { downloadAndStoreImage } from "./imageStorage";
 
-export async function generateSong(tags: string, lyrics?: string, duration: number = 60): Promise<{ songs: Array<{ audioUrl: string; duration: number; title: string; id: string }> }> {
+export async function generateSong(tags: string, lyrics?: string, duration: number = 60, description?: string): Promise<{ songs: Array<{ audioUrl: string; duration: number; title: string; id: string }> }> {
   const KIE_API_TOKEN = process.env.KIE_API_TOKEN || "f27547e627af203de39b3345de70c32b";
   
   console.log("KIE.ai song generation request:");
@@ -19,7 +19,7 @@ export async function generateSong(tags: string, lyrics?: string, duration: numb
       body: JSON.stringify({
         prompt: lyrics || `A song with the style: ${tags}`,
         style: tags,
-        title: `Generated Song - ${tags}`,
+        title: description && description.length > 30 ? description.substring(0, 30).trim() + '...' : description || `Generated Song - ${tags}`,
         customMode: true,
         instrumental: false, // We want vocals since we have lyrics
         model: "V4",
@@ -95,10 +95,13 @@ export async function generateSong(tags: string, lyrics?: string, duration: numb
             const storedUrl = await downloadAndStoreAudio(audioUrl, "songs");
             console.log(`Song ${i + 1} stored at: ${storedUrl}`);
 
+            // Use the title from the song response, which includes our formatted description
+            const songTitle = song.title || (description && description.length > 30 ? description.substring(0, 30).trim() + '...' : description) || `Generated Song ${i + 1}`;
+            
             songs.push({
               audioUrl: storedUrl,
               duration: actualDuration,
-              title: song.title || `Generated Song ${i + 1}`,
+              title: songTitle,
               id: song.id
             });
           }

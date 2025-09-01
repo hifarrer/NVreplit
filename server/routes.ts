@@ -563,7 +563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { tags, lyrics }
       });
 
-      const result = await generateSong(tags, lyrics, duration);
+      const result = await generateSong(tags, lyrics, duration, description);
       
       // TODO: Store both songs in user's library automatically when authentication is implemented
       // For now, we'll skip automatic saving to user library
