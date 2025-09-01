@@ -181,7 +181,15 @@ export default function ProfilePage() {
             
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <User className="h-4 w-4 text-muted-foreground" />
+                <Avatar className="h-6 w-6">
+                  {user?.avatarUrl ? (
+                    <AvatarImage src={user.avatarUrl} alt={user.username} />
+                  ) : (
+                    <AvatarFallback className="text-xs bg-gradient-to-br from-primary/20 to-secondary/20">
+                      {user?.username?.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
                 <span className="text-sm text-muted-foreground">{user?.username}</span>
               </div>
               <Button
