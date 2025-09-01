@@ -7,6 +7,7 @@ import { Video, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeI
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import logoImage from "@assets/Power_1756692995582.png";
 
 interface CompletedVideo {
   id: string;
@@ -41,9 +42,12 @@ export default function MyVideosPage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold gradient-text" data-testid="app-title">
-                AI Music Video Maker
-              </h1>
+              <img 
+                src={logoImage} 
+                alt="neonvideo.ai" 
+                className="h-8" 
+                data-testid="app-logo"
+              />
               <nav className="flex items-center space-x-4">
                 <Link href="/">
                   <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">

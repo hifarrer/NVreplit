@@ -74,7 +74,7 @@ export default function AuthPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold gradient-text mb-2">
-              AI Music Video Maker
+              neonvideo.ai
             </h1>
             <p className="text-muted-foreground">
               Create stunning music videos with AI

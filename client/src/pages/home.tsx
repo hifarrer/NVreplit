@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, Video, Home as HomeIcon, Music } from "lucide-react";
 import { Link } from "wouter";
+import logoImage from "@assets/Power_1756692995582.png";
 
 export default function Home() {
   const { user, logout } = useAuth();
@@ -85,9 +86,12 @@ export default function Home() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold gradient-text" data-testid="app-title">
-                AI Music Video Maker
-              </h1>
+              <img 
+                src={logoImage} 
+                alt="neonvideo.ai" 
+                className="h-8" 
+                data-testid="app-logo"
+              />
               <nav className="flex items-center space-x-4">
                 <Button variant="ghost" size="sm" disabled className="text-foreground">
                   <HomeIcon className="h-4 w-4 mr-2" />
