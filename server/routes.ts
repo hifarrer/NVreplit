@@ -346,6 +346,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete a project
+  app.delete("/api/projects/:id", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const projectId = req.params.id;
+      
+      // Check if the project exists and belongs to the user
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      
+      if (project.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized to delete this project" });
+      }
+      
+      await storage.deleteProject(projectId);
+      res.json({ message: "Project deleted successfully" });
+    } catch (error) {
+      console.error("Delete project error:", error);
+      res.status(500).json({ error: "Failed to delete project" });
+    }
+  });
+
   // Get all user's completed videos
   app.get("/api/my-videos", authenticateToken, async (req, res) => {
     try {

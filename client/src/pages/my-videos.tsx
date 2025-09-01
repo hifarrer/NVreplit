@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Video, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeIcon, Music, AlertTriangle } from "lucide-react";
+import { Video, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeIcon, Music, AlertTriangle, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { Link } from "wouter";
@@ -23,7 +23,7 @@ export default function MyVideosPage() {
   const [selectedVideo, setSelectedVideo] = useState<CompletedVideo | null>(null);
   const [videoError, setVideoError] = useState<boolean>(false);
 
-  const { data: videos = [], isLoading } = useQuery<CompletedVideo[]>({
+  const { data: videos = [], isLoading, refetch } = useQuery<CompletedVideo[]>({
     queryKey: ["/api/my-videos"],
   });
 
@@ -35,6 +35,23 @@ export default function MyVideosPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleDelete = async (videoId: string) => {
+    try {
+      const response = await fetch(`/api/projects/${videoId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Refresh the videos list
+        refetch();
+      } else {
+        console.error('Failed to delete video');
+      }
+    } catch (error) {
+      console.error('Error deleting video:', error);
+    }
   };
 
   return (
@@ -140,10 +157,22 @@ export default function MyVideosPage() {
                 {videos.map((video) => (
                   <Card 
                     key={video.id} 
-                    className="overflow-hidden hover:border-primary/50 transition-colors cursor-pointer"
+                    className="overflow-hidden hover:border-primary/50 transition-colors cursor-pointer relative"
                     onClick={() => setSelectedVideo(video)}
                     data-testid={`video-card-${video.id}`}
                   >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute top-2 right-2 z-10 h-8 w-8 p-0 bg-black/50 hover:bg-red-500 text-white hover:text-white rounded-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(video.id);
+                      }}
+                      data-testid={`button-delete-${video.id}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                     <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center relative overflow-hidden">
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
                         <Video className="h-12 w-12 text-primary/70 mb-2" />
