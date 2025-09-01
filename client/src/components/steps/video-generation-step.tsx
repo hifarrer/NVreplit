@@ -115,6 +115,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
   });
 
   useEffect(() => {
+    // Only start generation once when component mounts
     generateVideoMutation.mutate();
     
     // Cleanup interval on unmount
@@ -123,7 +124,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
         clearInterval(progressInterval);
       }
     };
-  }, [progressInterval]);
+  }, []); // Empty dependency array - only run once on mount
 
   const cancelGeneration = () => {
     generateVideoMutation.reset();
