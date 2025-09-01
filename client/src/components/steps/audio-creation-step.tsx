@@ -227,7 +227,11 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
       return response.json();
     },
     onSuccess: (data) => {
-      setCurrentAudioUrl(data.audioUrl);
+      console.log("Library song selection response:", data);
+      if (data.audioUrl) {
+        setCurrentAudioUrl(data.audioUrl);
+        console.log("Updated currentAudioUrl to:", data.audioUrl);
+      }
       // Invalidate project data to refresh the current step and show Continue button
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
       toast({
