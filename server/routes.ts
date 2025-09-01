@@ -12,6 +12,7 @@ import { generateCharacterImage, generateCharacterImages, generateSceneImages, g
 import { generateAllVideoSegments } from "./services/wavespeed";
 import { splitAudio, mergeVideos, pictureInPicture } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
+import { downloadAndStoreImage } from "./services/imageStorage";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
@@ -705,8 +706,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Image URL and prompt are required" });
       }
 
+      // Download and store the image permanently
+      console.log("Downloading and storing character image...");
+      const storedImage = await downloadAndStoreImage(imageUrl, "characters");
+      console.log("Image stored successfully:", storedImage.storedUrl);
+
       const project = await storage.updateProject(req.params.id, {
-        characterImageUrl: imageUrl,
+        characterImageUrl: storedImage.storedUrl,
         characterType: "generated",
         characterPrompt: prompt,
         currentStep: 3
@@ -715,9 +721,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "character_generation",
-        message: "Character option saved successfully",
+        message: "Character option saved successfully with permanent storage",
         status: "completed",
-        metadata: { imageUrl, prompt }
+        metadata: { 
+          originalImageUrl: imageUrl,
+          storedImageUrl: storedImage.storedUrl,
+          prompt 
+        }
       });
 
       res.json({ 
@@ -766,8 +776,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Image URL and prompt are required" });
       }
 
+      // Download and store the image permanently
+      console.log("Downloading and storing character image...");
+      const storedImage = await downloadAndStoreImage(imageUrl, "characters");
+      console.log("Image stored successfully:", storedImage.storedUrl);
+
       const updateData = {
-        characterImageUrl: imageUrl,
+        characterImageUrl: storedImage.storedUrl,
         characterPrompt: prompt,
         characterType: "selected",
         currentStep: 3
@@ -1260,8 +1275,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/characters", authenticateToken, async (req, res) => {
     try {
       const userId = (req as any).user.userId;
+      const { imageUrl, ...restData } = req.body;
+      
+      // Download and store the image permanently
+      console.log("Downloading and storing character image for library...");
+      const storedImage = await downloadAndStoreImage(imageUrl, "saved-characters");
+      console.log("Image stored successfully:", storedImage.storedUrl);
+      
       const characterData = {
-        ...req.body,
+        ...restData,
+        imageUrl: storedImage.storedUrl,
         userId
       };
       
