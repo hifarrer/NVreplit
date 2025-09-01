@@ -109,16 +109,21 @@ export async function generateScenePrompts(
 ): Promise<string[]> {
   try {
     // Create prompts for each pair of scenes (8 total scenes, 4 sections)
-    let userContent = `Generate 8 image prompts to generate 8 images that will be used as frames for a music video based on the following prompt "${songDescription}". Be creative generating completely different scenes with the same character, be detailed describing everything in the scene as well as the character clothes and expression. Also include camera movements like zoom in, zoom out, pan left, pan right, tilt up, tilt down, etc. as well as visual effects.`;
+    let userContent = `Generate 8 image prompts to generate 8 images that will be used as frames for a music video based on the following prompt "${songDescription}". Be creative generating completely different scenes with the same character, be detailed describing everything in the scene as well as the character clothes and expression. Also include camera movements like zoom in, zoom out, pan left, pan right, tilt up, tilt down, etc. as well as visual effects.
+
+IMPORTANT DIRECTING REQUIREMENTS:
+- Scenes 1-2 (part_1a & part_1b): Must start with a far away shot of the character, slowly zooming in. Begin with an establishing wide shot showing the character in their environment, then transition to a closer shot.
+- Scenes 7-8 (part_3b & part_4b): Must show the character actively singing. Be creative with the setting - could be at a bar, concert venue, recording studio, or performance space. Include props like microphones, headsets, or stage equipment. Show expressive singing poses and gestures.
+- Scenes 5-6 (part_3a & part_4a): These are instrumental sections, so focus on atmospheric shots, environment details, or artistic visual elements without showing singing.`;
     
     // If we have lyrics sections, add them to the prompt for better scene generation
     if (lyricsSections && lyricsSections.length > 0) {
       userContent += "\n\nThe scenes should be related to these lyrics sections:\n";
-      userContent += "Scenes 1-2 (part_1a & part_1b) should relate to: " + (lyricsSections[0] || "[Instrumental]") + "\n";
+      userContent += "Scenes 1-2 (part_1a & part_1b) should relate to: " + (lyricsSections[0] || "[Instrumental]") + " - START WITH FAR AWAY SHOT ZOOMING IN\n";
       userContent += "Scenes 3-4 (part_2a & part_2b) should relate to: " + (lyricsSections[1] || "[Instrumental]") + "\n";
-      userContent += "Scenes 5-6 (part_3a & part_3b) should relate to: " + (lyricsSections[2] || "[Instrumental]") + "\n";
-      userContent += "Scenes 7-8 (part_4a & part_4b) should relate to: " + (lyricsSections[3] || "[Instrumental]") + "\n";
-      userContent += "\nMake sure each pair of scenes relates to the corresponding lyrics section while maintaining visual continuity.";
+      userContent += "Scenes 5-6 (part_3a & part_3b) should relate to: " + (lyricsSections[2] || "[Instrumental]") + " - INSTRUMENTAL SECTIONS, NO SINGING\n";
+      userContent += "Scenes 7-8 (part_4a & part_4b) should relate to: " + (lyricsSections[3] || "[Instrumental]") + " - SHOW CHARACTER SINGING ACTIVELY\n";
+      userContent += "\nMake sure each pair of scenes relates to the corresponding lyrics section while maintaining visual continuity and following the specific directing requirements above.";
     }
     
     const response = await openai.chat.completions.create({
