@@ -605,30 +605,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Select song for project
-  app.post("/api/projects/:id/select-song", async (req, res) => {
-    try {
-      const { audioUrl, duration } = req.body;
-      
-      await storage.updateProject(req.params.id, {
-        audioUrl,
-        currentStep: 2
-      });
-
-      await storage.addGenerationLog({
-        projectId: req.params.id,
-        step: "song_selection",
-        message: "Song selected for project",
-        status: "completed",
-        metadata: { audioUrl, duration }
-      });
-
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Select song error:", error);
-      res.status(500).json({ error: "Failed to select song" });
-    }
-  });
 
   // Generate character
   app.post("/api/projects/:id/generate-character", async (req, res) => {
@@ -773,30 +749,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Select song from library for project
+  // Select song for project (handles both generated songs and library songs)
   app.post("/api/projects/:id/select-song", authenticateToken, async (req, res) => {
     try {
-      const { audioUrl, audioTags, audioLyrics, audioType } = req.body;
+      const { audioUrl, audioTags, audioLyrics, audioType, duration } = req.body;
       
-      const project = await storage.updateProject(req.params.id, {
+      // Build update data based on what's provided
+      const updateData: any = {
         audioUrl,
-        audioTags,
-        audioLyrics,
-        audioType,
-        currentStep: 2,
-      });
+        currentStep: 2
+      };
+      
+      // Add optional fields if provided (for library songs)
+      if (audioTags) updateData.audioTags = audioTags;
+      if (audioLyrics) updateData.audioLyrics = audioLyrics;
+      if (audioType) updateData.audioType = audioType;
+      
+      const project = await storage.updateProject(req.params.id, updateData);
       
       if (!project) {
         return res.status(404).json({ error: "Project not found" });
       }
+
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "song_selection",
+        message: "Song selected for project",
+        status: "completed",
+        metadata: { audioUrl, audioTags, audioLyrics, duration }
+      });
       
       res.json({ 
         audioUrl: project.audioUrl,
-        message: 'Song selected from library successfully' 
+        message: 'Song selected successfully' 
       });
     } catch (error) {
       console.error("Select song error:", error);
-      res.status(500).json({ error: "Failed to select song from library" });
+      res.status(500).json({ error: "Failed to select song" });
     }
   });
 
