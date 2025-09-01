@@ -1,7 +1,7 @@
 import { writeFileSync } from "fs";
 import { join } from "path";
 
-export async function generateSong(tags: string, lyrics?: string): Promise<{ audioUrl: string; duration: number }> {
+export async function generateSong(tags: string, lyrics?: string, duration: number = 60): Promise<{ audioUrl: string; duration: number }> {
   const API_KEY = process.env.ELEVENLABS_API_KEY || "sk_5bf8f177633d87f37c096114bb424d36907c101fdc6268e4";
   
   let prompt = `Create a song with this style: ${tags}`;
@@ -22,7 +22,7 @@ export async function generateSong(tags: string, lyrics?: string): Promise<{ aud
       },
       body: JSON.stringify({
         prompt: prompt,
-        music_length_ms: 120000, // 2 minutes
+        music_length_ms: duration * 1000, // Convert seconds to milliseconds
       }),
     });
 
@@ -47,7 +47,7 @@ export async function generateSong(tags: string, lyrics?: string): Promise<{ aud
       
       return {
         audioUrl: result.audio_url || result.url || result.audio,
-        duration: result.duration || 120
+        duration: result.duration || duration
       };
     } else {
       // Handle as binary audio data
@@ -60,7 +60,7 @@ export async function generateSong(tags: string, lyrics?: string): Promise<{ aud
       
       return {
         audioUrl: `/${fileName}`,
-        duration: 120 // 2 minutes in seconds
+        duration: duration // Use the requested duration
       };
     }
   } catch (error) {

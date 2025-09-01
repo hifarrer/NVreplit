@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -22,13 +23,24 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [lyrics, setLyrics] = useState("");
+  const [duration, setDuration] = useState([60]); // Default 60 seconds
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
+
+  const durationOptions = [30, 60, 90, 120];
+  const getDurationLabel = (value: number) => {
+    if (value === 30) return "30 sec";
+    if (value === 60) return "1 min";
+    if (value === 90) return "1.5 min";
+    if (value === 120) return "2 min";
+    return `${value} sec`;
+  };
 
   const generateLyricsMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-lyrics`, {
-        description
+        description,
+        duration: duration[0]
       });
       return response.json();
     },
@@ -64,7 +76,8 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-song`, {
         description,
         tags,
-        lyrics
+        lyrics,
+        duration: duration[0]
       });
 
       clearInterval(progressInterval);
@@ -94,6 +107,7 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
     setDescription("");
     setTags("");
     setLyrics("");
+    setDuration([60]);
     setProgress(0);
     onClose();
   };
@@ -130,6 +144,38 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
               data-testid="song-description-input"
             />
             <p className="text-xs text-muted-foreground mt-1">Describe the theme, mood, or story of your song</p>
+          </div>
+
+          {/* Song Duration */}
+          <div>
+            <Label className="flex items-center text-sm font-semibold mb-2">
+              <i className="fas fa-clock text-accent mr-2"></i>
+              Song Duration
+            </Label>
+            <div className="space-y-3">
+              <div className="px-3">
+                <Slider
+                  value={duration}
+                  onValueChange={setDuration}
+                  max={120}
+                  min={30}
+                  step={30}
+                  className="w-full"
+                  data-testid="duration-slider"
+                />
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground px-1">
+                {durationOptions.map(option => (
+                  <span 
+                    key={option}
+                    className={duration[0] === option ? "text-primary font-medium" : ""}
+                  >
+                    {getDurationLabel(option)}
+                  </span>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">Current: {getDurationLabel(duration[0])}</p>
+            </div>
           </div>
 
           {/* Tags */}

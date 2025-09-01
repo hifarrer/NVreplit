@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import { format } from "date-fns";
 
 interface AudioCreationStepProps {
@@ -31,6 +32,15 @@ interface GeneratedSong {
 
 const suggestedTags = ["pop", "electronic", "rock", "upbeat", "techno", "hip-hop", "country", "reggae", "synthwave", "kpop", "female singer", "male singer"];
 
+const durationOptions = [30, 60, 90, 120];
+const getDurationLabel = (value: number) => {
+  if (value === 30) return "30 sec";
+  if (value === 60) return "1 min";
+  if (value === 90) return "1.5 min";
+  if (value === 120) return "2 min";
+  return `${value} sec`;
+};
+
 export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreationStepProps) {
   const [currentAudioUrl, setCurrentAudioUrl] = useState(audioUrl);
   const [activeTab, setActiveTab] = useState("generate");
@@ -44,6 +54,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [lyrics, setLyrics] = useState("");
+  const [duration, setDuration] = useState([60]); // Default 60 seconds
   const [progress, setProgress] = useState(0);
   
   // Library tab state
@@ -98,7 +109,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
   const generateLyricsMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-lyrics`, {
-        description
+        description,
+        duration: duration[0]
       });
       return response.json();
     },
@@ -133,7 +145,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-song`, {
         description,
         tags,
-        lyrics
+        lyrics,
+        duration: duration[0]
       });
 
       clearInterval(progressInterval);
@@ -323,6 +336,38 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
                 data-testid="song-description-input"
               />
               <p className="text-xs text-muted-foreground mt-1">Describe the theme, mood, or story of your song</p>
+            </div>
+
+            {/* Song Duration */}
+            <div>
+              <Label className="flex items-center text-sm font-semibold mb-2">
+                <i className="fas fa-clock text-accent mr-2"></i>
+                Song Duration
+              </Label>
+              <div className="space-y-3">
+                <div className="px-3">
+                  <Slider
+                    value={duration}
+                    onValueChange={setDuration}
+                    max={120}
+                    min={30}
+                    step={30}
+                    className="w-full"
+                    data-testid="duration-slider"
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground px-1">
+                  {durationOptions.map(option => (
+                    <span 
+                      key={option}
+                      className={duration[0] === option ? "text-primary font-medium" : ""}
+                    >
+                      {getDurationLabel(option)}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">Current: {getDurationLabel(duration[0])}</p>
+              </div>
             </div>
 
             <div>

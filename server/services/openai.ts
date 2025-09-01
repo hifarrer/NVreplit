@@ -8,7 +8,7 @@ const openai = new OpenAI({
     "default_key",
 });
 
-export async function generateLyrics(songDescription: string): Promise<string> {
+export async function generateLyrics(songDescription: string, duration: number = 60): Promise<string> {
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -21,6 +21,12 @@ export async function generateLyrics(songDescription: string): Promise<string> {
         {
           role: "user",
           content: `Generate lyrics for a song about: ${songDescription}
+
+The song should be approximately ${duration} seconds long. Structure the lyrics accordingly:
+- For 30 seconds: 1 verse + 1 chorus
+- For 60 seconds: 2 verses + 2 choruses  
+- For 90 seconds: 2 verses + 2 choruses + 1 bridge
+- For 120 seconds: 3 verses + 3 choruses + 1 bridge
 
 Example format:
 [Verse 1]
