@@ -6,7 +6,7 @@ import fs from "fs";
 import { storage } from "./storage";
 import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema } from "@shared/schema";
 import { generateLyrics, generateScenePrompts, splitLyricsIntoSections } from "./services/openai";
-import { ObjectStorageService } from "./objectStorage";
+import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSong } from "./services/elevenlabs";
 import { generateCharacterImage, generateSceneImages } from "./services/fal";
 import { generateAllVideoSegments } from "./services/wavespeed";
@@ -283,6 +283,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Update avatar error:", error);
       res.status(500).json({ error: "Failed to update avatar" });
+    }
+  });
+
+
+  // Serve public objects (like avatars)
+  app.get("/public-objects/:filePath(*)", async (req, res) => {
+    try {
+      const filePath = req.params.filePath;
+      const objectStorageService = new ObjectStorageService();
+      const file = await objectStorageService.searchPublicObject(filePath);
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      objectStorageService.downloadObject(file, res);
+    } catch (error) {
+      console.error("Error searching for public object:", error);
+      return res.status(500).json({ error: "Internal server error" });
     }
   });
 

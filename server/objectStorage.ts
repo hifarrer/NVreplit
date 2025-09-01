@@ -41,6 +41,66 @@ export class ObjectStorageService {
     return dir;
   }
 
+  getPublicObjectSearchPaths(): Array<string> {
+    const pathsStr = process.env.PUBLIC_OBJECT_SEARCH_PATHS || "";
+    const paths = Array.from(
+      new Set(
+        pathsStr
+          .split(",")
+          .map((path) => path.trim())
+          .filter((path) => path.length > 0)
+          // Fix the bucket name mismatch
+          .map((path) => path.replace("repl-default-bucket-", "replit-objstore-"))
+      )
+    );
+    if (paths.length === 0) {
+      throw new Error(
+        "PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' " +
+          "tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths)."
+      );
+    }
+    return paths;
+  }
+
+  // Search for a public object from the search paths.
+  async searchPublicObject(filePath: string): Promise<File | null> {
+    const searchPaths = this.getPublicObjectSearchPaths();
+    
+    for (const searchPath of searchPaths) {
+      const fullPath = `${searchPath}/${filePath}`;
+
+      // Full path format: /<bucket_name>/<object_name>
+      const { bucketName, objectName } = this.parseObjectPath(fullPath);
+      
+      const bucket = objectStorageClient.bucket(bucketName);
+      const file = bucket.file(objectName);
+
+      // Check if file exists
+      const [exists] = await file.exists();
+      if (exists) {
+        return file;
+      }
+    }
+
+    // Also try searching in bucket root (without the /public prefix)
+    // This handles the case where files are uploaded directly to bucket/avatars/ instead of bucket/public/avatars/
+    try {
+      const bucketName = "replit-objstore-2b41d446-a481-4048-b395-249a1b7496ae";
+      const directObjectName = filePath; // e.g., "avatars/avatar1.png"
+      
+      const bucket = objectStorageClient.bucket(bucketName);
+      const file = bucket.file(directObjectName);
+      const [exists] = await file.exists();
+      if (exists) {
+        return file;
+      }
+    } catch (error) {
+      console.error("Error in fallback search:", error);
+    }
+
+    return null;
+  }
+
   // Gets the upload URL for an object entity.
   async getObjectEntityUploadURL(): Promise<string> {
     const privateObjectDir = this.getPrivateObjectDir();
