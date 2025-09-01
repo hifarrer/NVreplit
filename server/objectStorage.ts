@@ -261,6 +261,26 @@ export class ObjectStorageService {
     };
   }
 
+  async getSignedUrlForPath(objectPath: string, ttlSec: number = 3600): Promise<string> {
+    // Convert internal path like "/objects/videos/pip_segment_1.mp4" to signed URL
+    if (!objectPath.startsWith("/objects/")) {
+      throw new Error("Invalid object path for signed URL generation");
+    }
+    
+    // Extract the file path after /objects/
+    const filePath = objectPath.substring("/objects/".length);
+    const fullObjectPath = `${this.getPrivateObjectDir()}/${filePath}`;
+    
+    const { bucketName, objectName } = this.parseObjectPath(fullObjectPath);
+    
+    return this.signObjectURL({
+      bucketName,
+      objectName,
+      method: "GET",
+      ttlSec
+    });
+  }
+
   async signObjectURL({
     bucketName,
     objectName,

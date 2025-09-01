@@ -993,10 +993,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Number of PiP videos to merge:", pipVideos.length);
       console.log("PiP video URLs to merge:", pipVideos);
       
+      // Convert internal object storage paths to signed URLs for external FFMPEG API
+      const signedVideoUrls: string[] = [];
+      for (const pipVideoPath of pipVideos) {
+        const signedUrl = await objectStorageService.getSignedUrlForPath(pipVideoPath, 7200); // 2 hours
+        signedVideoUrls.push(signedUrl);
+        console.log(`Generated signed URL for ${pipVideoPath}: ${signedUrl}`);
+      }
+      
+      console.log("Signed video URLs for FFMPEG merge:", signedVideoUrls);
+      
       let finalVideo;
       let savedFinalVideoUrl: string;
       try {
-        finalVideo = await mergeVideos(pipVideos);
+        finalVideo = await mergeVideos(signedVideoUrls);
         console.log("Final video merge successful:", finalVideo.download_url);
         
         // Save the final video to object storage as well
