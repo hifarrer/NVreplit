@@ -125,6 +125,99 @@ export async function generateCharacterImage(prompt: string, aspectRatio: string
   }
 }
 
+export async function generateSingleSceneImage(prompt: string, characterImageUrl: string): Promise<string> {
+  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
+
+  console.log(`Starting single scene generation with prompt: ${prompt}`);
+  console.log(`Using character image: ${characterImageUrl}`);
+
+  try {
+    const requestBody = {
+      enable_base64_output: false,
+      enable_sync_mode: false,
+      images: [characterImageUrl],
+      output_format: "jpeg",
+      prompt: prompt
+    };
+    
+    console.log(`Single scene request body:`, JSON.stringify(requestBody, null, 2));
+    
+    const response = await fetch("https://api.wavespeed.ai/api/v3/google/nano-banana/edit", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${WAVESPEED_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Single scene submission failed:`, errorText);
+      throw new Error(`Scene submission failed: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log(`Single scene submission result:`, JSON.stringify(result, null, 2));
+    
+    const requestId = result.data?.id;
+    if (!requestId) {
+      throw new Error(`No request ID received for single scene`);
+    }
+
+    console.log(`Got single scene request ID: ${requestId}`);
+
+    // Poll for result
+    let attempts = 0;
+    const maxAttempts = 60;
+
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
+      
+      const statusResponse = await fetch(`https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`, {
+        headers: {
+          "Authorization": `Bearer ${WAVESPEED_API_KEY}`,
+        },
+      });
+
+      if (!statusResponse.ok) {
+        const errorText = await statusResponse.text();
+        console.error(`Single scene status check failed:`, errorText);
+        throw new Error(`Status check failed for single scene: ${statusResponse.status} - ${errorText}`);
+      }
+
+      const statusResult = await statusResponse.json();
+      
+      if (statusResult.data?.status === "completed") {
+        console.log(`Single scene generation completed!`);
+        
+        if (statusResult.data.outputs && statusResult.data.outputs.length > 0) {
+          const imageUrl = statusResult.data.outputs[0];
+          console.log(`Found single scene image URL: ${imageUrl}`);
+          return imageUrl;
+        } else {
+          console.error(`No outputs found in single scene results:`, statusResult);
+          throw new Error(`No outputs in single scene results`);
+        }
+      } else if (statusResult.data?.status === "failed") {
+        console.error(`Single scene generation failed:`, statusResult);
+        throw new Error(`Single scene generation failed: ${statusResult.data?.error || "Unknown error"}`);
+      }
+
+      attempts++;
+    }
+
+    throw new Error(`Single scene generation timed out after ${maxAttempts} attempts`);
+
+  } catch (error) {
+    console.error("Single scene generation error:", error);
+    throw new Error(`Failed to generate single scene image: ${error instanceof Error ? error.message : "Unknown error"}`);
+  }
+}
+
 export async function generateSceneImages(prompts: string[], characterImageUrl: string): Promise<string[]> {
   const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
   if (!WAVESPEED_API_KEY) {

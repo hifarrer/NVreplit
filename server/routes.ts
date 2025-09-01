@@ -8,7 +8,7 @@ import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, inser
 import { generateLyrics, generateScenePrompts, splitLyricsIntoSections } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSong } from "./services/elevenlabs";
-import { generateCharacterImage, generateSceneImages } from "./services/fal";
+import { generateCharacterImage, generateSceneImages, generateSingleSceneImage } from "./services/fal";
 import { generateAllVideoSegments } from "./services/wavespeed";
 import { splitAudio, mergeVideos, pictureInPicture } from "./services/ffmpeg";
 import bcrypt from "bcryptjs";
@@ -816,22 +816,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Generate a single scene image with the custom prompt
-      const sceneImages = await generateSceneImages([prompt], project.characterImageUrl);
-      
-      if (!sceneImages || sceneImages.length === 0) {
-        throw new Error("Failed to generate scene image");
-      }
+      const imageUrl = await generateSingleSceneImage(prompt, project.characterImageUrl);
 
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "scene_regeneration",
         message: `Scene ${sceneIndex + 1} regenerated successfully`,
         status: "completed",
-        metadata: { sceneIndex, newImageUrl: sceneImages[0] }
+        metadata: { sceneIndex, newImageUrl: imageUrl }
       });
 
       res.json({ 
-        imageUrl: sceneImages[0],
+        imageUrl: imageUrl,
         sceneIndex: sceneIndex
       });
     } catch (error) {
