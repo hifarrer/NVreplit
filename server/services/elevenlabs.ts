@@ -23,6 +23,7 @@ export async function generateSong(tags: string, lyrics?: string, duration: numb
         customMode: true,
         instrumental: false, // We want vocals since we have lyrics
         model: "V4",
+        callBackUrl: "https://example.com/callback", // Required parameter
         negativeTags: "",
         vocalGender: "m", // male vocals
         styleWeight: 0.65,
