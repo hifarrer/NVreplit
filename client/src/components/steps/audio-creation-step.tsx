@@ -222,7 +222,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
         audioUrl: song.audioUrl,
         audioTags: song.audioTags,
         audioLyrics: song.audioLyrics,
-        audioType: 'generated'
+        audioType: 'library'
       });
       return response.json();
     },
