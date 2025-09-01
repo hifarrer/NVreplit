@@ -3,11 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Video, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeIcon, Music, AlertTriangle, X } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Video, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeIcon, Music, AlertTriangle, X, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { apiRequest } from "@/lib/queryClient";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
 interface CompletedVideo {
@@ -22,6 +24,8 @@ export default function MyVideosPage() {
   const { user, logout } = useAuth();
   const [selectedVideo, setSelectedVideo] = useState<CompletedVideo | null>(null);
   const [videoError, setVideoError] = useState<boolean>(false);
+  const [videoToDelete, setVideoToDelete] = useState<CompletedVideo | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   const { data: videos = [], isLoading, refetch } = useQuery<CompletedVideo[]>({
     queryKey: ["/api/my-videos"],
@@ -37,20 +41,19 @@ export default function MyVideosPage() {
     document.body.removeChild(link);
   };
 
-  const handleDelete = async (videoId: string) => {
+  const handleDeleteConfirm = async () => {
+    if (!videoToDelete) return;
+    
+    setIsDeleting(true);
     try {
-      const response = await fetch(`/api/projects/${videoId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        // Refresh the videos list
-        refetch();
-      } else {
-        console.error('Failed to delete video');
-      }
+      await apiRequest("DELETE", `/api/projects/${videoToDelete.id}`);
+      // Refresh the videos list
+      refetch();
+      setVideoToDelete(null);
     } catch (error) {
       console.error('Error deleting video:', error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -167,7 +170,7 @@ export default function MyVideosPage() {
                       className="absolute top-2 right-2 z-10 h-8 w-8 p-0 bg-black/50 hover:bg-red-500 text-white hover:text-white rounded-full"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDelete(video.id);
+                        setVideoToDelete(video);
                       }}
                       data-testid={`button-delete-${video.id}`}
                     >
@@ -271,6 +274,33 @@ export default function MyVideosPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!videoToDelete} onOpenChange={() => setVideoToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-500" />
+              Delete Video
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{videoToDelete?.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setVideoToDelete(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
