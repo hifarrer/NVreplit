@@ -408,7 +408,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .map(p => ({
           id: p.id,
-          title: p.audioTags || p.title, // Use audioTags as title if available, fallback to project title
+          title: p.audioPrompt || p.title, // Use audioPrompt (description) as title if available, fallback to project title
           audioUrl: p.audioUrl,
           audioTags: p.audioTags,
           audioLyrics: p.audioLyrics,
@@ -552,7 +552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate song
   app.post("/api/projects/:id/generate-song", async (req, res) => {
     try {
-      const { tags, lyrics } = req.body;
+      const { description, tags, lyrics } = req.body;
       
       await storage.addGenerationLog({
         projectId: req.params.id,
@@ -565,9 +565,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await generateSong(tags, lyrics);
       
       await storage.updateProject(req.params.id, {
-        title: tags, // Use the song description/tags as the project title
+        title: description || tags, // Use the full song description as the project title, fallback to tags
         audioUrl: result.audioUrl,
         audioType: "generated",
+        audioPrompt: description,
         audioTags: tags,
         audioLyrics: lyrics,
         currentStep: 2

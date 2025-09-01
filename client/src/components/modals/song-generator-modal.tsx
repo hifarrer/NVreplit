@@ -62,6 +62,7 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
       }, 1000);
 
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-song`, {
+        description,
         tags,
         lyrics
       });
