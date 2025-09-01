@@ -102,56 +102,127 @@ Do NOT add extra sections. Follow the exact structure above.`,
       .replace(/\*{1,2}(Pre-Chorus)\*{1,2}:?/g, "[$1]")
       .replace(/\*{1,2}(Refrain)\*{1,2}:?/g, "[$1]");
 
-    return processedLyrics;
+    // Trim lyrics based on duration to ensure proper length
+    const trimmedLyrics = trimLyricsByDuration(processedLyrics, duration);
+
+    return trimmedLyrics;
   } catch (error) {
     console.error("OpenAI lyrics generation error:", error);
     throw new Error("Failed to generate lyrics: " + (error as Error).message);
   }
 }
 
+// Function to trim lyrics to appropriate length while maintaining 4-section structure
+function trimLyricsByDuration(lyrics: string, duration: number): string {
+  // Split lyrics into sections
+  const sections = lyrics.split(/(\[(?:Verse \d+|Chorus|Bridge|Outro|Intro|Pre-Chorus|Refrain)\])/i)
+    .filter(part => part.trim().length > 0);
+
+  const processedSections: string[] = [];
+  let currentHeader = '';
+
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i].trim();
+    
+    if (section.match(/^\[(?:Verse \d+|Chorus|Bridge|Outro|Intro|Pre-Chorus|Refrain)\]$/i)) {
+      currentHeader = section;
+    } else if (currentHeader) {
+      processedSections.push(currentHeader + '\n' + section);
+      currentHeader = '';
+    }
+  }
+
+  // Define the expected structure based on duration
+  let targetStructure: string[];
+  
+  if (duration === 30) {
+    targetStructure = ['[Verse 1]', '[Chorus]'];
+  } else if (duration === 60) {
+    targetStructure = ['[Verse 1]', '[Chorus]', '[Verse 2]', '[Chorus]'];
+  } else if (duration === 90) {
+    targetStructure = ['[Verse 1]', '[Chorus]', '[Verse 2]', '[Bridge]'];
+  } else { // 120 seconds
+    targetStructure = ['[Verse 1]', '[Chorus]', '[Verse 2]', '[Bridge]'];
+  }
+
+  // Extract and organize sections according to target structure
+  const finalSections: string[] = [];
+  
+  for (const target of targetStructure) {
+    const matchingSection = processedSections.find(section => 
+      section.toLowerCase().startsWith(target.toLowerCase())
+    );
+    
+    if (matchingSection) {
+      // Trim each section to 3-4 lines for appropriate length
+      const lines = matchingSection.split('\n').filter(line => line.trim().length > 0);
+      const header = lines[0];
+      const content = lines.slice(1, Math.min(5, lines.length)); // Header + 4 lines max
+      
+      finalSections.push([header, ...content].join('\n'));
+    } else {
+      // If section not found, create a placeholder that matches the target
+      finalSections.push(target + '\n(Missing section)');
+    }
+  }
+
+  return finalSections.join('\n\n');
+}
+
 // Helper function to split lyrics into 4 sections
 export function splitLyricsIntoSections(lyrics: string): string[] {
+  // Split by section headers to get individual sections
+  const parts = lyrics.split(/(\[(?:Verse \d+|Chorus|Bridge|Outro|Intro|Pre-Chorus|Refrain)\])/i)
+    .filter(part => part.trim().length > 0);
+
   const sections: string[] = [];
+  let currentHeader = '';
+
+  // Combine headers with their content
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i].trim();
+    
+    if (part.match(/^\[(?:Verse \d+|Chorus|Bridge|Outro|Intro|Pre-Chorus|Refrain)\]$/i)) {
+      currentHeader = part;
+    } else if (currentHeader) {
+      sections.push(currentHeader + '\n' + part);
+      currentHeader = '';
+    }
+  }
+
+  // If we have exactly 4 sections, return them
+  if (sections.length === 4) {
+    return sections;
+  }
+
+  // If we have fewer than 4 sections, pad with the last section repeated
+  if (sections.length < 4) {
+    const lastSection = sections[sections.length - 1] || '[Verse 1]\nGenerated content';
+    while (sections.length < 4) {
+      sections.push(lastSection);
+    }
+    return sections;
+  }
+
+  // If we have more than 4 sections, take the first 4
+  if (sections.length > 4) {
+    return sections.slice(0, 4);
+  }
+
+  // Fallback: split lyrics into 4 equal parts by lines
+  const lines = lyrics.split('\n').filter(line => line.trim().length > 0);
+  if (lines.length === 0) {
+    return ['[Verse 1]\nGenerated content', '[Chorus]\nGenerated content', '[Verse 2]\nGenerated content', '[Bridge]\nGenerated content'];
+  }
+
+  const linesPerSection = Math.ceil(lines.length / 4);
   
-  // Common section patterns
-  const sectionPatterns = [
-    /\[Verse 1\]([\s\S]*?)(?=\[|$)/i,
-    /\[Chorus\]([\s\S]*?)(?=\[|$)/i,
-    /\[Verse 2\]([\s\S]*?)(?=\[|$)/i,
-    /\[Bridge\]([\s\S]*?)(?=\[|$)/i,
+  return [
+    lines.slice(0, linesPerSection).join('\n'),
+    lines.slice(linesPerSection, linesPerSection * 2).join('\n'),
+    lines.slice(linesPerSection * 2, linesPerSection * 3).join('\n'),
+    lines.slice(linesPerSection * 3).join('\n')
   ];
-  
-  // Try to extract the 4 main sections
-  for (const pattern of sectionPatterns) {
-    const match = lyrics.match(pattern);
-    if (match && match[1]) {
-      sections.push(match[0].trim()); // Include the section header
-    }
-  }
-  
-  // If we don't have exactly 4 sections, fall back to splitting by any section headers
-  if (sections.length !== 4) {
-    const allSections = lyrics.split(/\[(?:Verse \d+|Chorus|Bridge|Outro|Intro|Pre-Chorus|Refrain)\]/i)
-      .filter(section => section.trim().length > 0)
-      .slice(0, 4);
-    
-    // If still not enough sections, split the lyrics into 4 equal parts
-    if (allSections.length < 4) {
-      const lines = lyrics.split('\n').filter(line => line.trim().length > 0);
-      const linesPerSection = Math.ceil(lines.length / 4);
-      
-      return [
-        lines.slice(0, linesPerSection).join('\n'),
-        lines.slice(linesPerSection, linesPerSection * 2).join('\n'),
-        lines.slice(linesPerSection * 2, linesPerSection * 3).join('\n'),
-        lines.slice(linesPerSection * 3).join('\n')
-      ];
-    }
-    
-    return allSections;
-  }
-  
-  return sections;
 }
 
 export async function generateScenePrompts(
