@@ -435,106 +435,13 @@ export class DbStorage implements IStorage {
   }
 }
 
-// Hybrid storage class that uses database for main operations but memory for video queue
-class HybridStorage implements IStorage {
-  private dbStorage: DbStorage;
-  private memStorage: MemStorage;
-
-  constructor() {
-    this.dbStorage = new DbStorage();
-    this.memStorage = new MemStorage();
-  }
-
-  // Use database for main operations
-  async createUser(user: InsertUser): Promise<User> {
-    return this.dbStorage.createUser(user);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return this.dbStorage.getUserByUsername(username);
-  }
-
-  async getUser(id: string): Promise<User | undefined> {
-    return this.dbStorage.getUser(id);
-  }
-
-  async createProject(project: InsertProject): Promise<Project> {
-    return this.dbStorage.createProject(project);
-  }
-
-  async getProject(id: string): Promise<Project | undefined> {
-    return this.dbStorage.getProject(id);
-  }
-
-  async updateProject(id: string, updates: Partial<Project>): Promise<Project | undefined> {
-    return this.dbStorage.updateProject(id, updates);
-  }
-
-  async getUserProjects(userId: string): Promise<Project[]> {
-    return this.dbStorage.getUserProjects(userId);
-  }
-
-  async deleteProject(id: string): Promise<boolean> {
-    return this.dbStorage.deleteProject(id);
-  }
-
-  async addGenerationLog(log: InsertGenerationLog): Promise<GenerationLog> {
-    return this.dbStorage.addGenerationLog(log);
-  }
-
-  async getGenerationLogs(projectId: string): Promise<GenerationLog[]> {
-    return this.dbStorage.getGenerationLogs(projectId);
-  }
-
-  async saveCharacter(character: InsertSavedCharacter): Promise<SavedCharacter> {
-    return this.dbStorage.saveCharacter(character);
-  }
-
-  async getUserCharacters(userId: string): Promise<SavedCharacter[]> {
-    return this.dbStorage.getUserCharacters(userId);
-  }
-
-  async deleteCharacter(id: string): Promise<boolean> {
-    return this.dbStorage.deleteCharacter(id);
-  }
-
-  async getUserSongs(userId: string): Promise<any[]> {
-    return this.dbStorage.getUserSongs(userId);
-  }
-
-  // Use memory storage for video queue operations (until database table is available)
-  async addToVideoQueue(entry: InsertVideoQueue): Promise<VideoQueue> {
-    return this.memStorage.addToVideoQueue(entry);
-  }
-
-  async getActiveVideoCount(): Promise<number> {
-    return this.memStorage.getActiveVideoCount();
-  }
-
-  async getQueuePosition(projectId: string): Promise<number | null> {
-    return this.memStorage.getQueuePosition(projectId);
-  }
-
-  async startVideoProcessing(projectId: string): Promise<boolean> {
-    return this.memStorage.startVideoProcessing(projectId);
-  }
-
-  async completeVideoProcessing(projectId: string, status: 'completed' | 'failed'): Promise<boolean> {
-    return this.memStorage.completeVideoProcessing(projectId, status);
-  }
-
-  async cleanupStaleEntries(): Promise<void> {
-    return this.memStorage.cleanupStaleEntries();
-  }
-}
-
-// Use hybrid storage if DATABASE_URL is available, otherwise fallback to memory storage
+// Use database storage if DATABASE_URL is available, otherwise fallback to memory storage
 let storage: IStorage;
 
 try {
   if (process.env.DATABASE_URL) {
-    storage = new HybridStorage();
-    console.log("Using hybrid storage (database + memory for video queue)");
+    storage = new DbStorage();
+    console.log("Using database storage");
   } else {
     storage = new MemStorage();
     console.log("Using memory storage");
