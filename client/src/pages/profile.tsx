@@ -23,17 +23,10 @@ export default function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
 
-  // Predefined avatar options
-  const avatarOptions = [
-    "/public-objects/avatars/avatar1.png",
-    "/public-objects/avatars/avatar2.png", 
-    "/public-objects/avatars/avatar3.png",
-    "/public-objects/avatars/avatar4.png",
-    "/public-objects/avatars/avatar5.png",
-    "/public-objects/avatars/avatar6.png",
-    "/public-objects/avatars/avatar7.png",
-    "/public-objects/avatars/avatar8.png",
-  ];
+  // Predefined avatar options (20 total)
+  const avatarOptions = Array.from({ length: 20 }, (_, i) => 
+    `/public-objects/avatars/avatar${i + 1}.png`
+  );
 
   const updateAvatarMutation = useMutation({
     mutationFn: async (avatarUrl: string) => {
@@ -268,13 +261,13 @@ export default function ProfilePage() {
                   {/* Avatar Selection Grid */}
                   <div>
                     <Label className="text-sm font-medium">Choose New Avatar</Label>
-                    <div className="grid grid-cols-4 gap-3 mt-2">
+                    <div className="grid grid-cols-10 gap-2 mt-2">
                       {avatarOptions.map((avatarUrl, index) => (
                         <button
                           key={index}
                           onClick={() => handleAvatarSelect(avatarUrl)}
                           disabled={updateAvatarMutation.isPending}
-                          className={`relative h-16 w-16 rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
+                          className={`relative h-12 w-12 rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
                             user?.avatarUrl === avatarUrl 
                               ? "border-primary ring-2 ring-primary/20" 
                               : "border-border hover:border-primary/50"
