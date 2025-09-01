@@ -66,7 +66,7 @@ export function CharacterLibraryModal({ isOpen, onClose, onSelect }: CharacterLi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <Image className="h-5 w-5" />
@@ -74,7 +74,7 @@ export function CharacterLibraryModal({ isOpen, onClose, onSelect }: CharacterLi
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col flex-1 min-h-0">
           {isLoading ? (
             <div className="flex-1 flex items-center justify-center py-8">
               <div className="text-center">
@@ -94,8 +94,9 @@ export function CharacterLibraryModal({ isOpen, onClose, onSelect }: CharacterLi
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 flex-1 overflow-y-auto p-1">
-                {characters.map((character) => (
+              <div className="flex-1 overflow-y-auto p-1">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {characters.map((character) => (
                   <Card
                     key={character.id}
                     className={`cursor-pointer transition-all hover:shadow-lg ${
@@ -138,7 +139,8 @@ export function CharacterLibraryModal({ isOpen, onClose, onSelect }: CharacterLi
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                  ))}
+                </div>
               </div>
 
               <div className="flex justify-between items-center mt-4 pt-4 border-t">
