@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2 } from "lucide-react";
+import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { format } from "date-fns";
 
@@ -26,6 +26,7 @@ interface GeneratedSong {
   audioUrl: string;
   audioTags: string | null;
   audioLyrics: string | null;
+  duration: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -275,6 +276,14 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
     } else {
       setPlayingSongId(songId);
     }
+  };
+
+  const formatDuration = (seconds: number | undefined): string => {
+    if (!seconds) return "Unknown";
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
   };
 
   const handleSelectSong = () => {
@@ -550,9 +559,15 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
                                 <span className="text-sm text-muted-foreground">{song.audioTags}</span>
                               </div>
                             )}
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <Calendar className="h-3 w-3" />
-                              {format(new Date(song.createdAt), "MMM d, yyyy")}
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-3 w-3" />
+                                {format(new Date(song.createdAt), "MMM d, yyyy")}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-3 w-3" />
+                                {formatDuration(song.duration)}
+                              </div>
                             </div>
                           </div>
                           <Button

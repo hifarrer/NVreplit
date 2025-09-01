@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Music, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeIcon, Video, Tag } from "lucide-react";
+import { Music, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeIcon, Video, Tag, Clock } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { Link } from "wouter";
@@ -15,6 +15,7 @@ interface GeneratedSong {
   audioUrl: string;
   audioTags: string | null;
   audioLyrics: string | null;
+  duration: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -46,6 +47,14 @@ export default function MySongsPage() {
     } else {
       setPlayingSongId(songId);
     }
+  };
+
+  const formatDuration = (seconds: number | undefined): string => {
+    if (!seconds) return "Unknown";
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
   };
 
   return (
@@ -164,9 +173,15 @@ export default function MySongsPage() {
                               <span className="text-sm text-muted-foreground">{song.audioTags}</span>
                             </div>
                           )}
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            {format(new Date(song.createdAt), "MMM d, yyyy")}
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-3 w-3" />
+                              {format(new Date(song.createdAt), "MMM d, yyyy")}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-3 w-3" />
+                              {formatDuration(song.duration)}
+                            </div>
                           </div>
                           {song.audioLyrics && (
                             <details className="mt-3">
