@@ -113,10 +113,12 @@ export default function Home() {
             </div>
             
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{user?.username}</span>
-              </div>
+              <Link href="/profile">
+                <div className="flex items-center space-x-2 hover:text-foreground cursor-pointer transition-colors">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground hover:text-foreground">{user?.username}</span>
+                </div>
+              </Link>
               <Button
                 variant="ghost"
                 size="sm"

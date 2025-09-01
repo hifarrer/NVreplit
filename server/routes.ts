@@ -166,6 +166,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update username
+  app.patch("/api/user/username", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const { username } = req.body;
+      
+      if (!username || typeof username !== 'string' || username.trim().length === 0) {
+        return res.status(400).json({ error: "Username is required" });
+      }
+      
+      // Check if username already exists
+      const existingUser = await storage.getUserByUsername(username.trim());
+      if (existingUser && existingUser.id !== userId) {
+        return res.status(400).json({ error: "Username already taken" });
+      }
+      
+      // Update username
+      const user = await storage.updateUser(userId, { username: username.trim() });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email
+      });
+    } catch (error) {
+      console.error("Update username error:", error);
+      res.status(500).json({ error: "Failed to update username" });
+    }
+  });
+
+  // Update password
+  app.patch("/api/user/password", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const { currentPassword, newPassword } = req.body;
+      
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: "Current password and new password are required" });
+      }
+      
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: "New password must be at least 6 characters long" });
+      }
+      
+      // Get current user
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Verify current password
+      const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!isValidPassword) {
+        return res.status(400).json({ error: "Current password is incorrect" });
+      }
+      
+      // Hash new password
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+      
+      // Update password
+      const updatedUser = await storage.updateUser(userId, { password: hashedPassword });
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      res.json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.error("Update password error:", error);
+      res.status(500).json({ error: "Failed to update password" });
+    }
+  });
+
   // Create a new project
   app.post("/api/projects", authenticateToken, async (req, res) => {
     try {

@@ -8,6 +8,7 @@ import Home from "@/pages/home";
 import AuthPage from "@/pages/auth";
 import MyVideosPage from "@/pages/my-videos";
 import MySongsPage from "@/pages/my-songs";
+import ProfilePage from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -51,6 +52,7 @@ function AppRouter() {
       <Route path="/" component={() => <ProtectedRoute component={Home} />} />
       <Route path="/my-songs" component={() => <ProtectedRoute component={MySongsPage} />} />
       <Route path="/my-videos" component={() => <ProtectedRoute component={MyVideosPage} />} />
+      <Route path="/profile" component={() => <ProtectedRoute component={ProfilePage} />} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
