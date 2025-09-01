@@ -49,7 +49,7 @@ export default function MySongsPage() {
     }
   };
 
-  const formatDuration = (seconds: number | undefined): string => {
+  const formatDuration = (seconds: number | null | undefined): string => {
     if (!seconds) return "Unknown";
     if (seconds < 60) return `${seconds}s`;
     const minutes = Math.floor(seconds / 60);

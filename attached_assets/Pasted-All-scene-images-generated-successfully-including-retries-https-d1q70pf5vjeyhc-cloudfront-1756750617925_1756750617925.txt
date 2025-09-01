@@ -1,0 +1,71 @@
+All scene images generated successfully (including retries): [
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/a3745b98b75042a7851ec49a732f581c/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/5e31e8b6a97a4f989d120bec66f4a1cf/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/b10c52f013854b0d8c4e46b379b153b1/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/cdbb5d8bb31f4cd9abc979529b29081b/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/dfd1d403a59d444c9dfa4f5943e2cf6c/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/e59159a83dde496f89459f78c6c4ffb3/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/36c17e97fed74b73b57f989e656c9626/1.jpeg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/2a5b623f5ffe4ed3a2c01d8fc799b648/1.jpeg'
+]
+6:16:20 PM [express] POST /api/projects/51738faf-d562-4f4b-9aae-d5a0f734ff26/generate-scenes 200 in …
+6:16:29 PM [express] PATCH /api/projects/51738faf-d562-4f4b-9aae-d5a0f734ff26 200 in 132ms :: {"id":…
+6:16:29 PM [express] GET /api/projects/51738faf-d562-4f4b-9aae-d5a0f734ff26 200 in 132ms :: {"id":"5…
+Queue status error: PostgresError: relation "video_queue" does not exist
+    at ErrorResponse (file:///home/runner/workspace/node_modules/postgres/src/connection.js:794:26)
+    at handle (file:///home/runner/workspace/node_modules/postgres/src/connection.js:480:6)
+    at TLSSocket.data (file:///home/runner/workspace/node_modules/postgres/src/connection.js:315:9)
+    at TLSSocket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23) {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: '42P01',
+  position: '115',
+  file: 'parse_relation.c',
+  line: '1449',
+  routine: 'parserOpenTable'
+}
+6:16:29 PM [express] GET /api/video-queue/status 500 in 605ms :: {"error":"Failed to get queue statu…
+Generate video error: PostgresError: relation "video_queue" does not exist
+    at ErrorResponse (file:///home/runner/workspace/node_modules/postgres/src/connection.js:794:26)
+    at handle (file:///home/runner/workspace/node_modules/postgres/src/connection.js:480:6)
+    at TLSSocket.data (file:///home/runner/workspace/node_modules/postgres/src/connection.js:315:9)
+    at TLSSocket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23) {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: '42P01',
+  position: '8',
+  file: 'parse_relation.c',
+  line: '1449',
+  routine: 'parserOpenTable'
+}
+node:internal/process/promises:391
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+PostgresError: relation "video_queue" does not exist
+    at ErrorResponse (file:///home/runner/workspace/node_modules/postgres/src/connection.js:794:26)
+    at handle (file:///home/runner/workspace/node_modules/postgres/src/connection.js:480:6)
+    at TLSSocket.data (file:///home/runner/workspace/node_modules/postgres/src/connection.js:315:9)
+    at TLSSocket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23) {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: '42P01',
+  position: '8',
+  file: 'parse_relation.c',
+  line: '1449',
+  routine: 'parserOpenTable'
+}
+
+Node.js v20.19.3
