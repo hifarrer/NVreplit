@@ -789,6 +789,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Regenerate individual scene endpoint
+  app.post("/api/projects/:id/regenerate-scene", async (req, res) => {
+    try {
+      const { sceneIndex, prompt } = req.body;
+      
+      if (sceneIndex === undefined || !prompt) {
+        return res.status(400).json({ error: "Scene index and prompt are required" });
+      }
+
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(400).json({ error: "Project not found" });
+      }
+      
+      if (!project.characterImageUrl) {
+        return res.status(400).json({ error: "Character image URL is required" });
+      }
+
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "scene_regeneration",
+        message: `Regenerating scene ${sceneIndex + 1}`,
+        status: "started",
+        metadata: { sceneIndex, prompt }
+      });
+
+      // Generate a single scene image with the custom prompt
+      const sceneImages = await generateSceneImages([prompt], project.characterImageUrl);
+      
+      if (!sceneImages || sceneImages.length === 0) {
+        throw new Error("Failed to generate scene image");
+      }
+
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "scene_regeneration",
+        message: `Scene ${sceneIndex + 1} regenerated successfully`,
+        status: "completed",
+        metadata: { sceneIndex, newImageUrl: sceneImages[0] }
+      });
+
+      res.json({ 
+        imageUrl: sceneImages[0],
+        sceneIndex: sceneIndex
+      });
+    } catch (error) {
+      console.error("Scene regeneration error:", error);
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "scene_regeneration",
+        message: "Scene regeneration failed",
+        status: "failed",
+        metadata: { error: (error as Error).message }
+      });
+      res.status(500).json({ error: "Failed to regenerate scene" });
+    }
+  });
+
   // Generate video
   app.post("/api/projects/:id/generate-video", async (req, res) => {
     try {

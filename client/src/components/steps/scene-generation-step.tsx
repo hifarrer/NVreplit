@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SceneData } from "@/lib/types";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, RefreshCw } from "lucide-react";
 
 interface SceneGenerationStepProps {
   projectId: string;
@@ -17,6 +18,7 @@ interface SceneGenerationStepProps {
 export function SceneGenerationStep({ projectId, scenes = [], onNext, onBack }: SceneGenerationStepProps) {
   const [generatedScenes, setGeneratedScenes] = useState<SceneData[]>(scenes);
   const [progress, setProgress] = useState(0);
+  const [regeneratingScenes, setRegeneratingScenes] = useState<number[]>([]);
   const { toast } = useToast();
 
   const generateScenesMutation = useMutation({
@@ -64,11 +66,51 @@ export function SceneGenerationStep({ projectId, scenes = [], onNext, onBack }: 
     }
   }, []);
 
-  const regenerateScene = (index: number) => {
-    toast({
-      title: "Feature Coming Soon",
-      description: "Individual scene regeneration will be implemented soon.",
-    });
+  const regenerateSceneMutation = useMutation({
+    mutationFn: async ({ sceneIndex, prompt }: { sceneIndex: number; prompt: string }) => {
+      const response = await apiRequest("POST", `/api/projects/${projectId}/regenerate-scene`, {
+        sceneIndex,
+        prompt
+      });
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      const { sceneIndex } = variables;
+      setGeneratedScenes(prev => 
+        prev.map((scene, index) => 
+          index === sceneIndex 
+            ? { ...scene, imageUrl: data.imageUrl }
+            : scene
+        )
+      );
+      setRegeneratingScenes(prev => prev.filter(i => i !== sceneIndex));
+      toast({
+        title: "Success",
+        description: `Scene ${sceneIndex + 1} regenerated successfully!`,
+      });
+    },
+    onError: (error, variables) => {
+      const { sceneIndex } = variables;
+      setRegeneratingScenes(prev => prev.filter(i => i !== sceneIndex));
+      toast({
+        title: "Error",
+        description: "Failed to regenerate scene",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const regenerateScene = (index: number, prompt: string) => {
+    setRegeneratingScenes(prev => [...prev, index]);
+    regenerateSceneMutation.mutate({ sceneIndex: index, prompt });
+  };
+
+  const updateScenePrompt = (index: number, newPrompt: string) => {
+    setGeneratedScenes(prev => 
+      prev.map((scene, i) => 
+        i === index ? { ...scene, prompt: newPrompt } : scene
+      )
+    );
   };
 
   return (
@@ -88,7 +130,7 @@ export function SceneGenerationStep({ projectId, scenes = [], onNext, onBack }: 
         </div>
         <div className="text-center mb-8">
           <h3 className="text-2xl font-bold gradient-text mb-4">Generate Video Scenes</h3>
-          <p className="text-muted-foreground">AI will create 4 unique scenes for your music video based on your song concept</p>
+          <p className="text-muted-foreground">AI will create 8 unique scenes for your music video based on your song concept</p>
         </div>
 
         {/* Scene Generation Progress */}
@@ -113,38 +155,48 @@ export function SceneGenerationStep({ projectId, scenes = [], onNext, onBack }: 
           <div className="grid md:grid-cols-2 gap-6 mb-8" data-testid="generated-scenes">
             {generatedScenes.map((scene, index) => (
               <div key={index} className="bg-muted/20 rounded-lg p-4 border border-border" data-testid={`scene-${index + 1}`}>
-                <div className="flex items-start space-x-4">
-                  <div className="w-20 h-20 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center flex-shrink-0">
-                    {scene.imageUrl ? (
-                      <img 
-                        src={scene.imageUrl}
-                        alt={`Scene ${index + 1} thumbnail`} 
-                        className="w-full h-full object-cover rounded-lg" 
-                        data-testid={`scene-image-${index + 1}`}
-                      />
-                    ) : (
-                      <div className="loading-spinner" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h5 className="font-semibold mb-2">Scene {index + 1}</h5>
-                    <p className="text-sm text-muted-foreground" data-testid={`scene-prompt-${index + 1}`}>
-                      {scene.prompt}
-                    </p>
-                    <div className="flex items-center mt-3 space-x-2">
-                      <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">
-                        {index === 0 ? "0-30s" : index === 1 ? "30-60s" : index === 2 ? "60-90s" : "90-120s"}
-                      </span>
+                <div className="space-y-4">
+                  <div className="flex items-start space-x-4">
+                    <div className="w-20 h-20 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center flex-shrink-0">
+                      {regeneratingScenes.includes(index) ? (
+                        <div className="loading-spinner" />
+                      ) : scene.imageUrl ? (
+                        <img 
+                          src={scene.imageUrl}
+                          alt={`Scene ${index + 1} thumbnail`} 
+                          className="w-full h-full object-cover rounded-lg" 
+                          data-testid={`scene-image-${index + 1}`}
+                        />
+                      ) : (
+                        <div className="loading-spinner" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h5 className="font-semibold mb-2">Scene {index + 1}</h5>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        onClick={() => regenerateScene(index)}
-                        className="text-xs text-accent hover:underline p-0 h-auto"
+                        onClick={() => regenerateScene(index, scene.prompt)}
+                        disabled={regeneratingScenes.includes(index)}
+                        className="flex items-center gap-2"
                         data-testid={`regenerate-scene-${index + 1}`}
                       >
-                        <i className="fas fa-redo mr-1"></i>Regenerate
+                        <RefreshCw className={`w-4 h-4 ${regeneratingScenes.includes(index) ? 'animate-spin' : ''}`} />
+                        {regeneratingScenes.includes(index) ? 'Regenerating...' : 'Regenerate'}
                       </Button>
                     </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                      Scene Prompt:
+                    </label>
+                    <Textarea
+                      value={scene.prompt}
+                      onChange={(e) => updateScenePrompt(index, e.target.value)}
+                      className="min-h-[100px] text-sm"
+                      data-testid={`scene-prompt-textarea-${index + 1}`}
+                      placeholder="Describe the scene in detail..."
+                    />
                   </div>
                 </div>
               </div>
