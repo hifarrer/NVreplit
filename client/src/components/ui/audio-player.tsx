@@ -13,7 +13,9 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const progressBarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -59,12 +61,48 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
 
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const percentage = x / rect.width;
+    const percentage = Math.max(0, Math.min(1, x / rect.width));
     const newTime = percentage * duration;
     
     audio.currentTime = newTime;
     setCurrentTime(newTime);
   };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    setIsDragging(true);
+    handleSeek(e);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging || !progressBarRef.current || !duration) return;
+    
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, x / rect.width));
+    const newTime = percentage * duration;
+    
+    audio.currentTime = newTime;
+    setCurrentTime(newTime);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, duration]);
 
   return (
     <div className={cn("p-6 media-player rounded-lg", className)} data-testid="audio-player">
@@ -109,8 +147,10 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
         
         <div className="flex-1">
           <div 
-            className="bg-muted rounded-full h-2 mb-2 cursor-pointer relative"
+            ref={progressBarRef}
+            className="bg-muted rounded-full h-2 mb-2 cursor-pointer relative select-none"
             onClick={handleSeek}
+            onMouseDown={handleMouseDown}
             data-testid="audio-progress-bar"
           >
             <div 
@@ -118,7 +158,9 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
               style={{ width: `${progressPercentage}%` }}
             />
             <div 
-              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full shadow-md pointer-events-none"
+              className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full shadow-md pointer-events-none transition-transform ${
+                isDragging ? 'scale-125' : 'hover:scale-110'
+              }`}
               style={{ left: `calc(${progressPercentage}% - 6px)` }}
             />
           </div>

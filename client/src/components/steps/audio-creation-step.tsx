@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock, X } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { format } from "date-fns";
 
@@ -679,7 +679,9 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold gradient-text">Choose Your Favorite Song</DialogTitle>
-            <p className="text-muted-foreground">We generated {generatedSongs.length} songs for you. Select the one you like best!</p>
+            <DialogDescription className="text-muted-foreground">
+              We generated {generatedSongs.length} songs for you. Select the one you like best!
+            </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 mt-6">
