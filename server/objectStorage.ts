@@ -230,16 +230,10 @@ export class ObjectStorageService {
       
       console.log("Video uploaded to object storage:", objectPath);
       
-      // Generate a signed URL for the uploaded video
-      const signedUrl = await this.signObjectURL({
-        bucketName,
-        objectName,
-        method: "GET",
-        ttlSec: 3600, // 1 hour TTL
-      });
-      
-      console.log("Generated signed URL:", signedUrl);
-      return signedUrl;
+      // Return a permanent path that can be served through our application
+      const permanentPath = `/objects/videos/${videoFilename}`;
+      console.log("Generated permanent video path:", permanentPath);
+      return permanentPath;
     } catch (error) {
       console.error("Error uploading video to storage:", error);
       throw error;
