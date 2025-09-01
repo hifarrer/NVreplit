@@ -1,0 +1,161 @@
+Scene 1 generation failed: {
+  code: 200,
+  message: 'success',
+  data: {
+    id: 'd9753df2949849e1a15da06e349b279f',
+    model: 'google/nano-banana/edit',
+    outputs: [],
+    urls: {
+      get: 'https://api.wavespeed.ai/api/v3/predictions/d9753df2949849e1a15da06e349b279f/result'
+    },
+    has_nsfw_contents: [],
+    status: 'failed',
+    created_at: '2025-09-01T22:33:36.968930956Z',
+    error: 'msg="Image at /objects/characters/8487a259-fdfd-4f25-a75d-b1ec5b8b3c4a.jpg could not be read. Please use a valid image URL.", type=value_error',
+    executionTime: 0,
+    timings: { inference: 0 }
+  }
+}
+Some scenes failed, implementing retry logic...
+Scene 3 generation failed: {
+  code: 200,
+  message: 'success',
+  data: {
+    id: 'fadc9a61b30a4c08b4c55512a9746291',
+    model: 'google/nano-banana/edit',
+    outputs: [],
+    urls: {
+      get: 'https://api.wavespeed.ai/api/v3/predictions/fadc9a61b30a4c08b4c55512a9746291/result'
+    },
+    has_nsfw_contents: [],
+    status: 'failed',
+    created_at: '2025-09-01T22:33:36.970242895Z',
+    error: 'msg="Image at /objects/characters/8487a259-fdfd-4f25-a75d-b1ec5b8b3c4a.jpg could not be read. Please use a valid image URL.", type=value_error',
+    executionTime: 0,
+    timings: { inference: 0 }
+  }
+}
+Scene 4 generation failed: {
+  code: 200,
+  message: 'success',
+  data: {
+    id: '049cb5e785fc4149bae99c212f68efce',
+    model: 'google/nano-banana/edit',
+    outputs: [],
+    urls: {
+      get: 'https://api.wavespeed.ai/api/v3/predictions/049cb5e785fc4149bae99c212f68efce/result'
+    },
+    has_nsfw_contents: [],
+    status: 'failed',
+    created_at: '2025-09-01T22:33:37.03515382Z',
+    error: 'msg="Image at /objects/characters/8487a259-fdfd-4f25-a75d-b1ec5b8b3c4a.jpg could not be read. Please use a valid image URL.", type=value_error',
+    executionTime: 0,
+    timings: { inference: 0 }
+  }
+}
+Scene 6 generation failed: {
+  code: 200,
+  message: 'success',
+  data: {
+    id: '13b76968a44548faadae0a43848df373',
+    model: 'google/nano-banana/edit',
+    outputs: [],
+    urls: {
+      get: 'https://api.wavespeed.ai/api/v3/predictions/13b76968a44548faadae0a43848df373/result'
+    },
+    has_nsfw_contents: [],
+    status: 'failed',
+    created_at: '2025-09-01T22:33:37.024960997Z',
+    error: 'msg="Image at /objects/characters/8487a259-fdfd-4f25-a75d-b1ec5b8b3c4a.jpg could not be read. Please use a valid image URL.", type=value_error',
+    executionTime: 0,
+    timings: { inference: 0 }
+  }
+}
+Scene 2 generation failed: {
+  code: 200,
+  message: 'success',
+  data: {
+    id: 'decb2cbfa97049798662ada5eebba1c3',
+    model: 'google/nano-banana/edit',
+    outputs: [],
+    urls: {
+      get: 'https://api.wavespeed.ai/api/v3/predictions/decb2cbfa97049798662ada5eebba1c3/result'
+    },
+    has_nsfw_contents: [],
+    status: 'failed',
+    created_at: '2025-09-01T22:33:37.020479962Z',
+    error: 'msg="Image at /objects/characters/8487a259-fdfd-4f25-a75d-b1ec5b8b3c4a.jpg could not be read. Please use a valid image URL.", type=value_error',
+    executionTime: 0,
+    timings: { inference: 0 }
+  }
+}
+Scene 5 generation failed: {
+  code: 200,
+  message: 'success',
+  data: {
+    id: 'f96c4758573149d8856184ed5c479df9',
+    model: 'google/nano-banana/edit',
+    outputs: [],
+    urls: {
+      get: 'https://api.wavespeed.ai/api/v3/predictions/f96c4758573149d8856184ed5c479df9/result'
+    },
+    has_nsfw_contents: [],
+    status: 'failed',
+    created_at: '2025-09-01T22:33:37.025388836Z',
+    error: 'msg="Image at /objects/characters/8487a259-fdfd-4f25-a75d-b1ec5b8b3c4a.jpg could not be read. Please use a valid image URL.", type=value_error',
+    executionTime: 0,
+    timings: { inference: 0 }
+  }
+}
+Scene 8 generation failed: {
+  code: 200,
+  message: 'success',
+  data: {
+    id: '78a1bd8311e44ef3bfe12ec3da112bbc',
+    model: 'google/nano-banana/edit',
+    outputs: [],
+    urls: {
+      get: 'https://api.wavespeed.ai/api/v3/predictions/78a1bd8311e44ef3bfe12ec3da112bbc/result'
+    },
+    has_nsfw_contents: [],
+    status: 'failed',
+    created_at: '2025-09-01T22:33:37.095620927Z',
+    error: 'msg="Image at /objects/characters/8487a259-fdfd-4f25-a75d-b1ec5b8b3c4a.jpg could not be read. Please use a valid image URL.", type=value_error',
+    executionTime: 0,
+    timings: { inference: 0 }
+  }
+}
+Scene 7 generation failed: {
+  code: 200,
+  message: 'success',
+  data: {
+    id: '740510031a9f442285a3884d8900d5c1',
+    model: 'google/nano-banana/edit',
+    outputs: [],
+    urls: {
+      get: 'https://api.wavespeed.ai/api/v3/predictions/740510031a9f442285a3884d8900d5c1/result'
+    },
+    has_nsfw_contents: [],
+    status: 'failed',
+    created_at: '2025-09-01T22:33:37.033505381Z',
+    error: 'msg="Image at /objects/characters/8487a259-fdfd-4f25-a75d-b1ec5b8b3c4a.jpg could not be read. Please use a valid image URL.", type=value_error',
+    executionTime: 0,
+    timings: { inference: 0 }
+  }
+}
+Scene 1 failed: Scene 1 generation failed: msg="Image at /objects/characters/8487a259-fdfd-4f25-a75d-b1ec5b8b3c4a.jpg could not be read. Please use a valid image URL.", type=value_error
+Scene 2 failed: Scene 2 generation failed: msg="Image at /objects/characters/8487a259-fdfd-4f25-a75d-b1ec5b8b3c4a.jpg could not be read. Please use a valid image URL.", type=value_error
+Scene 3 failed: Scene 3 generation failed: msg="Image at /objects/characters/8487a259-fdfd-4f25-a75d-b1ec5b8b3c4a.jpg could not be read. Please use a valid image URL.", type=value_error
+Scene 4 failed: Scene 4 generation failed: msg="Image at /objects/characters/8487a259-fdfd-4f25-a75d-b1ec5b8b3c4a.jpg could not be read. Please use a valid image URL.", type=value_error
+Scene 5 failed: Scene 5 generation failed: msg="Image at /objects/characters/8487a259-fdfd-4f25-a75d-b1ec5b8b3c4a.jpg could not be read. Please use a valid image URL.", type=value_error
+Scene 6 failed: Scene 6 generation failed: msg="Image at /objects/characters/8487a259-fdfd-4f25-a75d-b1ec5b8b3c4a.jpg could not be read. Please use a valid image URL.", type=value_error
+Scene 7 failed: Scene 7 generation failed: msg="Image at /objects/characters/8487a259-fdfd-4f25-a75d-b1ec5b8b3c4a.jpg could not be read. Please use a valid image URL.", type=value_error
+Scene 8 failed: Scene 8 generation failed: msg="Image at /objects/characters/8487a259-fdfd-4f25-a75d-b1ec5b8b3c4a.jpg could not be read. Please use a valid image URL.", type=value_error
+Scene generation error: Error: Failed to generate 4 scene images after retries. Missing scenes: 1, 2, 3, 4
+    at generateSceneImages (/home/runner/workspace/server/services/fal.ts:443:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:865:27)
+Generate scenes error: Error: Failed to generate scene images: Failed to generate 4 scene images after retries. Missing scenes: 1, 2, 3, 4
+    at generateSceneImages (/home/runner/workspace/server/services/fal.ts:452:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:865:27)
