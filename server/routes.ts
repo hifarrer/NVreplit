@@ -565,9 +565,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const result = await generateSong(tags, lyrics, duration);
       
+      // TODO: Store both songs in user's library automatically when authentication is implemented
+      // For now, we'll skip automatic saving to user library
+      
+      // For now, use the first song as the project's selected song
+      // The frontend will allow users to switch between songs
+      const selectedSong = result.songs[0];
+      
       await storage.updateProject(req.params.id, {
         title: description || tags, // Use the full song description as the project title, fallback to tags
-        audioUrl: result.audioUrl,
+        audioUrl: selectedSong.audioUrl,
         audioType: "generated",
         audioPrompt: description,
         audioTags: tags,
@@ -578,9 +585,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "song_generation",
-        message: "Song generated successfully",
+        message: `Generated ${result.songs.length} songs successfully`,
         status: "completed",
-        metadata: { audioUrl: result.audioUrl, duration: result.duration }
+        metadata: { songs: result.songs }
       });
 
       res.json(result);
@@ -594,6 +601,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { error: (error as Error).message }
       });
       res.status(500).json({ error: "Failed to generate song" });
+    }
+  });
+
+  // Select song for project
+  app.post("/api/projects/:id/select-song", async (req, res) => {
+    try {
+      const { audioUrl, duration } = req.body;
+      
+      await storage.updateProject(req.params.id, {
+        audioUrl,
+        currentStep: 2
+      });
+
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "song_selection",
+        message: "Song selected for project",
+        status: "completed",
+        metadata: { audioUrl, duration }
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Select song error:", error);
+      res.status(500).json({ error: "Failed to select song" });
     }
   });
 
@@ -752,6 +784,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audioType,
         currentStep: 2,
       });
+      
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
       
       res.json({ 
         audioUrl: project.audioUrl,

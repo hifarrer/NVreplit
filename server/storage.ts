@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type VideoQueue, type InsertVideoQueue, users, projects, generationLogs, savedCharacters, videoQueue } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, users, projects, generationLogs, savedCharacters, videoQueue, songs } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -37,6 +37,11 @@ export interface IStorage {
   startVideoProcessing(projectId: string): Promise<boolean>;
   completeVideoProcessing(projectId: string, status: 'completed' | 'failed'): Promise<boolean>;
   cleanupStaleEntries(): Promise<void>;
+
+  // Song methods
+  getSongs(userId: string): Promise<Song[]>;
+  addSong(song: InsertSong): Promise<Song>;
+  deleteSong(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -45,6 +50,7 @@ export class MemStorage implements IStorage {
   private generationLogs: Map<string, GenerationLog>;
   private savedCharacters: Map<string, SavedCharacter>;
   private videoQueues: Map<string, VideoQueue>;
+  private songs: Map<string, Song>;
 
   constructor() {
     this.users = new Map();
@@ -52,6 +58,7 @@ export class MemStorage implements IStorage {
     this.generationLogs = new Map();
     this.savedCharacters = new Map();
     this.videoQueues = new Map();
+    this.songs = new Map();
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -260,6 +267,28 @@ export class MemStorage implements IStorage {
       this.videoQueues.set(entry.id, entry);
     });
   }
+
+  async getSongs(userId: string): Promise<Song[]> {
+    return Array.from(this.songs.values()).filter(song => song.userId === userId);
+  }
+
+  async addSong(insertSong: InsertSong): Promise<Song> {
+    const id = randomUUID();
+    const song: Song = {
+      ...insertSong,
+      id,
+      prompt: insertSong.prompt || null,
+      tags: insertSong.tags || null,
+      lyrics: insertSong.lyrics || null,
+      createdAt: new Date()
+    };
+    this.songs.set(id, song);
+    return song;
+  }
+
+  async deleteSong(id: string): Promise<boolean> {
+    return this.songs.delete(id);
+  }
 }
 
 // Database Storage Implementation
@@ -431,6 +460,30 @@ export class DbStorage implements IStorage {
         completedAt: sql`NOW()`
       })
       .where(sql`${videoQueue.status} = 'processing' AND ${videoQueue.startedAt} < NOW() - INTERVAL '30 minutes'`);
+  }
+
+  async getSongs(userId: string): Promise<Song[]> {
+    return await this.db.select()
+      .from(songs)
+      .where(eq(songs.userId, userId))
+      .orderBy(asc(songs.createdAt));
+  }
+
+  async addSong(insertSong: InsertSong): Promise<Song> {
+    const result = await this.db.insert(songs)
+      .values({
+        ...insertSong,
+        createdAt: sql`NOW()`
+      })
+      .returning();
+    return result[0];
+  }
+
+  async deleteSong(id: string): Promise<boolean> {
+    const result = await this.db.delete(songs)
+      .where(eq(songs.id, id))
+      .returning();
+    return result.length > 0;
   }
 }
 

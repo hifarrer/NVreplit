@@ -10,7 +10,8 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock } from "lucide-react";
+import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { format } from "date-fns";
 
@@ -57,6 +58,11 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
   const [lyrics, setLyrics] = useState("");
   const [duration, setDuration] = useState([60]); // Default 60 seconds
   const [progress, setProgress] = useState(0);
+  
+  // Song selection state
+  const [generatedSongs, setGeneratedSongs] = useState<Array<{audioUrl: string; duration: number; title: string; id: string}>>([]);
+  const [showSongSelection, setShowSongSelection] = useState(false);
+  const [selectedGeneratedSongIndex, setSelectedGeneratedSongIndex] = useState<number>(0);
   
   // Library tab state
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
@@ -156,11 +162,19 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
       return response.json();
     },
     onSuccess: (data) => {
-      setCurrentAudioUrl(data.audioUrl);
+      // Handle the new response format with multiple songs
+      if (data.songs && data.songs.length > 0) {
+        // Show song selection modal if multiple songs
+        setGeneratedSongs(data.songs);
+        setShowSongSelection(true);
+      } else if (data.audioUrl) {
+        // Fallback for single song response
+        setCurrentAudioUrl(data.audioUrl);
+      }
       setProgress(0);
       toast({
         title: "Success",
-        description: "Song generated successfully!",
+        description: `Generated ${data.songs?.length || 1} song${data.songs?.length > 1 ? 's' : ''}! Choose your favorite.`,
       });
     },
     onError: (error) => {
@@ -171,6 +185,34 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
         variant: "destructive",
       });
     }
+  });
+
+  // Select generated song mutation
+  const selectGeneratedSongMutation = useMutation({
+    mutationFn: async (songIndex: number) => {
+      const selectedSong = generatedSongs[songIndex];
+      const response = await apiRequest("POST", `/api/projects/${projectId}/select-song`, {
+        audioUrl: selectedSong.audioUrl,
+        duration: selectedSong.duration
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setCurrentAudioUrl(data.audioUrl || generatedSongs[selectedGeneratedSongIndex].audioUrl);
+      setShowSongSelection(false);
+      setGeneratedSongs([]);
+      toast({
+        title: "Success",
+        description: "Song selected for your project!",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Selection Failed",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    },
   });
 
   // Library mutations
@@ -631,6 +673,88 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
           </Button>
         </div>
       </div>
+
+      {/* Song Selection Modal */}
+      <Dialog open={showSongSelection} onOpenChange={setShowSongSelection}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold gradient-text">Choose Your Favorite Song</DialogTitle>
+            <p className="text-muted-foreground">We generated {generatedSongs.length} songs for you. Select the one you like best!</p>
+          </DialogHeader>
+          
+          <div className="space-y-4 mt-6">
+            {generatedSongs.map((song, index) => (
+              <Card 
+                key={index}
+                className={`cursor-pointer transition-all ${
+                  selectedGeneratedSongIndex === index 
+                    ? 'border-primary ring-2 ring-primary/20' 
+                    : 'hover:border-primary/50'
+                }`}
+                onClick={() => setSelectedGeneratedSongIndex(index)}
+                data-testid={`generated-song-option-${index}`}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-3">
+                        {selectedGeneratedSongIndex === index && (
+                          <Check className="h-5 w-5 text-primary" />
+                        )}
+                        <h3 className="font-semibold text-lg">{song.title}</h3>
+                        <span className="text-sm bg-primary/20 text-primary px-2 py-1 rounded">
+                          Song {index + 1}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4" />
+                          {Math.round(song.duration)}s
+                        </div>
+                      </div>
+                      <audio
+                        src={song.audioUrl}
+                        controls
+                        className="w-full"
+                        data-testid={`generated-song-audio-${index}`}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          
+          <div className="flex gap-3 mt-6">
+            <Button 
+              variant="outline"
+              onClick={() => setShowSongSelection(false)}
+              className="flex-1"
+              data-testid="cancel-song-selection"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => selectGeneratedSongMutation.mutate(selectedGeneratedSongIndex)}
+              disabled={selectGeneratedSongMutation.isPending}
+              className="flex-1 floating-button"
+              data-testid="confirm-song-selection"
+            >
+              {selectGeneratedSongMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Selecting...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Use This Song
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

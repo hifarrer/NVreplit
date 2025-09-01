@@ -1,6 +1,6 @@
 import { downloadAndStoreImage } from "./imageStorage";
 
-export async function generateSong(tags: string, lyrics?: string, duration: number = 60): Promise<{ audioUrl: string; duration: number }> {
+export async function generateSong(tags: string, lyrics?: string, duration: number = 60): Promise<{ songs: Array<{ audioUrl: string; duration: number; title: string; id: string }> }> {
   const KIE_API_TOKEN = process.env.KIE_API_TOKEN || "f27547e627af203de39b3345de70c32b";
   
   console.log("KIE.ai song generation request:");
@@ -77,26 +77,33 @@ export async function generateSong(tags: string, lyrics?: string, duration: numb
         console.log("Song generation completed!");
 
         if (statusResult.data.response?.sunoData && statusResult.data.response.sunoData.length > 0) {
-          // Get the first song from the results (KIE.ai returns 2 songs)
-          const firstSong = statusResult.data.response.sunoData[0];
-          const audioUrl = firstSong.audioUrl;
-          const actualDuration = firstSong.duration || duration;
+          console.log(`Found ${statusResult.data.response.sunoData.length} songs`);
           
-          console.log(`Found song audio URL: ${audioUrl}`);
-          console.log(`Song duration: ${actualDuration} seconds`);
-
-          // Download and store the audio file in our object storage
-          const { ObjectStorageService } = await import("../objectStorage");
-          const objectStorageService = new ObjectStorageService();
+          const songs = [];
           
-          console.log("Downloading and storing song audio...");
-          const storedUrl = await downloadAndStoreAudio(audioUrl, "songs");
-          console.log(`Song stored at: ${storedUrl}`);
+          // Process all generated songs (usually 2)
+          for (let i = 0; i < statusResult.data.response.sunoData.length; i++) {
+            const song = statusResult.data.response.sunoData[i];
+            const audioUrl = song.audioUrl;
+            const actualDuration = song.duration || duration;
+            
+            console.log(`Processing song ${i + 1}: ${audioUrl}`);
+            console.log(`Song ${i + 1} duration: ${actualDuration} seconds`);
 
-          return {
-            audioUrl: storedUrl,
-            duration: actualDuration
-          };
+            // Download and store each audio file in our object storage
+            console.log(`Downloading and storing song ${i + 1}...`);
+            const storedUrl = await downloadAndStoreAudio(audioUrl, "songs");
+            console.log(`Song ${i + 1} stored at: ${storedUrl}`);
+
+            songs.push({
+              audioUrl: storedUrl,
+              duration: actualDuration,
+              title: song.title || `Generated Song ${i + 1}`,
+              id: song.id
+            });
+          }
+
+          return { songs };
         } else {
           console.error("No audio data found in results:", statusResult);
           throw new Error("No audio data found in song generation results");

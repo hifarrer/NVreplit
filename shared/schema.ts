@@ -66,6 +66,18 @@ export const videoQueue = pgTable("video_queue", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const songs = pgTable("songs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  title: text("title").notNull(),
+  url: text("url").notNull(),
+  duration: integer("duration").notNull(), // Duration in seconds
+  tags: text("tags"),
+  lyrics: text("lyrics"),
+  prompt: text("prompt"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -92,6 +104,11 @@ export const insertVideoQueueSchema = createInsertSchema(videoQueue).omit({
   createdAt: true,
 });
 
+export const insertSongSchema = createInsertSchema(songs).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -102,3 +119,5 @@ export type InsertSavedCharacter = z.infer<typeof insertSavedCharacterSchema>;
 export type SavedCharacter = typeof savedCharacters.$inferSelect;
 export type InsertVideoQueue = z.infer<typeof insertVideoQueueSchema>;
 export type VideoQueue = typeof videoQueue.$inferSelect;
+export type InsertSong = z.infer<typeof insertSongSchema>;
+export type Song = typeof songs.$inferSelect;
