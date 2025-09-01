@@ -7,7 +7,7 @@ import { Video, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeI
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import logoImage from "@assets/Power_1756692995582.png";
+import logoImage from "@assets/neonlogo_1756693683433.png";
 
 interface CompletedVideo {
   id: string;

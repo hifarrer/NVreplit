@@ -12,7 +12,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, Video, Home as HomeIcon, Music } from "lucide-react";
 import { Link } from "wouter";
-import logoImage from "@assets/Power_1756692995582.png";
+import logoImage from "@assets/neonlogo_1756693683433.png";
 
 export default function Home() {
   const { user, logout } = useAuth();
