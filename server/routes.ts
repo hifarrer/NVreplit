@@ -158,7 +158,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        avatarUrl: user.avatarUrl
       });
     } catch (error) {
       console.error("Get user error:", error);
