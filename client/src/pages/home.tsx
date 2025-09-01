@@ -110,6 +110,12 @@ export default function Home() {
                     My Videos
                   </Button>
                 </Link>
+                <Link href="/characters">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                    <User className="h-4 w-4 mr-2" />
+                    Characters
+                  </Button>
+                </Link>
               </nav>
             </div>
             
