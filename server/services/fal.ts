@@ -20,7 +20,7 @@ export async function generateCharacterImages(prompt: string, aspectRatio: strin
       },
       body: JSON.stringify({
         taskType: "mj_txt2img",
-        speed: "relaxed",
+        speed: "fast",
         prompt: enhancedPrompt,
         aspectRatio: aspectRatio,
         version: "7",
