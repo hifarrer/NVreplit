@@ -22,6 +22,7 @@ export interface IStorage {
   // Generation log methods
   addGenerationLog(log: InsertGenerationLog): Promise<GenerationLog>;
   getGenerationLogs(projectId: string): Promise<GenerationLog[]>;
+  deleteGenerationLogsByProject(projectId: string): Promise<boolean>;
 
   // Saved character methods
   getSavedCharacters(userId: string): Promise<SavedCharacter[]>;
@@ -154,6 +155,12 @@ export class MemStorage implements IStorage {
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }
 
+  async deleteGenerationLogsByProject(projectId: string): Promise<boolean> {
+    const logs = Array.from(this.generationLogs.values()).filter(log => log.projectId === projectId);
+    logs.forEach(log => this.generationLogs.delete(log.id));
+    return logs.length > 0;
+  }
+
   async getSavedCharacters(userId: string): Promise<SavedCharacter[]> {
     return Array.from(this.savedCharacters.values())
       .filter((character) => character.userId === userId)
@@ -258,6 +265,11 @@ export class DbStorage implements IStorage {
     return await this.db.select().from(generationLogs)
       .where(eq(generationLogs.projectId, projectId))
       .orderBy(generationLogs.createdAt);
+  }
+
+  async deleteGenerationLogsByProject(projectId: string): Promise<boolean> {
+    const result = await this.db.delete(generationLogs).where(eq(generationLogs.projectId, projectId));
+    return result.length > 0;
   }
 
   async getSavedCharacters(userId: string): Promise<SavedCharacter[]> {
