@@ -362,11 +362,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Not authorized to delete this project" });
       }
       
-      // Delete related generation logs first to avoid foreign key constraint violation
-      await storage.deleteGenerationLogsByProject(projectId);
-      
-      // Then delete the project
-      await storage.deleteProject(projectId);
+      // Delete the project and its related generation logs
+      await storage.deleteProjectWithLogs(projectId);
       res.json({ message: "Project deleted successfully" });
     } catch (error) {
       console.error("Delete project error:", error);

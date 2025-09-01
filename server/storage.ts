@@ -2,7 +2,7 @@ import { type User, type InsertUser, type Project, type InsertProject, type Gene
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -18,6 +18,7 @@ export interface IStorage {
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, updates: Partial<Project>): Promise<Project | undefined>;
   deleteProject(id: string): Promise<boolean>;
+  deleteProjectWithLogs(id: string): Promise<boolean>;
 
   // Generation log methods
   addGenerationLog(log: InsertGenerationLog): Promise<GenerationLog>;
@@ -135,6 +136,13 @@ export class MemStorage implements IStorage {
 
   async deleteProject(id: string): Promise<boolean> {
     return this.projects.delete(id);
+  }
+
+  async deleteProjectWithLogs(id: string): Promise<boolean> {
+    // Delete generation logs first
+    await this.deleteGenerationLogsByProject(id);
+    // Then delete project
+    return this.deleteProject(id);
   }
 
   async addGenerationLog(insertLog: InsertGenerationLog): Promise<GenerationLog> {
@@ -256,6 +264,22 @@ export class DbStorage implements IStorage {
     return result.length > 0;
   }
 
+  async deleteProjectWithLogs(id: string): Promise<boolean> {
+    try {
+      // Use a transaction to ensure both operations succeed or fail together
+      await this.db.transaction(async (tx) => {
+        // First delete generation logs
+        await tx.delete(generationLogs).where(eq(generationLogs.projectId, id));
+        // Then delete the project
+        await tx.delete(projects).where(eq(projects.id, id));
+      });
+      return true;
+    } catch (error) {
+      console.error("Transaction failed:", error);
+      return false;
+    }
+  }
+
   async addGenerationLog(insertLog: InsertGenerationLog): Promise<GenerationLog> {
     const result = await this.db.insert(generationLogs).values(insertLog).returning();
     return result[0];
@@ -264,7 +288,7 @@ export class DbStorage implements IStorage {
   async getGenerationLogs(projectId: string): Promise<GenerationLog[]> {
     return await this.db.select().from(generationLogs)
       .where(eq(generationLogs.projectId, projectId))
-      .orderBy(generationLogs.createdAt);
+      .orderBy(asc(generationLogs.createdAt));
   }
 
   async deleteGenerationLogsByProject(projectId: string): Promise<boolean> {
@@ -275,7 +299,7 @@ export class DbStorage implements IStorage {
   async getSavedCharacters(userId: string): Promise<SavedCharacter[]> {
     return await this.db.select().from(savedCharacters)
       .where(eq(savedCharacters.userId, userId))
-      .orderBy(savedCharacters.createdAt);
+      .orderBy(asc(savedCharacters.createdAt));
   }
 
   async saveCharacter(insertCharacter: InsertSavedCharacter): Promise<SavedCharacter> {
