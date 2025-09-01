@@ -1,70 +1,225 @@
-import { writeFileSync } from "fs";
-import { join } from "path";
+import { downloadAndStoreImage } from "./imageStorage";
 
 export async function generateSong(tags: string, lyrics?: string, duration: number = 60): Promise<{ audioUrl: string; duration: number }> {
-  const API_KEY = process.env.ELEVENLABS_API_KEY || "sk_5bf8f177633d87f37c096114bb424d36907c101fdc6268e4";
+  const KIE_API_TOKEN = process.env.KIE_API_TOKEN || "f27547e627af203de39b3345de70c32b";
   
-  let prompt = `Create a song with this style: ${tags}`;
-  if (lyrics && lyrics.trim()) {
-    prompt += ` and these lyrics: ${lyrics}`;
-  }
-  
-  console.log("ElevenLabs prompt:", prompt);
+  console.log("KIE.ai song generation request:");
   console.log("Tags:", tags);
   console.log("Lyrics:", lyrics);
+  console.log("Duration:", duration);
 
   try {
-    const response = await fetch("https://api.elevenlabs.io/v1/music", {
+    // Submit song generation request to KIE.ai
+    const response = await fetch("https://api.kie.ai/api/v1/generate", {
       method: "POST",
       headers: {
-        "xi-api-key": API_KEY,
+        "Authorization": `Bearer ${KIE_API_TOKEN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        prompt: prompt,
-        music_length_ms: duration * 1000, // Convert seconds to milliseconds
+        prompt: lyrics || `A song with the style: ${tags}`,
+        style: tags,
+        title: `Generated Song - ${tags}`,
+        customMode: true,
+        instrumental: false, // We want vocals since we have lyrics
+        model: "V4",
+        negativeTags: "",
+        vocalGender: "m", // male vocals
+        styleWeight: 0.65,
+        weirdnessConstraint: 0.65,
+        audioWeight: 0.65
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`ElevenLabs API error: ${response.status} - ${errorText}`);
+      throw new Error(`KIE.ai API error: ${response.status} - ${errorText}`);
     }
 
-    // ElevenLabs typically returns binary audio data directly
-    // Get the response as ArrayBuffer to handle binary data
-    const audioBuffer = await response.arrayBuffer();
-    
-    // Check if this is actually JSON by looking at the first few bytes
-    const firstBytes = new Uint8Array(audioBuffer.slice(0, 10));
-    const isJSON = firstBytes[0] === 123; // 123 is '{' in ASCII
-    
-    if (isJSON) {
-      // Convert buffer back to text and parse as JSON
-      const textDecoder = new TextDecoder();
-      const jsonText = textDecoder.decode(audioBuffer);
-      const result = JSON.parse(jsonText);
-      
-      return {
-        audioUrl: result.audio_url || result.url || result.audio,
-        duration: result.duration || duration
-      };
-    } else {
-      // Handle as binary audio data
-      const audioData = new Uint8Array(audioBuffer);
-      
-      // Save the audio file locally
-      const fileName = `generated-song-${Date.now()}.mp3`;
-      const filePath = join(process.cwd(), "public", fileName);
-      writeFileSync(filePath, audioData);
-      
-      return {
-        audioUrl: `/${fileName}`,
-        duration: duration // Use the requested duration
-      };
+    const result = await response.json();
+    console.log("KIE.ai submission result:", JSON.stringify(result, null, 2));
+
+    if (!result.data?.taskId) {
+      throw new Error("No task ID received from KIE.ai");
     }
+
+    const taskId = result.data.taskId;
+    console.log(`Got KIE.ai task ID: ${taskId}`);
+
+    // Poll for results
+    let attempts = 0;
+    const maxAttempts = 60; // Poll for up to 5 minutes
+
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds between polls
+
+      console.log(`Polling attempt ${attempts + 1}/${maxAttempts}...`);
+      console.log(`Checking status at: https://api.kie.ai/api/v1/generate/record-info?taskId=${taskId}`);
+
+      const statusResponse = await fetch(`https://api.kie.ai/api/v1/generate/record-info?taskId=${taskId}`, {
+        headers: {
+          "Authorization": `Bearer ${KIE_API_TOKEN}`,
+        },
+      });
+
+      if (!statusResponse.ok) {
+        const errorText = await statusResponse.text();
+        console.error("Status check failed:", errorText);
+        throw new Error(`Status check failed: ${statusResponse.status} - ${errorText}`);
+      }
+
+      const statusResult = await statusResponse.json();
+      console.log(`Status response status: ${statusResponse.status}`);
+      console.log(`Status result:`, JSON.stringify(statusResult, null, 2));
+
+      if (statusResult.data?.status === "SUCCESS") {
+        console.log("Song generation completed!");
+
+        if (statusResult.data.response?.sunoData && statusResult.data.response.sunoData.length > 0) {
+          // Get the first song from the results (KIE.ai returns 2 songs)
+          const firstSong = statusResult.data.response.sunoData[0];
+          const audioUrl = firstSong.audioUrl;
+          const actualDuration = firstSong.duration || duration;
+          
+          console.log(`Found song audio URL: ${audioUrl}`);
+          console.log(`Song duration: ${actualDuration} seconds`);
+
+          // Download and store the audio file in our object storage
+          const { ObjectStorageService } = await import("../objectStorage");
+          const objectStorageService = new ObjectStorageService();
+          
+          console.log("Downloading and storing song audio...");
+          const storedUrl = await downloadAndStoreAudio(audioUrl, "songs");
+          console.log(`Song stored at: ${storedUrl}`);
+
+          return {
+            audioUrl: storedUrl,
+            duration: actualDuration
+          };
+        } else {
+          console.error("No audio data found in results:", statusResult);
+          throw new Error("No audio data found in song generation results");
+        }
+      } else if (statusResult.data?.status === "FAIL" || statusResult.data?.errorCode) {
+        console.error("Song generation failed:", statusResult.data?.errorMessage || statusResult.data?.errorCode);
+        throw new Error(`Song generation failed: ${statusResult.data?.errorMessage || "Unknown error"}`);
+      } else {
+        console.log("Task still in progress, continuing to poll...");
+      }
+
+      attempts++;
+    }
+
+    throw new Error("Song generation timed out");
   } catch (error) {
-    console.error("ElevenLabs generation error:", error);
+    console.error("KIE.ai song generation error:", error);
     throw new Error("Failed to generate song: " + (error as Error).message);
   }
+}
+
+/**
+ * Downloads an audio file from an external URL and stores it permanently in object storage
+ */
+async function downloadAndStoreAudio(
+  audioUrl: string,
+  category: string = "songs"
+): Promise<string> {
+  try {
+    console.log(`Downloading audio from: ${audioUrl}`);
+    
+    // Download the audio from the external URL
+    const response = await fetch(audioUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);
+    }
+    
+    // Get the audio content as buffer
+    const audioBuffer = Buffer.from(await response.arrayBuffer());
+    
+    // Get content type and determine file extension
+    const contentType = response.headers.get("content-type") || "audio/mpeg";
+    const extension = getAudioFileExtension(contentType);
+    
+    // Generate unique filename
+    const { randomUUID } = await import("crypto");
+    const filename = `${category}/${randomUUID()}${extension}`;
+    
+    console.log(`Storing audio as: ${filename}`);
+    
+    // Get object storage service
+    const { ObjectStorageService, objectStorageClient } = await import("../objectStorage");
+    const objectStorageService = new ObjectStorageService();
+    const privateObjectDir = objectStorageService.getPrivateObjectDir();
+    
+    // Create full path in private directory
+    const fullPath = `${privateObjectDir}/${filename}`;
+    
+    // Parse the path to get bucket and object name
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    
+    // Upload the audio buffer
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    
+    await file.save(audioBuffer, {
+      metadata: {
+        contentType,
+        metadata: {
+          originalUrl: audioUrl,
+          category,
+          uploadedAt: new Date().toISOString(),
+        },
+      },
+    });
+    
+    console.log(`Audio stored successfully at: ${fullPath}`);
+    
+    // Return the stored URL that can be served via our API
+    const storedUrl = `/objects/${filename}`;
+    
+    return storedUrl;
+  } catch (error) {
+    console.error("Error downloading and storing audio:", error);
+    throw new Error(`Failed to store audio: ${(error as Error).message}`);
+  }
+}
+
+/**
+ * Gets file extension from audio content type
+ */
+function getAudioFileExtension(contentType: string): string {
+  const extensions: Record<string, string> = {
+    "audio/mpeg": ".mp3",
+    "audio/mp3": ".mp3", 
+    "audio/wav": ".wav",
+    "audio/ogg": ".ogg",
+    "audio/aac": ".aac",
+    "audio/m4a": ".m4a",
+  };
+  
+  return extensions[contentType.toLowerCase()] || ".mp3";
+}
+
+/**
+ * Parses object path into bucket name and object name
+ */
+function parseObjectPath(path: string): {
+  bucketName: string;
+  objectName: string;
+} {
+  if (!path.startsWith("/")) {
+    path = `/${path}`;
+  }
+  const pathParts = path.split("/");
+  if (pathParts.length < 3) {
+    throw new Error("Invalid path: must contain at least a bucket name");
+  }
+
+  const bucketName = pathParts[1];
+  const objectName = pathParts.slice(2).join("/");
+
+  return {
+    bucketName,
+    objectName,
+  };
 }
