@@ -10,19 +10,19 @@
   --card-foreground: hsl(0, 0%, 98%);
   --popover: hsl(240, 10%, 6%);
   --popover-foreground: hsl(0, 0%, 98%);
-  --primary: hsl(330, 81%, 60%);
+  --primary: hsl(320, 100%, 50%);
   --primary-foreground: hsl(0, 0%, 100%);
   --secondary: hsl(240, 5%, 12%);
   --secondary-foreground: hsl(0, 0%, 95%);
   --muted: hsl(240, 5%, 15%);
   --muted-foreground: hsl(240, 5%, 65%);
-  --accent: hsl(15, 86%, 51%);
+  --accent: hsl(200, 100%, 50%);
   --accent-foreground: hsl(0, 0%, 100%);
   --destructive: hsl(0, 62%, 50%);
   --destructive-foreground: hsl(0, 0%, 98%);
   --border: hsl(240, 6%, 20%);
   --input: hsl(240, 6%, 20%);
-  --ring: hsl(330, 81%, 60%);
+  --ring: hsl(320, 100%, 50%);
   --radius: 12px;
   --font-sans: Inter, system-ui, sans-serif;
   --font-serif: Georgia, serif;
@@ -41,7 +41,7 @@
 
 @layer components {
   .gradient-text {
-    background: linear-gradient(135deg, #ff006e, #fb5607);
+    background: linear-gradient(135deg, #ff0080, #00d4ff);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -49,7 +49,7 @@
 
   .gradient-border {
     position: relative;
-    background: linear-gradient(135deg, #ff006e, #fb5607);
+    background: linear-gradient(135deg, #ff0080, #00d4ff);
     border-radius: var(--radius);
     padding: 2px;
   }
@@ -73,7 +73,7 @@
   }
 
   .step-indicator {
-    background: linear-gradient(135deg, #ff006e, #fb5607);
+    background: linear-gradient(135deg, #ff0080, #00d4ff);
     width: 2.5rem;
     height: 2.5rem;
     border-radius: 50%;
@@ -86,7 +86,7 @@
 
   .step-connector {
     height: 2px;
-    background: linear-gradient(90deg, #ff006e, #fb5607);
+    background: linear-gradient(90deg, #ff0080, #00d4ff);
     flex-grow: 1;
     margin: 0 1rem;
   }
@@ -97,38 +97,38 @@
   }
 
   .upload-zone:hover {
-    border-color: #ff006e;
-    background: rgba(255, 0, 110, 0.05);
+    border-color: #ff0080;
+    background: rgba(255, 0, 128, 0.05);
   }
 
   .progress-bar {
-    background: linear-gradient(90deg, #ff006e, #fb5607);
+    background: linear-gradient(90deg, #ff0080, #00d4ff);
     height: 6px;
     border-radius: 3px;
     transition: width 0.5s ease;
   }
 
   .floating-button {
-    background: linear-gradient(135deg, #ff006e, #fb5607);
+    background: linear-gradient(135deg, #ff0080, #00d4ff);
     transition: all 0.3s ease;
-    box-shadow: 0 4px 20px rgba(255, 0, 110, 0.3);
+    box-shadow: 0 4px 20px rgba(255, 0, 128, 0.3);
   }
 
   .floating-button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(255, 0, 110, 0.4);
+    box-shadow: 0 8px 30px rgba(255, 0, 128, 0.4);
   }
 
   .floating-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
     transform: none;
-    box-shadow: 0 4px 20px rgba(255, 0, 110, 0.3);
+    box-shadow: 0 4px 20px rgba(255, 0, 128, 0.3);
   }
 
   .media-player {
-    background: linear-gradient(135deg, rgba(255, 0, 110, 0.1), rgba(251, 86, 7, 0.1));
-    border: 1px solid rgba(255, 0, 110, 0.2);
+    background: linear-gradient(135deg, rgba(255, 0, 128, 0.1), rgba(0, 212, 255, 0.1));
+    border: 1px solid rgba(255, 0, 128, 0.2);
   }
 
   .thumbnail-grid {
@@ -140,8 +140,8 @@
   .loading-spinner {
     width: 20px;
     height: 20px;
-    border: 2px solid rgba(255, 0, 110, 0.3);
-    border-top: 2px solid #ff006e;
+    border: 2px solid rgba(255, 0, 128, 0.3);
+    border-top: 2px solid #ff0080;
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }
@@ -157,7 +157,7 @@
   }
 
   .animated-gradient {
-    background: linear-gradient(-45deg, #ff006e, #fb5607, #8338ec, #3a86ff);
+    background: linear-gradient(-45deg, #ff0080, #00d4ff, #8a2be2, #00bfff);
     background-size: 400% 400%;
     animation: pulse-gradient 3s ease infinite;
   }
