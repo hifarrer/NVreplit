@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Video, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeIcon, Music } from "lucide-react";
+import { Video, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeIcon, Music, AlertTriangle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { Link } from "wouter";
@@ -21,6 +21,7 @@ interface CompletedVideo {
 export default function MyVideosPage() {
   const { user, logout } = useAuth();
   const [selectedVideo, setSelectedVideo] = useState<CompletedVideo | null>(null);
+  const [videoError, setVideoError] = useState<boolean>(false);
 
   const { data: videos = [], isLoading } = useQuery<CompletedVideo[]>({
     queryKey: ["/api/my-videos"],
@@ -197,40 +198,46 @@ export default function MyVideosPage() {
       </main>
 
       {/* Video Player Dialog */}
-      <Dialog open={!!selectedVideo} onOpenChange={() => setSelectedVideo(null)}>
+      <Dialog open={!!selectedVideo} onOpenChange={() => {
+        setSelectedVideo(null);
+        setVideoError(false);
+      }}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>{selectedVideo?.title}</DialogTitle>
           </DialogHeader>
           <div className="aspect-video bg-black rounded-lg overflow-hidden">
-            {selectedVideo && (
+            {selectedVideo && !videoError && (
               <video
                 src={selectedVideo.videoUrl}
                 controls
                 autoPlay
                 className="w-full h-full"
                 data-testid="video-player"
-                onError={(e) => {
+                onError={() => {
                   console.error('Video playback failed:', selectedVideo.videoUrl);
-                  // Show error message in the video area
-                  const target = e.target as HTMLVideoElement;
-                  target.style.display = 'none';
-                  const parent = target.parentElement;
-                  if (parent) {
-                    parent.innerHTML = `
-                      <div class="w-full h-full flex flex-col items-center justify-center text-white">
-                        <div class="text-red-400 mb-4">
-                          <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                          </svg>
-                        </div>
-                        <p class="text-lg font-medium mb-2">Video Unavailable</p>
-                        <p class="text-sm text-gray-300 text-center">This video may have expired or is no longer accessible.<br/>Try downloading it if available.</p>
-                      </div>
-                    `;
-                  }
+                  setVideoError(true);
                 }}
               />
+            )}
+            {videoError && (
+              <div className="w-full h-full flex flex-col items-center justify-center text-white">
+                <div className="text-red-400 mb-4">
+                  <AlertTriangle className="w-12 h-12" />
+                </div>
+                <p className="text-lg font-medium mb-2">Video Unavailable</p>
+                <p className="text-sm text-gray-300 text-center max-w-sm">
+                  This video may have expired or is no longer accessible. Try downloading it if available.
+                </p>
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => handleDownload(selectedVideo?.videoUrl || '', selectedVideo?.title || 'video')}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Try Download
+                </Button>
+              </div>
             )}
           </div>
         </DialogContent>
