@@ -82,11 +82,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
       
-      // Create user
+      // Create user with default avatar
       const user = await storage.createUser({
         username,
         email,
-        password: hashedPassword
+        password: hashedPassword,
+        avatarUrl: "/public-objects/avatars/anonymous.png"
       });
       
       // Generate JWT token
@@ -97,7 +98,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       res.status(201).json({
-        user: { id: user.id, username: user.username, email: user.email },
+        user: { id: user.id, username: user.username, email: user.email, avatarUrl: user.avatarUrl },
         token
       });
     } catch (error) {
@@ -139,7 +140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       res.json({
-        user: { id: user.id, username: user.username, email: user.email },
+        user: { id: user.id, username: user.username, email: user.email, avatarUrl: user.avatarUrl },
         token
       });
     } catch (error) {
