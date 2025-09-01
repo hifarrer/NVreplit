@@ -242,6 +242,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get avatar upload URL
+  app.post("/api/user/avatar/upload-url", authenticateToken, async (req, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Get avatar upload URL error:", error);
+      res.status(500).json({ error: "Failed to get upload URL" });
+    }
+  });
+
+  // Update user avatar
+  app.patch("/api/user/avatar", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const { avatarUrl } = req.body;
+      
+      if (!avatarUrl) {
+        return res.status(400).json({ error: "Avatar URL is required" });
+      }
+      
+      // Normalize the avatar URL path
+      const objectStorageService = new ObjectStorageService();
+      const normalizedPath = objectStorageService.normalizeObjectEntityPath(avatarUrl);
+      
+      // Update user avatar
+      const user = await storage.updateUser(userId, { avatarUrl: normalizedPath });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        avatarUrl: user.avatarUrl
+      });
+    } catch (error) {
+      console.error("Update avatar error:", error);
+      res.status(500).json({ error: "Failed to update avatar" });
+    }
+  });
+
+  // Serve avatar images
+  app.get("/objects/:objectPath(*)", async (req, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error serving object:", error);
+      if (error instanceof Error && error.message === "Object not found") {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+
   // Create a new project
   app.post("/api/projects", authenticateToken, async (req, res) => {
     try {

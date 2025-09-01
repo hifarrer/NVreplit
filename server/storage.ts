@@ -272,7 +272,7 @@ export class DbStorage implements IStorage {
 
   async deleteSavedCharacter(id: string): Promise<boolean> {
     const result = await this.db.delete(savedCharacters).where(eq(savedCharacters.id, id));
-    return result.rowCount > 0;
+    return result.length > 0;
   }
 }
 

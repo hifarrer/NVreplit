@@ -5,13 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut, Upload } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { ObjectUploader } from "@/components/ObjectUploader";
 import logoImage from "@assets/neonlogo_1756693857051.png";
+import type { UploadResult } from "@uppy/core";
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
@@ -21,6 +24,51 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+
+  const updateAvatarMutation = useMutation({
+    mutationFn: async (avatarUrl: string) => {
+      const response = await apiRequest("PATCH", "/api/user/avatar", {
+        avatarUrl
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      toast({
+        title: "Success",
+        description: "Avatar updated successfully!",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update avatar",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAvatarUpload = async () => {
+    try {
+      const response = await apiRequest("POST", "/api/user/avatar/upload-url");
+      const data = await response.json();
+      return {
+        method: "PUT" as const,
+        url: data.uploadURL,
+      };
+    } catch (error) {
+      throw new Error("Failed to get upload URL");
+    }
+  };
+
+  const handleAvatarComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    if (result.successful && result.successful.length > 0) {
+      const uploadedFile = result.successful[0];
+      if (uploadedFile.uploadURL) {
+        updateAvatarMutation.mutate(uploadedFile.uploadURL);
+      }
+    }
+  };
 
   const updateUsernameMutation = useMutation({
     mutationFn: async (newUsername: string) => {
@@ -189,6 +237,52 @@ export default function ProfilePage() {
           )}
 
           <div className="space-y-6">
+            {/* Avatar Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Profile Avatar
+                </CardTitle>
+                <CardDescription>
+                  Upload a profile picture to personalize your account
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-6">
+                  <Avatar className="h-24 w-24">
+                    {user?.avatarUrl ? (
+                      <AvatarImage 
+                        src={user.avatarUrl} 
+                        alt={user.username}
+                        data-testid="avatar-image"
+                      />
+                    ) : (
+                      <AvatarFallback className="text-2xl bg-gradient-to-br from-primary/20 to-secondary/20">
+                        {user?.username?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <div className="flex flex-col gap-2">
+                    <ObjectUploader
+                      maxNumberOfFiles={1}
+                      maxFileSize={5242880} // 5MB
+                      onGetUploadParameters={handleAvatarUpload}
+                      onComplete={handleAvatarComplete}
+                      buttonClassName="w-fit"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {user?.avatarUrl ? "Change Avatar" : "Upload Avatar"}
+                    </ObjectUploader>
+                    <p className="text-sm text-muted-foreground">
+                      Recommended: Square image, max 5MB
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Separator />
             {/* Username Update */}
             <Card>
               <CardHeader>
