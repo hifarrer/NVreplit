@@ -406,7 +406,7 @@ export class DbStorage implements IStorage {
     const result = await this.db.update(videoQueue)
       .set({ 
         status: 'processing',
-        startedAt: new Date()
+        startedAt: sql`NOW()`
       })
       .where(eq(videoQueue.projectId, projectId))
       .returning();
@@ -417,7 +417,7 @@ export class DbStorage implements IStorage {
     const result = await this.db.update(videoQueue)
       .set({ 
         status,
-        completedAt: new Date()
+        completedAt: sql`NOW()`
       })
       .where(eq(videoQueue.projectId, projectId))
       .returning();
@@ -425,13 +425,12 @@ export class DbStorage implements IStorage {
   }
 
   async cleanupStaleEntries(): Promise<void> {
-    const cutoff = new Date(Date.now() - 30 * 60 * 1000); // 30 minutes ago
     await this.db.update(videoQueue)
       .set({ 
         status: 'failed',
-        completedAt: new Date()
+        completedAt: sql`NOW()`
       })
-      .where(sql`${videoQueue.status} = 'processing' AND ${videoQueue.startedAt} < ${cutoff}`);
+      .where(sql`${videoQueue.status} = 'processing' AND ${videoQueue.startedAt} < NOW() - INTERVAL '30 minutes'`);
   }
 }
 

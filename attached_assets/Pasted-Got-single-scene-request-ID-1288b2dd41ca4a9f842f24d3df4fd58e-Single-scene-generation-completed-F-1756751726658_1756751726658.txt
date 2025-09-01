@@ -1,0 +1,25 @@
+Got single scene request ID: 1288b2dd41ca4a9f842f24d3df4fd58e
+Single scene generation completed!
+Found single scene image URL: https://d1q70pf5vjeyhc.cloudfront.net/predictions/1288b2dd41ca4a9f842f24d3df4fd58e/1.jpeg
+6:34:48 PM [express] POST /api/projects/4470dfa5-2263-493f-a4f2-4fbb05b21c28/regenerate-scene 200 in…
+6:34:52 PM [express] PATCH /api/projects/4470dfa5-2263-493f-a4f2-4fbb05b21c28 200 in 139ms :: {"id":…
+Generate video error: TypeError [ERR_INVALID_ARG_TYPE]: The "string" argument must be of type string or an instance of Buffer or ArrayBuffer. Received an instance of Date
+    at Function.byteLength (node:buffer:776:11)
+    at Function.str (file:///home/runner/workspace/node_modules/postgres/src/bytes.js:22:27)
+    at file:///home/runner/workspace/node_modules/postgres/src/connection.js:944:16
+    at Array.forEach (<anonymous>)
+    at Bind (file:///home/runner/workspace/node_modules/postgres/src/connection.js:934:16)
+    at prepared (file:///home/runner/workspace/node_modules/postgres/src/connection.js:204:7)
+    at ParameterDescription (file:///home/runner/workspace/node_modules/postgres/src/connection.js:613:58)
+    at handle (file:///home/runner/workspace/node_modules/postgres/src/connection.js:480:6)
+    at TLSSocket.data (file:///home/runner/workspace/node_modules/postgres/src/connection.js:315:9)
+    at TLSSocket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23) {
+  code: 'ERR_INVALID_ARG_TYPE'
+}
+6:34:53 PM [express] GET /api/video-queue/status 200 in 677ms :: {"activeCount":0,"maxConcurrent":20}
+6:34:53 PM [express] GET /api/projects/4470dfa5-2263-493f-a4f2-4fbb05b21c28 200 in 679ms :: {"id":"4…
+6:34:53 PM [express] POST /api/projects/4470dfa5-2263-493f-a4f2-4fbb05b21c28/generate-video 500 in 9…

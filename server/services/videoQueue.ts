@@ -34,9 +34,7 @@ export class VideoQueueService {
         projectId,
         userId,
         status: 'queued',
-        queuePosition,
-        startedAt: null,
-        completedAt: null
+        queuePosition
       });
       
       return { canStart: false, queuePosition };
