@@ -140,7 +140,8 @@ export async function generateSingleSceneImage(prompt: string, characterImageUrl
       enable_sync_mode: false,
       images: [characterImageUrl],
       output_format: "jpeg",
-      prompt: prompt
+      prompt: prompt,
+      aspect_ratio: "16:9"
     };
     
     console.log(`Single scene request body:`, JSON.stringify(requestBody, null, 2));
@@ -237,7 +238,8 @@ export async function generateSceneImages(prompts: string[], characterImageUrl: 
         enable_sync_mode: false,
         images: [characterImageUrl],
         output_format: "jpeg",
-        prompt: prompt
+        prompt: prompt,
+        aspect_ratio: "16:9"
       };
       
       console.log(`Scene ${index + 1} request body:`, JSON.stringify(requestBody, null, 2));
@@ -374,7 +376,8 @@ export async function generateSceneImages(prompts: string[], characterImageUrl: 
             enable_sync_mode: false,
             images: [characterImageUrl],
             output_format: "jpeg",
-            prompt: fallbackPrompt
+            prompt: fallbackPrompt,
+            aspect_ratio: "16:9"
           };
           
           const retryResponse = await fetch("https://api.wavespeed.ai/api/v3/google/nano-banana/edit", {
