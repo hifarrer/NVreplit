@@ -2,8 +2,8 @@ const FAL_KEY = process.env.FAL_KEY || "b479bcce-ae9a-439a-a9d6-3bf0ab5cf8f0:d9a
 const KIE_API_TOKEN = "f27547e627af203de39b3345de70c32b";
 
 export async function generateCharacterImages(prompt: string, aspectRatio: string = "16:9"): Promise<string[]> {
-  // Always prepend "close up of " to ensure we get a close-up character image
-  const enhancedPrompt = `close up of ${prompt}`;
+  // Always prepend "A front shot of " to ensure we get a front-facing character image
+  const enhancedPrompt = `A front shot of ${prompt}`;
   
   console.log("Starting KIE.ai character generation with prompt:", enhancedPrompt);
   console.log("Aspect ratio:", aspectRatio);
