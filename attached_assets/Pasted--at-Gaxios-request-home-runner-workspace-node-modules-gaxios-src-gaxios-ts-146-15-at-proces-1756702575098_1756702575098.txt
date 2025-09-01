@@ -1,0 +1,91 @@
+ at Gaxios._request (/home/runner/workspace/node_modules/gaxios/src/gaxios.ts:146:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async IdentityPoolClient.requestAsync (/home/runner/workspace/node_modules/google-auth-library/build/src/auth/baseexternalclient.js:277:24)
+    at async Upload.makeRequest (file:///home/runner/workspace/node_modules/@google-cloud/storage/build/esm/src/resumable-upload.js:724:21)
+    at async AsyncRetry.retries (file:///home/runner/workspace/node_modules/@google-cloud/storage/build/esm/src/resumable-upload.js:390:29)
+    at async Upload.createURIAsync (file:///home/runner/workspace/node_modules/@google-cloud/storage/build/esm/src/resumable-upload.js:387:21) {
+  config: {
+    method: 'POST',
+    url: 'https://storage.googleapis.com/upload/storage/v1/b/repl-default-bucket-2b41d446-a481-4048-b395-249a1b7496ae/o?name=.private%2Fvideos%2Fpip_segment_1_1756702147947.mp4&uploadType=resumable',
+    params: {
+      name: '.private/videos/pip_segment_1_1756702147947.mp4',
+      uploadType: 'resumable'
+    },
+    data: {},
+    headers: {
+      'User-Agent': 'gcloud-node-storage/7.17.0 google-api-nodejs-client/9.15.1',
+      'x-goog-api-client': 'gl-node/20.19.3 gccl/7.17.0-ESM gccl-invocation-id/f2126583-ec92-4a1f-afef-2e2be6e8562d',
+      'X-Upload-Content-Type': 'video/mp4',
+      Authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'Content-Type': 'application/json'
+    },
+    validateStatus: [Function (anonymous)],
+    paramsSerializer: [Function: paramsSerializer],
+    body: '{}',
+    responseType: 'unknown',
+    errorRedactor: [Function: defaultErrorRedactor]
+  },
+  response: {
+    config: {
+      method: 'POST',
+      url: 'https://storage.googleapis.com/upload/storage/v1/b/repl-default-bucket-2b41d446-a481-4048-b395-249a1b7496ae/o?name=.private%2Fvideos%2Fpip_segment_1_1756702147947.mp4&uploadType=resumable',
+      params: [Object],
+      data: {},
+      headers: [Object],
+      validateStatus: [Function (anonymous)],
+      paramsSerializer: [Function: paramsSerializer],
+      body: '{}',
+      responseType: 'unknown',
+      errorRedactor: [Function: defaultErrorRedactor]
+    },
+    data: '{\n' +
+      '  "error": {\n' +
+      '    "code": 404,\n' +
+      '    "message": "The specified bucket does not exist.",\n' +
+      '    "errors": [\n' +
+      '      {\n' +
+      '        "message": "The specified bucket does not exist.",\n' +
+      '        "domain": "global",\n' +
+      '        "reason": "notFound"\n' +
+      '      }\n' +
+      '    ]\n' +
+      '  }\n' +
+      '}\n',
+    headers: {
+      'cache-control': 'no-cache, no-store, max-age=0, must-revalidate',
+      'content-length': '247',
+      'content-type': 'text/html; charset=UTF-8',
+      date: 'Mon, 01 Sep 2025 04:49:08 GMT',
+      expires: 'Mon, 01 Jan 1990 00:00:00 GMT',
+      pragma: 'no-cache',
+      server: 'UploadServer',
+      vary: 'Origin, X-Origin',
+      'x-guploader-uploadid': 'ABgVH89qLp2yDGYpSQF8Qb_3TPaMeN2kWq44-Tq1kgvlWwP6eK9w_xttxbayh5zTpGHQ7AuD9Pq0nbHg3bjJ0g1uB1uA-GR06TsErzjwGgz64Q'
+    },
+    status: 404,
+    statusText: 'Not Found',
+    request: {
+      responseURL: 'https://storage.googleapis.com/upload/storage/v1/b/repl-default-bucket-2b41d446-a481-4048-b395-249a1b7496ae/o?name=.private%2Fvideos%2Fpip_segment_1_1756702147947.mp4&uploadType=resumable'
+    }
+  },
+  error: undefined,
+  status: 404,
+  [Symbol(gaxios-gaxios-error)]: '6.7.1'
+}
+Generate video error: Error: Picture-in-Picture failed at segment 1: {
+  "error": {
+    "code": 404,
+    "message": "The specified bucket does not exist.",
+    "errors": [
+      {
+        "message": "The specified bucket does not exist.",
+        "domain": "global",
+        "reason": "notFound"
+      }
+    ]
+  }
+}
+
+    at <anonymous> (/home/runner/workspace/server/routes.ts:976:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+4:49:09 AM [express] POST /api/projects/a3aba091-b98d-4b02-aa97-f8c32783ca69/generate-video 500
