@@ -23,9 +23,12 @@ export default function MySongsPage() {
   const { user, logout } = useAuth();
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
 
-  const { data: songs = [], isLoading } = useQuery<GeneratedSong[]>({
+  const { data: rawSongs = [], isLoading } = useQuery<GeneratedSong[]>({
     queryKey: ["/api/my-songs"],
   });
+
+  // Ensure songs are sorted by creation date (newest first)
+  const songs = rawSongs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const handleDownload = (audioUrl: string, title: string) => {
     const link = document.createElement('a');
