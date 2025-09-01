@@ -231,21 +231,25 @@ export async function generateScenePrompts(
 ): Promise<string[]> {
   try {
     // Create prompts for each pair of scenes (8 total scenes, 4 sections)
-    let userContent = `Generate 8 image prompts to generate 8 images that will be used as frames for a music video based on the following prompt "${songDescription}". Be creative generating completely different scenes with the same character, be detailed describing everything in the scene as well as the character clothes and expression. Also include camera movements like zoom in, zoom out, pan left, pan right, tilt up, tilt down, etc. as well as visual effects.
+    let userContent = `Generate 8 SHORT and CONCISE image prompts for a music video based on "${songDescription}". Each prompt must be 1-2 sentences maximum.
 
-IMPORTANT DIRECTING REQUIREMENTS:
-- Scenes 1-2 (part_1a & part_1b): Must start with a far away shot of the character, slowly zooming in. Begin with an establishing wide shot showing the character in their environment, then transition to a closer shot.
-- Scenes 7-8 (part_3b & part_4b): Must show the character actively singing. Be creative with the setting - could be at a bar, concert venue, recording studio, or performance space. Include props like microphones, headsets, or stage equipment. Show expressive singing poses and gestures.
-- Scenes 5-6 (part_3a & part_4a): These are instrumental sections, so focus on atmospheric shots, environment details, or artistic visual elements without showing singing.`;
+REQUIREMENTS:
+- Each prompt must include a specific CHARACTER ACTION (walking, dancing, singing, looking, pointing, etc.)
+- Each prompt must include a CAMERA MOVEMENT (zoom in, zoom out, pan left, pan right, tilt up, tilt down, dolly forward, etc.)
+- Keep prompts simple and focused
+- Scenes 1-2: Start with zoom in from far away
+- Scenes 7-8: Character actively singing with dynamic camera work
+- Scenes 5-6: Atmospheric/environmental shots
+
+Example format: "Character dancing on rooftop. Camera pans right while slowly zooming in."`;
     
     // If we have lyrics sections, add them to the prompt for better scene generation
     if (lyricsSections && lyricsSections.length > 0) {
-      userContent += "\n\nThe scenes should be related to these lyrics sections:\n";
-      userContent += "Scenes 1-2 (part_1a & part_1b) should relate to: " + (lyricsSections[0] || "[Instrumental]") + " - START WITH FAR AWAY SHOT ZOOMING IN\n";
-      userContent += "Scenes 3-4 (part_2a & part_2b) should relate to: " + (lyricsSections[1] || "[Instrumental]") + "\n";
-      userContent += "Scenes 5-6 (part_3a & part_3b) should relate to: " + (lyricsSections[2] || "[Instrumental]") + " - INSTRUMENTAL SECTIONS, NO SINGING\n";
-      userContent += "Scenes 7-8 (part_4a & part_4b) should relate to: " + (lyricsSections[3] || "[Instrumental]") + " - SHOW CHARACTER SINGING ACTIVELY\n";
-      userContent += "\nMake sure each pair of scenes relates to the corresponding lyrics section while maintaining visual continuity and following the specific directing requirements above.";
+      userContent += "\n\nBase scenes on these lyrics (keep prompts SHORT):\n";
+      userContent += "Scenes 1-2: " + (lyricsSections[0] || "[Instrumental]") + " - ZOOM IN from distance\n";
+      userContent += "Scenes 3-4: " + (lyricsSections[1] || "[Instrumental]") + "\n";
+      userContent += "Scenes 5-6: " + (lyricsSections[2] || "[Instrumental]") + " - Atmospheric shots\n";
+      userContent += "Scenes 7-8: " + (lyricsSections[3] || "[Instrumental]") + " - Character singing\n";
     }
     
     const response = await openai.chat.completions.create({
@@ -254,7 +258,7 @@ IMPORTANT DIRECTING REQUIREMENTS:
         {
           role: "system",
           content:
-            'You are a creative director for music videos. Generate 8 detailed scene prompts that would make compelling visuals for a music video. Each prompt should describe a complete scene with the character, setting, mood, and visual elements and have a related sequence. Respond with JSON in this format: {"prompts": ["scene 1 description", "scene 2 description", "scene 3 description", "scene 4 description", "scene 5 description", "scene 6 description", "scene 7 description", "scene 8 description"]}',
+            'You are a creative director for music videos. Generate 8 SHORT and CONCISE scene prompts (1-2 sentences each). Each prompt must include a specific character action and camera movement. Keep them simple and focused for video generation. Respond with JSON in this format: {"prompts": ["scene 1 description", "scene 2 description", "scene 3 description", "scene 4 description", "scene 5 description", "scene 6 description", "scene 7 description", "scene 8 description"]}',
         },
         {
           role: "user",
