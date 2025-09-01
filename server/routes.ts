@@ -802,13 +802,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Image URL and prompt are required" });
       }
 
-      // Download and store the image permanently
-      console.log("Downloading and storing character image...");
-      const storedImage = await downloadAndStoreImage(imageUrl, "characters");
-      console.log("Image stored successfully:", storedImage.storedUrl);
+      let characterImageUrl = imageUrl;
+      
+      // Only download and store if it's an external URL (starts with http)
+      // Library characters already have relative URLs to our object storage
+      if (imageUrl.startsWith('http')) {
+        console.log("Downloading and storing external character image...");
+        const storedImage = await downloadAndStoreImage(imageUrl, "characters");
+        console.log("Image stored successfully:", storedImage.storedUrl);
+        characterImageUrl = storedImage.storedUrl;
+      } else {
+        console.log("Using existing character from library:", imageUrl);
+      }
 
       const updateData = {
-        characterImageUrl: storedImage.storedUrl,
+        characterImageUrl,
         characterPrompt: prompt,
         characterType: "selected",
         currentStep: 3

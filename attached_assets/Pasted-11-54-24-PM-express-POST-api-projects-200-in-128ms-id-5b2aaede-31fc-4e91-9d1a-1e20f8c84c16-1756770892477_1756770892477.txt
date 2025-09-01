@@ -1,0 +1,67 @@
+11:54:24 PM [express] POST /api/projects 200 in 128ms :: {"id":"5b2aaede-31fc-4e91-9d1a-1e20f8c84c16"…
+11:54:24 PM [express] GET /api/projects/5b2aaede-31fc-4e91-9d1a-1e20f8c84c16 200 in 127ms :: {"id":"5…
+Save character request body: {
+  "imageUrl": "/objects/saved-characters/8b6bc418-63e4-4958-9ce0-575e476ea6e4.jpg",
+  "prompt": "a cute kitty dressed in a cyberpunk jacket in 3d style animation in 3d style"
+}
+Project ID: 63b17418-3b35-4d8d-be20-26fd8f162548
+Downloading and storing character image...
+Downloading image from: /objects/saved-characters/8b6bc418-63e4-4958-9ce0-575e476ea6e4.jpg
+Error downloading and storing image: TypeError: Invalid URL
+    at new URL (node:internal/url:806:29)
+    at new Request (file:///home/runner/workspace/node_modules/node-fetch/src/request.js:55:16)
+    at file:///home/runner/workspace/node_modules/node-fetch/src/index.js:51:19
+    at new Promise (<anonymous>)
+    at fetch (file:///home/runner/workspace/node_modules/node-fetch/src/index.js:49:9)
+    at downloadAndStoreImage (/home/runner/workspace/server/services/imageStorage.ts:21:28)
+    at <anonymous> (/home/runner/workspace/server/routes.ts:807:33)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at <anonymous> (/home/runner/workspace/server/routes.ts:65:5)
+    at /home/runner/workspace/node_modules/jsonwebtoken/verify.js:261:12
+    at getSecret (/home/runner/workspace/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/home/runner/workspace/node_modules/jsonwebtoken/verify.js:101:10)
+    at authenticateToken (/home/runner/workspace/server/routes.ts:60:7)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/runner/workspace/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:284:15
+    at param (/home/runner/workspace/node_modules/express/lib/router/index.js:365:14)
+    at param (/home/runner/workspace/node_modules/express/lib/router/index.js:376:14)
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:421:3)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at <anonymous> (/home/runner/workspace/server/index.ts:39:3)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at serveStatic (/home/runner/workspace/node_modules/serve-static/index.js:75:16)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at urlencodedParser (/home/runner/workspace/node_modules/body-parser/lib/types/urlencoded.js:85:7)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at /home/runner/workspace/node_modules/body-parser/lib/read.js:137:5
+    at AsyncResource.runInAsyncScope (node:async_hooks:206:9)
+    at invokeCallback (/home/runner/workspace/node_modules/raw-body/index.js:238:16)
+    at done (/home/runner/workspace/node_modules/raw-body/index.js:227:7)
+    at IncomingMessage.onEnd (/home/runner/workspace/node_modules/raw-body/index.js:287:7)
+    at IncomingMessage.emit (node:events:524:28)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:82:21) {
+  code: 'ERR_INVALID_URL',
+  input: '/objects/saved-characters/8b6bc418-63e4-4958-9ce0-575e476ea6e4.jpg'
+}
+Save character to project error: Error: Failed to store image: Invalid URL
+    at downloadAndStoreImage (/home/runner/workspace/server/services/imageStorage.ts:76:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:807:27)
+11:54:27 PM [express] POST /api/projects/63b17418-3b35-4d8d-be20-26fd8f162548/save-character 500 in 1…
