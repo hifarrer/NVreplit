@@ -16,7 +16,7 @@ interface SongGeneratorModalProps {
   projectId: string;
 }
 
-const suggestedTags = ["pop", "electronic", "rock", "acoustic", "jazz", "hip-hop", "country", "reggae"];
+const suggestedTags = ["pop", "electronic", "rock", "upbeat", "techno", "hip-hop", "country", "reggae"];
 
 export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId }: SongGeneratorModalProps) {
   const [description, setDescription] = useState("");
