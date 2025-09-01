@@ -264,12 +264,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Avatar URL is required" });
       }
       
-      // Normalize the avatar URL path
-      const objectStorageService = new ObjectStorageService();
-      const normalizedPath = objectStorageService.normalizeObjectEntityPath(avatarUrl);
+      // For public avatars (predefined avatars), store the URL as-is
+      // For uploaded avatars, we would normalize them, but predefined avatars don't need normalization
+      const finalAvatarUrl = avatarUrl;
       
       // Update user avatar
-      const user = await storage.updateUser(userId, { avatarUrl: normalizedPath });
+      const user = await storage.updateUser(userId, { avatarUrl: finalAvatarUrl });
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
