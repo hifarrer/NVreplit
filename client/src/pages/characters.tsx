@@ -24,7 +24,7 @@ export default function CharactersPage() {
 
   const { data: characters = [], isLoading } = useQuery<SavedCharacter[]>({
     queryKey: ['/api/saved-characters'],
-    queryFn: getQueryFn(),
+    queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
   const deleteCharacterMutation = useMutation({
