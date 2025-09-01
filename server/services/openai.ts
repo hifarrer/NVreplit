@@ -22,24 +22,69 @@ export async function generateLyrics(songDescription: string, duration: number =
           role: "user",
           content: `Generate lyrics for a song about: ${songDescription}
 
-The song should be approximately ${duration} seconds long. Structure the lyrics accordingly:
-- For 30 seconds: 1 verse + 1 chorus
-- For 60 seconds: 2 verses + 2 choruses  
-- For 90 seconds: 2 verses + 2 choruses + 1 bridge
-- For 120 seconds: 3 verses + 3 choruses + 1 bridge
+CRITICAL: The song is EXACTLY ${duration} seconds long. You MUST follow these structures EXACTLY:
 
-Example format:
+${duration === 30 ? `
+STRUCTURE FOR 30 SECONDS: ONLY 1 verse + 1 chorus (NO MORE!)
 [Verse 1]
-Your lyrics here...
+4 lines maximum
+
+[Chorus] 
+4 lines maximum
+` : duration === 60 ? `
+STRUCTURE FOR 60 SECONDS: ONLY 2 verses + 2 choruses (NO bridge, NO extra verses!)
+[Verse 1]
+4 lines
 
 [Chorus]
-Your chorus here...
+4 lines
+
+[Verse 2] 
+4 lines
+
+[Chorus]
+4 lines
+` : duration === 90 ? `
+STRUCTURE FOR 90 SECONDS: ONLY 2 verses + 2 choruses + 1 bridge (NO extra verses!)
+[Verse 1]
+4 lines
+
+[Chorus]
+4 lines
 
 [Verse 2]
-More lyrics here...
+4 lines
+
+[Chorus]
+4 lines
 
 [Bridge]
-Bridge lyrics here...`,
+4 lines
+` : `
+STRUCTURE FOR 120 SECONDS: ONLY 3 verses + 3 choruses + 1 bridge
+[Verse 1]
+4 lines
+
+[Chorus]
+4 lines
+
+[Verse 2]
+4 lines
+
+[Chorus]
+4 lines
+
+[Bridge]
+4 lines
+
+[Verse 3]
+4 lines
+
+[Chorus]
+4 lines
+`}
+
+Do NOT add extra sections. Follow the exact structure above.`,
         },
       ],
       max_tokens: 1000,
