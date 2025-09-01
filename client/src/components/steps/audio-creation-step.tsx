@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
@@ -228,6 +228,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
     },
     onSuccess: (data) => {
       setCurrentAudioUrl(data.audioUrl);
+      // Invalidate project data to refresh the current step and show Continue button
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
       toast({
         title: "Success",
         description: "Song selected from library!",

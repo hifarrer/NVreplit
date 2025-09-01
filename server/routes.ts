@@ -413,6 +413,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           audioUrl: p.audioUrl,
           audioTags: p.audioTags,
           audioLyrics: p.audioLyrics,
+          duration: null, // Duration will be determined by the audio player
           createdAt: p.createdAt,
           updatedAt: p.updatedAt
         }));
