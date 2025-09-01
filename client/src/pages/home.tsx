@@ -89,7 +89,7 @@ export default function Home() {
               <img 
                 src={logoImage} 
                 alt="neonvideo.ai" 
-                className="h-8" 
+                className="h-16" 
                 data-testid="app-logo"
               />
               <nav className="flex items-center space-x-4">
