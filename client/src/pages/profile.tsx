@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import logoImage from "@assets/neonlogo_1756693857051.png";
 
 export default function ProfilePage() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const { toast } = useToast();
   const [username, setUsername] = useState(user?.username || "");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -35,8 +35,9 @@ export default function ProfilePage() {
       });
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    onSuccess: (updatedUser) => {
+      // Refresh user data in the auth context
+      refreshUser();
       toast({
         title: "Success",
         description: "Avatar updated successfully!",
