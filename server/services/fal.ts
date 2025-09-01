@@ -1,26 +1,36 @@
 const FAL_KEY = process.env.FAL_KEY || "b479bcce-ae9a-439a-a9d6-3bf0ab5cf8f0:d9afcc34d42d7e0f0dc04607a81c60a0";
+const KIE_API_TOKEN = "f27547e627af203de39b3345de70c32b";
 
-export async function generateCharacterImage(prompt: string, aspectRatio: string = "16:9"): Promise<string> {
+export async function generateCharacterImages(prompt: string, aspectRatio: string = "16:9"): Promise<string[]> {
   // Always prepend "close up of " to ensure we get a close-up character image
   const enhancedPrompt = `close up of ${prompt}`;
   
-  console.log("Starting Fal.ai character generation with prompt:", enhancedPrompt);
+  console.log("Starting KIE.ai character generation with prompt:", enhancedPrompt);
   console.log("Aspect ratio:", aspectRatio);
-  console.log("Using FAL_KEY:", FAL_KEY ? "Key present" : "Key missing");
   
   try {
-    console.log("Submitting request to Fal.ai...");
+    console.log("Submitting request to KIE.ai...");
     
     // Submit generation request
-    const response = await fetch("https://queue.fal.run/fal-ai/imagen4/preview", {
+    const response = await fetch("https://api.kie.ai/api/v1/mj/generate", {
       method: "POST",
       headers: {
-        "Authorization": `Key ${FAL_KEY}`,
+        "Authorization": `Bearer ${KIE_API_TOKEN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        taskType: "mj_txt2img",
+        speed: "relaxed",
         prompt: enhancedPrompt,
-        aspect_ratio: aspectRatio,
+        aspectRatio: aspectRatio,
+        version: "7",
+        variety: 10,
+        stylization: 1,
+        weirdness: 1,
+        waterMark: "",
+        enableTranslation: false,
+        ow: 500,
+        videoBatchSize: 1
       }),
     });
 
@@ -29,37 +39,41 @@ export async function generateCharacterImage(prompt: string, aspectRatio: string
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Submission failed:", errorText);
-      throw new Error(`Fal.ai submission error: ${response.status} - ${errorText}`);
+      console.error("KIE.ai submission failed:", errorText);
+      throw new Error(`KIE.ai submission error: ${response.status} - ${errorText}`);
     }
 
     const result = await response.json();
-    console.log("Fal.ai submission result:", JSON.stringify(result, null, 2));
-    const requestId = result.request_id;
-
-    if (!requestId) {
-      console.error("No request_id in response:", result);
-      throw new Error("No request ID received from Fal.ai");
+    console.log("KIE.ai submission result:", JSON.stringify(result, null, 2));
+    
+    if (result.code !== 200) {
+      throw new Error(`KIE.ai API error: ${result.msg || "Unknown error"}`);
     }
     
-    console.log("Got request ID:", requestId);
+    const taskId = result.data?.taskId;
+    if (!taskId) {
+      console.error("No taskId in response:", result);
+      throw new Error("No task ID received from KIE.ai");
+    }
+    
+    console.log("Got task ID:", taskId);
 
-    // Poll for results every 5 seconds
+    // Poll for results every 10 seconds
     let attempts = 0;
-    const maxAttempts = 60; // 5 minutes with 5-second intervals
+    const maxAttempts = 60; // 10 minutes with 10-second intervals
     
     console.log("Starting polling for completion...");
 
     while (attempts < maxAttempts) {
       console.log(`Polling attempt ${attempts + 1}/${maxAttempts}...`);
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+      await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
       
-      const statusUrl = `https://queue.fal.run/fal-ai/imagen4/requests/${requestId}/status`;
+      const statusUrl = `https://api.kie.ai/api/v1/mj/record-info?taskId=${taskId}`;
       console.log("Checking status at:", statusUrl);
       
       const statusResponse = await fetch(statusUrl, {
         headers: {
-          "Authorization": `Key ${FAL_KEY}`,
+          "Authorization": `Bearer ${KIE_API_TOKEN}`,
         },
       });
 
@@ -74,48 +88,23 @@ export async function generateCharacterImage(prompt: string, aspectRatio: string
       const statusResult = await statusResponse.json();
       console.log("Status result:", JSON.stringify(statusResult, null, 2));
       
-      if (statusResult.status === "COMPLETED") {
-        console.log("Generation completed! Fetching results...");
+      if (statusResult.code === 200 && statusResult.data?.successFlag === 1) {
+        console.log("Generation completed! Processing results...");
         
-        // When status is COMPLETED, we need to fetch the actual results from response_url
-        if (statusResult.response_url) {
-          console.log("Fetching results from:", statusResult.response_url);
-          
-          const resultsResponse = await fetch(statusResult.response_url, {
-            headers: {
-              "Authorization": `Key ${FAL_KEY}`,
-            },
-          });
-          
-          if (!resultsResponse.ok) {
-            throw new Error(`Failed to fetch results: ${resultsResponse.status}`);
-          }
-          
-          const resultsData = await resultsResponse.json();
-          console.log("Final results:", JSON.stringify(resultsData, null, 2));
-          
-          if (resultsData.images && resultsData.images.length > 0) {
-            const imageUrl = resultsData.images[0].url;
-            console.log("Found image URL:", imageUrl);
-            return imageUrl;
-          } else {
-            console.error("No images found in results:", resultsData);
-            throw new Error("No images in results");
-          }
-        } else if (statusResult.images && statusResult.images.length > 0) {
-          // Fallback: images directly in status response
-          const imageUrl = statusResult.images[0].url;
-          console.log("Found image URL:", imageUrl);
-          return imageUrl;
+        const resultUrls = statusResult.data?.resultInfoJson?.resultUrls;
+        if (resultUrls && Array.isArray(resultUrls) && resultUrls.length > 0) {
+          const imageUrls = resultUrls.map((item: any) => item.resultUrl);
+          console.log("Found image URLs:", imageUrls);
+          return imageUrls;
         } else {
-          console.error("No images or response_url found:", statusResult);
-          throw new Error("No images in completed response");
+          console.error("No result URLs found:", statusResult);
+          throw new Error("No images in results");
         }
-      } else if (statusResult.status === "failed") {
-        console.error("Fal.ai generation failed:", statusResult.error || statusResult);
-        throw new Error(`Image generation failed: ${statusResult.error || "Unknown error"}`);
+      } else if (statusResult.data?.errorCode) {
+        console.error("KIE.ai generation failed:", statusResult.data.errorMessage || statusResult.data.errorCode);
+        throw new Error(`Image generation failed: ${statusResult.data.errorMessage || "Unknown error"}`);
       } else {
-        console.log(`Status: ${statusResult.status}, continuing to poll...`);
+        console.log(`Task still in progress, continuing to poll...`);
       }
 
       attempts++;
@@ -123,9 +112,15 @@ export async function generateCharacterImage(prompt: string, aspectRatio: string
 
     throw new Error("Image generation timed out");
   } catch (error) {
-    console.error("Fal.ai character generation error:", error);
-    throw new Error("Failed to generate character image: " + (error as Error).message);
+    console.error("KIE.ai character generation error:", error);
+    throw new Error("Failed to generate character images: " + (error as Error).message);
   }
+}
+
+// Backward compatibility function - returns the first image URL
+export async function generateCharacterImage(prompt: string, aspectRatio: string = "16:9"): Promise<string> {
+  const imageUrls = await generateCharacterImages(prompt, aspectRatio);
+  return imageUrls[0]; // Return the first image for backward compatibility
 }
 
 export async function generateSingleSceneImage(prompt: string, characterImageUrl: string): Promise<string> {

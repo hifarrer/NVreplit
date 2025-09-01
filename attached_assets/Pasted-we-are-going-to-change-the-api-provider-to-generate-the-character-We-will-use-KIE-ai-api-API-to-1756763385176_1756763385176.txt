@@ -1,0 +1,74 @@
+we are going to change the api provider to generate the character. We will use KIE.ai api 
+
+API token: f27547e627af203de39b3345de70c32b
+
+Sample request:
+curl --request POST \
+  --url https://api.kie.ai/api/v1/mj/generate \
+  --header 'Authorization: Bearer <token>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "taskType": "mj_txt2img",
+  "speed": "relaxed",
+  "prompt": "{prompt}",
+  "aspectRatio": "16:9",
+  "version": "7",
+  "variety": 10,
+  "stylization": 1,
+  "weirdness": 1,
+  "waterMark": "",
+  "enableTranslation": false,
+  "callBackUrl": "https://api.example.com/callback",
+  "ow": 500,
+  "videoBatchSize": 1
+}'
+
+Sample response:
+{
+  "code": 200,
+  "msg": "success",
+  "data": {
+    "taskId": "mj_task_abcdef123456"
+  }
+}
+
+Get results:
+curl --request GET \
+  --url https://api.kie.ai/api/v1/mj/record-info \
+  --header 'Authorization: Bearer <token>'
+Query Parameters
+taskId string
+
+Sample response:
+{
+  "code": 200,
+  "msg": "success",
+  "data": {
+    "taskId": "4edb3c5XXXXX75e3f0aa5cc",
+    "taskType": "mj_txt2img",
+    "paramJson": "{\"aspectRatio\":\"16:9\",\"callBackUrl\":\"https://api.example.com/callback\",\"fileUrl\":\"\",\"prompt\":\"Help me generate a sci-fi themed fighter jet in a beautiful sky, to be used as a computer wallpaper\",\"speed\":\"Relax\",\"stylization\":1,\"taskType\":\"mj_txt2img\",\"version\":\"7\",\"waterMark\":\"\",\"weirdness\":1}",
+    "completeTime": "2024-03-20T10:30:00Z",
+    "resultInfoJson": {
+      "resultUrls": [
+        {
+          "resultUrl": "https://tempfile.aiquickdraw.com/v/42ea4a4250571eb18361bd2e309c8e8a_0_0.jpeg"
+        },
+        {
+          "resultUrl": "https://tempfile.aiquickdraw.com/v/42ea4a4250571eb18361bd2e309c8e8a_0_1.jpeg"
+        },
+        {
+          "resultUrl": "https://tempfile.aiquickdraw.com/v/42ea4a4250571eb18361bd2e309c8e8a_0_2.jpeg"
+        },
+        {
+          "resultUrl": "https://tempfile.aiquickdraw.com/v/42ea4a4250571eb18361bd2e309c8e8a_0_3.jpeg"
+        }
+      ]
+    },
+    "successFlag": 1,
+    "createTime": "2024-03-20T10:30:00Z",
+    "errorCode": null,
+    "errorMessage": null
+  }
+}
+
+This api will give 4 images back, make sure to display the 4 images so user can select any. Also include on each image a "Save" button that will save the image as a character.

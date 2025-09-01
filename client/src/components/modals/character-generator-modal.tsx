@@ -8,7 +8,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Check } from "lucide-react";
 
 interface CharacterGeneratorModalProps {
   isOpen: boolean;
@@ -27,11 +27,12 @@ const artStyles = [
 export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated, projectId }: CharacterGeneratorModalProps) {
   const [description, setDescription] = useState("");
   const [selectedStyle, setSelectedStyle] = useState("cartoon");
-  const [generatedImageUrl, setGeneratedImageUrl] = useState("");
+  const [generatedImageUrls, setGeneratedImageUrls] = useState<string[]>([]);
+  const [currentPrompt, setCurrentPrompt] = useState("");
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
-  const generateCharacterMutation = useMutation({
+  const generateCharacterOptionsMutation = useMutation({
     mutationFn: async () => {
       const fullPrompt = `${description} in ${selectedStyle} style`;
       
@@ -45,9 +46,9 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
           }
           return prev + 10;
         });
-      }, 2000);
+      }, 5000); // Slower progress for longer generation time
 
-      const response = await apiRequest("POST", `/api/projects/${projectId}/generate-character`, {
+      const response = await apiRequest("POST", `/api/projects/${projectId}/generate-character-options`, {
         prompt: fullPrompt,
         aspectRatio: "16:9"
       });
@@ -58,34 +59,57 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
       return response.json();
     },
     onSuccess: (data) => {
-      setGeneratedImageUrl(data.imageUrl);
+      setGeneratedImageUrls(data.imageUrls);
+      setCurrentPrompt(data.prompt);
       toast({
         title: "Success",
-        description: "Character generated successfully!",
+        description: `Generated ${data.imageUrls.length} character options!`,
       });
     },
     onError: (error) => {
       setProgress(0);
       toast({
         title: "Error",
-        description: "Failed to generate character",
+        description: "Failed to generate character options",
         variant: "destructive",
       });
     }
   });
 
-  const handleSaveCharacter = () => {
-    if (generatedImageUrl) {
-      const fullPrompt = `${description} in ${selectedStyle} style`;
-      onCharacterGenerated({ imageUrl: generatedImageUrl, prompt: fullPrompt });
+  const saveCharacterMutation = useMutation({
+    mutationFn: async (imageUrl: string) => {
+      const response = await apiRequest("POST", `/api/projects/${projectId}/save-character-option`, {
+        imageUrl,
+        prompt: currentPrompt
+      });
+      return response.json();
+    },
+    onSuccess: (data, imageUrl) => {
+      onCharacterGenerated({ imageUrl, prompt: currentPrompt });
+      toast({
+        title: "Success",
+        description: "Character saved successfully!",
+      });
       handleClose();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to save character",
+        variant: "destructive",
+      });
     }
+  });
+
+  const handleSaveCharacter = (imageUrl: string) => {
+    saveCharacterMutation.mutate(imageUrl);
   };
 
   const handleClose = () => {
     setDescription("");
     setSelectedStyle("cartoon");
-    setGeneratedImageUrl("");
+    setGeneratedImageUrls([]);
+    setCurrentPrompt("");
     setProgress(0);
     onClose();
   };
@@ -94,7 +118,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-xl" data-testid="character-generator-modal">
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto" data-testid="character-generator-modal">
         <DialogHeader>
           <DialogTitle className="gradient-text">Generate AI Character</DialogTitle>
         </DialogHeader>
@@ -144,37 +168,59 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
           </div>
 
           {/* Generation Progress */}
-          {generateCharacterMutation.isPending && (
+          {generateCharacterOptionsMutation.isPending && (
             <div className="bg-muted/30 rounded-lg p-4" data-testid="character-generation-progress">
               <div className="flex items-center justify-between mb-3">
-                <span className="font-semibold">Generating Character...</span>
+                <span className="font-semibold">Generating Character Options...</span>
                 <div className="loading-spinner"></div>
               </div>
               <Progress value={progress} className="mb-2" />
-              <p className="text-sm text-muted-foreground">Creating your character...</p>
+              <p className="text-sm text-muted-foreground">Creating 4 character variations for you to choose from...</p>
             </div>
           )}
 
-          {/* Generated Character Preview */}
-          {generatedImageUrl && (
-            <div className="text-center" data-testid="generated-character-preview">
-              <div className="relative inline-block">
-                <img
-                  src={generatedImageUrl}
-                  alt="Generated character"
-                  className="w-48 h-48 rounded-lg object-cover border-2 border-primary mx-auto"
-                  data-testid="generated-character-image"
-                />
+          {/* Generated Character Options */}
+          {generatedImageUrls.length > 0 && (
+            <div data-testid="generated-character-options">
+              <Label className="flex items-center text-sm font-semibold mb-3">
+                <i className="fas fa-images text-primary mr-2"></i>
+                Choose Your Favorite Character ({generatedImageUrls.length} options)
+              </Label>
+              <div className="grid grid-cols-2 gap-4">
+                {generatedImageUrls.map((imageUrl, index) => (
+                  <div key={index} className="relative group" data-testid={`character-option-${index}`}>
+                    <img
+                      src={imageUrl}
+                      alt={`Character option ${index + 1}`}
+                      className="w-full h-48 rounded-lg object-cover border-2 border-border group-hover:border-primary transition-colors"
+                      data-testid={`character-image-${index}`}
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors"></div>
+                    <Button
+                      onClick={() => handleSaveCharacter(imageUrl)}
+                      disabled={saveCharacterMutation.isPending}
+                      className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-green-600 hover:bg-green-700 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      size="sm"
+                      data-testid={`save-character-${index}`}
+                    >
+                      <Check className="w-4 h-4 mr-1" />
+                      Save This One
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-center mt-4">
                 <Button
-                  onClick={() => generateCharacterMutation.mutate()}
+                  onClick={() => generateCharacterOptionsMutation.mutate()}
+                  disabled={generateCharacterOptionsMutation.isPending}
+                  variant="outline"
                   size="sm"
-                  className="absolute top-2 right-2 w-8 h-8 p-0 bg-black/50 backdrop-blur-sm rounded-full hover:bg-black/70"
-                  data-testid="regenerate-character-button"
+                  data-testid="regenerate-all-characters"
                 >
-                  <RefreshCw className="w-4 h-4" />
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Generate New Options
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground mt-3">Click the refresh button to generate another variation</p>
             </div>
           )}
         </div>
@@ -184,24 +230,15 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
             Cancel
           </Button>
           
-          {!generatedImageUrl ? (
+          {generatedImageUrls.length === 0 && (
             <Button
-              onClick={() => generateCharacterMutation.mutate()}
-              disabled={!canGenerate || generateCharacterMutation.isPending}
+              onClick={() => generateCharacterOptionsMutation.mutate()}
+              disabled={!canGenerate || generateCharacterOptionsMutation.isPending}
               className="floating-button"
               data-testid="generate-character-button"
             >
               <i className="fas fa-sparkles mr-2"></i>
-              Generate Character
-            </Button>
-          ) : (
-            <Button
-              onClick={handleSaveCharacter}
-              className="bg-green-600 hover:bg-green-700 text-white"
-              data-testid="save-character-button"
-            >
-              <i className="fas fa-check mr-2"></i>
-              Save Character
+              Generate Options
             </Button>
           )}
         </div>

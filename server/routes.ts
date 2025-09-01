@@ -8,7 +8,7 @@ import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, inser
 import { generateLyrics, generateScenePrompts, splitLyricsIntoSections } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSong } from "./services/elevenlabs";
-import { generateCharacterImage, generateSceneImages, generateSingleSceneImage } from "./services/fal";
+import { generateCharacterImage, generateCharacterImages, generateSceneImages, generateSingleSceneImage } from "./services/fal";
 import { generateAllVideoSegments } from "./services/wavespeed";
 import { splitAudio, mergeVideos, pictureInPicture } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
@@ -646,6 +646,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { error: (error as Error).message }
       });
       res.status(500).json({ error: "Failed to generate character" });
+    }
+  });
+
+  // Generate multiple character options (KIE.ai API)
+  app.post("/api/projects/:id/generate-character-options", async (req, res) => {
+    try {
+      console.log("Character options generation route called with body:", req.body);
+      const { prompt, aspectRatio = "16:9" } = req.body;
+      console.log("Extracted prompt:", prompt);
+      console.log("Aspect ratio:", aspectRatio);
+      
+      if (!prompt || !prompt.trim()) {
+        throw new Error("No prompt provided");
+      }
+      
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "character_generation",
+        message: "Starting character options generation",
+        status: "started",
+        metadata: { prompt }
+      });
+
+      console.log("About to call generateCharacterImages with aspect ratio:", aspectRatio);
+      const imageUrls = await generateCharacterImages(prompt, aspectRatio);
+      console.log("generateCharacterImages returned:", imageUrls);
+
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "character_generation",
+        message: "Character options generated successfully",
+        status: "completed",
+        metadata: { imageUrls, count: imageUrls.length }
+      });
+
+      res.json({ imageUrls, prompt });
+    } catch (error) {
+      console.error("Generate character options error:", error);
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "character_generation",
+        message: `Character options generation failed: ${(error as Error).message}`,
+        status: "error",
+        metadata: { error: (error as Error).message }
+      });
+      res.status(500).json({ error: "Failed to generate character options" });
+    }
+  });
+
+  // Save selected character option to project  
+  app.post("/api/projects/:id/save-character-option", async (req, res) => {
+    try {
+      console.log("Save character option request body:", req.body);
+      const { imageUrl, prompt } = req.body;
+      
+      if (!imageUrl || !prompt) {
+        return res.status(400).json({ error: "Image URL and prompt are required" });
+      }
+
+      const project = await storage.updateProject(req.params.id, {
+        characterImageUrl: imageUrl,
+        characterType: "generated",
+        characterPrompt: prompt,
+        currentStep: 3
+      });
+
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "character_generation",
+        message: "Character option saved successfully",
+        status: "completed",
+        metadata: { imageUrl, prompt }
+      });
+
+      res.json({ 
+        characterImageUrl: project?.characterImageUrl,
+        message: 'Character saved successfully' 
+      });
+    } catch (error) {
+      console.error("Save character option error:", error);
+      res.status(500).json({ error: "Failed to save character option" });
     }
   });
 
