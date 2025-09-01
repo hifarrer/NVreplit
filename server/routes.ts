@@ -564,6 +564,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await generateSong(tags, lyrics);
       
       await storage.updateProject(req.params.id, {
+        title: tags, // Use the song description/tags as the project title
         audioUrl: result.audioUrl,
         audioType: "generated",
         audioTags: tags,
