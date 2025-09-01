@@ -143,8 +143,15 @@ export default function MyVideosPage() {
                     onClick={() => setSelectedVideo(video)}
                     data-testid={`video-card-${video.id}`}
                   >
-                    <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                      <Play className="h-12 w-12 text-primary/50" />
+                    <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center relative overflow-hidden">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                        <Video className="h-12 w-12 text-primary/70 mb-2" />
+                        <p className="text-xs text-muted-foreground mb-1">Music Video</p>
+                        <p className="text-xs text-muted-foreground opacity-75">Click to play</p>
+                      </div>
+                      <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                        <Play className="h-16 w-16 text-white drop-shadow-lg" />
+                      </div>
                     </div>
                     <CardContent className="p-4">
                       <h3 className="font-semibold mb-2 line-clamp-1">{video.title}</h3>
@@ -195,14 +202,34 @@ export default function MyVideosPage() {
           <DialogHeader>
             <DialogTitle>{selectedVideo?.title}</DialogTitle>
           </DialogHeader>
-          <div className="aspect-video">
+          <div className="aspect-video bg-black rounded-lg overflow-hidden">
             {selectedVideo && (
               <video
                 src={selectedVideo.videoUrl}
                 controls
                 autoPlay
-                className="w-full h-full rounded-lg"
+                className="w-full h-full"
                 data-testid="video-player"
+                onError={(e) => {
+                  console.error('Video playback failed:', selectedVideo.videoUrl);
+                  // Show error message in the video area
+                  const target = e.target as HTMLVideoElement;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent) {
+                    parent.innerHTML = `
+                      <div class="w-full h-full flex flex-col items-center justify-center text-white">
+                        <div class="text-red-400 mb-4">
+                          <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                          </svg>
+                        </div>
+                        <p class="text-lg font-medium mb-2">Video Unavailable</p>
+                        <p class="text-sm text-gray-300 text-center">This video may have expired or is no longer accessible.<br/>Try downloading it if available.</p>
+                      </div>
+                    `;
+                  }
+                }}
               />
             )}
           </div>
