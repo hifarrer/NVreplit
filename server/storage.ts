@@ -1,8 +1,8 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, users, projects, generationLogs, savedCharacters } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type VideoQueue, type InsertVideoQueue, users, projects, generationLogs, savedCharacters, videoQueue } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -29,6 +29,14 @@ export interface IStorage {
   getSavedCharacters(userId: string): Promise<SavedCharacter[]>;
   saveCharacter(character: InsertSavedCharacter): Promise<SavedCharacter>;
   deleteSavedCharacter(id: string): Promise<boolean>;
+
+  // Video queue methods
+  addToVideoQueue(entry: InsertVideoQueue): Promise<VideoQueue>;
+  getActiveVideoCount(): Promise<number>;
+  getQueuePosition(projectId: string): Promise<number | null>;
+  startVideoProcessing(projectId: string): Promise<boolean>;
+  completeVideoProcessing(projectId: string, status: 'completed' | 'failed'): Promise<boolean>;
+  cleanupStaleEntries(): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -36,12 +44,14 @@ export class MemStorage implements IStorage {
   private projects: Map<string, Project>;
   private generationLogs: Map<string, GenerationLog>;
   private savedCharacters: Map<string, SavedCharacter>;
+  private videoQueues: Map<string, VideoQueue>;
 
   constructor() {
     this.users = new Map();
     this.projects = new Map();
     this.generationLogs = new Map();
     this.savedCharacters = new Map();
+    this.videoQueues = new Map();
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -189,6 +199,67 @@ export class MemStorage implements IStorage {
   async deleteSavedCharacter(id: string): Promise<boolean> {
     return this.savedCharacters.delete(id);
   }
+
+  async addToVideoQueue(insertEntry: InsertVideoQueue): Promise<VideoQueue> {
+    const id = randomUUID();
+    const entry: VideoQueue = {
+      ...insertEntry,
+      id,
+      startedAt: insertEntry.startedAt || null,
+      completedAt: insertEntry.completedAt || null,
+      createdAt: new Date()
+    };
+    this.videoQueues.set(id, entry);
+    return entry;
+  }
+
+  async getActiveVideoCount(): Promise<number> {
+    return Array.from(this.videoQueues.values())
+      .filter(entry => entry.status === 'processing').length;
+  }
+
+  async getQueuePosition(projectId: string): Promise<number | null> {
+    const entry = Array.from(this.videoQueues.values()).find(e => e.projectId === projectId);
+    return entry ? entry.queuePosition : null;
+  }
+
+  async startVideoProcessing(projectId: string): Promise<boolean> {
+    const entry = Array.from(this.videoQueues.values()).find(e => e.projectId === projectId);
+    if (entry && entry.status === 'queued') {
+      entry.status = 'processing';
+      entry.startedAt = new Date();
+      this.videoQueues.set(entry.id, entry);
+      return true;
+    }
+    return false;
+  }
+
+  async completeVideoProcessing(projectId: string, status: 'completed' | 'failed'): Promise<boolean> {
+    const entry = Array.from(this.videoQueues.values()).find(e => e.projectId === projectId);
+    if (entry) {
+      entry.status = status;
+      entry.completedAt = new Date();
+      this.videoQueues.set(entry.id, entry);
+      return true;
+    }
+    return false;
+  }
+
+  async cleanupStaleEntries(): Promise<void> {
+    const cutoff = new Date(Date.now() - 30 * 60 * 1000); // 30 minutes ago
+    const staleEntries = Array.from(this.videoQueues.values())
+      .filter(entry => 
+        entry.status === 'processing' && 
+        entry.startedAt && 
+        entry.startedAt < cutoff
+      );
+    
+    staleEntries.forEach(entry => {
+      entry.status = 'failed';
+      entry.completedAt = new Date();
+      this.videoQueues.set(entry.id, entry);
+    });
+  }
 }
 
 // Database Storage Implementation
@@ -310,6 +381,57 @@ export class DbStorage implements IStorage {
   async deleteSavedCharacter(id: string): Promise<boolean> {
     const result = await this.db.delete(savedCharacters).where(eq(savedCharacters.id, id));
     return result.length > 0;
+  }
+
+  async addToVideoQueue(insertEntry: InsertVideoQueue): Promise<VideoQueue> {
+    const result = await this.db.insert(videoQueue).values(insertEntry).returning();
+    return result[0];
+  }
+
+  async getActiveVideoCount(): Promise<number> {
+    const result = await this.db.select()
+      .from(videoQueue)
+      .where(eq(videoQueue.status, 'processing'));
+    return result.length;
+  }
+
+  async getQueuePosition(projectId: string): Promise<number | null> {
+    const result = await this.db.select()
+      .from(videoQueue)
+      .where(eq(videoQueue.projectId, projectId));
+    return result.length > 0 ? result[0].queuePosition : null;
+  }
+
+  async startVideoProcessing(projectId: string): Promise<boolean> {
+    const result = await this.db.update(videoQueue)
+      .set({ 
+        status: 'processing',
+        startedAt: new Date()
+      })
+      .where(eq(videoQueue.projectId, projectId))
+      .returning();
+    return result.length > 0;
+  }
+
+  async completeVideoProcessing(projectId: string, status: 'completed' | 'failed'): Promise<boolean> {
+    const result = await this.db.update(videoQueue)
+      .set({ 
+        status,
+        completedAt: new Date()
+      })
+      .where(eq(videoQueue.projectId, projectId))
+      .returning();
+    return result.length > 0;
+  }
+
+  async cleanupStaleEntries(): Promise<void> {
+    const cutoff = new Date(Date.now() - 30 * 60 * 1000); // 30 minutes ago
+    await this.db.update(videoQueue)
+      .set({ 
+        status: 'failed',
+        completedAt: new Date()
+      })
+      .where(sql`${videoQueue.status} = 'processing' AND ${videoQueue.startedAt} < ${cutoff}`);
   }
 }
 

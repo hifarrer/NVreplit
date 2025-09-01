@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { AudioSegment } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Clock, Users } from "lucide-react";
 import loadingAnimation from "@assets/loading_1756677254636.mp4";
 
 interface VideoGenerationStepProps {
@@ -15,10 +15,21 @@ interface VideoGenerationStepProps {
   onBack?: () => void;
 }
 
+interface QueueStats {
+  activeCount: number;
+  maxConcurrent: number;
+}
+
+interface QueuePositionData {
+  queuePosition: number | null;
+}
+
 export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: VideoGenerationStepProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [overallProgress, setOverallProgress] = useState(0);
   const [progressInterval, setProgressInterval] = useState<NodeJS.Timeout | null>(null);
+  const [isQueued, setIsQueued] = useState(false);
+  const [queuePosition, setQueuePosition] = useState<number | null>(null);
   const { toast } = useToast();
 
   const generateVideoMutation = useMutation({
@@ -73,17 +84,44 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
         
         // Start the actual API call
         apiRequest("POST", `/api/projects/${projectId}/generate-video`, {})
-          .then(response => response.json())
+          .then(async response => {
+            if (response.status === 408) {
+              // Queue timeout
+              clearInterval(interval);
+              setProgressInterval(null);
+              throw new Error("Video generation queue timeout. Please try again.");
+            }
+            
+            const data = await response.json();
+            
+            // Check if this was a queue timeout response  
+            if (data.error && data.error.includes("queue timeout")) {
+              clearInterval(interval);
+              setProgressInterval(null);
+              setIsQueued(false);
+              setQueuePosition(null);
+              throw new Error(data.error);
+            }
+            
+            return data;
+          })
           .then(data => {
             clearInterval(interval);
             setProgressInterval(null);
             setOverallProgress(100);
             setCurrentStep(6);
+            setIsQueued(false);
             resolve(data);
           })
           .catch(error => {
             clearInterval(interval);
             setProgressInterval(null);
+            setIsQueued(false);
+            
+            // Handle queue-related errors specifically
+            if (error.message.includes("queue") || error.message.includes("timeout")) {
+              setQueuePosition(null);
+            }
             reject(error);
           });
       });
@@ -113,6 +151,30 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
       setCurrentStep(0);
     },
   });
+
+  // Query for queue status
+  const { data: queueStats } = useQuery<QueueStats>({
+    queryKey: ["/api/video-queue/status"],
+    refetchInterval: 5000, // Poll every 5 seconds
+    enabled: isQueued || generateVideoMutation.isPending
+  });
+
+  // Query for project's queue position  
+  const { data: queuePositionData } = useQuery<QueuePositionData>({
+    queryKey: ["/api/projects", projectId, "queue-position"],
+    refetchInterval: 3000, // Check position every 3 seconds
+    enabled: isQueued && queuePosition !== null
+  });
+
+  // Update queue position from query
+  useEffect(() => {
+    if (queuePositionData?.queuePosition !== undefined) {
+      setQueuePosition(queuePositionData.queuePosition);
+      if (queuePositionData.queuePosition === 0) {
+        setIsQueued(false);
+      }
+    }
+  }, [queuePositionData]);
 
   useEffect(() => {
     // Only start generation once when component mounts
@@ -156,6 +218,43 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
           <h3 className="text-2xl font-bold gradient-text mb-4">Creating Your Music Video</h3>
           <p className="text-muted-foreground">Creating your video, this could take up to 15 minutes.</p>
         </div>
+
+        {/* Queue Status Indicator */}
+        {(isQueued || queuePosition !== null || (queueStats?.activeCount !== undefined)) && (
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6" data-testid="queue-status">
+            <div className="flex items-center justify-center gap-3">
+              {isQueued ? (
+                <>
+                  <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <div className="text-center">
+                    <p className="text-blue-800 dark:text-blue-200 font-medium">
+                      {queuePosition !== null && queuePosition > 0 
+                        ? `Queued - Position ${queuePosition}` 
+                        : "Queued - Waiting for processing slot"}
+                    </p>
+                    <p className="text-blue-600 dark:text-blue-400 text-sm">
+                      Your video will start processing automatically when a slot becomes available
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <div className="text-center">
+                    <p className="text-blue-800 dark:text-blue-200 font-medium">
+                      Processing your video
+                    </p>
+                    {queueStats && (
+                      <p className="text-blue-600 dark:text-blue-400 text-sm">
+                        {queueStats.activeCount} of {queueStats.maxConcurrent} generation slots in use
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Loading Animation */}
         <div className="flex flex-col items-center justify-center mb-8">

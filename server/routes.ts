@@ -845,10 +845,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Generate video
   app.post("/api/projects/:id/generate-video", async (req, res) => {
+    let isInQueue = false;
+    
     try {
       const project = await storage.getProject(req.params.id);
       if (!project || !project.audioUrl || !project.sceneImages || !project.scenePrompts) {
         return res.status(400).json({ error: "Missing required project data" });
+      }
+
+      // Import video queue service
+      const { videoQueueService } = await import("./services/videoQueue");
+      
+      // Check queue and either start immediately or wait
+      const queueResult = await videoQueueService.requestVideoGeneration(req.params.id, project.userId);
+      
+      if (!queueResult.canStart) {
+        isInQueue = true;
+        
+        // Log queue status
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "video_generation",
+          message: `Video queued at position ${queueResult.queuePosition}. Waiting for processing capacity...`,
+          status: "progress",
+          metadata: { queuePosition: queueResult.queuePosition, queued: true }
+        });
+        
+        // Wait for queue position
+        const canProcess = await videoQueueService.waitForQueuePosition(req.params.id, 300000); // 5 minute timeout
+        
+        if (!canProcess) {
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "video_generation",
+            message: "Video generation timeout - please try again",
+            status: "error",
+            metadata: { error: "Queue timeout" }
+          });
+          return res.status(408).json({ error: "Video generation queue timeout. Please try again." });
+        }
+        
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "video_generation", 
+          message: "Queue position reached - starting video generation",
+          status: "progress",
+          metadata: { startingProcessing: true }
+        });
+      } else {
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "video_generation",
+          message: "Starting video generation immediately",
+          status: "progress", 
+          metadata: { immediateStart: true }
+        });
       }
 
       // Step 1: Split audio
@@ -1046,6 +1097,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { finalVideoUrl: savedFinalVideoUrl }
       });
 
+      // Complete video processing in queue
+      await videoQueueService.completeVideoGeneration(req.params.id, true);
+
       res.json({ finalVideoUrl: savedFinalVideoUrl });
     } catch (error) {
       console.error("Generate video error:", error);
@@ -1058,6 +1112,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "error",
         metadata: { error: errorMessage }
       });
+
+      // Complete video processing in queue (mark as failed)
+      await videoQueueService.completeVideoGeneration(req.params.id, false);
       
       // Send specific error message to help with debugging
       res.status(500).json({ 
@@ -1075,6 +1132,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get logs error:", error);
       res.status(500).json({ error: "Failed to get logs" });
+    }
+  });
+
+  // Get video queue status
+  app.get("/api/video-queue/status", async (req, res) => {
+    try {
+      const { videoQueueService } = await import("./services/videoQueue");
+      const stats = await videoQueueService.getQueueStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Queue status error:", error);
+      res.status(500).json({ error: "Failed to get queue status" });
+    }
+  });
+
+  // Get queue position for a specific project
+  app.get("/api/projects/:id/queue-position", async (req, res) => {
+    try {
+      const { videoQueueService } = await import("./services/videoQueue");
+      const position = await videoQueueService.getQueuePosition(req.params.id);
+      res.json({ queuePosition: position });
+    } catch (error) {
+      console.error("Queue position error:", error);
+      res.status(500).json({ error: "Failed to get queue position" });
     }
   });
 

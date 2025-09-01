@@ -55,6 +55,17 @@ export const savedCharacters = pgTable("saved_characters", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const videoQueue = pgTable("video_queue", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").references(() => projects.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  status: text("status").notNull(), // 'queued' | 'processing' | 'completed' | 'failed'
+  queuePosition: integer("queue_position").notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -76,6 +87,11 @@ export const insertSavedCharacterSchema = createInsertSchema(savedCharacters).om
   createdAt: true,
 });
 
+export const insertVideoQueueSchema = createInsertSchema(videoQueue).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -84,3 +100,5 @@ export type InsertGenerationLog = z.infer<typeof insertGenerationLogSchema>;
 export type GenerationLog = typeof generationLogs.$inferSelect;
 export type InsertSavedCharacter = z.infer<typeof insertSavedCharacterSchema>;
 export type SavedCharacter = typeof savedCharacters.$inferSelect;
+export type InsertVideoQueue = z.infer<typeof insertVideoQueueSchema>;
+export type VideoQueue = typeof videoQueue.$inferSelect;
