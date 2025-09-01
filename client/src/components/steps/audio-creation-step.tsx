@@ -131,6 +131,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
       }, 1000);
 
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-song`, {
+        description,
         tags,
         lyrics
       });
