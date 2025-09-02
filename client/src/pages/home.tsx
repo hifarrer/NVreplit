@@ -28,15 +28,22 @@ export default function Home() {
 
   const createProjectMutation = useMutation({
     mutationFn: async () => {
+      console.log("Creating new project...");
       const response = await apiRequest("POST", "/api/projects", {
         title: "My Music Video",
         description: "AI-generated music video project",
         currentStep: 1,
       });
-      return response.json();
+      const data = await response.json();
+      console.log("Project creation response:", data);
+      return data;
     },
     onSuccess: (data: Project) => {
+      console.log("Project created successfully:", data);
       setProjectId(data.id);
+    },
+    onError: (error) => {
+      console.error("Project creation failed:", error);
     },
   });
 
@@ -47,18 +54,27 @@ export default function Home() {
 
   // Initialize project logic: use existing project or create new one
   useEffect(() => {
+    // Only proceed if user is authenticated
+    if (!user) {
+      console.log("User not authenticated, skipping project initialization");
+      return;
+    }
+    
     if (currentProject) {
       // User has an existing project, use it
+      console.log("Using existing project:", currentProject);
       setProjectId(currentProject.id);
       setCurrentStep(currentProject.currentStep);
     } else if (currentProject === undefined) {
       // Still loading current project, wait
+      console.log("Still loading current project...");
       return;
     } else {
       // No existing project (currentProject is null), create new one
+      console.log("No existing project found, creating new one...");
       createProjectMutation.mutate();
     }
-  }, [currentProject]);
+  }, [currentProject, user]);
 
   useEffect(() => {
     if (project) {
@@ -88,12 +104,29 @@ export default function Home() {
     createProjectMutation.mutate(); // Create a new project
   };
 
+  // If user is not authenticated, show loading or redirect to auth
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="loading-spinner w-8 h-8 mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!projectId) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="loading-spinner w-8 h-8 mx-auto mb-4"></div>
           <p className="text-muted-foreground">Initializing project...</p>
+          {createProjectMutation.error && (
+            <p className="text-red-500 mt-2">
+              Error creating project: {createProjectMutation.error.message}
+            </p>
+          )}
         </div>
       </div>
     );
