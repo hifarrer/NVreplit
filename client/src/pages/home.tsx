@@ -186,7 +186,9 @@ export default function Home() {
           <VideoGenerationStep
             projectId={projectId}
             onVideoComplete={(videoUrl) => {
-              handleStepChange(6);
+              // Video generation backend already updates project to step 6
+              // Just refetch to get the updated project state
+              refetchProject();
             }}
             onBack={() => handleStepChange(3)}
           />

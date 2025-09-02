@@ -1,0 +1,25 @@
+=== FFMPEG MERGE VIDEOS REQUEST ===
+Endpoint: https://ffmpegapi.net/api/merge_videos
+Number of videos to merge: 4
+Request body: {
+  "video_urls": [
+    "https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/videos/pip_segment_1_1756781593502.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20250902%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250902T025348Z&X-Goog-Expires=7199&X-Goog-Signature=645045b6bf1d9eabb32ebb942a32ce171c5d6d3f0fc9e2f222a3f7d728c0cfa018bd19eaed33c2f7b5f6048a1a23519f64899669398785add4b522e281c5f364eea7c33c49190b5f6ccd5c5bc68eb0ecf5a1de593acfe6831eca6eb4d8e8449db5529c593fe3ec241c4af48f98664051ecee68fac41b3d38338de8dd0f33d7c66587cea31bbafb514006ecb8d38048acd6e913c1e1a20506631b4ae8f9ed49b1e19ca04d036e2fbafcefbfe30dcb077e816dfcad4532b1c9e9ac1d6da8ea8c918359cf945f768f571db0dbbfdf89bc1f6cc8f48ea6c7e1bba99fc594dc37efe36a613414c585bb8b302538f6e92059beda3b79edfe2eab3f5faac2171ea4689d&X-Goog-SignedHeaders=host",
+    "https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/videos/pip_segment_2_1756781602904.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20250902%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250902T025348Z&X-Goog-Expires=7199&X-Goog-Signature=9cc9043c64a410c737a002115cf91fa36b60cde1436cc487452740cf2f75badd96ae64224aa3fe44ccd50e9d4985f546375a59a1db4abd8b7e84513ecdfc476f25492e087e6d6c35262224f2f063a5a71103adb83f18e074fbaf4827e91a7fced0479bfae33493002a6b340960b9e9dd59dd4b492afa5ca8f0e21b9ca886cf303cca2185e1090e999d66a1bfeb4b02e9a5d86df5573c9bd50a4f67d73280fe997334b068685b84607a58ada92cb8ed5410912e5de55e911972ce8f950d21fef4605cfb3bc280e99b056bbf2c52a2b072cf247412b357ce9a860c335d2bffa9bab950cfce19fc3338cdb5b6362c98b11d30b7680ac4c199c35b0025cc29da253d&X-Goog-SignedHeaders=host",
+    "https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/videos/pip_segment_3_1756781614047.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20250902%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250902T025348Z&X-Goog-Expires=7199&X-Goog-Signature=1e748d04ee4640bf41604fa62b3a5acc6301a26602dce4c10043226cef461c0214a817bc121fcf3e71c7a05eb0e29d8aab0e4dc6764c851cb27153c52146910b89afab2ce864e77924acabb14e78e97051b4122ecfde8f8bb3010c2ba0aa8285e9d3bedf2abf3f953b37900e3447d2867caac343072dfa9f08684fc78773be8c713c07e83c12ee09024bc76e7f44a51bd52905cd95ba41c5e626e83cc43f465e23c532f0388a7548ff99eb2bfa593dc149f81217d52f9fb708ccd4c9f730386a7361c655afe02a9a13d70b098d56bb2cca96f1b565ee1c91e24fe31254fc17524b1108c6ee7ecb3ff40eb163e329fd91b22b502985b07c5b265c55eb9ea82906&X-Goog-SignedHeaders=host",
+    "https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/videos/pip_segment_4_1756781624891.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20250902%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250902T025348Z&X-Goog-Expires=7199&X-Goog-Signature=07a44eca9c1ade835c94200820f9b360b946495c49fb88f7b6fa6b0b63da5b6c72f2c06c71ff21d20d7afcf2b1513c1372aff522e98657c4f8cc62b4d77b5d83b5794a9097101fb48ca31c9e7b65fcb692efd21327a1a8736a0b6657d7f31761d1bba3fed62ebcaf2910f5a2f089abf42b62c5400808c772bc5ff426ea73b78baa750d6f5f1285a9906d640d65b3ab8167cb53823e4be0325a95f320dd19234006fac95bd955457f958236a7f4ed585e91c044c797495593151562bcf2aceefc88e75320fb6544719428f3dc12fd35c7c221a99ae5872aae4e139fc2c6671d1f21855bb036e9a4a2615feaa2c191ddac6781fed992ab50e4871b6c39a0b98836&X-Goog-SignedHeaders=host"
+  ],
+  "async": false
+}
+2:53:53 AM [express] GET /api/video-queue/status 304 in 127ms :: {"activeCount":1,"maxConcurrent":20}
+2:53:58 AM [express] GET /api/video-queue/status 304 in 128ms :: {"activeCount":1,"maxConcurrent":20}
+2:54:03 AM [express] GET /api/video-queue/status 304 in 126ms :: {"activeCount":1,"maxConcurrent":20}
+2:54:08 AM [express] GET /api/video-queue/status 304 in 128ms :: {"activeCount":1,"maxConcurrent":20}
+Final video merge successful: https://ffmpegapi.net/api/storage/b7fa818c-0906-4808-a122-8d0d94a141f4_merged_videos.mp4
+Saving final video to object storage...
+Downloading video from URL: https://ffmpegapi.net/api/storage/b7fa818c-0906-4808-a122-8d0d94a141f4_merged_videos.mp4
+2:54:13 AM [express] GET /api/video-queue/status 304 in 132ms :: {"activeCount":1,"maxConcurrent":20}
+Video uploaded to object storage: /replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/videos/final_video_1756781650564.mp4
+Generated permanent video path: /objects/videos/final_video_1756781650564.mp4
+Final video saved to storage: /objects/videos/final_video_1756781650564.mp4
+2:54:16 AM [express] POST /api/projects/702371e7-9d6b-4cb8-ba94-f93267228263/generate-video 200 in 6…
+2:54:17 AM [express] PATCH /api/projects/702371e7-9d6b-4cb8-ba94-f93267228263 403 in 1ms :: {"error"…
