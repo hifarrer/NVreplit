@@ -496,7 +496,8 @@ export class DbStorage implements IStorage {
 let storage: IStorage;
 
 try {
-  if (process.env.DATABASE_URL) {
+  // Temporarily use memory storage until database schema is updated
+  if (false && process.env.DATABASE_URL) {
     storage = new DbStorage();
     console.log("Using database storage");
   } else {
