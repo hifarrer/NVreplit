@@ -20,6 +20,12 @@ export default function Home() {
   const [currentStep, setCurrentStep] = useState(1);
   const [projectId, setProjectId] = useState<string>("");
 
+  // Try to get user's current project first
+  const { data: currentProject } = useQuery<Project>({
+    queryKey: ["/api/current-project"],
+    retry: false, // Don't retry if no project exists
+  });
+
   const createProjectMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/projects", {
@@ -39,9 +45,20 @@ export default function Home() {
     enabled: !!projectId,
   });
 
+  // Initialize project logic: use existing project or create new one
   useEffect(() => {
-    createProjectMutation.mutate();
-  }, []);
+    if (currentProject) {
+      // User has an existing project, use it
+      setProjectId(currentProject.id);
+      setCurrentStep(currentProject.currentStep);
+    } else if (currentProject === undefined) {
+      // Still loading current project, wait
+      return;
+    } else {
+      // No existing project (currentProject is null), create new one
+      createProjectMutation.mutate();
+    }
+  }, [currentProject]);
 
   useEffect(() => {
     if (project) {
@@ -65,6 +82,7 @@ export default function Home() {
   };
 
   const resetProject = () => {
+    // Create new project and reset step
     createProjectMutation.mutate();
     setCurrentStep(1);
   };

@@ -424,6 +424,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user's current project (most recent)
+  app.get("/api/current-project", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const projects = await storage.getProjectsByUser(userId);
+      // Get the most recent project (in-progress or completed)
+      const currentProject = projects
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+      
+      if (!currentProject) {
+        return res.status(404).json({ error: "No project found" });
+      }
+      
+      res.json(currentProject);
+    } catch (error) {
+      console.error("Get current project error:", error);
+      res.status(500).json({ error: "Failed to get current project" });
+    }
+  });
+
   // Get project by ID
   app.get("/api/projects/:id", authenticateToken, async (req, res) => {
     try {
