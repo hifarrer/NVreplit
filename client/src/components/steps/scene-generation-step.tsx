@@ -13,9 +13,10 @@ interface SceneGenerationStepProps {
   scenes?: SceneData[];
   onNext: () => void;
   onBack: () => void;
+  onReset: () => void;
 }
 
-export function SceneGenerationStep({ projectId, scenes = [], onNext, onBack }: SceneGenerationStepProps) {
+export function SceneGenerationStep({ projectId, scenes = [], onNext, onBack, onReset }: SceneGenerationStepProps) {
   const [generatedScenes, setGeneratedScenes] = useState<SceneData[]>(scenes);
   const [progress, setProgress] = useState(0);
   const [regeneratingScenes, setRegeneratingScenes] = useState<number[]>([]);
@@ -120,7 +121,7 @@ export function SceneGenerationStep({ projectId, scenes = [], onNext, onBack }: 
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.location.reload()}
+            onClick={onReset}
             className="flex items-center gap-2"
             data-testid="start-over-button"
           >

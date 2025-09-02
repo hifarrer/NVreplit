@@ -15,9 +15,10 @@ interface CharacterCreationStepProps {
   makeCharacterSing?: boolean;
   onNext: () => void;
   onBack: () => void;
+  onReset: () => void;
 }
 
-export function CharacterCreationStep({ projectId, characterImageUrl, makeCharacterSing: initialMakeCharacterSing, onNext, onBack }: CharacterCreationStepProps) {
+export function CharacterCreationStep({ projectId, characterImageUrl, makeCharacterSing: initialMakeCharacterSing, onNext, onBack, onReset }: CharacterCreationStepProps) {
   const [showCharacterModal, setShowCharacterModal] = useState(false);
   const [showLibraryModal, setShowLibraryModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -77,7 +78,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.location.reload()}
+            onClick={onReset}
             className="flex items-center gap-2"
             data-testid="start-over-button"
           >

@@ -19,6 +19,7 @@ interface AudioCreationStepProps {
   projectId: string;
   audioUrl?: string;
   onNext: () => void;
+  onReset: () => void;
 }
 
 interface GeneratedSong {
@@ -43,7 +44,7 @@ const getDurationLabel = (value: number) => {
   return `${value} sec`;
 };
 
-export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreationStepProps) {
+export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: AudioCreationStepProps) {
   const [currentAudioUrl, setCurrentAudioUrl] = useState(audioUrl);
   const [activeTab, setActiveTab] = useState("generate");
   
@@ -346,7 +347,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.location.reload()}
+            onClick={onReset}
             className="flex items-center gap-2"
             data-testid="start-over-button"
           >

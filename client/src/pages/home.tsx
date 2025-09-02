@@ -199,6 +199,7 @@ export default function Home() {
             projectId={projectId}
             audioUrl={project?.audioUrl}
             onNext={() => handleStepChange(2)}
+            onReset={resetProject}
           />
         )}
 
@@ -209,6 +210,7 @@ export default function Home() {
             makeCharacterSing={project?.makeCharacterSing}
             onNext={() => handleStepChange(3)}
             onBack={() => handleStepChange(1)}
+            onReset={resetProject}
           />
         )}
 
@@ -221,6 +223,7 @@ export default function Home() {
             }))}
             onNext={() => handleStepChange(4)}
             onBack={() => handleStepChange(2)}
+            onReset={resetProject}
           />
         )}
 
