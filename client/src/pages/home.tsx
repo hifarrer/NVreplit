@@ -28,22 +28,15 @@ export default function Home() {
 
   const createProjectMutation = useMutation({
     mutationFn: async () => {
-      console.log("Creating new project...");
       const response = await apiRequest("POST", "/api/projects", {
         title: "My Music Video",
         description: "AI-generated music video project",
         currentStep: 1,
       });
-      const data = await response.json();
-      console.log("Project creation response:", data);
-      return data;
+      return response.json();
     },
     onSuccess: (data: Project) => {
-      console.log("Project created successfully:", data);
       setProjectId(data.id);
-    },
-    onError: (error) => {
-      console.error("Project creation failed:", error);
     },
   });
 
@@ -56,22 +49,18 @@ export default function Home() {
   useEffect(() => {
     // Only proceed if user is authenticated
     if (!user) {
-      console.log("User not authenticated, skipping project initialization");
       return;
     }
     
     if (currentProject) {
       // User has an existing project, use it
-      console.log("Using existing project:", currentProject);
       setProjectId(currentProject.id);
       setCurrentStep(currentProject.currentStep);
     } else if (currentProject === undefined) {
       // Still loading current project, wait
-      console.log("Still loading current project...");
       return;
     } else {
       // No existing project (currentProject is null), create new one
-      console.log("No existing project found, creating new one...");
       createProjectMutation.mutate();
     }
   }, [currentProject, user]);

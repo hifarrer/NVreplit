@@ -496,8 +496,8 @@ export class DbStorage implements IStorage {
 let storage: IStorage;
 
 try {
-  // Temporarily use memory storage until database URL issue is resolved
-  if (false && process.env.DATABASE_URL) {
+  // Use database storage if PostgreSQL environment variables are available
+  if (process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD && process.env.PGDATABASE) {
     storage = new DbStorage();
     console.log("Using database storage");
   } else {

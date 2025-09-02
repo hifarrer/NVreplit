@@ -5,7 +5,6 @@ import path from "path";
 import fs from "fs";
 import { storage } from "./storage";
 import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema } from "@shared/schema";
-import { initializeDatabase } from "./initDb";
 import { generateLyrics, generateScenePrompts, splitLyricsIntoSections } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSong } from "./services/elevenlabs";
@@ -69,16 +68,6 @@ function authenticateToken(req: any, res: any, next: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Initialize database schema if needed (skip for now due to connection issues)
-  /*
-  try {
-    if (process.env.DATABASE_URL) {
-      await initializeDatabase();
-    }
-  } catch (error) {
-    console.error("Database initialization failed:", error);
-  }
-  */
   // Authentication routes
   app.post("/api/register", async (req, res) => {
     try {
