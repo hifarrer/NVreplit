@@ -26,6 +26,7 @@ export const projects = pgTable("projects", {
   characterImageUrl: text("character_image_url"),
   characterType: text("character_type"), // 'uploaded' | 'generated'
   characterPrompt: text("character_prompt"),
+  makeCharacterSing: boolean("make_character_sing").default(true),
   scenePrompts: jsonb("scene_prompts"), // Array of scene prompts
   sceneImages: jsonb("scene_images"), // Array of generated scene image URLs
   audioSegments: jsonb("audio_segments"), // Array of split audio URLs

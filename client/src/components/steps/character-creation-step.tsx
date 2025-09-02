@@ -1,25 +1,29 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { CharacterGeneratorModal } from "@/components/modals/character-generator-modal";
 import { CharacterLibraryModal } from "@/components/modals/character-library-modal";
 import { SaveCharacterModal } from "@/components/modals/save-character-modal";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { RotateCcw, Images, Image, User, Upload, Sparkles, Bot, UserCheck, Bookmark, ArrowLeft, ArrowRight } from "lucide-react";
+import { RotateCcw, Images, Image, User, Upload, Sparkles, Bot, UserCheck, Bookmark, ArrowLeft, ArrowRight, Music } from "lucide-react";
 
 interface CharacterCreationStepProps {
   projectId: string;
   characterImageUrl?: string;
+  makeCharacterSing?: boolean;
   onNext: () => void;
   onBack: () => void;
 }
 
-export function CharacterCreationStep({ projectId, characterImageUrl, onNext, onBack }: CharacterCreationStepProps) {
+export function CharacterCreationStep({ projectId, characterImageUrl, makeCharacterSing: initialMakeCharacterSing, onNext, onBack }: CharacterCreationStepProps) {
   const [showCharacterModal, setShowCharacterModal] = useState(false);
   const [showLibraryModal, setShowLibraryModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [currentCharacterUrl, setCurrentCharacterUrl] = useState(characterImageUrl);
   const [currentCharacterPrompt, setCurrentCharacterPrompt] = useState('');
+  const [makeCharacterSing, setMakeCharacterSing] = useState(initialMakeCharacterSing ?? true);
   const { toast } = useToast();
 
   const handleCharacterUpload = () => {
@@ -200,6 +204,27 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
           </div>
         )}
 
+        {/* Make Character Sing Toggle */}
+        <div className="mt-6 p-4 bg-muted/30 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Music className="w-5 h-5 text-primary" />
+              <Label htmlFor="make-character-sing" className="text-base font-medium cursor-pointer">
+                Make my character sing
+              </Label>
+            </div>
+            <Switch
+              id="make-character-sing"
+              checked={makeCharacterSing}
+              onCheckedChange={setMakeCharacterSing}
+              data-testid="make-character-sing-toggle"
+            />
+          </div>
+          <p className="text-sm text-muted-foreground mt-2 ml-8">
+            When enabled, your character will lip-sync to the music. When disabled, regular video generation will be used.
+          </p>
+        </div>
+
         {/* Navigation */}
         <div className="flex justify-between mt-8">
           <Button 
@@ -211,7 +236,21 @@ export function CharacterCreationStep({ projectId, characterImageUrl, onNext, on
             Back to Audio
           </Button>
           <Button
-            onClick={onNext}
+            onClick={async () => {
+              // Save the makeCharacterSing preference before proceeding
+              try {
+                await apiRequest('PATCH', `/api/projects/${projectId}`, {
+                  makeCharacterSing
+                });
+                onNext();
+              } catch (error) {
+                toast({
+                  title: "Error",
+                  description: "Failed to save preferences. Please try again.",
+                  variant: "destructive",
+                });
+              }
+            }}
             disabled={!currentCharacterUrl}
             className="floating-button py-3 px-8"
             data-testid="proceed-to-scenes-button"

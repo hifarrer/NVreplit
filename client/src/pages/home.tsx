@@ -206,6 +206,7 @@ export default function Home() {
           <CharacterCreationStep
             projectId={projectId}
             characterImageUrl={project?.characterImageUrl}
+            makeCharacterSing={project?.makeCharacterSing}
             onNext={() => handleStepChange(3)}
             onBack={() => handleStepChange(1)}
           />
