@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, users, projects, generationLogs, savedCharacters, videoQueue, songs } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, users, projects, generationLogs, savedCharacters, videoQueue, songs, videoGenerationConfig } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -42,6 +42,12 @@ export interface IStorage {
   getSongs(userId: string): Promise<Song[]>;
   addSong(song: InsertSong): Promise<Song>;
   deleteSong(id: string): Promise<boolean>;
+
+  // Video generation config methods
+  getVideoGenerationConfig(durationSeconds: number): Promise<VideoGenerationConfig | undefined>;
+  getAllVideoGenerationConfigs(): Promise<VideoGenerationConfig[]>;
+  createVideoGenerationConfig(config: InsertVideoGenerationConfig): Promise<VideoGenerationConfig>;
+  updateVideoGenerationConfig(id: string, updates: Partial<VideoGenerationConfig>): Promise<VideoGenerationConfig | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -51,6 +57,7 @@ export class MemStorage implements IStorage {
   private savedCharacters: Map<string, SavedCharacter>;
   private videoQueues: Map<string, VideoQueue>;
   private songs: Map<string, Song>;
+  private videoGenerationConfigs: Map<string, VideoGenerationConfig>;
 
   constructor() {
     this.users = new Map();
@@ -59,6 +66,28 @@ export class MemStorage implements IStorage {
     this.savedCharacters = new Map();
     this.videoQueues = new Map();
     this.songs = new Map();
+    this.videoGenerationConfigs = new Map();
+    
+    // Initialize default video generation configs
+    this.initializeDefaultConfigs();
+  }
+
+  private initializeDefaultConfigs() {
+    const defaultConfigs = [
+      { id: '1', videoDurationSeconds: 30, numberOfAudioParts: 3, numberOfScenesCreated: 3, numberOfVideosRegularApi: 2, numberOfVideosLipsync: 1 },
+      { id: '2', videoDurationSeconds: 60, numberOfAudioParts: 6, numberOfScenesCreated: 6, numberOfVideosRegularApi: 3, numberOfVideosLipsync: 3 },
+      { id: '3', videoDurationSeconds: 90, numberOfAudioParts: 9, numberOfScenesCreated: 9, numberOfVideosRegularApi: 5, numberOfVideosLipsync: 4 },
+      { id: '4', videoDurationSeconds: 120, numberOfAudioParts: 12, numberOfScenesCreated: 12, numberOfVideosRegularApi: 6, numberOfVideosLipsync: 6 },
+    ];
+    
+    defaultConfigs.forEach(config => {
+      const now = new Date();
+      this.videoGenerationConfigs.set(config.id, {
+        ...config,
+        createdAt: now,
+        updatedAt: now
+      });
+    });
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -122,9 +151,11 @@ export class MemStorage implements IStorage {
       audioPrompt: insertProject.audioPrompt || null,
       audioTags: insertProject.audioTags || null,
       audioLyrics: insertProject.audioLyrics || null,
+      audioDuration: insertProject.audioDuration || null,
       characterImageUrl: insertProject.characterImageUrl || null,
       characterType: insertProject.characterType || null,
       characterPrompt: insertProject.characterPrompt || null,
+      makeCharacterSing: insertProject.makeCharacterSing !== undefined ? insertProject.makeCharacterSing : true,
       scenePrompts: insertProject.scenePrompts || null,
       sceneImages: insertProject.sceneImages || null,
       audioSegments: insertProject.audioSegments || null,
@@ -293,6 +324,39 @@ export class MemStorage implements IStorage {
 
   async deleteSong(id: string): Promise<boolean> {
     return this.songs.delete(id);
+  }
+
+  async getVideoGenerationConfig(durationSeconds: number): Promise<VideoGenerationConfig | undefined> {
+    return Array.from(this.videoGenerationConfigs.values()).find(
+      config => config.videoDurationSeconds === durationSeconds
+    );
+  }
+
+  async getAllVideoGenerationConfigs(): Promise<VideoGenerationConfig[]> {
+    return Array.from(this.videoGenerationConfigs.values());
+  }
+
+  async createVideoGenerationConfig(insertConfig: InsertVideoGenerationConfig): Promise<VideoGenerationConfig> {
+    const id = randomUUID();
+    const now = new Date();
+    const config: VideoGenerationConfig = {
+      ...insertConfig,
+      id,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.videoGenerationConfigs.set(id, config);
+    return config;
+  }
+
+  async updateVideoGenerationConfig(id: string, updates: Partial<VideoGenerationConfig>): Promise<VideoGenerationConfig | undefined> {
+    const existing = this.videoGenerationConfigs.get(id);
+    if (!existing) {
+      return undefined;
+    }
+    const updatedConfig = { ...existing, ...updates, updatedAt: new Date() };
+    this.videoGenerationConfigs.set(id, updatedConfig);
+    return updatedConfig;
   }
 }
 
@@ -489,6 +553,35 @@ export class DbStorage implements IStorage {
       .where(eq(songs.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  async getVideoGenerationConfig(durationSeconds: number): Promise<VideoGenerationConfig | undefined> {
+    const result = await this.db.select()
+      .from(videoGenerationConfig)
+      .where(eq(videoGenerationConfig.videoDurationSeconds, durationSeconds))
+      .limit(1);
+    return result[0] || undefined;
+  }
+
+  async getAllVideoGenerationConfigs(): Promise<VideoGenerationConfig[]> {
+    return await this.db.select()
+      .from(videoGenerationConfig)
+      .orderBy(asc(videoGenerationConfig.videoDurationSeconds));
+  }
+
+  async createVideoGenerationConfig(insertConfig: InsertVideoGenerationConfig): Promise<VideoGenerationConfig> {
+    const result = await this.db.insert(videoGenerationConfig)
+      .values(insertConfig)
+      .returning();
+    return result[0];
+  }
+
+  async updateVideoGenerationConfig(id: string, updates: Partial<VideoGenerationConfig>): Promise<VideoGenerationConfig | undefined> {
+    const result = await this.db.update(videoGenerationConfig)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(videoGenerationConfig.id, id))
+      .returning();
+    return result[0] || undefined;
   }
 }
 

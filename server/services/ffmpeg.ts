@@ -1,7 +1,8 @@
 const FFMPEG_API_KEY = process.env.FFMPEG_API_KEY || "ffmpeg_KfTAf98EY9OCuriwBtLT34ZtWZLJtnXX";
 
-export async function splitAudio(audioUrl: string): Promise<{ part: string; download_url: string }[]> {
+export async function splitAudio(audioUrl: string, parts: number = 4): Promise<{ part: string; download_url: string }[]> {
   try {
+    console.log(`Splitting audio into ${parts} segments`);
     const response = await fetch("https://ffmpegapi.net/api/split_audio", {
       method: "POST",
       headers: {
@@ -10,7 +11,7 @@ export async function splitAudio(audioUrl: string): Promise<{ part: string; down
       },
       body: JSON.stringify({
         audio_url: audioUrl,
-        parts: 4,
+        parts: parts,
       }),
     });
 

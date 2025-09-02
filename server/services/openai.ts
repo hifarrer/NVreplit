@@ -178,8 +178,8 @@ function trimLyricsByDuration(lyrics: string, duration: number): string {
   return finalSections.join("\n\n");
 }
 
-// Helper function to split lyrics into 4 sections
-export function splitLyricsIntoSections(lyrics: string): string[] {
+// Helper function to split lyrics into sections dynamically
+export function splitLyricsIntoSections(lyrics: string, numberOfSections: number = 4): string[] {
   // Split by section headers to get individual sections
   const parts = lyrics
     .split(/(\[(?:Verse \d+|Chorus|Bridge|Outro|Intro|Pre-Chorus|Refrain)\])/i)
@@ -204,82 +204,89 @@ export function splitLyricsIntoSections(lyrics: string): string[] {
     }
   }
 
-  // If we have exactly 4 sections, return them
-  if (sections.length === 4) {
+  // If we have exactly the required number of sections, return them
+  if (sections.length === numberOfSections) {
     return sections;
   }
 
-  // If we have fewer than 4 sections, pad with the last section repeated
-  if (sections.length < 4) {
+  // If we have fewer sections than needed, pad with the last section repeated
+  if (sections.length < numberOfSections) {
     const lastSection =
       sections[sections.length - 1] || "[Verse 1]\nGenerated content";
-    while (sections.length < 4) {
+    while (sections.length < numberOfSections) {
       sections.push(lastSection);
     }
     return sections;
   }
 
-  // If we have more than 4 sections, take the first 4
-  if (sections.length > 4) {
-    return sections.slice(0, 4);
+  // If we have more sections than needed, take the first N sections
+  if (sections.length > numberOfSections) {
+    return sections.slice(0, numberOfSections);
   }
 
-  // Fallback: split lyrics into 4 equal parts by lines
+  // Fallback: split lyrics into equal parts by lines
   const lines = lyrics.split("\n").filter((line) => line.trim().length > 0);
   if (lines.length === 0) {
-    return [
-      "[Verse 1]\nGenerated content",
-      "[Chorus]\nGenerated content",
-      "[Verse 2]\nGenerated content",
-      "[Bridge]\nGenerated content",
-    ];
+    // Generate placeholder sections
+    const placeholders = [];
+    const sectionTypes = ["Verse 1", "Chorus", "Verse 2", "Bridge", "Verse 3", "Outro"];
+    for (let i = 0; i < numberOfSections; i++) {
+      const sectionType = sectionTypes[i % sectionTypes.length];
+      placeholders.push(`[${sectionType}]\nGenerated content`);
+    }
+    return placeholders;
   }
 
-  const linesPerSection = Math.ceil(lines.length / 4);
-
-  return [
-    lines.slice(0, linesPerSection).join("\n"),
-    lines.slice(linesPerSection, linesPerSection * 2).join("\n"),
-    lines.slice(linesPerSection * 2, linesPerSection * 3).join("\n"),
-    lines.slice(linesPerSection * 3).join("\n"),
-  ];
+  const linesPerSection = Math.ceil(lines.length / numberOfSections);
+  const result = [];
+  
+  for (let i = 0; i < numberOfSections; i++) {
+    const start = i * linesPerSection;
+    const end = Math.min((i + 1) * linesPerSection, lines.length);
+    result.push(lines.slice(start, end).join("\n"));
+  }
+  
+  return result;
 }
 
 export async function generateScenePrompts(
   songDescription: string,
+  numberOfScenes: number = 8,
   lyricsSections?: string[],
 ): Promise<string[]> {
   try {
-    // Create prompts for each pair of scenes (8 total scenes, 4 sections)
-    let userContent = `Generate 8 SHORT and CONCISE image prompts for a music video based on "${songDescription}". Each prompt must be 1-2 sentences maximum.
+    // Create prompts for the specified number of scenes
+    let userContent = `Generate ${numberOfScenes} SHORT and CONCISE image prompts for a music video based on "${songDescription}". Each prompt must be 1-2 sentences maximum.
 
 REQUIREMENTS:
 - Each prompt must include a specific CHARACTER ACTION (walking, dancing, singing, looking, pointing, etc.)
 - Each prompt must include a CAMERA MOVEMENT (zoom in, zoom out, pan left, pan right, tilt up, tilt down, dolly forward, etc.)
 - Keep prompts simple and focused
-- Scenes 1-2: Start with zoom in from far away
-- Scenes 7-8: Character actively singing with dynamic camera work
-- Scenes 5-6: Atmospheric/environmental shots
+- First scenes: Start with zoom in from far away
+- Last scenes: Character actively singing with dynamic camera work
+- Middle scenes: Atmospheric/environmental shots
 
 Example format: "Character dancing on rooftop. Camera pans right while slowly zooming in."`;
 
     // If we have lyrics sections, add them to the prompt for better scene generation
     if (lyricsSections && lyricsSections.length > 0) {
       userContent += "\n\nBase scenes on these lyrics (keep prompts SHORT):\n";
-      userContent +=
-        "Scenes 1-2: " +
-        (lyricsSections[0] || "[Instrumental]") +
-        " - ZOOM IN from distance\n";
-      userContent +=
-        "Scenes 3-4: " + (lyricsSections[1] || "[Instrumental]") + "\n";
-      userContent +=
-        "Scenes 5-6: " +
-        (lyricsSections[2] || "[Instrumental]") +
-        " - Atmospheric shots\n";
-      userContent +=
-        "Scenes 7-8: " +
-        (lyricsSections[3] || "[Instrumental]") +
-        " - Character singing\n";
+      
+      // Distribute lyrics sections across the number of scenes
+      const scenesPerSection = Math.ceil(numberOfScenes / lyricsSections.length);
+      
+      for (let i = 0; i < lyricsSections.length; i++) {
+        const startScene = i * scenesPerSection + 1;
+        const endScene = Math.min((i + 1) * scenesPerSection, numberOfScenes);
+        let sceneRange = startScene === endScene ? `Scene ${startScene}` : `Scenes ${startScene}-${endScene}`;
+        
+        let instruction = "";
+        if (i === 0) instruction = " - ZOOM IN from distance";
+        else if (i === lyricsSections.length - 1) instruction = " - Character actively singing";
+        else if (i === Math.floor(lyricsSections.length / 2)) instruction = " - Atmospheric shots";
+        
+        userContent += `${sceneRange}: ${lyricsSections[i] || "[Instrumental]"}${instruction}\n`;
+      }
     }
 
     const response = await openai.chat.completions.create({
@@ -288,7 +295,7 @@ Example format: "Character dancing on rooftop. Camera pans right while slowly zo
         {
           role: "system",
           content:
-            'You are a creative director for music videos. Generate 8 SHORT and CONCISE scene prompts (1-2 sentences each). Each prompt must include a specific character action and camera movement. Keep them simple and focused for video generation. Respond with JSON in this format: {"prompts": ["scene 1 description", "scene 2 description", "scene 3 description", "scene 4 description", "scene 5 description", "scene 6 description", "scene 7 description", "scene 8 description"]}',
+            `You are a creative director for music videos. Generate ${numberOfScenes} SHORT and CONCISE scene prompts (1-2 sentences each). Each prompt must include a specific character action and camera movement. Keep them simple and focused for video generation. Respond with JSON in this format: {"prompts": [${Array(numberOfScenes).fill(0).map((_, i) => `"scene ${i + 1} description"`).join(", ")}]}`,
         },
         {
           role: "user",

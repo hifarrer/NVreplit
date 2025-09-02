@@ -23,6 +23,7 @@ export const projects = pgTable("projects", {
   audioPrompt: text("audio_prompt"),
   audioTags: text("audio_tags"),
   audioLyrics: text("audio_lyrics"),
+  audioDuration: integer("audio_duration"), // Duration in seconds
   characterImageUrl: text("character_image_url"),
   characterType: text("character_type"), // 'uploaded' | 'generated'
   characterPrompt: text("character_prompt"),
@@ -84,6 +85,18 @@ export const songs = pgTable("songs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Video generation configuration table
+export const videoGenerationConfig = pgTable("video_generation_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  videoDurationSeconds: integer("video_duration_seconds").notNull().unique(),
+  numberOfAudioParts: integer("number_audio_parts").notNull(),
+  numberOfScenesCreated: integer("number_scenes_created").notNull(),
+  numberOfVideosRegularApi: integer("number_videos_regular_api").notNull(), // seedance model
+  numberOfVideosLipsync: integer("number_videos_lipsync").notNull(), // multitalk model
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -115,6 +128,12 @@ export const insertSongSchema = createInsertSchema(songs).omit({
   createdAt: true,
 });
 
+export const insertVideoGenerationConfigSchema = createInsertSchema(videoGenerationConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -127,3 +146,5 @@ export type InsertVideoQueue = z.infer<typeof insertVideoQueueSchema>;
 export type VideoQueue = typeof videoQueue.$inferSelect;
 export type InsertSong = z.infer<typeof insertSongSchema>;
 export type Song = typeof songs.$inferSelect;
+export type InsertVideoGenerationConfig = z.infer<typeof insertVideoGenerationConfigSchema>;
+export type VideoGenerationConfig = typeof videoGenerationConfig.$inferSelect;

@@ -92,6 +92,99 @@ export async function generateVideoSegment(
   }
 }
 
+// Dynamic video generation based on configuration
+export async function generateAllVideoSegmentsDynamic(
+  audioSegments: string[],
+  imageUrls: string[],
+  prompts: string[],
+  config: {
+    numberOfVideosRegularApi: number,
+    numberOfVideosLipsync: number,
+    makeCharacterSing: boolean
+  }
+): Promise<{ videoUrls: string[], segmentPairs: Array<{a: string, b: string}> }> {
+  console.log(`Starting dynamic video generation:`);
+  console.log(`- Audio segments: ${audioSegments.length}`);
+  console.log(`- Scene images: ${imageUrls.length}`);
+  console.log(`- Regular videos (seedance): ${config.numberOfVideosRegularApi}`);
+  console.log(`- Lipsync videos (multitalk): ${config.numberOfVideosLipsync}`);
+  console.log(`- Make character sing: ${config.makeCharacterSing}`);
+  
+  const totalVideos = config.numberOfVideosRegularApi + (config.makeCharacterSing ? config.numberOfVideosLipsync : 0);
+  
+  if (audioSegments.length !== imageUrls.length || audioSegments.length !== prompts.length) {
+    throw new Error(`Mismatch in segments: ${audioSegments.length} audio, ${imageUrls.length} images, ${prompts.length} prompts`);
+  }
+  
+  // Generate videos using intercalated pattern when makeCharacterSing is enabled
+  const videoPromises: Promise<string>[] = [];
+  const videoTypes: ('seedance' | 'multitalk')[] = [];
+  
+  if (config.makeCharacterSing) {
+    // Intercalate between seedance and multitalk models
+    let seedanceCount = 0;
+    let multitalkCount = 0;
+    
+    for (let i = 0; i < audioSegments.length; i++) {
+      let model: 'seedance' | 'multitalk';
+      
+      // Always start with seedance, then alternate
+      if (i % 2 === 0) {
+        // Even indices: Use seedance if we haven't reached the limit
+        if (seedanceCount < config.numberOfVideosRegularApi) {
+          model = 'seedance';
+          seedanceCount++;
+        } else {
+          model = 'multitalk';
+          multitalkCount++;
+        }
+      } else {
+        // Odd indices: Use multitalk if we haven't reached the limit
+        if (multitalkCount < config.numberOfVideosLipsync) {
+          model = 'multitalk';
+          multitalkCount++;
+        } else {
+          model = 'seedance';
+          seedanceCount++;
+        }
+      }
+      
+      console.log(`Generating video segment ${i + 1} using ${model} model`);
+      videoTypes.push(model);
+      
+      if (model === 'multitalk') {
+        // Multitalk requires audio for lipsync
+        videoPromises.push(
+          generateVideoSegment(audioSegments[i], imageUrls[i], prompts[i], 'multitalk')
+        );
+      } else {
+        // Seedance doesn't use audio
+        videoPromises.push(
+          generateVideoSegment('', imageUrls[i], prompts[i], 'seedance')
+        );
+      }
+    }
+  } else {
+    // Only use seedance model when makeCharacterSing is disabled
+    for (let i = 0; i < audioSegments.length; i++) {
+      console.log(`Generating video segment ${i + 1} using seedance model (no lipsync)`);
+      videoTypes.push('seedance');
+      videoPromises.push(
+        generateVideoSegment('', imageUrls[i], prompts[i], 'seedance')
+      );
+    }
+  }
+  
+  const videoUrls = await Promise.all(videoPromises);
+  console.log(`All ${videoUrls.length} video segments generated successfully`);
+  
+  // For backward compatibility, create segment pairs (will be empty for new dynamic approach)
+  const segmentPairs: Array<{a: string, b: string}> = [];
+  
+  return { videoUrls, segmentPairs };
+}
+
+// Legacy function for backward compatibility
 export async function generateAllVideoSegments(
   audioSegments: string[],
   imageUrls: string[],

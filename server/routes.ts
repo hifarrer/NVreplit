@@ -10,7 +10,7 @@ import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
 import { generateSong } from "./services/kie";
 import { generateCharacterImage, generateCharacterImages, generateSceneImages, generateSingleSceneImage } from "./services/fal";
-import { generateAllVideoSegments } from "./services/wavespeed";
+import { generateAllVideoSegments, generateAllVideoSegmentsDynamic } from "./services/wavespeed";
 import { splitAudio, mergeVideos, pictureInPicture } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
@@ -610,6 +610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audioPrompt: description,
         audioTags: tags,
         audioLyrics: lyrics,
+        audioDuration: duration, // Store the duration in seconds
         currentStep: 2
       });
 
@@ -901,29 +902,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         combinedPrompt = `Music theme: ${audioPrompt}. Character: ${project.characterPrompt}`;
       }
       
-      // Split lyrics into 4 sections if available
+      // Get audio duration to determine configuration
+      const audioDuration = project.audioDuration || 120; // Use stored duration or default to 2 minutes
+      
+      // Get the video generation configuration for dynamic scene count
+      const config = await storage.getVideoGenerationConfig(audioDuration);
+      if (!config) {
+        throw new Error(`No video generation configuration found for duration ${audioDuration} seconds`);
+      }
+      
+      console.log("Using configuration for scene generation:", config);
+      
+      // Split lyrics into sections based on configuration
       let lyricsSections: string[] | undefined;
       if (project.audioLyrics) {
-        lyricsSections = splitLyricsIntoSections(project.audioLyrics);
-        console.log("Split lyrics into sections:", lyricsSections.map(s => s.substring(0, 50) + "..."));
+        lyricsSections = splitLyricsIntoSections(project.audioLyrics, config.numberOfAudioParts);
+        console.log(`Split lyrics into ${config.numberOfAudioParts} sections:`, lyricsSections.map(s => s.substring(0, 50) + "..."));
       }
 
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "scene_generation",
-        message: "Generating scene prompts",
+        message: `Generating ${config.numberOfScenesCreated} scene prompts`,
         status: "started",
-        metadata: { combinedPrompt, hasSections: !!lyricsSections }
+        metadata: { 
+          combinedPrompt, 
+          hasSections: !!lyricsSections,
+          numberOfScenes: config.numberOfScenesCreated
+        }
       });
 
-      const scenePrompts = await generateScenePrompts(combinedPrompt, lyricsSections);
+      const scenePrompts = await generateScenePrompts(combinedPrompt, config.numberOfScenesCreated, lyricsSections);
       
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "scene_generation",
-        message: "Generating scene images",
+        message: `Generating ${config.numberOfScenesCreated} scene images`,
         status: "progress",
-        metadata: { scenePrompts }
+        metadata: { scenePrompts, numberOfScenes: config.numberOfScenesCreated }
       });
 
       const sceneImages = await generateSceneImages(scenePrompts, project.characterImageUrl);
@@ -1112,13 +1128,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Step 1: Split audio
+      // Get configuration based on audio duration
+      const audioDuration = project.audioDuration || 120; // Use stored duration or default to 2 minutes
+      
+      console.log(`Using audio duration: ${audioDuration} seconds for video generation`);
+      
+      // Get the video generation configuration
+      const config = await storage.getVideoGenerationConfig(audioDuration);
+      if (!config) {
+        throw new Error(`No video generation configuration found for duration ${audioDuration} seconds`);
+      }
+      
+      console.log("Using video generation config:", config);
+      
+      // Step 1: Split audio based on configuration
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "video_generation",
-        message: "Splitting audio into segments",
+        message: `Splitting audio into ${config.numberOfAudioParts} segments`,
         status: "progress",
-        metadata: { step: 1, total: 4 }
+        metadata: { step: 1, total: 4, numberOfSegments: config.numberOfAudioParts }
       });
 
       // Convert relative path to full URL for FFMPEG API
@@ -1151,7 +1180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Host:", req.get('host'));
       console.log("Final audio URL for FFMPEG:", audioUrl);
       console.log("=== END DEBUG ===");
-      const audioSegments = await splitAudio(audioUrl);
+      const audioSegments = await splitAudio(audioUrl, config.numberOfAudioParts);
       console.log("Audio segments result:", JSON.stringify(audioSegments, null, 2));
       
       const audioUrls = audioSegments.map(segment => segment.download_url);
@@ -1161,19 +1190,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audioSegments: audioSegments
       });
 
-      // Step 2: Generate video segments
+      // Step 2: Generate video segments dynamically based on configuration
+      const makeCharacterSing = project.makeCharacterSing || true;
+      const videoGenerationMessage = makeCharacterSing 
+        ? `Generating ${config.numberOfVideosRegularApi} regular videos (seedance) and ${config.numberOfVideosLipsync} lipsync videos (multitalk)`
+        : `Generating ${config.numberOfVideosRegularApi} regular videos (seedance only)`;
+      
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "video_generation",
-        message: "Generating 4 videos with audio (multitalk) and 4 without audio (seedance)",
+        message: videoGenerationMessage,
         status: "progress",
-        metadata: { step: 2, total: 5 }
+        metadata: { 
+          step: 2, 
+          total: 5,
+          regularVideos: config.numberOfVideosRegularApi,
+          lipsyncVideos: makeCharacterSing ? config.numberOfVideosLipsync : 0
+        }
       });
 
-      const { videoUrls: allVideoUrls, segmentPairs } = await generateAllVideoSegments(
+      const { videoUrls: allVideoUrls, segmentPairs } = await generateAllVideoSegmentsDynamic(
         audioUrls,
         project.sceneImages as string[],
-        project.scenePrompts as string[]
+        project.scenePrompts as string[],
+        {
+          numberOfVideosRegularApi: config.numberOfVideosRegularApi,
+          numberOfVideosLipsync: config.numberOfVideosLipsync,
+          makeCharacterSing: makeCharacterSing
+        }
       );
 
       await storage.updateProject(req.params.id, {
