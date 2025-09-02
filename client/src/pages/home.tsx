@@ -20,11 +20,11 @@ export default function Home() {
   const [currentStep, setCurrentStep] = useState(1);
   const [projectId, setProjectId] = useState<string>("");
 
-  // Try to get user's current project first
-  const { data: currentProject } = useQuery<Project>({
-    queryKey: ["/api/current-project"],
-    retry: false, // Don't retry if no project exists
-  });
+  // Don't load current project on Create page - always start fresh
+  // const { data: currentProject } = useQuery<Project>({
+  //   queryKey: ["/api/current-project"],
+  //   retry: false, // Don't retry if no project exists
+  // });
 
   const createProjectMutation = useMutation({
     mutationFn: async () => {
@@ -45,25 +45,18 @@ export default function Home() {
     enabled: !!projectId,
   });
 
-  // Initialize project logic: use existing project or create new one
+  // Initialize project logic: always create a new project when page loads
   useEffect(() => {
     // Only proceed if user is authenticated
     if (!user) {
       return;
     }
     
-    if (currentProject) {
-      // User has an existing project, use it
-      setProjectId(currentProject.id);
-      setCurrentStep(currentProject.currentStep);
-    } else if (currentProject === undefined) {
-      // Still loading current project, wait
-      return;
-    } else {
-      // No existing project (currentProject is null), create new one
+    // Always create a new project when the Create page loads
+    if (!projectId) {
       createProjectMutation.mutate();
     }
-  }, [currentProject, user]);
+  }, [user]); // Only depend on user, not currentProject
 
   useEffect(() => {
     if (project) {
