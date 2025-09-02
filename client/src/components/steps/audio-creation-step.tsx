@@ -393,7 +393,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
               <p className="text-xs text-muted-foreground mt-1">Describe the theme, mood, or story of your song</p>
             </div>
 
-            {/* Song Duration */}
+            {/* Song Duration - Hidden until KIE.ai API supports duration parameter
             <div>
               <Label className="flex items-center text-sm font-semibold mb-2">
                 <i className="fas fa-clock text-accent mr-2"></i>
@@ -424,6 +424,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext }: AudioCreation
                 <p className="text-xs text-muted-foreground">Current: {getDurationLabel(duration[0])}</p>
               </div>
             </div>
+            */}
 
             <div>
               <Label className="flex items-center text-sm font-semibold mb-2">
