@@ -571,12 +571,6 @@ export class DbStorage implements IStorage {
         .from(videoGenerationConfig)
         .orderBy(asc(videoGenerationConfig.videoDurationSeconds));
       
-      if (allConfigs.length === 0) {
-        // No configs exist, create defaults
-        await this.initializeDefaultConfigs();
-        return await this.getVideoGenerationConfig(durationSeconds);
-      }
-      
       // Find the appropriate config based on duration
       let selectedConfig = allConfigs[allConfigs.length - 1]; // Default to largest config
       for (const config of allConfigs) {
@@ -620,35 +614,12 @@ export class DbStorage implements IStorage {
 
   async getAllVideoGenerationConfigs(): Promise<VideoGenerationConfig[]> {
     try {
-      const configs = await this.db.select()
+      return await this.db.select()
         .from(videoGenerationConfig)
         .orderBy(asc(videoGenerationConfig.videoDurationSeconds));
-      
-      if (configs.length === 0) {
-        await this.initializeDefaultConfigs();
-        return await this.getAllVideoGenerationConfigs();
-      }
-      
-      return configs;
     } catch (error) {
-      console.warn('Database error getting all video configs, using fallback:', error);
+      console.warn('Database error getting all video configs:', error);
       return [];
-    }
-  }
-
-  private async initializeDefaultConfigs(): Promise<void> {
-    const defaultConfigs = [
-      { videoDurationSeconds: 30, numberOfAudioParts: 3, numberOfScenesCreated: 3, numberOfVideosRegularApi: 2, numberOfVideosLipsync: 1 },
-      { videoDurationSeconds: 60, numberOfAudioParts: 6, numberOfScenesCreated: 6, numberOfVideosRegularApi: 3, numberOfVideosLipsync: 3 },
-      { videoDurationSeconds: 90, numberOfAudioParts: 9, numberOfScenesCreated: 9, numberOfVideosRegularApi: 5, numberOfVideosLipsync: 4 },
-      { videoDurationSeconds: 120, numberOfAudioParts: 12, numberOfScenesCreated: 12, numberOfVideosRegularApi: 6, numberOfVideosLipsync: 6 }
-    ];
-
-    try {
-      await this.db.insert(videoGenerationConfig).values(defaultConfigs);
-      console.log('Initialized default video generation configurations');
-    } catch (error) {
-      console.warn('Error initializing default configs:', error);
     }
   }
 

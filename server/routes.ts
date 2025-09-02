@@ -251,6 +251,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get video generation configurations
+  app.get("/api/video-generation-configs", async (req, res) => {
+    try {
+      const configs = await storage.getAllVideoGenerationConfigs();
+      res.json(configs);
+    } catch (error) {
+      console.error("Get video generation configs error:", error);
+      res.status(500).json({ error: "Failed to get video generation configurations" });
+    }
+  });
+
   // Get avatar upload URL
   app.post("/api/user/avatar/upload-url", authenticateToken, async (req, res) => {
     try {
