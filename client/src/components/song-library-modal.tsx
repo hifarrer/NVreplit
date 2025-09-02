@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,21 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Music, Calendar, Tag, Check } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Music, Calendar, Tag, Check, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface GeneratedSong {
   id: string;
@@ -31,6 +44,7 @@ interface SongLibraryModalProps {
 export function SongLibraryModal({ isOpen, onClose, onSelectSong }: SongLibraryModalProps) {
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const { data: songs = [], isLoading } = useQuery<GeneratedSong[]>({
     queryKey: ["/api/my-songs"],
@@ -52,6 +66,30 @@ export function SongLibraryModal({ isOpen, onClose, onSelectSong }: SongLibraryM
       setPlayingSongId(songId);
     }
   };
+
+  // Delete mutation
+  const deleteSongMutation = useMutation({
+    mutationFn: async (songId: string) => {
+      const response = await apiRequest("DELETE", `/api/projects/${songId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/my-songs"] });
+      // Reset selected song if it was deleted
+      setSelectedSongId(null);
+      toast({
+        title: "Success",
+        description: "Song deleted successfully!",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Delete Failed",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    },
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -108,17 +146,49 @@ export function SongLibraryModal({ isOpen, onClose, onSelectSong }: SongLibraryM
                           {format(new Date(song.createdAt), "MMM d, yyyy")}
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          togglePlay(song.id);
-                        }}
-                        data-testid={`button-preview-${song.id}`}
-                      >
-                        {playingSongId === song.id ? 'Stop' : 'Preview'}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePlay(song.id);
+                          }}
+                          data-testid={`button-preview-${song.id}`}
+                        >
+                          {playingSongId === song.id ? 'Stop' : 'Preview'}
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => e.stopPropagation()}
+                              disabled={deleteSongMutation.isPending}
+                              data-testid={`button-delete-library-${song.id}`}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Song</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete "{song.title}"? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteSongMutation.mutate(song.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                     {playingSongId === song.id && (
                       <audio

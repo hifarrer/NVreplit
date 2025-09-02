@@ -1,12 +1,25 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Music, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeIcon, Video, Tag, Clock } from "lucide-react";
+import { Music, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeIcon, Video, Tag, Clock, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { Link } from "wouter";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/use-auth";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
 interface GeneratedSong {
@@ -22,6 +35,7 @@ interface GeneratedSong {
 
 export default function MySongsPage() {
   const { user, logout } = useAuth();
+  const { toast } = useToast();
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
 
   const { data: rawSongs = [], isLoading } = useQuery<GeneratedSong[]>({
@@ -48,6 +62,28 @@ export default function MySongsPage() {
       setPlayingSongId(songId);
     }
   };
+
+  // Delete mutation
+  const deleteSongMutation = useMutation({
+    mutationFn: async (songId: string) => {
+      const response = await apiRequest("DELETE", `/api/projects/${songId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/my-songs"] });
+      toast({
+        title: "Success",
+        description: "Song deleted successfully!",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Delete Failed",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const formatDuration = (seconds: number | null | undefined): string => {
     if (!seconds) return "Unknown";
@@ -212,6 +248,35 @@ export default function MySongsPage() {
                           >
                             <Download className="h-3 w-3" />
                           </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={deleteSongMutation.isPending}
+                                data-testid={`button-delete-${song.id}`}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Song</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{song.title}"? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteSongMutation.mutate(song.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </div>
                       {playingSongId === song.id && (
