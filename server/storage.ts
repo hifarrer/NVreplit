@@ -151,7 +151,7 @@ export class MemStorage implements IStorage {
       audioPrompt: insertProject.audioPrompt || null,
       audioTags: insertProject.audioTags || null,
       audioLyrics: insertProject.audioLyrics || null,
-      audioDuration: null, // Column doesn't exist yet, use null for now
+      audioDuration: insertProject.audioDuration || null,
       characterImageUrl: insertProject.characterImageUrl || null,
       characterType: insertProject.characterType || null,
       characterPrompt: insertProject.characterPrompt || null,
@@ -556,41 +556,102 @@ export class DbStorage implements IStorage {
   }
 
   async getVideoGenerationConfig(durationSeconds: number): Promise<VideoGenerationConfig | undefined> {
-    // Since the table doesn't exist yet, return hardcoded config
-    // This provides the same behavior as MemStorage until table is created
-    const configs = [
-      { videoDurationSeconds: 30, audioParts: 3, videoScenes: 3, videosSeedance: 2, videosMultitalk: 1 },
-      { videoDurationSeconds: 60, audioParts: 6, videoScenes: 6, videosSeedance: 3, videosMultitalk: 3 },
-      { videoDurationSeconds: 90, audioParts: 9, videoScenes: 9, videosSeedance: 5, videosMultitalk: 4 },
-      { videoDurationSeconds: 120, audioParts: 12, videoScenes: 12, videosSeedance: 6, videosMultitalk: 6 }
-    ];
-    
-    // Find the appropriate config based on duration
-    let selectedConfig = configs[configs.length - 1]; // Default to 120s config
-    for (const config of configs) {
-      if (durationSeconds <= config.videoDurationSeconds) {
-        selectedConfig = config;
-        break;
+    try {
+      const result = await this.db.select()
+        .from(videoGenerationConfig)
+        .where(eq(videoGenerationConfig.videoDurationSeconds, durationSeconds))
+        .limit(1);
+      
+      if (result[0]) {
+        return result[0];
       }
+      
+      // If no exact match, find the closest config or create default configs
+      const allConfigs = await this.db.select()
+        .from(videoGenerationConfig)
+        .orderBy(asc(videoGenerationConfig.videoDurationSeconds));
+      
+      if (allConfigs.length === 0) {
+        // No configs exist, create defaults
+        await this.initializeDefaultConfigs();
+        return await this.getVideoGenerationConfig(durationSeconds);
+      }
+      
+      // Find the appropriate config based on duration
+      let selectedConfig = allConfigs[allConfigs.length - 1]; // Default to largest config
+      for (const config of allConfigs) {
+        if (durationSeconds <= config.videoDurationSeconds) {
+          selectedConfig = config;
+          break;
+        }
+      }
+      
+      return selectedConfig;
+    } catch (error) {
+      console.warn('Database error getting video config, using fallback:', error);
+      // Fallback to hardcoded config if database fails
+      const configs = [
+        { videoDurationSeconds: 30, numberOfAudioParts: 3, numberOfScenesCreated: 3, numberOfVideosRegularApi: 2, numberOfVideosLipsync: 1 },
+        { videoDurationSeconds: 60, numberOfAudioParts: 6, numberOfScenesCreated: 6, numberOfVideosRegularApi: 3, numberOfVideosLipsync: 3 },
+        { videoDurationSeconds: 90, numberOfAudioParts: 9, numberOfScenesCreated: 9, numberOfVideosRegularApi: 5, numberOfVideosLipsync: 4 },
+        { videoDurationSeconds: 120, numberOfAudioParts: 12, numberOfScenesCreated: 12, numberOfVideosRegularApi: 6, numberOfVideosLipsync: 6 }
+      ];
+      
+      let selectedConfig = configs[configs.length - 1];
+      for (const config of configs) {
+        if (durationSeconds <= config.videoDurationSeconds) {
+          selectedConfig = config;
+          break;
+        }
+      }
+      
+      return {
+        id: 'fallback',
+        videoDurationSeconds: selectedConfig.videoDurationSeconds,
+        numberOfAudioParts: selectedConfig.numberOfAudioParts,
+        numberOfScenesCreated: selectedConfig.numberOfScenesCreated,
+        numberOfVideosRegularApi: selectedConfig.numberOfVideosRegularApi,
+        numberOfVideosLipsync: selectedConfig.numberOfVideosLipsync,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
     }
-    
-    return {
-      id: 'default',
-      videoDurationSeconds: selectedConfig.videoDurationSeconds,
-      numberOfAudioParts: selectedConfig.audioParts,
-      numberOfScenesCreated: selectedConfig.videoScenes,
-      numberOfVideosRegularApi: selectedConfig.videosSeedance,
-      numberOfVideosLipsync: selectedConfig.videosMultitalk,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
   }
 
   async getAllVideoGenerationConfigs(): Promise<VideoGenerationConfig[]> {
-    return await this.db.select()
-      .from(videoGenerationConfig)
-      .orderBy(asc(videoGenerationConfig.videoDurationSeconds));
+    try {
+      const configs = await this.db.select()
+        .from(videoGenerationConfig)
+        .orderBy(asc(videoGenerationConfig.videoDurationSeconds));
+      
+      if (configs.length === 0) {
+        await this.initializeDefaultConfigs();
+        return await this.getAllVideoGenerationConfigs();
+      }
+      
+      return configs;
+    } catch (error) {
+      console.warn('Database error getting all video configs, using fallback:', error);
+      return [];
+    }
   }
+
+  private async initializeDefaultConfigs(): Promise<void> {
+    const defaultConfigs = [
+      { videoDurationSeconds: 30, numberOfAudioParts: 3, numberOfScenesCreated: 3, numberOfVideosRegularApi: 2, numberOfVideosLipsync: 1 },
+      { videoDurationSeconds: 60, numberOfAudioParts: 6, numberOfScenesCreated: 6, numberOfVideosRegularApi: 3, numberOfVideosLipsync: 3 },
+      { videoDurationSeconds: 90, numberOfAudioParts: 9, numberOfScenesCreated: 9, numberOfVideosRegularApi: 5, numberOfVideosLipsync: 4 },
+      { videoDurationSeconds: 120, numberOfAudioParts: 12, numberOfScenesCreated: 12, numberOfVideosRegularApi: 6, numberOfVideosLipsync: 6 }
+    ];
+
+    try {
+      await this.db.insert(videoGenerationConfig).values(defaultConfigs);
+      console.log('Initialized default video generation configurations');
+    } catch (error) {
+      console.warn('Error initializing default configs:', error);
+    }
+  }
+
 
   async createVideoGenerationConfig(insertConfig: InsertVideoGenerationConfig): Promise<VideoGenerationConfig> {
     const result = await this.db.insert(videoGenerationConfig)

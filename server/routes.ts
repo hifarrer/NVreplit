@@ -610,7 +610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audioPrompt: description,
         audioTags: tags,
         audioLyrics: lyrics,
-        // audioDuration: duration, // Column doesn't exist yet - will use default duration
+        audioDuration: duration, // Store the duration in seconds
         currentStep: 2
       });
 
@@ -903,17 +903,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get audio duration to determine configuration
-      // Since audioDuration column doesn't exist yet, use a default based on project settings
-      let audioDuration = 120; // Default to 2 minutes
-      
-      // You can customize duration based on tags or other metadata if needed
-      if (project.audioTags && project.audioTags.includes('short')) {
-        audioDuration = 30;
-      } else if (project.audioTags && project.audioTags.includes('medium')) {
-        audioDuration = 60;
-      } else if (project.audioTags && project.audioTags.includes('long')) {
-        audioDuration = 90;
-      }
+      const audioDuration = project.audioDuration || 120; // Use stored duration or default to 2 minutes
       
       // Get the video generation configuration for dynamic scene count
       const config = await storage.getVideoGenerationConfig(audioDuration);
@@ -1139,17 +1129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get configuration based on audio duration
-      // Since audioDuration column doesn't exist yet, use a default based on project settings
-      let audioDuration = 120; // Default to 2 minutes
-      
-      // You can customize duration based on tags or other metadata if needed
-      if (project.audioTags && project.audioTags.includes('short')) {
-        audioDuration = 30;
-      } else if (project.audioTags && project.audioTags.includes('medium')) {
-        audioDuration = 60;
-      } else if (project.audioTags && project.audioTags.includes('long')) {
-        audioDuration = 90;
-      }
+      const audioDuration = project.audioDuration || 120; // Use stored duration or default to 2 minutes
       
       console.log(`Using audio duration: ${audioDuration} seconds for video generation`);
       
