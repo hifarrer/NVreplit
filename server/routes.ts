@@ -1197,14 +1197,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalVideo = await mergeVideos(signedVideoUrls);
         console.log("Final video merge successful:", finalVideo.download_url);
         
-        // Save the final video to object storage as well
+        // Try to save the final video to object storage
         console.log("Saving final video to object storage...");
         const objectStorageService = new ObjectStorageService();
-        savedFinalVideoUrl = await objectStorageService.uploadVideoFromUrl(
-          finalVideo.download_url,
-          `final_video_${Date.now()}.mp4`
-        );
-        console.log("Final video saved to storage:", savedFinalVideoUrl);
+        
+        try {
+          savedFinalVideoUrl = await objectStorageService.uploadVideoFromUrl(
+            finalVideo.download_url,
+            `final_video_${Date.now()}.mp4`
+          );
+          console.log("Final video saved to storage:", savedFinalVideoUrl);
+        } catch (storageError) {
+          console.warn("Failed to save video to object storage, using temporary URL:", storageError);
+          // Fallback: use the FFMPEG download URL temporarily
+          // Note: This URL may expire after some time
+          savedFinalVideoUrl = finalVideo.download_url;
+          
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "video_generation",
+            message: `Video generated successfully but storage failed. Using temporary URL: ${(storageError as Error).message}`,
+            status: "warning",
+            metadata: { 
+              temporaryUrl: finalVideo.download_url,
+              storageError: (storageError as Error).message
+            }
+          });
+        }
       } catch (mergeError) {
         console.error("Final video merge failed:", mergeError);
         await storage.addGenerationLog({

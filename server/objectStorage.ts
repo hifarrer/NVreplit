@@ -203,10 +203,36 @@ export class ObjectStorageService {
     try {
       console.log("Downloading video from URL:", videoUrl);
       
-      // Download the video
-      const response = await fetch(videoUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to download video: ${response.statusText}`);
+      // Retry logic for downloading the video
+      let response: any = null;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (attempts < maxAttempts) {
+        try {
+          response = await fetch(videoUrl);
+          if (response.ok) {
+            break;
+          } else {
+            console.log(`Download attempt ${attempts + 1} failed with status: ${response.status} - ${response.statusText}`);
+            if (attempts === maxAttempts - 1) {
+              throw new Error(`Failed to download video after ${maxAttempts} attempts: ${response.statusText}`);
+            }
+          }
+        } catch (error) {
+          console.log(`Download attempt ${attempts + 1} failed with error:`, error);
+          if (attempts === maxAttempts - 1) {
+            throw new Error(`Failed to download video after ${maxAttempts} attempts: ${(error as Error).message}`);
+          }
+        }
+        
+        attempts++;
+        // Wait 2 seconds before retrying
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      
+      if (!response || !response.ok) {
+        throw new Error("Failed to download video after all retry attempts");
       }
       
       const buffer = await response.buffer();
