@@ -8,7 +8,7 @@ const openai = new OpenAI({
     "default_key",
 });
 
-export async function generateLyrics(songDescription: string, duration: number = 60): Promise<string> {
+export async function generateLyrics(songDescription: string, duration: number = 120): Promise<string> {
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -16,7 +16,7 @@ export async function generateLyrics(songDescription: string, duration: number =
         {
           role: "system",
           content:
-            "You are a creative songwriter. Generate meaningful lyrics based on the provided description. Include verses, chorus, and bridge sections as appropriate. IMPORTANT: Format section headers ONLY using square brackets like [Verse 1], [Chorus], [Bridge], [Verse 2], etc. NEVER use asterisks (**), markdown formatting, or any other symbols for section headers. Only use square brackets [ ].",
+            "You are a creative songwriter. Generate meaningful lyrics for a 2-minute song based on the provided description. Include verses, chorus, and bridge sections as appropriate. IMPORTANT: Format section headers ONLY using square brackets like [Verse 1], [Chorus], [Bridge], [Verse 2], etc. NEVER use asterisks (**), markdown formatting, or any other symbols for section headers. Only use square brackets [ ].",
         },
         {
           role: "user",

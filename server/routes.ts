@@ -538,7 +538,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate lyrics
   app.post("/api/projects/:id/generate-lyrics", async (req, res) => {
     try {
-      const { description, duration = 60 } = req.body;
+      // Always use 120 seconds (2 minutes) since we can't determine duration from KIE.ai
+      const { description } = req.body;
+      const duration = 120; // Fixed 2-minute duration
       
       await storage.addGenerationLog({
         projectId: req.params.id,
@@ -575,7 +577,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate song
   app.post("/api/projects/:id/generate-song", async (req, res) => {
     try {
-      const { description, tags, lyrics, duration = 60 } = req.body;
+      // Always use 120 seconds (2 minutes) since we can't determine duration from KIE.ai
+      const { description, tags, lyrics } = req.body;
+      const duration = 120; // Fixed 2-minute duration
       
       await storage.addGenerationLog({
         projectId: req.params.id,

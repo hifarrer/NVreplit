@@ -117,8 +117,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const generateLyricsMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-lyrics`, {
-        description,
-        duration: duration[0]
+        description
+        // Duration is always 120 seconds (2 minutes) on the server side
       });
       return response.json();
     },
@@ -153,8 +153,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-song`, {
         description,
         tags,
-        lyrics,
-        duration: duration[0]
+        lyrics
+        // Duration is always 120 seconds (2 minutes) on the server side
       });
 
       clearInterval(progressInterval);
