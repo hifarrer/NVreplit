@@ -131,6 +131,11 @@ export class MemStorage implements IStorage {
       videoSegments: insertProject.videoSegments || null,
       finalVideoUrl: insertProject.finalVideoUrl || null,
       isCompleted: insertProject.isCompleted || false,
+      // Video generation tracking fields
+      generationId: insertProject.generationId || null,
+      generationStatus: insertProject.generationStatus || null,
+      generationStartedAt: insertProject.generationStartedAt || null,
+      generationTimeoutAt: insertProject.generationTimeoutAt || null,
       createdAt: now,
       updatedAt: now
     };

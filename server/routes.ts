@@ -15,6 +15,7 @@ import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
 // Configure multer for audio uploads
 const uploadDir = path.join(process.cwd(), 'public', 'uploads');
@@ -1010,6 +1011,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing required project data" });
       }
 
+      // Check if video generation is already in progress or completed
+      if ((project as any).generationStatus === 'generating') {
+        // Check if generation has timed out (30 minutes)
+        const generationStarted = (project as any).generationStartedAt;
+        if (generationStarted) {
+          const timeoutThreshold = new Date(generationStarted.getTime() + 30 * 60 * 1000);
+          if (new Date() > timeoutThreshold) {
+            // Mark as failed due to timeout
+            await storage.updateProject(req.params.id, {
+              generationStatus: 'failed' as any,
+              currentStep: 3, // Reset to step 3 so user can try again
+            });
+          } else {
+            // Generation is still active, don't start new one
+            return res.status(409).json({ 
+              error: "Video generation already in progress. Please wait for it to complete.", 
+              generationId: (project as any).generationId 
+            });
+          }
+        }
+      }
+
+      if ((project as any).generationStatus === 'completed' && project.finalVideoUrl) {
+        // Video already generated successfully
+        return res.json({ 
+          message: "Video already generated", 
+          finalVideoUrl: project.finalVideoUrl 
+        });
+      }
+
+      // Generate unique identifier for this generation attempt
+      const generationId = crypto.randomUUID();
+      const now = new Date();
+      const timeoutAt = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes from now
+
+      // Mark generation as started
+      await storage.updateProject(req.params.id, {
+        generationId: generationId as any,
+        generationStatus: 'generating' as any,
+        generationStartedAt: now as any,
+        generationTimeoutAt: timeoutAt as any,
+      });
+
       // Import video queue service
       const { videoQueueService } = await import("./services/videoQueue");
       
@@ -1262,7 +1306,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateProject(req.params.id, {
         finalVideoUrl: savedFinalVideoUrl,
         isCompleted: true,
-        currentStep: 6
+        currentStep: 6,
+        generationStatus: 'completed' as any,
       });
 
       await storage.addGenerationLog({
@@ -1281,6 +1326,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Generate video error:", error);
       const errorMessage = (error as Error).message;
       
+      // Mark generation as failed
+      await storage.updateProject(req.params.id, {
+        generationStatus: 'failed' as any,
+        currentStep: 3, // Reset to step 3 so user can try again
+      });
+      
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "video_generation",
@@ -1290,7 +1341,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Complete video processing in queue (mark as failed)
-      await videoQueueService.completeVideoGeneration(req.params.id, false);
+      if (isInQueue) {
+        await videoQueueService.completeVideoGeneration(req.params.id, false);
+      }
       
       // Send specific error message to help with debugging
       res.status(500).json({ 

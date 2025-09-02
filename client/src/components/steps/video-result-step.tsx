@@ -62,7 +62,7 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResul
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.location.reload()}
+            onClick={onCreateNew}
             className="flex items-center gap-2"
             data-testid="start-over-button"
           >

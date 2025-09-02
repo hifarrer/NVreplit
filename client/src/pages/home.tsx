@@ -82,9 +82,10 @@ export default function Home() {
   };
 
   const resetProject = () => {
-    // Create new project and reset step
-    createProjectMutation.mutate();
+    // Force create a completely new project and reset all state
     setCurrentStep(1);
+    setProjectId(""); // Clear current project ID
+    createProjectMutation.mutate(); // Create a new project
   };
 
   if (!projectId) {
@@ -209,6 +210,7 @@ export default function Home() {
               refetchProject();
             }}
             onBack={() => handleStepChange(3)}
+            onReset={resetProject}
           />
         )}
 

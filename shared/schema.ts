@@ -32,6 +32,11 @@ export const projects = pgTable("projects", {
   videoSegments: jsonb("video_segments"), // Array of generated video URLs
   finalVideoUrl: text("final_video_url"),
   isCompleted: boolean("is_completed").default(false),
+  // Video generation tracking
+  generationId: varchar("generation_id"), // Unique identifier for each generation attempt
+  generationStatus: text("generation_status"), // 'idle' | 'generating' | 'completed' | 'failed'
+  generationStartedAt: timestamp("generation_started_at"),
+  generationTimeoutAt: timestamp("generation_timeout_at"), // 30 minutes from start
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

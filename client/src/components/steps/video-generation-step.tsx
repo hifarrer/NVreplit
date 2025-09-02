@@ -13,6 +13,7 @@ interface VideoGenerationStepProps {
   projectId: string;
   onVideoComplete: (videoUrl: string) => void;
   onBack?: () => void;
+  onReset?: () => void;
 }
 
 interface QueueStats {
@@ -24,7 +25,7 @@ interface QueuePositionData {
   queuePosition: number | null;
 }
 
-export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: VideoGenerationStepProps) {
+export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onReset }: VideoGenerationStepProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [overallProgress, setOverallProgress] = useState(0);
   const [progressInterval, setProgressInterval] = useState<NodeJS.Timeout | null>(null);
@@ -206,7 +207,10 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack }: Vide
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              generateVideoMutation.reset();
+              if (onReset) onReset();
+            }}
             className="flex items-center gap-2"
             data-testid="start-over-button"
           >
