@@ -19,13 +19,13 @@ export async function generateLyrics(
         {
           role: "system",
           content:
-            "You are a creative songwriter. Generate meaningful lyrics for a 2-minute song based on the provided description.CRITICAL: Lyrics should be for a song no longer than 2 minutes, so use shorter sentences and maybe just 1 verse 1 chorus 1 bridge Include verses, chorus, and bridge sections as appropriate. IMPORTANT: Format section headers ONLY using square brackets like [Verse 1], [Chorus], [Verse 2], etc. NEVER use asterisks (**), markdown formatting, or any other symbols for section headers. Only use square brackets [ ].",
+            "You are a creative songwriter. Generate meaningful lyrics based on the provided description. Include verses, chorus, and bridge sections as appropriate for the song duration. IMPORTANT: Format section headers ONLY using square brackets like [Verse 1], [Chorus], [Bridge], [Verse 2], etc. NEVER use asterisks (**), markdown formatting, or any other symbols for section headers. Only use square brackets [ ].",
         },
         {
           role: "user",
           content: `Generate lyrics for a song about: ${songDescription}
 
-CRITICAL: The song is EXACTLY 120 seconds long. You MUST follow these structures EXACTLY:
+CRITICAL: The song is EXACTLY ${duration} seconds long. You MUST follow these structures EXACTLY:
 
 ${
   duration === 30

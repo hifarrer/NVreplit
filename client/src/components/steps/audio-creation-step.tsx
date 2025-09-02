@@ -57,7 +57,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [lyrics, setLyrics] = useState("");
-  const [duration, setDuration] = useState([60]); // Default 60 seconds
+  const [duration, setDuration] = useState([120]); // Default 120 seconds (2 minutes)
   const [progress, setProgress] = useState(0);
   
   // Song selection state
@@ -117,8 +117,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const generateLyricsMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-lyrics`, {
-        description
-        // Duration is always 120 seconds (2 minutes) on the server side
+        description,
+        duration: duration[0]
       });
       return response.json();
     },
@@ -153,8 +153,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-song`, {
         description,
         tags,
-        lyrics
-        // Duration is always 120 seconds (2 minutes) on the server side
+        lyrics,
+        duration: duration[0]
       });
 
       clearInterval(progressInterval);
@@ -394,7 +394,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
               <p className="text-xs text-muted-foreground mt-1">Describe the theme, mood, or story of your song</p>
             </div>
 
-            {/* Song Duration - Fixed at 2 minutes for now */}
+            {/* Song Duration */}
             <div>
               <Label className="flex items-center text-sm font-semibold mb-2">
                 <i className="fas fa-clock text-accent mr-2"></i>
@@ -403,16 +403,26 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
               <div className="space-y-3">
                 <div className="px-3">
                   <Slider
-                    value={[120]}
-                    disabled={true}
+                    value={duration}
+                    onValueChange={setDuration}
                     max={120}
-                    min={120}
+                    min={30}
                     step={30}
-                    className="w-full opacity-50"
+                    className="w-full"
                     data-testid="duration-slider"
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">Fixed at 2 minutes for this version</p>
+                <div className="flex justify-between text-xs text-muted-foreground px-1">
+                  {durationOptions.map(option => (
+                    <span 
+                      key={option}
+                      className={duration[0] === option ? "text-primary font-medium" : ""}
+                    >
+                      {getDurationLabel(option)}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">Current: {getDurationLabel(duration[0])}</p>
               </div>
             </div>
 
