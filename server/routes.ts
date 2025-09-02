@@ -7,7 +7,8 @@ import { storage } from "./storage";
 import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema } from "@shared/schema";
 import { generateLyrics, generateScenePrompts, splitLyricsIntoSections } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
-import { generateSong } from "./services/elevenlabs";
+import { generateSongWithElevenLabs } from "./services/elevenlabs";
+import { generateSong } from "./services/kie";
 import { generateCharacterImage, generateCharacterImages, generateSceneImages, generateSingleSceneImage } from "./services/fal";
 import { generateAllVideoSegments } from "./services/wavespeed";
 import { splitAudio, mergeVideos, pictureInPicture } from "./services/ffmpeg";
@@ -589,7 +590,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { tags, lyrics }
       });
 
-      const result = await generateSong(tags, lyrics, duration, description);
+      // Use ElevenLabs for song generation
+      const durationMs = duration * 1000; // Convert to milliseconds for ElevenLabs
+      const elevenLabsSong = await generateSongWithElevenLabs(tags, lyrics, durationMs);
+      
+      // Create result format similar to KIE response but with single song
+      const result = {
+        songs: [elevenLabsSong],
+        firstSongUrl: elevenLabsSong.audioUrl
+      };
       
       // TODO: Store both songs in user's library automatically when authentication is implemented
       // For now, we'll skip automatic saving to user library

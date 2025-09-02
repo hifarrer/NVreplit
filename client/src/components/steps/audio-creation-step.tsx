@@ -394,7 +394,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
               <p className="text-xs text-muted-foreground mt-1">Describe the theme, mood, or story of your song</p>
             </div>
 
-            {/* Song Duration - Hidden until KIE.ai API supports duration parameter
+            {/* Song Duration - Fixed at 2 minutes for now */}
             <div>
               <Label className="flex items-center text-sm font-semibold mb-2">
                 <i className="fas fa-clock text-accent mr-2"></i>
@@ -403,29 +403,18 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
               <div className="space-y-3">
                 <div className="px-3">
                   <Slider
-                    value={duration}
-                    onValueChange={setDuration}
+                    value={[120]}
+                    disabled={true}
                     max={120}
-                    min={30}
+                    min={120}
                     step={30}
-                    className="w-full"
+                    className="w-full opacity-50"
                     data-testid="duration-slider"
                   />
                 </div>
-                <div className="flex justify-between text-xs text-muted-foreground px-1">
-                  {durationOptions.map(option => (
-                    <span 
-                      key={option}
-                      className={duration[0] === option ? "text-primary font-medium" : ""}
-                    >
-                      {getDurationLabel(option)}
-                    </span>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">Current: {getDurationLabel(duration[0])}</p>
+                <p className="text-xs text-muted-foreground">Fixed at 2 minutes for this version</p>
               </div>
             </div>
-            */}
 
             <div>
               <Label className="flex items-center text-sm font-semibold mb-2">
