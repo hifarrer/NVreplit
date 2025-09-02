@@ -151,7 +151,7 @@ export class MemStorage implements IStorage {
       audioPrompt: insertProject.audioPrompt || null,
       audioTags: insertProject.audioTags || null,
       audioLyrics: insertProject.audioLyrics || null,
-      audioDuration: insertProject.audioDuration || null,
+      audioDuration: null, // Column doesn't exist yet, use null for now
       characterImageUrl: insertProject.characterImageUrl || null,
       characterType: insertProject.characterType || null,
       characterPrompt: insertProject.characterPrompt || null,
@@ -556,11 +556,34 @@ export class DbStorage implements IStorage {
   }
 
   async getVideoGenerationConfig(durationSeconds: number): Promise<VideoGenerationConfig | undefined> {
-    const result = await this.db.select()
-      .from(videoGenerationConfig)
-      .where(eq(videoGenerationConfig.videoDurationSeconds, durationSeconds))
-      .limit(1);
-    return result[0] || undefined;
+    // Since the table doesn't exist yet, return hardcoded config
+    // This provides the same behavior as MemStorage until table is created
+    const configs = [
+      { videoDurationSeconds: 30, audioParts: 3, videoScenes: 3, videosSeedance: 2, videosMultitalk: 1 },
+      { videoDurationSeconds: 60, audioParts: 6, videoScenes: 6, videosSeedance: 3, videosMultitalk: 3 },
+      { videoDurationSeconds: 90, audioParts: 9, videoScenes: 9, videosSeedance: 5, videosMultitalk: 4 },
+      { videoDurationSeconds: 120, audioParts: 12, videoScenes: 12, videosSeedance: 6, videosMultitalk: 6 }
+    ];
+    
+    // Find the appropriate config based on duration
+    let selectedConfig = configs[configs.length - 1]; // Default to 120s config
+    for (const config of configs) {
+      if (durationSeconds <= config.videoDurationSeconds) {
+        selectedConfig = config;
+        break;
+      }
+    }
+    
+    return {
+      id: 'default',
+      videoDurationSeconds: selectedConfig.videoDurationSeconds,
+      numberOfAudioParts: selectedConfig.audioParts,
+      numberOfScenesCreated: selectedConfig.videoScenes,
+      numberOfVideosRegularApi: selectedConfig.videosSeedance,
+      numberOfVideosLipsync: selectedConfig.videosMultitalk,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
   }
 
   async getAllVideoGenerationConfigs(): Promise<VideoGenerationConfig[]> {
