@@ -114,17 +114,71 @@ export async function mergeVideos(videoUrls: string[], audioUrl?: string): Promi
     console.log("=== FFMPEG MERGE RESPONSE ===");
     console.log("Raw response:", JSON.stringify(result, null, 2));
     console.log("Response success field:", result.success);
-    console.log("Response download_url field:", result.download_url);
-    console.log("Response filename field:", result.filename);
     
     if (!result.success) {
       throw new Error(`Video merging failed: ${result.message || "Unknown error"}`);
     }
 
-    return {
-      download_url: result.download_url,
-      filename: result.filename,
-    };
+    // Check if this is async processing (job_id present)
+    if (result.job_id && result.status_url) {
+      console.log("=== ASYNC PROCESSING DETECTED ===");
+      console.log("Job ID:", result.job_id);
+      console.log("Status URL:", result.status_url);
+      
+      // Poll the status URL until completion
+      const maxAttempts = 60; // 5 minutes max (5 second intervals)
+      let attempts = 0;
+      
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+        attempts++;
+        
+        console.log(`Polling attempt ${attempts}/${maxAttempts}...`);
+        
+        try {
+          const statusResponse = await fetch(result.status_url, {
+            headers: {
+              "X-API-Key": FFMPEG_API_KEY,
+            },
+          });
+          
+          if (!statusResponse.ok) {
+            console.warn(`Status check failed (${statusResponse.status}), retrying...`);
+            continue;
+          }
+          
+          const statusResult = await statusResponse.json();
+          console.log(`Job status: ${statusResult.status}`);
+          
+          if (statusResult.status === "completed" && statusResult.download_url) {
+            console.log("✅ Async job completed successfully!");
+            console.log("Final download URL:", statusResult.download_url);
+            return {
+              download_url: statusResult.download_url,
+              filename: statusResult.filename || "merged_video.mp4",
+            };
+          } else if (statusResult.status === "failed") {
+            throw new Error(`Async video merging failed: ${statusResult.message || "Unknown error"}`);
+          }
+          // Continue polling if status is still "pending" or "processing"
+          
+        } catch (pollError) {
+          console.warn(`Status polling error (attempt ${attempts}):`, pollError);
+          // Continue to next attempt
+        }
+      }
+      
+      throw new Error(`Video merging timed out after ${maxAttempts} attempts (${maxAttempts * 5} seconds)`);
+      
+    } else {
+      // Synchronous response (direct download_url)
+      console.log("=== SYNCHRONOUS RESPONSE ===");
+      console.log("Download URL:", result.download_url);
+      return {
+        download_url: result.download_url,
+        filename: result.filename,
+      };
+    }
   } catch (error) {
     console.error("Video merging error:", error);
     throw new Error("Failed to merge videos: " + (error as Error).message);

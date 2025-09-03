@@ -1,0 +1,72 @@
+=== FFMPEG MERGE VIDEOS REQUEST ===
+Endpoint: https://ffmpegapi.net/api/merge_videos
+Number of videos to merge: 6
+Audio URL (full song): https://046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev/objects/songs/aac9bb65-493e-4b3f-8d02-217451243738.mp3
+Request body: {
+  "video_urls": [
+    "https://d1q70pf5vjeyhc.cloudfront.net/predictions/f13414a7592242a48f8bb13589b0c9af/1.mp4",
+    "https://d2p7pge43lyniu.cloudfront.net/output/0527bfee-2528-4879-aa6f-aa663c41ab57-u2_bc653256-70d6-4fd2-b3b5-5c3a8bd706c5.mp4",
+    "https://d1q70pf5vjeyhc.cloudfront.net/predictions/0a05da3ae0c541049ca74842b955fdcb/1.mp4",
+    "https://d2p7pge43lyniu.cloudfront.net/output/5a193287-1019-4f8e-bc5a-ea34a7ca62e9-u1_b6847d98-b18f-40aa-814e-61a5eebea1af.mp4",
+    "https://d1q70pf5vjeyhc.cloudfront.net/predictions/361a20af5b5240f9ad069e2981cafa80/1.mp4",
+    "https://d2p7pge43lyniu.cloudfront.net/output/982a1d57-9574-4122-895a-e12a7d26a796-u2_12d12a9f-d386-4be7-a0c8-d5bc5d2309e8.mp4"
+  ],
+  "async": true,
+  "audio_url": "https://046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev/objects/songs/aac9bb65-493e-4b3f-8d02-217451243738.mp3"
+}
+=== FFMPEG MERGE RESPONSE ===
+Raw response: {
+  "job_id": "dea8a3d8-80d2-4b46-9576-05602d7599a9",
+  "message": "Job submitted for async processing. Use /api/job/{job_id}/status to check progress.",
+  "status": "pending",
+  "status_url": "https://ffmpegapi.replit.app/api/job/dea8a3d8-80d2-4b46-9576-05602d7599a9/status",
+  "success": true
+}
+Response success field: true
+Response download_url field: undefined
+Response filename field: undefined
+Final video merge successful: undefined
+Saving final video to object storage...
+Downloading video from URL: undefined
+Download attempt 1 failed with error: TypeError: Invalid URL
+    at new URL (node:internal/url:806:29)
+    at new Request (file:///home/runner/workspace/node_modules/node-fetch/src/request.js:55:16)
+    at file:///home/runner/workspace/node_modules/node-fetch/src/index.js:51:19
+    at new Promise (<anonymous>)
+    at fetch (file:///home/runner/workspace/node_modules/node-fetch/src/index.js:49:9)
+    at ObjectStorageService.uploadVideoFromUrl (/home/runner/workspace/server/objectStorage.ts:213:28)
+    at <anonymous> (/home/runner/workspace/server/routes.ts:1329:59)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5) {
+  code: 'ERR_INVALID_URL',
+  input: 'undefined'
+}
+Download attempt 2 failed with error: TypeError: Invalid URL
+    at new URL (node:internal/url:806:29)
+    at new Request (file:///home/runner/workspace/node_modules/node-fetch/src/request.js:55:16)
+    at file:///home/runner/workspace/node_modules/node-fetch/src/index.js:51:19
+    at new Promise (<anonymous>)
+    at fetch (file:///home/runner/workspace/node_modules/node-fetch/src/index.js:49:9)
+    at ObjectStorageService.uploadVideoFromUrl (/home/runner/workspace/server/objectStorage.ts:213:28)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:1329:32) {
+  code: 'ERR_INVALID_URL',
+  input: 'undefined'
+}
+Download attempt 3 failed with error: TypeError: Invalid URL
+    at new URL (node:internal/url:806:29)
+    at new Request (file:///home/runner/workspace/node_modules/node-fetch/src/request.js:55:16)
+    at file:///home/runner/workspace/node_modules/node-fetch/src/index.js:51:19
+    at new Promise (<anonymous>)
+    at fetch (file:///home/runner/workspace/node_modules/node-fetch/src/index.js:49:9)
+    at ObjectStorageService.uploadVideoFromUrl (/home/runner/workspace/server/objectStorage.ts:213:28)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:1329:32) {
+  code: 'ERR_INVALID_URL',
+  input: 'undefined'
+}
+Error uploading video to storage: Error: Failed to download video after 3 attempts: Invalid URL
+    at ObjectStorageService.uploadVideoFromUrl (/home/runner/workspace/server/objectStorage.ts:225:19)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:1329:32)
+Failed to save video to object storage, using temporary URL: Error: Failed to download video after 3 attempts: Invalid URL
+    at ObjectStorageService.uploadVideoFromUrl (/home/runner/workspace/server/objectStorage.ts:225:19)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:1329:32)
+2:11:36 AM [express] POST /api/projects/7b2863ac-f632-407b-bf6e-fb507908352e/generate-video 200 in 1…
+2:11:36 AM [express] GET /api/projects/7b2863ac-f632-407b-bf6e-fb507908352e 200 in 132ms :: {"id":"7…
