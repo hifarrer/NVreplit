@@ -8,7 +8,7 @@ import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, inser
 import { generateLyrics, generateScenePrompts, splitLyricsIntoSections } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
-import { generateSong } from "./services/kie";
+import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { generateCharacterImage, generateCharacterImages, generateSceneImages, generateSingleSceneImage } from "./services/fal";
 import { generateAllVideoSegments, generateAllVideoSegmentsDynamic } from "./services/wavespeed";
 import { splitAudio, mergeVideos, pictureInPicture } from "./services/ffmpeg";
@@ -594,25 +594,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate song
   app.post("/api/projects/:id/generate-song", async (req, res) => {
     try {
-      const { description, tags, lyrics, duration = 120 } = req.body; // Duration in seconds
+      const { description, tags, lyrics, duration = 120, addSubtitles = false } = req.body; // Duration in seconds
       
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "song_generation",
         message: "Starting song generation",
         status: "started",
-        metadata: { tags, lyrics }
+        metadata: { tags, lyrics, addSubtitles }
       });
 
-      // Use ElevenLabs for song generation
-      const durationMs = duration * 1000; // Convert to milliseconds for ElevenLabs
-      const elevenLabsSong = await generateSongWithElevenLabs(tags, lyrics, durationMs);
+      let result;
+      let subtitleFileUrl = null;
+      let generatedSubtitlesContent = null;
+      let kieTaskId = null;
+      let kieAudioId = null;
       
-      // Create result format similar to KIE response but with single song
-      const result = {
-        songs: [elevenLabsSong],
-        firstSongUrl: elevenLabsSong.audioUrl
-      };
+      if (addSubtitles) {
+        // Use KIE.ai for song generation when subtitles are needed
+        console.log("Using KIE.ai for song generation with subtitles...");
+        const kieResult = await generateSongWithKie(tags, lyrics, duration, description);
+        
+        // Get the first song and extract taskId/audioId
+        const selectedSong = kieResult.songs[0];
+        kieTaskId = selectedSong.taskId;
+        kieAudioId = selectedSong.audioId || selectedSong.id;
+        
+        console.log("KIE.ai song generated, now getting timestamped lyrics...");
+        console.log("Task ID:", kieTaskId);
+        console.log("Audio ID:", kieAudioId);
+        
+        if (kieTaskId && kieAudioId) {
+          try {
+            // Get timestamped lyrics from KIE.ai
+            const timestampedResponse = await getTimestampedLyrics(kieTaskId, kieAudioId);
+            
+            // Convert to .ass format
+            const assContent = convertTimestampedLyricsToASS(timestampedResponse.data.alignedWords);
+            generatedSubtitlesContent = assContent; // Store for debugging display
+            
+            // Store subtitle file
+            subtitleFileUrl = await storeSubtitleFile(assContent);
+            
+            console.log("Subtitle file stored at:", subtitleFileUrl);
+            
+            await storage.addGenerationLog({
+              projectId: req.params.id,
+              step: "subtitle_generation", 
+              message: "Subtitles generated successfully",
+              status: "completed",
+              metadata: { subtitleFileUrl, wordCount: timestampedResponse.data.alignedWords.length }
+            });
+          } catch (subtitleError) {
+            console.error("Subtitle generation failed:", subtitleError);
+            await storage.addGenerationLog({
+              projectId: req.params.id,
+              step: "subtitle_generation",
+              message: `Subtitle generation failed: ${(subtitleError as Error).message}`,
+              status: "error",
+              metadata: { error: (subtitleError as Error).message }
+            });
+            // Continue without subtitles
+          }
+        }
+        
+        result = kieResult;
+      } else {
+        // Use ElevenLabs for song generation
+        console.log("Using ElevenLabs for song generation without subtitles...");
+        const durationMs = duration * 1000; // Convert to milliseconds for ElevenLabs
+        const elevenLabsSong = await generateSongWithElevenLabs(tags, lyrics, durationMs);
+        
+        // Create result format similar to KIE response but with single song
+        result = {
+          songs: [elevenLabsSong],
+          firstSongUrl: elevenLabsSong.audioUrl
+        };
+      }
       
       // Get the project to find the user ID
       const project = await storage.getProject(req.params.id);
@@ -657,6 +715,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audioTags: tags,
         audioLyrics: lyrics,
         audioDuration: duration, // Store the duration in seconds
+        addSubtitles: addSubtitles,
+        subtitleFileUrl: subtitleFileUrl,
+        kieTaskId: kieTaskId,
+        kieAudioId: kieAudioId,
         currentStep: 2
       });
 
@@ -668,7 +730,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { songs: result.songs }
       });
 
-      res.json(result);
+      // Add debugging subtitle content to response if generated
+      const responseData = {
+        ...result,
+        subtitleFileUrl,
+        generatedSubtitlesContent // For debugging display
+      };
+      
+      res.json(responseData);
     } catch (error) {
       console.error("Generate song error:", error);
       await storage.addGenerationLog({

@@ -10,9 +10,10 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock, X } from "lucide-react";
+import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock, X, Subtitles } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 
 interface AudioCreationStepProps {
@@ -58,7 +59,9 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const [tags, setTags] = useState("");
   const [lyrics, setLyrics] = useState("");
   const [duration, setDuration] = useState([120]); // Default 120 seconds (2 minutes)
+  const [addSubtitles, setAddSubtitles] = useState(false); // Subtitle toggle
   const [progress, setProgress] = useState(0);
+  const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(null); // For debugging display
   
   // Song selection state
   const [generatedSongs, setGeneratedSongs] = useState<Array<{audioUrl: string; duration: number; title: string; id: string}>>([]);
@@ -154,7 +157,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
         description,
         tags,
         lyrics,
-        duration: duration[0]
+        duration: duration[0],
+        addSubtitles
       });
 
       clearInterval(progressInterval);
@@ -163,6 +167,11 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
       return response.json();
     },
     onSuccess: (data) => {
+      // Store generated subtitles for debugging display
+      if (data.generatedSubtitlesContent) {
+        setGeneratedSubtitles(data.generatedSubtitlesContent);
+      }
+      
       // Handle the new response format with multiple songs
       if (data.songs && data.songs.length > 0) {
         // Show song selection modal if multiple songs
@@ -175,7 +184,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
       setProgress(0);
       toast({
         title: "Success",
-        description: `Generated ${data.songs?.length || 1} song${data.songs?.length > 1 ? 's' : ''}! Choose your favorite.`,
+        description: `Generated ${data.songs?.length || 1} song${data.songs?.length > 1 ? 's' : ''}! Choose your favorite.${data.subtitleFileUrl ? ' Subtitles generated!' : ''}`,
       });
     },
     onError: (error) => {
@@ -427,6 +436,24 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
               </div>
             </div>
 
+            {/* Add Subtitles Toggle */}
+            <div>
+              <Label className="flex items-center text-sm font-semibold mb-2">
+                <Subtitles className="w-4 h-4 text-accent mr-2" />
+                Add Subtitles
+              </Label>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={addSubtitles}
+                  onCheckedChange={setAddSubtitles}
+                  data-testid="subtitles-toggle"
+                />
+                <Label className="text-sm text-muted-foreground">
+                  Generate timed lyrics for your music video
+                </Label>
+              </div>
+            </div>
+
             <div>
               <Label className="flex items-center text-sm font-semibold mb-2">
                 <Tags className="w-4 h-4 text-primary mr-2" />
@@ -664,6 +691,26 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
         {currentAudioUrl && (
           <div className="mt-8">
             <AudioPlayer audioUrl={currentAudioUrl} title="Your Selected Audio" />
+          </div>
+        )}
+
+        {/* Debugging: Show generated subtitles */}
+        {generatedSubtitles && (
+          <div className="mt-6 p-4 bg-muted rounded-lg">
+            <Label className="flex items-center text-sm font-semibold mb-3">
+              <Subtitles className="w-4 h-4 text-accent mr-2" />
+              Generated Subtitles (.ass format) - Debug View
+            </Label>
+            <Textarea
+              value={generatedSubtitles}
+              readOnly
+              rows={10}
+              className="font-mono text-xs bg-background"
+              placeholder="Subtitles will appear here when generated..."
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              This shows the generated subtitle file content for debugging purposes.
+            </p>
           </div>
         )}
 

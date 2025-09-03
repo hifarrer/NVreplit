@@ -24,6 +24,10 @@ export const projects = pgTable("projects", {
   audioTags: text("audio_tags"),
   audioLyrics: text("audio_lyrics"),
   audioDuration: integer("audio_duration"), // Duration in seconds
+  addSubtitles: boolean("add_subtitles").default(false), // Whether to add subtitles
+  subtitleFileUrl: text("subtitle_file_url"), // URL to .ass subtitle file
+  kieTaskId: text("kie_task_id"), // KIE.ai task ID for getting timestamped lyrics
+  kieAudioId: text("kie_audio_id"), // KIE.ai audio ID for getting timestamped lyrics
   characterImageUrl: text("character_image_url"),
   characterType: text("character_type"), // 'uploaded' | 'generated'
   characterPrompt: text("character_prompt"),

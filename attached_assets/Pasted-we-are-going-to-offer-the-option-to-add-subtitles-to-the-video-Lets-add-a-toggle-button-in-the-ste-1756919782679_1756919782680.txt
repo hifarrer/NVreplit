@@ -1,0 +1,88 @@
+we are going to offer the option to add subtitles to the video.
+Lets add a toggle button in the step 1 "Add subtitles".
+To do that, KIE.ai has an endpoint "Get timestamped lyrics" where we send the task_id and audio_id  and we get back the lyrics with a timestamp.
+So after we generate a song with KIE.ai we get back the task_id and the audio_id, the audio_id is just called "id" inside the sunoData JSON node.
+
+So after generating a song, we have task_id and audio_id, now we can make a second request to get timestamped lyrics like this:
+
+Sample request:
+curl --request POST \
+  --url https://api.kie.ai/api/v1/generate/get-timestamped-lyrics \
+  --header 'Authorization: Bearer <token>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "taskId": "5c79****be8e",
+  "audioId": "e231****-****-****-****-****8cadc7dc"
+}'
+
+Sample Response:
+{
+  "code": 200,
+  "msg": "success",
+  "data": {
+    "alignedWords": [
+      {
+        "word": "[Verse]\nWaggin'",
+        "success": true,
+        "startS": 1.36,
+        "endS": 1.79,
+        "palign": 0
+      }
+    ],
+    "waveformData": [
+      0,
+      1,
+      0.5,
+      0.75
+    ],
+    "hootCer": 0.3803191489361702,
+    "isStreamed": false
+  }
+}
+
+
+We will create a new function to convert the timestamped lyrics into a .ass file for FFMPEG API.
+
+THis is the .ass file format:
+
+[Script Info]
+ScriptType: v4.00
+Collisions: Normal
+; screen resolution, of the author of this file.
+PlayResX: 1920
+PlayResY: 1080
+PlayDepth: 0
+; play at 100% speed.
+Timer: 100,0000
+
+; For further info on all these fields, refer to the document
+; "Sub Station Alpha v4.00+ Script Format"
+
+[V4 Styles]
+; this line is actually ignored by the parser, but I include it for improving readability.
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, TertiaryColour, BackColour, Bold, Italic, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, AlphaLevel, Encoding
+; 153 specifies the red RGB color 0x000099. Note that the order is 0xBBGGRR.
+; and note that 153 is the value of 0x000099, in base 10.
+; 6 specifies the alignment of the text.
+; for centered alignment, we specify 2. To then move it to the top, we add 4.
+; so we end up with 2 + 4 = 6
+Style: Default,Arial,90,153,153,153,153,0,0,0,0,0,6,30,30,30,0,0
+
+[Events]
+Format: Marked, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+; show "First sample text", in Default Style
+Dialogue: Marked=0,0:00:00.00,0:00:01.70,Default,,0000,0000,0000,,Zoom Out
+; show "Second sample text", in Default Style 
+Dialogue: Marked=0,0:00:01.70,0:00:04.00,Default,,0000,0000,0000,,Zoom In
+
+
+
+You can leave all options as is, you are only going to change the lines below the [Events] tag.
+Basically you will add the text and time frame in that format, based on the JSON timestamped response:
+
+; show "First sample text", in Default Style
+Dialogue: Marked=0,0:00:00.00,0:00:01.70,Default,,0000,0000,0000,,Zoom Out
+
+
+For now, just generate the .ass file and display the contents in a temporary textbox area for debugging purposes right below the generated song.
+The .ass file needs to be stored in our storage because we will send it to FFMPEG API.
