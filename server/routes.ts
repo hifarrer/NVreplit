@@ -1398,7 +1398,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log("Signed video URLs for FFMPEG merge:", signedVideoUrls);
-      console.log("Full song audio URL for merge:", audioUrl);
+      
+      // Convert audio URL to signed URL if it's an internal object storage URL
+      let finalAudioUrl = project.audioUrl; // Use original audio URL from project
+      if (finalAudioUrl.startsWith('/objects/')) {
+        // Internal object storage URL - convert to signed URL
+        finalAudioUrl = await objectStorageService.getSignedUrlForPath(finalAudioUrl, 7200); // 2 hours
+        console.log("Generated signed URL for audio:", project.audioUrl, "->", finalAudioUrl);
+      } else {
+        console.log("Using external audio URL:", finalAudioUrl);
+      }
+      console.log("Final audio URL for FFMPEG merge:", finalAudioUrl);
       
       // Get subtitle URL from project and convert to signed URL if needed
       let subtitleUrl: string | undefined;
@@ -1418,7 +1428,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let finalVideo;
       let savedFinalVideoUrl: string;
       try {
-        finalVideo = await mergeVideos(signedVideoUrls, audioUrl, subtitleUrl);
+        finalVideo = await mergeVideos(signedVideoUrls, finalAudioUrl, subtitleUrl);
         console.log("Final video merge successful:", finalVideo.download_url);
         
         // Try to save the final video to object storage
