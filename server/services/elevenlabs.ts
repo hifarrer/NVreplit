@@ -121,7 +121,10 @@ export async function createForcedAlignment(
   }
 
   try {
-    console.log('Creating forced alignment with ElevenLabs:', { audioUrl, lyrics: lyrics.substring(0, 100) + '...' });
+    // Clean lyrics by removing structural tags like [Verse 1], [Chorus], etc.
+    const cleanedLyrics = lyrics.replace(/\[.*?\]/g, '').replace(/\n\s*\n/g, '\n').trim();
+    
+    console.log('Creating forced alignment with ElevenLabs:', { audioUrl, lyrics: cleanedLyrics.substring(0, 100) + '...' });
 
     // Download the audio file from our object storage
     const audioBuffer = await downloadAudioFile(audioUrl);
@@ -132,7 +135,7 @@ export async function createForcedAlignment(
       filename: 'audio.mp3',
       contentType: 'audio/mpeg',
     });
-    formData.append('text', lyrics);
+    formData.append('text', cleanedLyrics);
 
     console.log('Making forced alignment request to ElevenLabs...');
 
@@ -209,7 +212,7 @@ Timer: 100,0000
 
 [V4 Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, TertiaryColour, BackColour, Bold, Italic, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, AlphaLevel, Encoding
-Style: Default,Arial,90,16777215,16777215,16777215,0,0,0,0,0,0,6,30,30,30,0,0
+Style: Default,Arial,90,16777215,16777215,16777215,0,-1,0,3,1,0,2,30,30,30,0,0
 
 [Events]
 Format: Marked, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
