@@ -1371,7 +1371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "video_generation",
-        message: `Merging final video from ${allVideoUrls.length} individual segments`,
+        message: `Merging final video from ${allVideoUrls.length} individual segments + outro video`,
         status: "progress",
         metadata: { step: 3, total: 4 }
       });
@@ -1397,7 +1397,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      console.log("Signed video URLs for FFMPEG merge:", signedVideoUrls);
+      // Add outro video to the end of the video list
+      const outroVideoUrl = '/public-objects/outro.mp4';
+      signedVideoUrls.push(outroVideoUrl);
+      console.log("Added outro video to merge:", outroVideoUrl);
+      
+      console.log("Signed video URLs for FFMPEG merge (including outro):", signedVideoUrls);
       
       // Convert audio URL to signed URL if it's an internal object storage URL
       let finalAudioUrl = project.audioUrl; // Use original audio URL from project
@@ -1606,6 +1611,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to delete character" });
     }
   });
+
 
   const httpServer = createServer(app);
   return httpServer;
