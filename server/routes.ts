@@ -831,6 +831,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { audioUrl, audioTags, audioLyrics, audioType, duration } = req.body;
       
+      console.log("=== SELECT-SONG REQUEST ===");
+      console.log("Request body:", JSON.stringify(req.body, null, 2));
+      console.log("Duration received:", duration);
+      
       // Build update data based on what's provided
       const updateData: any = {
         audioUrl,
@@ -842,6 +846,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (audioLyrics) updateData.audioLyrics = audioLyrics;
       if (audioType) updateData.audioType = audioType;
       if (duration) updateData.audioDuration = duration;
+      
+      console.log("Update data to save:", JSON.stringify(updateData, null, 2));
       
       const project = await storage.updateProject(req.params.id, updateData);
       
@@ -952,6 +958,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get audio duration to determine configuration
       const audioDuration = project.audioDuration || 120; // Use stored duration or default to 2 minutes
       
+      console.log("=== SCENE GENERATION DURATION CHECK ===");
+      console.log("Project audioDuration:", project.audioDuration);
+      console.log("Final audioDuration used:", audioDuration);
+      
       // Get the video generation configuration for dynamic scene count
       const config = await storage.getVideoGenerationConfig(audioDuration);
       if (!config) {
@@ -959,6 +969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log("Using configuration for scene generation:", config);
+      console.log("Number of scenes to generate:", config.numberOfScenesCreated);
       
       // Split lyrics into sections based on configuration
       let lyricsSections: string[] | undefined;
