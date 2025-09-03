@@ -415,7 +415,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/my-songs", authenticateToken, async (req, res) => {
     try {
       const userId = (req as any).user.userId;
+      console.log("=== FETCHING SONGS FOR USER ===");
+      console.log("User ID:", userId);
+      
       const songs = await storage.getSongs(userId);
+      console.log("Raw songs from database:", songs.length);
+      console.log("Songs data:", JSON.stringify(songs, null, 2));
       
       // Sort by newest first and format for frontend
       const formattedSongs = songs
@@ -431,6 +436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updatedAt: song.createdAt // Songs table doesn't have updatedAt
         }));
       
+      console.log("Formatted songs to return:", formattedSongs.length);
       res.json(formattedSongs);
     } catch (error) {
       console.error("Get my songs error:", error);
@@ -616,19 +622,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Save the song to the user's library
       const selectedSong = result.songs[0];
+      const songData = {
+        userId: project.userId,
+        title: description || tags || "Generated Song",
+        url: selectedSong.audioUrl,
+        duration: duration,
+        tags: tags || null,
+        lyrics: lyrics || null,
+        prompt: description || null
+      };
+      
+      console.log("=== ATTEMPTING TO SAVE SONG TO LIBRARY ===");
+      console.log("Song data:", JSON.stringify(songData, null, 2));
+      
       try {
-        await storage.addSong({
-          userId: project.userId,
-          title: description || tags || "Generated Song",
-          url: selectedSong.audioUrl,
-          duration: duration,
-          tags: tags || null,
-          lyrics: lyrics || null,
-          prompt: description || null
-        });
-        console.log("Song saved to user library:", selectedSong.audioUrl);
+        const savedSong = await storage.addSong(songData);
+        console.log("✅ Song successfully saved to user library!");
+        console.log("Saved song ID:", savedSong.id);
+        console.log("Saved song URL:", savedSong.url);
       } catch (libraryError) {
-        console.warn("Failed to save song to library, but continuing:", libraryError);
+        console.error("❌ FAILED to save song to library:");
+        console.error("Error details:", libraryError);
+        console.error("Error message:", (libraryError as Error).message);
+        console.error("Error stack:", (libraryError as Error).stack);
         // Don't fail the entire request if saving to library fails
       }
       
