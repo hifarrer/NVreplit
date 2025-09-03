@@ -415,22 +415,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/my-songs", authenticateToken, async (req, res) => {
     try {
       const userId = (req as any).user.userId;
-      const projects = await storage.getProjectsByUser(userId);
-      // Filter projects with generated audio and sort by newest first
-      const generatedSongs = projects
-        .filter(p => p.audioUrl && p.audioType === 'generated')
+      const songs = await storage.getSongs(userId);
+      
+      // Sort by newest first and format for frontend
+      const formattedSongs = songs
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .map(p => ({
-          id: p.id,
-          title: p.audioPrompt || p.title, // Use audioPrompt (description) as title if available, fallback to project title
-          audioUrl: p.audioUrl,
-          audioTags: p.audioTags,
-          audioLyrics: p.audioLyrics,
-          duration: null, // Duration will be determined by the audio player
-          createdAt: p.createdAt,
-          updatedAt: p.updatedAt
+        .map(song => ({
+          id: song.id,
+          title: song.title,
+          audioUrl: song.url,
+          audioTags: song.tags,
+          audioLyrics: song.lyrics,
+          duration: song.duration,
+          createdAt: song.createdAt,
+          updatedAt: song.createdAt // Songs table doesn't have updatedAt
         }));
-      res.json(generatedSongs);
+      
+      res.json(formattedSongs);
     } catch (error) {
       console.error("Get my songs error:", error);
       res.status(500).json({ error: "Failed to get songs" });
@@ -607,13 +608,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstSongUrl: elevenLabsSong.audioUrl
       };
       
-      // TODO: Store both songs in user's library automatically when authentication is implemented
-      // For now, we'll skip automatic saving to user library
+      // Get the project to find the user ID
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
       
-      // For now, use the first song as the project's selected song
-      // The frontend will allow users to switch between songs
+      // Save the song to the user's library
       const selectedSong = result.songs[0];
+      try {
+        await storage.addSong({
+          userId: project.userId,
+          title: description || tags || "Generated Song",
+          url: selectedSong.audioUrl,
+          duration: duration,
+          tags: tags || null,
+          lyrics: lyrics || null,
+          prompt: description || null
+        });
+        console.log("Song saved to user library:", selectedSong.audioUrl);
+      } catch (libraryError) {
+        console.warn("Failed to save song to library, but continuing:", libraryError);
+        // Don't fail the entire request if saving to library fails
+      }
       
+      // Update the project with the selected song
       await storage.updateProject(req.params.id, {
         title: description || tags, // Use the full song description as the project title, fallback to tags
         audioUrl: selectedSong.audioUrl,
