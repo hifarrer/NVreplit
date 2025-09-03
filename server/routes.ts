@@ -841,6 +841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (audioTags) updateData.audioTags = audioTags;
       if (audioLyrics) updateData.audioLyrics = audioLyrics;
       if (audioType) updateData.audioType = audioType;
+      if (duration) updateData.audioDuration = duration;
       
       const project = await storage.updateProject(req.params.id, updateData);
       

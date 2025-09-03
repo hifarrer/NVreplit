@@ -223,7 +223,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
         audioUrl: song.audioUrl,
         audioTags: song.audioTags,
         audioLyrics: song.audioLyrics,
-        audioType: 'library'
+        audioType: 'library',
+        duration: song.duration
       });
       return response.json();
     },
