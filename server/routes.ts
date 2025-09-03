@@ -1400,10 +1400,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Signed video URLs for FFMPEG merge:", signedVideoUrls);
       console.log("Full song audio URL for merge:", audioUrl);
       
+      // Get subtitle URL from project and convert to signed URL if needed
+      let subtitleUrl: string | undefined;
+      if (project.subtitleFileUrl) {
+        if (project.subtitleFileUrl.startsWith('/objects/')) {
+          // Internal object storage URL - convert to signed URL
+          subtitleUrl = await objectStorageService.getSignedUrlForPath(project.subtitleFileUrl, 7200); // 2 hours
+          console.log("Generated signed URL for subtitles:", project.subtitleFileUrl, "->", subtitleUrl);
+        } else {
+          // External URL - use as-is
+          subtitleUrl = project.subtitleFileUrl;
+          console.log("Using external subtitle URL:", subtitleUrl);
+        }
+      }
+      console.log("Subtitle URL for FFMPEG merge:", subtitleUrl || "Not provided");
+      
       let finalVideo;
       let savedFinalVideoUrl: string;
       try {
-        finalVideo = await mergeVideos(signedVideoUrls, audioUrl);
+        finalVideo = await mergeVideos(signedVideoUrls, audioUrl, subtitleUrl);
         console.log("Final video merge successful:", finalVideo.download_url);
         
         // Try to save the final video to object storage

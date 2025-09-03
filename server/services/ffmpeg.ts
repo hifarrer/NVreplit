@@ -77,7 +77,7 @@ export async function pictureInPicture(mainVideoUrl: string, pipVideoUrl: string
   }
 }
 
-export async function mergeVideos(videoUrls: string[], audioUrl?: string): Promise<{ download_url: string; filename: string }> {
+export async function mergeVideos(videoUrls: string[], audioUrl?: string, subtitleUrl?: string): Promise<{ download_url: string; filename: string }> {
   try {
     const requestBody: any = {
       video_urls: videoUrls,
@@ -89,10 +89,16 @@ export async function mergeVideos(videoUrls: string[], audioUrl?: string): Promi
       requestBody.audio_url = audioUrl;
     }
     
+    // Add subtitle URL if provided
+    if (subtitleUrl) {
+      requestBody.subtitle_url = subtitleUrl;
+    }
+    
     console.log("=== FFMPEG MERGE VIDEOS REQUEST ===");
     console.log("Endpoint: https://ffmpegapi.net/api/merge_videos");
     console.log("Number of videos to merge:", videoUrls.length);
     console.log("Audio URL (full song):", audioUrl || "Not provided");
+    console.log("Subtitle URL (.ass file):", subtitleUrl || "Not provided");
     console.log("Request body:", JSON.stringify(requestBody, null, 2));
     
     const response = await fetch("https://ffmpegapi.net/api/merge_videos", {
