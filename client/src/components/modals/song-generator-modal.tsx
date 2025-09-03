@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Subtitles, Tags } from "lucide-react";
 
 interface SongGeneratorModalProps {
   isOpen: boolean;
@@ -24,7 +26,9 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
   const [tags, setTags] = useState("");
   const [lyrics, setLyrics] = useState("");
   const [duration, setDuration] = useState([60]); // Default 60 seconds
+  const [addSubtitles, setAddSubtitles] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(null);
   const { toast } = useToast();
 
   const durationOptions = [30, 60, 90, 120];
@@ -77,7 +81,8 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
         description,
         tags,
         lyrics,
-        duration: duration[0]
+        duration: duration[0],
+        addSubtitles: addSubtitles
       });
 
       clearInterval(progressInterval);
@@ -87,6 +92,12 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
     },
     onSuccess: (data) => {
       onSongGenerated(data);
+      
+      // Store generated subtitles content for debugging display
+      if (data.generatedSubtitlesContent) {
+        setGeneratedSubtitles(data.generatedSubtitlesContent);
+      }
+      
       handleClose();
       toast({
         title: "Success",
@@ -108,7 +119,9 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
     setTags("");
     setLyrics("");
     setDuration([60]);
+    setAddSubtitles(false);
     setProgress(0);
+    setGeneratedSubtitles(null);
     onClose();
   };
 
@@ -254,6 +267,43 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
               />
             </div>
           </div>
+
+          {/* Add Subtitles Toggle */}
+          <div>
+            <Label className="flex items-center text-sm font-semibold mb-2">
+              <Subtitles className="w-4 h-4 text-accent mr-2" />
+              Add Subtitles
+            </Label>
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={addSubtitles}
+                onCheckedChange={setAddSubtitles}
+                data-testid="subtitles-toggle"
+              />
+              <Label className="text-sm text-muted-foreground">
+                Generate timed lyrics for your music video using ElevenLabs
+              </Label>
+            </div>
+          </div>
+
+          {/* Debug: Display generated subtitles content */}
+          {generatedSubtitles && (
+            <div>
+              <Label className="flex items-center text-sm font-semibold mb-2">
+                🐛 Debug: Generated .ass Subtitle File
+              </Label>
+              <Textarea
+                value={generatedSubtitles}
+                readOnly
+                rows={8}
+                className="resize-none font-mono text-xs bg-muted"
+                data-testid="generated-subtitles-debug"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                This is the generated .ass subtitle file content for debugging
+              </p>
+            </div>
+          )}
 
           {/* Generation Progress */}
           {generateSongMutation.isPending && (

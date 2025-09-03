@@ -9,6 +9,7 @@ import { generateLyrics, generateScenePrompts, splitLyricsIntoSections } from ".
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
+import { createForcedAlignment, convertElevenLabsAlignmentToASS, storeElevenLabsSubtitleFile } from "./services/elevenlabs";
 import { generateCharacterImage, generateCharacterImages, generateSceneImages, generateSingleSceneImage } from "./services/fal";
 import { generateAllVideoSegments, generateAllVideoSegmentsDynamic } from "./services/wavespeed";
 import { splitAudio, mergeVideos, pictureInPicture } from "./services/ffmpeg";
@@ -610,66 +611,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let kieTaskId = null;
       let kieAudioId = null;
       
-      if (addSubtitles) {
-        // Use KIE.ai for song generation when subtitles are needed
-        console.log("Using KIE.ai for song generation with subtitles...");
-        const kieResult = await generateSongWithKie(tags, lyrics, duration, description);
+      // Always use ElevenLabs for song generation
+      console.log("Using ElevenLabs for song generation...");
+      const durationMs = duration * 1000; // Convert to milliseconds for ElevenLabs
+      const elevenLabsSong = await generateSongWithElevenLabs(tags, lyrics, durationMs);
+      
+      // Create result format similar to KIE response but with single song
+      result = {
+        songs: [elevenLabsSong],
+        firstSongUrl: elevenLabsSong.audioUrl
+      };
+      
+      // Generate subtitles using ElevenLabs forced alignment if requested
+      if (addSubtitles && lyrics) {
+        console.log("Generating subtitles using ElevenLabs forced alignment...");
         
-        // Get the first song and extract taskId/audioId
-        const selectedSong = kieResult.songs[0];
-        kieTaskId = selectedSong.taskId;
-        kieAudioId = selectedSong.audioId || selectedSong.id;
-        
-        console.log("KIE.ai song generated, now getting timestamped lyrics...");
-        console.log("Task ID:", kieTaskId);
-        console.log("Audio ID:", kieAudioId);
-        
-        if (kieTaskId && kieAudioId) {
-          try {
-            // Get timestamped lyrics from KIE.ai
-            const timestampedResponse = await getTimestampedLyrics(kieTaskId, kieAudioId);
-            
-            // Convert to .ass format
-            const assContent = convertTimestampedLyricsToASS(timestampedResponse.data.alignedWords);
-            generatedSubtitlesContent = assContent; // Store for debugging display
-            
-            // Store subtitle file
-            subtitleFileUrl = await storeSubtitleFile(assContent);
-            
-            console.log("Subtitle file stored at:", subtitleFileUrl);
-            
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation", 
-              message: "Subtitles generated successfully",
-              status: "completed",
-              metadata: { subtitleFileUrl, wordCount: timestampedResponse.data.alignedWords.length }
-            });
-          } catch (subtitleError) {
-            console.error("Subtitle generation failed:", subtitleError);
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation",
-              message: `Subtitle generation failed: ${(subtitleError as Error).message}`,
-              status: "error",
-              metadata: { error: (subtitleError as Error).message }
-            });
-            // Continue without subtitles
-          }
+        try {
+          // Create forced alignment with ElevenLabs
+          const alignmentResponse = await createForcedAlignment(elevenLabsSong.audioUrl, lyrics);
+          
+          // Convert to .ass format
+          const assContent = convertElevenLabsAlignmentToASS(alignmentResponse);
+          generatedSubtitlesContent = assContent; // Store for debugging display
+          
+          // Store subtitle file with the song ID for proper association
+          const songId = elevenLabsSong.audioUrl.split('/').pop()?.replace('.mp3', '') || undefined;
+          subtitleFileUrl = await storeElevenLabsSubtitleFile(assContent, songId);
+          
+          console.log("ElevenLabs subtitle file stored at:", subtitleFileUrl);
+          
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "subtitle_generation", 
+            message: "Subtitles generated successfully using ElevenLabs forced alignment",
+            status: "completed",
+            metadata: { subtitleFileUrl, wordCount: alignmentResponse.words?.length || 0 }
+          });
+        } catch (subtitleError) {
+          console.error("ElevenLabs subtitle generation failed:", subtitleError);
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "subtitle_generation",
+            message: `ElevenLabs subtitle generation failed: ${(subtitleError as Error).message}`,
+            status: "error",
+            metadata: { error: (subtitleError as Error).message }
+          });
+          // Continue without subtitles
         }
-        
-        result = kieResult;
-      } else {
-        // Use ElevenLabs for song generation
-        console.log("Using ElevenLabs for song generation without subtitles...");
-        const durationMs = duration * 1000; // Convert to milliseconds for ElevenLabs
-        const elevenLabsSong = await generateSongWithElevenLabs(tags, lyrics, durationMs);
-        
-        // Create result format similar to KIE response but with single song
-        result = {
-          songs: [elevenLabsSong],
-          firstSongUrl: elevenLabsSong.audioUrl
-        };
       }
       
       // Get the project to find the user ID
@@ -689,8 +677,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lyrics: lyrics || null,
         prompt: description || null,
         subtitleFileUrl: subtitleFileUrl || null,
-        kieTaskId: kieTaskId || null,
-        kieAudioId: kieAudioId || null
+        // Remove KIE fields since we're using ElevenLabs
+        kieTaskId: null,
+        kieAudioId: null
       };
       
       console.log("=== ATTEMPTING TO SAVE SONG TO LIBRARY ===");
@@ -707,17 +696,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // re-store the subtitle file with the song ID as the filename
         if (addSubtitles && generatedSubtitlesContent && savedSong.id) {
           try {
-            console.log("Re-storing subtitle file with song ID...");
-            const namedSubtitleUrl = await storeSubtitleFile(generatedSubtitlesContent, savedSong.id);
+            console.log("Re-storing ElevenLabs subtitle file with song ID...");
+            const namedSubtitleUrl = await storeElevenLabsSubtitleFile(generatedSubtitlesContent, savedSong.id);
             subtitleFileUrl = namedSubtitleUrl;
             
-            // Update the song record with the proper subtitle URL
-            // Note: This assumes we have an updateSong method in storage
-            // If not available, we'll handle it during video generation
-            console.log("Updated subtitle file URL:", namedSubtitleUrl);
+            console.log("Updated ElevenLabs subtitle file URL:", namedSubtitleUrl);
             
           } catch (subtitleUpdateError) {
-            console.warn("Failed to re-store subtitle with song ID:", subtitleUpdateError);
+            console.warn("Failed to re-store ElevenLabs subtitle with song ID:", subtitleUpdateError);
             // Keep the original subtitle URL
           }
         }
@@ -740,8 +726,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audioDuration: duration, // Store the duration in seconds
         addSubtitles: addSubtitles,
         subtitleFileUrl: subtitleFileUrl,
-        kieTaskId: kieTaskId,
-        kieAudioId: kieAudioId,
+        // Remove KIE fields since we're using ElevenLabs
+        kieTaskId: null,
+        kieAudioId: null,
         currentStep: 2
       });
 
