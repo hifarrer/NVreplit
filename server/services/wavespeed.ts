@@ -178,8 +178,49 @@ export async function generateAllVideoSegmentsDynamic(
   const videoUrls = await Promise.all(videoPromises);
   console.log(`All ${videoUrls.length} video segments generated successfully`);
   
-  // For backward compatibility, create segment pairs (will be empty for new dynamic approach)
+  // Create segment pairs for Picture-in-Picture compositions
+  // Group videos into pairs based on their types: multitalk (main) + seedance (overlay)
   const segmentPairs: Array<{a: string, b: string}> = [];
+  
+  if (config.makeCharacterSing) {
+    // Separate videos by type
+    const multitalkVideos: string[] = [];
+    const seedanceVideos: string[] = [];
+    
+    for (let i = 0; i < videoUrls.length; i++) {
+      if (videoTypes[i] === 'multitalk') {
+        multitalkVideos.push(videoUrls[i]);
+      } else {
+        seedanceVideos.push(videoUrls[i]);
+      }
+    }
+    
+    console.log(`Separating videos for PiP: ${multitalkVideos.length} multitalk, ${seedanceVideos.length} seedance`);
+    
+    // Create pairs: multitalk as main video (a), seedance as overlay (b)
+    const pairCount = Math.min(multitalkVideos.length, seedanceVideos.length);
+    for (let i = 0; i < pairCount; i++) {
+      segmentPairs.push({
+        a: multitalkVideos[i],  // Main video (multitalk with lipsync)
+        b: seedanceVideos[i]    // Overlay video (seedance)
+      });
+    }
+    
+    console.log(`Created ${segmentPairs.length} segment pairs for PiP composition`);
+  } else {
+    // When makeCharacterSing is disabled, we only have seedance videos
+    // For PiP composition, we need pairs, so we'll pair adjacent videos
+    console.log(`Make character sing disabled - pairing adjacent seedance videos for PiP`);
+    for (let i = 0; i < videoUrls.length - 1; i += 2) {
+      if (i + 1 < videoUrls.length) {
+        segmentPairs.push({
+          a: videoUrls[i],     // First video as main
+          b: videoUrls[i + 1]  // Second video as overlay
+        });
+      }
+    }
+    console.log(`Created ${segmentPairs.length} segment pairs from seedance videos`);
+  }
   
   return { videoUrls, segmentPairs };
 }
