@@ -152,6 +152,10 @@ export class MemStorage implements IStorage {
       audioTags: insertProject.audioTags || null,
       audioLyrics: insertProject.audioLyrics || null,
       audioDuration: insertProject.audioDuration || null,
+      addSubtitles: insertProject.addSubtitles !== undefined ? insertProject.addSubtitles : false,
+      subtitleFileUrl: insertProject.subtitleFileUrl || null,
+      kieTaskId: insertProject.kieTaskId || null,
+      kieAudioId: insertProject.kieAudioId || null,
       characterImageUrl: insertProject.characterImageUrl || null,
       characterType: insertProject.characterType || null,
       characterPrompt: insertProject.characterPrompt || null,
@@ -316,6 +320,9 @@ export class MemStorage implements IStorage {
       prompt: insertSong.prompt || null,
       tags: insertSong.tags || null,
       lyrics: insertSong.lyrics || null,
+      subtitleFileUrl: insertSong.subtitleFileUrl || null,
+      kieTaskId: insertSong.kieTaskId || null,
+      kieAudioId: insertSong.kieAudioId || null,
       createdAt: new Date()
     };
     this.songs.set(id, song);

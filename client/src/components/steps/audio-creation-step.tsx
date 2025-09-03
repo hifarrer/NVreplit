@@ -30,6 +30,9 @@ interface GeneratedSong {
   audioTags: string | null;
   audioLyrics: string | null;
   duration: number | null;
+  subtitleFileUrl?: string | null;
+  kieTaskId?: string | null;
+  kieAudioId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -233,7 +236,10 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
         audioTags: song.audioTags,
         audioLyrics: song.audioLyrics,
         audioType: 'library',
-        duration: song.duration
+        duration: song.duration,
+        subtitleFileUrl: song.subtitleFileUrl,
+        kieTaskId: song.kieTaskId,
+        kieAudioId: song.kieAudioId
       });
       return response.json();
     },

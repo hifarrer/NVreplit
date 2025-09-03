@@ -86,6 +86,9 @@ export const songs = pgTable("songs", {
   tags: text("tags"),
   lyrics: text("lyrics"),
   prompt: text("prompt"),
+  subtitleFileUrl: text("subtitle_file_url"), // URL to .ass subtitle file
+  kieTaskId: text("kie_task_id"), // KIE.ai task ID for getting timestamped lyrics
+  kieAudioId: text("kie_audio_id"), // KIE.ai audio ID for getting timestamped lyrics
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

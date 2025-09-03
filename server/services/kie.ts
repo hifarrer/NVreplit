@@ -350,7 +350,7 @@ Format: Marked, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
   return assContent;
 }
 
-export async function storeSubtitleFile(assContent: string): Promise<string> {
+export async function storeSubtitleFile(assContent: string, songId?: string): Promise<string> {
   try {
     console.log("Storing subtitle file...");
     
@@ -359,9 +359,10 @@ export async function storeSubtitleFile(assContent: string): Promise<string> {
     const objectStorageService = new ObjectStorageService();
     const privateObjectDir = objectStorageService.getPrivateObjectDir();
     
-    // Generate unique filename
+    // Generate filename using song ID if available, otherwise random UUID
     const { randomUUID } = await import("crypto");
-    const filename = `subtitles/${randomUUID()}.ass`;
+    const fileId = songId || randomUUID();
+    const filename = `subtitles/${fileId}.ass`;
     
     // Create full path in private directory
     const fullPath = `${privateObjectDir}/${filename}`;

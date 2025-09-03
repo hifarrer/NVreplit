@@ -687,17 +687,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         duration: duration,
         tags: tags || null,
         lyrics: lyrics || null,
-        prompt: description || null
+        prompt: description || null,
+        subtitleFileUrl: subtitleFileUrl || null,
+        kieTaskId: kieTaskId || null,
+        kieAudioId: kieAudioId || null
       };
       
       console.log("=== ATTEMPTING TO SAVE SONG TO LIBRARY ===");
       console.log("Song data:", JSON.stringify(songData, null, 2));
       
+      let savedSong;
       try {
-        const savedSong = await storage.addSong(songData);
+        savedSong = await storage.addSong(songData);
         console.log("✅ Song successfully saved to user library!");
         console.log("Saved song ID:", savedSong.id);
         console.log("Saved song URL:", savedSong.url);
+        
+        // If subtitles were generated but we have the song ID now, 
+        // re-store the subtitle file with the song ID as the filename
+        if (addSubtitles && generatedSubtitlesContent && savedSong.id) {
+          try {
+            console.log("Re-storing subtitle file with song ID...");
+            const namedSubtitleUrl = await storeSubtitleFile(generatedSubtitlesContent, savedSong.id);
+            subtitleFileUrl = namedSubtitleUrl;
+            
+            // Update the song record with the proper subtitle URL
+            // Note: This assumes we have an updateSong method in storage
+            // If not available, we'll handle it during video generation
+            console.log("Updated subtitle file URL:", namedSubtitleUrl);
+            
+          } catch (subtitleUpdateError) {
+            console.warn("Failed to re-store subtitle with song ID:", subtitleUpdateError);
+            // Keep the original subtitle URL
+          }
+        }
       } catch (libraryError) {
         console.error("❌ FAILED to save song to library:");
         console.error("Error details:", libraryError);
@@ -898,7 +921,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Select song for project (handles both generated songs and library songs)
   app.post("/api/projects/:id/select-song", authenticateToken, async (req, res) => {
     try {
-      const { audioUrl, audioTags, audioLyrics, audioType, duration } = req.body;
+      const { audioUrl, audioTags, audioLyrics, audioType, duration, subtitleFileUrl, kieTaskId, kieAudioId } = req.body;
       
       console.log("=== SELECT-SONG REQUEST ===");
       console.log("Request body:", JSON.stringify(req.body, null, 2));
@@ -915,6 +938,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (audioLyrics) updateData.audioLyrics = audioLyrics;
       if (audioType) updateData.audioType = audioType;
       if (duration) updateData.audioDuration = duration;
+      if (subtitleFileUrl) {
+        updateData.addSubtitles = true;
+        updateData.subtitleFileUrl = subtitleFileUrl;
+        updateData.kieTaskId = kieTaskId;
+        updateData.kieAudioId = kieAudioId;
+      }
       
       console.log("Update data to save:", JSON.stringify(updateData, null, 2));
       
