@@ -1318,11 +1318,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log("Signed video URLs for FFMPEG merge:", signedVideoUrls);
+      console.log("Full song audio URL for merge:", audioUrl);
       
       let finalVideo;
       let savedFinalVideoUrl: string;
       try {
-        finalVideo = await mergeVideos(signedVideoUrls);
+        finalVideo = await mergeVideos(signedVideoUrls, audioUrl);
         console.log("Final video merge successful:", finalVideo.download_url);
         
         // Try to save the final video to object storage
