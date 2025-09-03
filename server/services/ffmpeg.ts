@@ -111,6 +111,12 @@ export async function mergeVideos(videoUrls: string[], audioUrl?: string): Promi
 
     const result = await response.json();
     
+    console.log("=== FFMPEG MERGE RESPONSE ===");
+    console.log("Raw response:", JSON.stringify(result, null, 2));
+    console.log("Response success field:", result.success);
+    console.log("Response download_url field:", result.download_url);
+    console.log("Response filename field:", result.filename);
+    
     if (!result.success) {
       throw new Error(`Video merging failed: ${result.message || "Unknown error"}`);
     }

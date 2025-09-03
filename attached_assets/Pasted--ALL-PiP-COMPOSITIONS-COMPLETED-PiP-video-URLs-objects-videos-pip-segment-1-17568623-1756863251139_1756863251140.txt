@@ -1,0 +1,81 @@
+=== ALL PiP COMPOSITIONS COMPLETED ===
+PiP video URLs: [
+  '/objects/videos/pip_segment_1_1756862300130.mp4',
+  '/objects/videos/pip_segment_2_1756862305448.mp4',
+  '/objects/videos/pip_segment_3_1756862310651.mp4'
+]
+
+=== STARTING FINAL VIDEO MERGE ===
+Number of PiP videos to merge: 3
+PiP video URLs to merge: [
+  '/objects/videos/pip_segment_1_1756862300130.mp4',
+  '/objects/videos/pip_segment_2_1756862305448.mp4',
+  '/objects/videos/pip_segment_3_1756862310651.mp4'
+]
+Generated signed URL for /objects/videos/pip_segment_1_1756862300130.mp4: https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/videos/pip_segment_1_1756862300130.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20250903%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250903T011832Z&X-Goog-Expires=7199&X-Goog-Signature=7f6d1007fb31de62da3ce83bf21002e0009efa7e21f12c93ca1c8d71404ae8cb8ba4d41af2df0a1b53253cc49d682b51de075a102759cafb265a294e4dd3403dfbb444786e98a30a000d2356169fc388394bf70364944355c15114ba9808ce3ba60befdca763e6846fc1039e9623fd13cf767fe4c9ee7e5ac17d7402e9e587307b8cc2c76ec85f594d4560997d1ce39121df9ffba54d6aa5b545deba375abd2d7b8898942285c3bd814fac82249810e33474fb530b54736fe757cba1ef7e72a654e81d4fcad6dcf284ab242eb33f69c17a6edea6ee7c112233e5175d7e69e4cb1d845533138780036a776aed56a7fa5c6c22900a3db085fc664eb45e78957e00&X-Goog-SignedHeaders=host
+Generated signed URL for /objects/videos/pip_segment_2_1756862305448.mp4: https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/videos/pip_segment_2_1756862305448.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20250903%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250903T011832Z&X-Goog-Expires=7199&X-Goog-Signature=27242358b75f3a844f89f0a6168b4c962b9f9b17619dc0c8af5bf9129c798e8313ad07bd073151752fd4fedd1f6284718e220dc4d6139df923dfd58680e0848e69e5e741edc6e99a33af63eaedfa4533f0fa9c3a836a6df4f59792b83198d4effa04704d63a64a9a51d368cc31576a3176ee572d3f6cd0ffd53df321243317d05f3aec2ca9a84f9833c9341b2c91eaed23a184b1863f1474e0450888eedcf5eb57f73c47cc6b8b1ca0dc1bf5d83ecda00ef0a8d7a86fad03658518fe133ca9b95ddcdd42acf01890d05d50239f1ee6f0de4f751b7c0de590c705cf415dcc337449a185eb4522c3c4e99806f14f716829e4322c9460a6871f7320d5767f9d55f4&X-Goog-SignedHeaders=host
+Generated signed URL for /objects/videos/pip_segment_3_1756862310651.mp4: https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/videos/pip_segment_3_1756862310651.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20250903%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250903T011832Z&X-Goog-Expires=7199&X-Goog-Signature=aaf6d9cc0cb8f780090b7d327d328829e19217243cab6bda69687064ece29ecd87fd21c3511742b31073ed756f6c46145e8e4829b65fc7d0ce1e0227003a111dc36ee9f5daa9f886b50f4f0153848792e1b41353cc17f01b51f1814dfa0a6df5c49507570ea7b2096d35406954766bdf5b653ba28f046c7fac656d212a3ba416353efe733f13ac49cfab12eedd79c516ed4e4b2c6629d97955aa3446bbfc7eaaa203f547677caca1bce6e75cd05642326366e0afa124e3101f96f887e247f80380dc02386283b3908c28b38d23dc653d65aadac122b77a6e498b7ffb16d6057b81c7e2beb3fa6c27e0e92acd528d9a4cbbd48ba06721afabf0b357375025256a&X-Goog-SignedHeaders=host
+Signed video URLs for FFMPEG merge: [
+  'https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/videos/pip_segment_1_1756862300130.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20250903%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250903T011832Z&X-Goog-Expires=7199&X-Goog-Signature=7f6d1007fb31de62da3ce83bf21002e0009efa7e21f12c93ca1c8d71404ae8cb8ba4d41af2df0a1b53253cc49d682b51de075a102759cafb265a294e4dd3403dfbb444786e98a30a000d2356169fc388394bf70364944355c15114ba9808ce3ba60befdca763e6846fc1039e9623fd13cf767fe4c9ee7e5ac17d7402e9e587307b8cc2c76ec85f594d4560997d1ce39121df9ffba54d6aa5b545deba375abd2d7b8898942285c3bd814fac82249810e33474fb530b54736fe757cba1ef7e72a654e81d4fcad6dcf284ab242eb33f69c17a6edea6ee7c112233e5175d7e69e4cb1d845533138780036a776aed56a7fa5c6c22900a3db085fc664eb45e78957e00&X-Goog-SignedHeaders=host',
+  'https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/videos/pip_segment_2_1756862305448.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20250903%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250903T011832Z&X-Goog-Expires=7199&X-Goog-Signature=27242358b75f3a844f89f0a6168b4c962b9f9b17619dc0c8af5bf9129c798e8313ad07bd073151752fd4fedd1f6284718e220dc4d6139df923dfd58680e0848e69e5e741edc6e99a33af63eaedfa4533f0fa9c3a836a6df4f59792b83198d4effa04704d63a64a9a51d368cc31576a3176ee572d3f6cd0ffd53df321243317d05f3aec2ca9a84f9833c9341b2c91eaed23a184b1863f1474e0450888eedcf5eb57f73c47cc6b8b1ca0dc1bf5d83ecda00ef0a8d7a86fad03658518fe133ca9b95ddcdd42acf01890d05d50239f1ee6f0de4f751b7c0de590c705cf415dcc337449a185eb4522c3c4e99806f14f716829e4322c9460a6871f7320d5767f9d55f4&X-Goog-SignedHeaders=host',
+  'https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/videos/pip_segment_3_1756862310651.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20250903%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250903T011832Z&X-Goog-Expires=7199&X-Goog-Signature=aaf6d9cc0cb8f780090b7d327d328829e19217243cab6bda69687064ece29ecd87fd21c3511742b31073ed756f6c46145e8e4829b65fc7d0ce1e0227003a111dc36ee9f5daa9f886b50f4f0153848792e1b41353cc17f01b51f1814dfa0a6df5c49507570ea7b2096d35406954766bdf5b653ba28f046c7fac656d212a3ba416353efe733f13ac49cfab12eedd79c516ed4e4b2c6629d97955aa3446bbfc7eaaa203f547677caca1bce6e75cd05642326366e0afa124e3101f96f887e247f80380dc02386283b3908c28b38d23dc653d65aadac122b77a6e498b7ffb16d6057b81c7e2beb3fa6c27e0e92acd528d9a4cbbd48ba06721afabf0b357375025256a&X-Goog-SignedHeaders=host'
+]
+Full song audio URL for merge: https://046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev/objects/songs/aac9bb65-493e-4b3f-8d02-217451243738.mp3
+=== FFMPEG MERGE VIDEOS REQUEST ===
+Endpoint: https://ffmpegapi.net/api/merge_videos
+Number of videos to merge: 3
+Audio URL (full song): https://046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev/objects/songs/aac9bb65-493e-4b3f-8d02-217451243738.mp3
+Request body: {
+  "video_urls": [
+    "https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/videos/pip_segment_1_1756862300130.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20250903%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250903T011832Z&X-Goog-Expires=7199&X-Goog-Signature=7f6d1007fb31de62da3ce83bf21002e0009efa7e21f12c93ca1c8d71404ae8cb8ba4d41af2df0a1b53253cc49d682b51de075a102759cafb265a294e4dd3403dfbb444786e98a30a000d2356169fc388394bf70364944355c15114ba9808ce3ba60befdca763e6846fc1039e9623fd13cf767fe4c9ee7e5ac17d7402e9e587307b8cc2c76ec85f594d4560997d1ce39121df9ffba54d6aa5b545deba375abd2d7b8898942285c3bd814fac82249810e33474fb530b54736fe757cba1ef7e72a654e81d4fcad6dcf284ab242eb33f69c17a6edea6ee7c112233e5175d7e69e4cb1d845533138780036a776aed56a7fa5c6c22900a3db085fc664eb45e78957e00&X-Goog-SignedHeaders=host",
+    "https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/videos/pip_segment_2_1756862305448.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20250903%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250903T011832Z&X-Goog-Expires=7199&X-Goog-Signature=27242358b75f3a844f89f0a6168b4c962b9f9b17619dc0c8af5bf9129c798e8313ad07bd073151752fd4fedd1f6284718e220dc4d6139df923dfd58680e0848e69e5e741edc6e99a33af63eaedfa4533f0fa9c3a836a6df4f59792b83198d4effa04704d63a64a9a51d368cc31576a3176ee572d3f6cd0ffd53df321243317d05f3aec2ca9a84f9833c9341b2c91eaed23a184b1863f1474e0450888eedcf5eb57f73c47cc6b8b1ca0dc1bf5d83ecda00ef0a8d7a86fad03658518fe133ca9b95ddcdd42acf01890d05d50239f1ee6f0de4f751b7c0de590c705cf415dcc337449a185eb4522c3c4e99806f14f716829e4322c9460a6871f7320d5767f9d55f4&X-Goog-SignedHeaders=host",
+    "https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/videos/pip_segment_3_1756862310651.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20250903%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250903T011832Z&X-Goog-Expires=7199&X-Goog-Signature=aaf6d9cc0cb8f780090b7d327d328829e19217243cab6bda69687064ece29ecd87fd21c3511742b31073ed756f6c46145e8e4829b65fc7d0ce1e0227003a111dc36ee9f5daa9f886b50f4f0153848792e1b41353cc17f01b51f1814dfa0a6df5c49507570ea7b2096d35406954766bdf5b653ba28f046c7fac656d212a3ba416353efe733f13ac49cfab12eedd79c516ed4e4b2c6629d97955aa3446bbfc7eaaa203f547677caca1bce6e75cd05642326366e0afa124e3101f96f887e247f80380dc02386283b3908c28b38d23dc653d65aadac122b77a6e498b7ffb16d6057b81c7e2beb3fa6c27e0e92acd528d9a4cbbd48ba06721afabf0b357375025256a&X-Goog-SignedHeaders=host"
+  ],
+  "async": true,
+  "audio_url": "https://046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev/objects/songs/aac9bb65-493e-4b3f-8d02-217451243738.mp3"
+}
+Final video merge successful: undefined
+Saving final video to object storage...
+Downloading video from URL: undefined
+Download attempt 1 failed with error: TypeError: Invalid URL
+    at new URL (node:internal/url:806:29)
+    at new Request (file:///home/runner/workspace/node_modules/node-fetch/src/request.js:55:16)
+    at file:///home/runner/workspace/node_modules/node-fetch/src/index.js:51:19
+    at new Promise (<anonymous>)
+    at fetch (file:///home/runner/workspace/node_modules/node-fetch/src/index.js:49:9)
+    at ObjectStorageService.uploadVideoFromUrl (/home/runner/workspace/server/objectStorage.ts:213:28)
+    at <anonymous> (/home/runner/workspace/server/routes.ts:1381:59)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5) {
+  code: 'ERR_INVALID_URL',
+  input: 'undefined'
+}
+Download attempt 2 failed with error: TypeError: Invalid URL
+    at new URL (node:internal/url:806:29)
+    at new Request (file:///home/runner/workspace/node_modules/node-fetch/src/request.js:55:16)
+    at file:///home/runner/workspace/node_modules/node-fetch/src/index.js:51:19
+    at new Promise (<anonymous>)
+    at fetch (file:///home/runner/workspace/node_modules/node-fetch/src/index.js:49:9)
+    at ObjectStorageService.uploadVideoFromUrl (/home/runner/workspace/server/objectStorage.ts:213:28)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:1381:32) {
+  code: 'ERR_INVALID_URL',
+  input: 'undefined'
+}
+Download attempt 3 failed with error: TypeError: Invalid URL
+    at new URL (node:internal/url:806:29)
+    at new Request (file:///home/runner/workspace/node_modules/node-fetch/src/request.js:55:16)
+    at file:///home/runner/workspace/node_modules/node-fetch/src/index.js:51:19
+    at new Promise (<anonymous>)
+    at fetch (file:///home/runner/workspace/node_modules/node-fetch/src/index.js:49:9)
+    at ObjectStorageService.uploadVideoFromUrl (/home/runner/workspace/server/objectStorage.ts:213:28)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:1381:32) {
+  code: 'ERR_INVALID_URL',
+  input: 'undefined'
+}
+Error uploading video to storage: Error: Failed to download video after 3 attempts: Invalid URL
+    at ObjectStorageService.uploadVideoFromUrl (/home/runner/workspace/server/objectStorage.ts:225:19)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:1381:32)
+Failed to save video to object storage, using temporary URL: Error: Failed to download video after 3 attempts: Invalid URL
+    at ObjectStorageService.uploadVideoFromUrl (/home/runner/workspace/server/objectStorage.ts:225:19)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:1381:32)
+1:18:38 AM [express] POST /api/projects/7da4b94b-12b9-4b11-a935-d4efbcf0d337/generate-video 200 in 1…
+1:18:38 AM [express] GET /api/projects/7da4b94b-12b9-4b11-a935-d4efbcf0d337 200 in 138ms
