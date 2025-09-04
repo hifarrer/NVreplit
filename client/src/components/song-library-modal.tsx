@@ -53,6 +53,12 @@ export function SongLibraryModal({ isOpen, onClose, onSelectSong }: SongLibraryM
     enabled: isOpen,
   });
 
+  // Debug: log songs data to see what we're getting
+  console.log("Songs data in modal:", songs);
+  songs.forEach(song => {
+    console.log(`Song ${song.id} - has lyrics:`, !!song.audioLyrics, "lyrics content:", song.audioLyrics?.substring(0, 50));
+  });
+
   const handleSelectSong = () => {
     const selectedSong = songs.find(s => s.id === selectedSongId);
     if (selectedSong) {
@@ -168,7 +174,7 @@ export function SongLibraryModal({ isOpen, onClose, onSelectSong }: SongLibraryM
                         >
                           {playingSongId === song.id ? 'Stop' : 'Preview'}
                         </Button>
-                        {song.audioLyrics && (
+                        {song.audioLyrics && song.audioLyrics.trim() !== '' && (
                           <Button
                             size="sm"
                             variant="outline"
