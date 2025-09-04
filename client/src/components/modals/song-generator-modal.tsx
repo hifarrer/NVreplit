@@ -173,10 +173,9 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
                   max={120}
                   min={30}
                   step={30}
-                  defaultValue={[60]}
                   className="w-full"
                   data-testid="duration-slider"
-                  key="duration-slider"
+                  key={`duration-slider-${isOpen}`}
                 />
               </div>
               <div className="flex justify-between text-xs text-muted-foreground px-1">
