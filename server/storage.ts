@@ -578,6 +578,12 @@ export class DbStorage implements IStorage {
         .from(videoGenerationConfig)
         .orderBy(asc(videoGenerationConfig.videoDurationSeconds));
       
+      // If database is completely empty, use fallback configs
+      if (allConfigs.length === 0) {
+        console.warn('No video generation configs found in database, using fallback');
+        throw new Error('Database empty, triggering fallback');
+      }
+      
       // Find the appropriate config based on duration
       let selectedConfig = allConfigs[allConfigs.length - 1]; // Default to largest config
       for (const config of allConfigs) {
@@ -645,16 +651,50 @@ export class DbStorage implements IStorage {
       .returning();
     return result[0] || undefined;
   }
+
+  async initializeVideoGenerationConfigs(): Promise<void> {
+    try {
+      // Check if configs already exist
+      const existingConfigs = await this.db.select()
+        .from(videoGenerationConfig)
+        .limit(1);
+
+      if (existingConfigs.length > 0) {
+        console.log('Video generation configs already exist, skipping initialization');
+        return;
+      }
+
+      console.log('Initializing default video generation configurations...');
+      
+      // Insert default configurations
+      const defaultConfigs = [
+        { videoDurationSeconds: 30, numberOfAudioParts: 3, numberOfScenesCreated: 3, numberOfVideosRegularApi: 2, numberOfVideosLipsync: 1 },
+        { videoDurationSeconds: 60, numberOfAudioParts: 6, numberOfScenesCreated: 6, numberOfVideosRegularApi: 3, numberOfVideosLipsync: 3 },
+        { videoDurationSeconds: 90, numberOfAudioParts: 9, numberOfScenesCreated: 9, numberOfVideosRegularApi: 5, numberOfVideosLipsync: 4 },
+        { videoDurationSeconds: 120, numberOfAudioParts: 12, numberOfScenesCreated: 12, numberOfVideosRegularApi: 6, numberOfVideosLipsync: 6 }
+      ];
+
+      await this.db.insert(videoGenerationConfig).values(defaultConfigs);
+      console.log('✅ Default video generation configurations initialized successfully');
+    } catch (error) {
+      console.warn('Failed to initialize video generation configs:', error);
+    }
+  }
 }
 
 // Use database storage if DATABASE_URL is available, otherwise fallback to memory storage
 let storage: IStorage;
 
+// Initialize storage synchronously first, then async initialize configs
 try {
   // Use database storage if PostgreSQL environment variables are available
   if (process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD && process.env.PGDATABASE) {
     storage = new DbStorage();
     console.log("Using database storage");
+    // Initialize video generation configs asynchronously
+    (storage as DbStorage).initializeVideoGenerationConfigs().catch(error => {
+      console.warn("Failed to initialize video generation configs:", error);
+    });
   } else {
     storage = new MemStorage();
     console.log("Using memory storage");
