@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import logoImage from "@assets/neonlogo_1756693857051.png";
@@ -23,10 +23,26 @@ export default function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
 
-  // Predefined avatar options (20 total)
-  const avatarOptions = Array.from({ length: 20 }, (_, i) => 
-    `/public-objects/avatars/avatar${i + 1}.png`
-  );
+  // Get avatar options from API (handles production URLs)
+  const { data: avatarData } = useQuery<{ avatarOptions: Array<{ id: number; url: string; localUrl: string }> }>({
+    queryKey: ["/api/avatar-options"],
+    staleTime: 5 * 60 * 1000, // 5 minutes - avatars don't change often
+  });
+  
+  const avatarOptions = avatarData?.avatarOptions || Array.from({ length: 20 }, (_, i) => ({
+    id: i + 1,
+    url: `/public-objects/public/avatars/avatar${i + 1}.png`,
+    localUrl: `/public-objects/public/avatars/avatar${i + 1}.png`
+  }));
+
+  // Helper function to get display URL for user's current avatar
+  const getDisplayAvatarUrl = (storedUrl: string | null | undefined): string | null => {
+    if (!storedUrl) return null;
+    
+    // Find matching avatar option to get production-safe URL
+    const matchingAvatar = avatarOptions.find(avatar => avatar.localUrl === storedUrl);
+    return matchingAvatar?.url || storedUrl;
+  };
 
   const updateAvatarMutation = useMutation({
     mutationFn: async (avatarUrl: string) => {
@@ -249,7 +265,7 @@ export default function ProfilePage() {
                     <Avatar className="h-20 w-20">
                       {user?.avatarUrl ? (
                         <AvatarImage 
-                          src={user.avatarUrl} 
+                          src={getDisplayAvatarUrl(user.avatarUrl) || user.avatarUrl} 
                           alt={user.username}
                           data-testid="current-avatar-image"
                         />
@@ -271,28 +287,28 @@ export default function ProfilePage() {
                   <div>
                     <Label className="text-sm font-medium">Choose New Avatar</Label>
                     <div className="grid grid-cols-10 gap-2 mt-2">
-                      {avatarOptions.map((avatarUrl, index) => (
+                      {avatarOptions.map((avatar, index) => (
                         <button
-                          key={index}
-                          onClick={() => handleAvatarSelect(avatarUrl)}
+                          key={avatar.id}
+                          onClick={() => handleAvatarSelect(avatar.localUrl)} // Use localUrl for database storage
                           disabled={updateAvatarMutation.isPending}
                           className={`relative h-12 w-12 rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
-                            user?.avatarUrl === avatarUrl 
+                            user?.avatarUrl === avatar.localUrl 
                               ? "border-primary ring-2 ring-primary/20" 
                               : "border-border hover:border-primary/50"
                           }`}
-                          data-testid={`avatar-option-${index + 1}`}
+                          data-testid={`avatar-option-${avatar.id}`}
                         >
                           <img
-                            src={avatarUrl}
-                            alt={`Avatar option ${index + 1}`}
+                            src={avatar.url} // Use production-safe URL for display
+                            alt={`Avatar option ${avatar.id}`}
                             className="h-full w-full object-cover"
                             onError={(e) => {
                               // Hide broken images
                               (e.target as HTMLElement).style.display = 'none';
                             }}
                           />
-                          {user?.avatarUrl === avatarUrl && (
+                          {user?.avatarUrl === avatar.localUrl && (
                             <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
                               <div className="h-2 w-2 bg-primary rounded-full" />
                             </div>

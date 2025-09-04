@@ -307,6 +307,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get avatar options with production-safe URLs
+  app.get("/api/avatar-options", authenticateToken, async (req, res) => {
+    try {
+      const avatarOptions = [];
+      
+      if (process.env.NODE_ENV === 'production') {
+        // In production, generate signed URLs for avatar images
+        const objectStorageService = new ObjectStorageService();
+        
+        for (let i = 1; i <= 20; i++) {
+          try {
+            const avatarFile = await objectStorageService.searchPublicObject(`public/avatars/avatar${i}.png`);
+            if (avatarFile) {
+              const signedUrl = await avatarFile.getSignedUrl({
+                action: 'read',
+                expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+              });
+              avatarOptions.push({
+                id: i,
+                url: signedUrl[0],
+                localUrl: `/public-objects/public/avatars/avatar${i}.png` // Store both for reference
+              });
+            }
+          } catch (error) {
+            console.warn(`Failed to get avatar ${i}:`, error);
+          }
+        }
+      } else {
+        // In development, use local URLs
+        for (let i = 1; i <= 20; i++) {
+          avatarOptions.push({
+            id: i,
+            url: `/public-objects/public/avatars/avatar${i}.png`,
+            localUrl: `/public-objects/public/avatars/avatar${i}.png`
+          });
+        }
+      }
+      
+      res.json({ avatarOptions });
+    } catch (error) {
+      console.error("Error getting avatar options:", error);
+      res.status(500).json({ error: "Failed to get avatar options" });
+    }
+  });
+
 
   // Serve public objects (like avatars)
   app.get("/public-objects/:filePath(*)", async (req, res) => {
