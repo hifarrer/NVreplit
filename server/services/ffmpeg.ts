@@ -4,60 +4,12 @@ const FFMPEG_API_KEY = process.env.FFMPEG_API_KEY || "ffmpeg_KfTAf98EY9OCuriwBtL
 export async function getWatermarkUrl(): Promise<string | null> {
   try {
     if (process.env.NODE_ENV === 'production') {
-      // In production, we need to use a signed URL from object storage
-      const { ObjectStorageService } = await import('../objectStorage.js');
-      const objectStorageService = new ObjectStorageService();
-      
-      try {
-        // Search for the watermark in public storage
-        const watermarkFile = await objectStorageService.searchPublicObject('neonlogo_watermark.png');
-        if (watermarkFile) {
-          // Generate a signed URL that's accessible to external APIs
-          const signedUrl = await watermarkFile.getSignedUrl({
-            action: 'read',
-            expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours - longer expiration
-          });
-          console.log("Generated signed watermark URL for production:", signedUrl[0]);
-          
-          // Test the signed URL to make sure it's accessible
-          try {
-            const testResponse = await fetch(signedUrl[0], { method: 'HEAD' });
-            if (testResponse.ok) {
-              console.log("Signed watermark URL verified successfully");
-              return signedUrl[0];
-            } else {
-              console.warn("Signed watermark URL test failed:", testResponse.status);
-            }
-          } catch (testError) {
-            console.warn("Failed to test signed watermark URL:", testError);
-          }
-        } else {
-          console.log("Watermark file not found in object storage");
-        }
-      } catch (storageError) {
-        console.warn("Failed to get signed watermark URL:", storageError);
-      }
-      
-      // Fallback: try the public endpoint
+      // In production, always use the public endpoint with SVG fallback
       const baseUrl = `https://${process.env.REPL_SLUG}--${process.env.REPL_OWNER}.replit.app`;
       const fallbackUrl = `${baseUrl}/public-objects/neonlogo_watermark.png`;
-      console.log("Using fallback watermark URL:", fallbackUrl);
+      console.log("Using production watermark URL:", fallbackUrl);
       
-      // Test the fallback URL too
-      try {
-        const fallbackResponse = await fetch(fallbackUrl, { method: 'HEAD' });
-        if (fallbackResponse.ok) {
-          console.log("Fallback watermark URL verified successfully");
-          return fallbackUrl;
-        } else {
-          console.warn("Fallback watermark URL test failed:", fallbackResponse.status);
-        }
-      } catch (testError) {
-        console.warn("Failed to test fallback watermark URL:", testError);
-      }
-      
-      // If all else fails, return the fallback URL anyway - our endpoint will provide an SVG
-      console.log("Returning fallback URL despite test failure - endpoint will provide SVG fallback");
+      // Always return this URL - our endpoint handles both real files and SVG fallbacks
       return fallbackUrl;
     } else {
       // In development, use the local public endpoint

@@ -366,12 +366,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/public-objects/:filePath(*)", async (req, res) => {
     try {
       const filePath = req.params.filePath;
-      const objectStorageService = new ObjectStorageService();
+      console.log(`Public object request: ${filePath}`);
       
-      // Try to find the file in object storage
-      const file = await objectStorageService.searchPublicObject(filePath);
-      if (file) {
-        return objectStorageService.downloadObject(file, res);
+      // Skip object storage search in production if it's causing auth issues
+      // Go straight to fallbacks for known file types
+      let shouldSearchObjectStorage = true;
+      
+      if (process.env.NODE_ENV === 'production') {
+        // In production, skip object storage search for watermark to avoid auth errors
+        if (filePath.includes('neonlogo_watermark.png')) {
+          shouldSearchObjectStorage = false;
+          console.log("Skipping object storage search for watermark in production - using SVG fallback");
+        }
+      }
+      
+      if (shouldSearchObjectStorage) {
+        try {
+          const objectStorageService = new ObjectStorageService();
+          
+          // Try to find the file in object storage
+          const file = await objectStorageService.searchPublicObject(filePath);
+          if (file) {
+            console.log(`Found file in object storage: ${filePath}`);
+            return objectStorageService.downloadObject(file, res);
+          } else {
+            console.log(`File not found in object storage: ${filePath}`);
+          }
+        } catch (storageError) {
+          console.warn(`Object storage search failed for ${filePath}:`, storageError);
+        }
       }
       
       // If it's an avatar request and file doesn't exist, provide a generic fallback

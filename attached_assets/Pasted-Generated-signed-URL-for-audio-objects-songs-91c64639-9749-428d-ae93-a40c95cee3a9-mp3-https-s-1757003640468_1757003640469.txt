@@ -1,0 +1,41 @@
+Generated signed URL for audio: /objects/songs/91c64639-9749-428d-ae93-a40c95cee3a9.mp3 -> https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/91c64639-9749-428d-ae93-a40c95cee3a9.mp3?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20250904%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250904T163342Z&X-Goog-Expires=7199&X-Goog-Signature=26339ad201bdbecf3855b52c8671fb94cc0c36c84d6ff4a47278da70184ecab8dc616f955d6e220315ec538a640f90a21d897cac7afd7dff63451667c8fa09f42192245335dbf33be5e13bbe7fe1054684471746c7d8c85a909aa0adbb4617b7814826b6564344a5307f89ff756f6e3721aa9542f5b6291e2bfc134a2a9f8bb33e605c50efbb457da26e6fb7c0f3af9ca187b51b25e4f8c046ee67aaf2a7f1d758da9e941aedb2c97cca18e2c1120d0b6586f3f63f879881b343456c8a1542b591b4eebffb2376cc767e0baf534f957d1770ba38dd989bada8fb784bd6e098dae2d26de78530aadb82134db254e6a814d80cfffa967830d20386b7f48e69e91b&X-Goog-SignedHeaders=host
+2025-09-04 11:33:42.69
+b3714276
+User
+Final audio URL for FFMPEG merge: https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/91c64639-9749-428d-ae93-a40c95cee3a9.mp3?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20250904%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250904T163342Z&X-Goog-Expires=7199&X-Goog-Signature=26339ad201bdbecf3855b52c8671fb94cc0c36c84d6ff4a47278da70184ecab8dc616f955d6e220315ec538a640f90a21d897cac7afd7dff63451667c8fa09f42192245335dbf33be5e13bbe7fe1054684471746c7d8c85a909aa0adbb4617b7814826b6564344a5307f89ff756f6e3721aa9542f5b6291e2bfc134a2a9f8bb33e605c50efbb457da26e6fb7c0f3af9ca187b51b25e4f8c046ee67aaf2a7f1d758da9e941aedb2c97cca18e2c1120d0b6586f3f63f879881b343456c8a1542b591b4eebffb2376cc767e0baf534f957d1770ba38dd989bada8fb784bd6e098dae2d26de78530aadb82134db254e6a814d80cfffa967830d20386b7f48e69e91b&X-Goog-SignedHeaders=host
+2025-09-04 11:33:42.69
+b3714276
+User
+Subtitle URL for FFMPEG merge: Not provided
+2025-09-04 11:33:42.72
+b3714276
+User
+Using fallback watermark URL: https://workspace--hiramromero33.replit.app/public-objects/neonlogo_watermark.png
+2025-09-04 11:33:42.72
+b3714276
+User
+Failed to get signed watermark URL: Error: Cannot sign data without `client_email`.
+2025-09-04 11:33:42.72
+b3714276
+User
+at GoogleAuth.sign (/home/runner/workspace/node_modules/google-auth-library/build/src/auth/googleauth.js:790:19)
+2025-09-04 11:33:42.72
+b3714276
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-09-04 11:33:42.72
+b3714276
+User
+at async sign (file:///home/runner/workspace/node_modules/@google-cloud/storage/build/esm/src/signer.js:113:35) {
+2025-09-04 11:33:42.72
+b3714276
+User
+name: 'SigningError'
+2025-09-04 11:33:42.72
+b3714276
+User
+}
+2025-09-04 11:33:42.75
+b3714276
+User
+Fallback watermark URL test failed: 404
