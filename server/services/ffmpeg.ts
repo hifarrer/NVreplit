@@ -2,37 +2,7 @@ const FFMPEG_API_KEY = process.env.FFMPEG_API_KEY || "ffmpeg_KfTAf98EY9OCuriwBtL
 
 // Helper function to get watermark URL from public storage
 export async function getWatermarkUrl(): Promise<string | null> {
-  try {
-    // Use a base64 data URL for the watermark - this is always accessible
-    // Create a simple PNG watermark as base64
-    const watermarkBase64 = "data:image/svg+xml;base64," + Buffer.from(`
-      <svg width="200" height="60" viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" style="stop-color:#ff00ff;stop-opacity:0.9" />
-            <stop offset="50%" style="stop-color:#00ffff;stop-opacity:0.9" />
-            <stop offset="100%" style="stop-color:#ff00ff;stop-opacity:0.9" />
-          </linearGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-            <feMerge> 
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-        </defs>
-        <rect width="200" height="60" fill="rgba(0,0,0,0.7)" rx="8"/>
-        <text x="100" y="35" font-family="Arial, sans-serif" font-size="18" font-weight="bold" 
-              text-anchor="middle" fill="url(#neonGrad)" filter="url(#glow)">NEONVIDEO.AI</text>
-      </svg>
-    `).toString('base64');
-    
-    console.log("Using base64 watermark - guaranteed to work with FFMPEG API");
-    return watermarkBase64;
-  } catch (error) {
-    console.error("Failed to generate watermark URL:", error);
-    return null;
-  }
+  return "https://notifications.nusong.ai/neonlogo.png";
 }
 
 export async function splitAudio(audioUrl: string, parts: number = 4): Promise<{ part: string; download_url: string }[]> {
