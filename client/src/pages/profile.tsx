@@ -29,11 +29,20 @@ export default function ProfilePage() {
     staleTime: 5 * 60 * 1000, // 5 minutes - avatars don't change often
   });
   
-  const avatarOptions = avatarData?.avatarOptions || Array.from({ length: 20 }, (_, i) => ({
-    id: i + 1,
-    url: `/public-objects/public/avatars/avatar${i + 1}.png`,
-    localUrl: `/public-objects/public/avatars/avatar${i + 1}.png`
-  }));
+  const avatarOptions = avatarData?.avatarOptions || [
+    // Default anonymous avatar
+    {
+      id: 0,
+      url: `/public-objects/public/avatars/anonymous.png`,
+      localUrl: `/public-objects/public/avatars/anonymous.png`
+    },
+    // Numbered avatars 1-20
+    ...Array.from({ length: 20 }, (_, i) => ({
+      id: i + 1,
+      url: `/public-objects/public/avatars/avatar${i + 1}.png`,
+      localUrl: `/public-objects/public/avatars/avatar${i + 1}.png`
+    }))
+  ];
 
   // Helper function to get display URL for user's current avatar
   const getDisplayAvatarUrl = (storedUrl: string | null | undefined): string | null => {

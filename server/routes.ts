@@ -95,7 +95,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         username,
         email,
         password: hashedPassword,
-        avatarUrl: "/public-objects/avatars/anonymous.png"
+        avatarUrl: "/public-objects/public/avatars/anonymous.png"
       });
       
       // Generate JWT token
@@ -316,6 +316,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // In production, generate signed URLs for avatar images
         const objectStorageService = new ObjectStorageService();
         
+        // Add anonymous avatar (default for new users)
+        try {
+          const anonymousFile = await objectStorageService.searchPublicObject('public/avatars/anonymous.png');
+          if (anonymousFile) {
+            const signedUrl = await anonymousFile.getSignedUrl({
+              action: 'read',
+              expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+            });
+            avatarOptions.push({
+              id: 0,
+              url: signedUrl[0],
+              localUrl: `/public-objects/public/avatars/anonymous.png`
+            });
+          }
+        } catch (error) {
+          console.warn('Failed to get anonymous avatar:', error);
+        }
+        
         for (let i = 1; i <= 20; i++) {
           try {
             const avatarFile = await objectStorageService.searchPublicObject(`public/avatars/avatar${i}.png`);
@@ -336,6 +354,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } else {
         // In development, use local URLs
+        // Add anonymous avatar (default for new users)
+        avatarOptions.push({
+          id: 0,
+          url: `/public-objects/public/avatars/anonymous.png`,
+          localUrl: `/public-objects/public/avatars/anonymous.png`
+        });
+        
         for (let i = 1; i <= 20; i++) {
           avatarOptions.push({
             id: i,
