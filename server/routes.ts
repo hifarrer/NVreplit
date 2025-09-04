@@ -312,63 +312,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const avatarOptions = [];
       
+      // Always use fallback URLs for avatars since the actual files may not exist in object storage
+      // This ensures avatars display consistently in both development and production
+      
+      // Add anonymous avatar (default for new users)
+      avatarOptions.push({
+        id: 0,
+        url: `/public-objects/public/avatars/anonymous.png`,
+        localUrl: `/public-objects/public/avatars/anonymous.png`
+      });
+      
+      for (let i = 1; i <= 20; i++) {
+        avatarOptions.push({
+          id: i,
+          url: `/public-objects/public/avatars/avatar${i}.png`,
+          localUrl: `/public-objects/public/avatars/avatar${i}.png`
+        });
+      }
+      
       if (process.env.NODE_ENV === 'production') {
-        // In production, generate signed URLs for avatar images
+        // In production, try to enhance with signed URLs if files exist, but don't fail if they don't
         const objectStorageService = new ObjectStorageService();
         
-        // Add anonymous avatar (default for new users)
-        try {
-          const anonymousFile = await objectStorageService.searchPublicObject('public/avatars/anonymous.png');
-          if (anonymousFile) {
-            const signedUrl = await anonymousFile.getSignedUrl({
-              action: 'read',
-              expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-            });
-            avatarOptions.push({
-              id: 0,
-              url: signedUrl[0],
-              localUrl: `/public-objects/public/avatars/anonymous.png`
-            });
-          }
-        } catch (error) {
-          console.warn('Failed to get anonymous avatar:', error);
-        }
-        
-        for (let i = 1; i <= 20; i++) {
+        // Try to get signed URLs for existing files, but keep fallbacks
+        for (let option of avatarOptions) {
           try {
-            const avatarFile = await objectStorageService.searchPublicObject(`public/avatars/avatar${i}.png`);
+            const fileName = option.id === 0 ? 'avatars/anonymous.png' : `avatars/avatar${option.id}.png`;
+            const avatarFile = await objectStorageService.searchPublicObject(fileName);
             if (avatarFile) {
               const signedUrl = await avatarFile.getSignedUrl({
                 action: 'read',
                 expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
               });
-              avatarOptions.push({
-                id: i,
-                url: signedUrl[0],
-                localUrl: `/public-objects/public/avatars/avatar${i}.png` // Store both for reference
-              });
+              option.url = signedUrl[0]; // Update with signed URL, keep fallback as localUrl
             }
           } catch (error) {
-            console.warn(`Failed to get avatar ${i}:`, error);
+            // Keep the fallback URL if signed URL generation fails
+            console.log(`Using fallback URL for avatar ${option.id}`);
           }
         }
-      } else {
-        // In development, use local URLs
-        // Add anonymous avatar (default for new users)
-        avatarOptions.push({
-          id: 0,
-          url: `/public-objects/public/avatars/anonymous.png`,
-          localUrl: `/public-objects/public/avatars/anonymous.png`
-        });
-        
-        for (let i = 1; i <= 20; i++) {
-          avatarOptions.push({
-            id: i,
-            url: `/public-objects/public/avatars/avatar${i}.png`,
-            localUrl: `/public-objects/public/avatars/avatar${i}.png`
-          });
-        }
       }
+      // Development and production now use the same avatar array structure
       
       res.json({ avatarOptions });
     } catch (error) {
@@ -383,11 +367,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const filePath = req.params.filePath;
       const objectStorageService = new ObjectStorageService();
+      
+      // Try to find the file in object storage
       const file = await objectStorageService.searchPublicObject(filePath);
-      if (!file) {
-        return res.status(404).json({ error: "File not found" });
+      if (file) {
+        return objectStorageService.downloadObject(file, res);
       }
-      objectStorageService.downloadObject(file, res);
+      
+      // If it's an avatar request and file doesn't exist, provide a generic fallback
+      if (filePath.includes('avatars/')) {
+        // Generate a simple SVG avatar as fallback
+        const avatarMatch = filePath.match(/avatar(\d+)\.png/);
+        const avatarId = avatarMatch ? avatarMatch[1] : '?';
+        const isAnonymous = filePath.includes('anonymous.png');
+        const displayText = isAnonymous ? '?' : avatarId;
+        
+        const svgContent = `
+        <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="grad" cx="50%" cy="30%" r="70%">
+              <stop offset="0%" style="stop-color:#6366f1;stop-opacity:0.8" />
+              <stop offset="100%" style="stop-color:#3730a3;stop-opacity:1" />
+            </radialGradient>
+          </defs>
+          <circle cx="32" cy="32" r="32" fill="url(#grad)"/>
+          <text x="32" y="40" font-family="Arial, sans-serif" font-size="24" font-weight="bold" 
+                text-anchor="middle" fill="white">${displayText}</text>
+        </svg>`;
+        
+        res.setHeader('Content-Type', 'image/svg+xml');
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+        return res.send(svgContent);
+      }
+      
+      // For non-avatar files, return 404
+      return res.status(404).json({ error: "File not found" });
     } catch (error) {
       console.error("Error searching for public object:", error);
       return res.status(500).json({ error: "Internal server error" });
