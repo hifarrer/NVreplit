@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +21,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Music, Calendar, Tag, Check, Trash2 } from "lucide-react";
+import { Music, Calendar, Tag, Check, Trash2, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -44,6 +45,7 @@ interface SongLibraryModalProps {
 export function SongLibraryModal({ isOpen, onClose, onSelectSong }: SongLibraryModalProps) {
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
+  const [expandedLyricsId, setExpandedLyricsId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { data: songs = [], isLoading } = useQuery<GeneratedSong[]>({
@@ -64,6 +66,14 @@ export function SongLibraryModal({ isOpen, onClose, onSelectSong }: SongLibraryM
       setPlayingSongId(null);
     } else {
       setPlayingSongId(songId);
+    }
+  };
+
+  const toggleLyrics = (songId: string) => {
+    if (expandedLyricsId === songId) {
+      setExpandedLyricsId(null);
+    } else {
+      setExpandedLyricsId(songId);
     }
   };
 
@@ -158,6 +168,20 @@ export function SongLibraryModal({ isOpen, onClose, onSelectSong }: SongLibraryM
                         >
                           {playingSongId === song.id ? 'Stop' : 'Preview'}
                         </Button>
+                        {song.audioLyrics && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleLyrics(song.id);
+                            }}
+                            data-testid={`button-lyrics-${song.id}`}
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            {expandedLyricsId === song.id ? 'Hide Lyrics' : 'Lyrics'}
+                          </Button>
+                        )}
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
@@ -200,6 +224,18 @@ export function SongLibraryModal({ isOpen, onClose, onSelectSong }: SongLibraryM
                         onClick={(e) => e.stopPropagation()}
                         data-testid={`audio-preview-${song.id}`}
                       />
+                    )}
+                    {expandedLyricsId === song.id && song.audioLyrics && (
+                      <div className="mt-3">
+                        <h4 className="text-sm font-medium mb-2 text-muted-foreground">Lyrics:</h4>
+                        <Textarea
+                          value={song.audioLyrics}
+                          readOnly
+                          className="min-h-32 max-h-48 resize-none bg-muted/30"
+                          onClick={(e) => e.stopPropagation()}
+                          data-testid={`lyrics-display-${song.id}`}
+                        />
+                      </div>
                     )}
                   </CardContent>
                 </Card>
