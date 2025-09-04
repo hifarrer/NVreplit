@@ -1401,13 +1401,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Add outro video to the end of the video list
+      // Add outro video to the end of the video list  
       const outroVideoUrl = '/public-objects/outro.mp4';
-      // Convert public object URL to full URL accessible by FFMPEG
-      const host = req.get('host') || 'localhost:5000';
-      const fullOutroVideoUrl = host.includes('localhost') ? `http://${host}${outroVideoUrl}` : `https://${host}${outroVideoUrl}`;
-      signedVideoUrls.push(fullOutroVideoUrl);
-      console.log("Added outro video to merge:", outroVideoUrl, "->", fullOutroVideoUrl);
+      try {
+        // Generate signed URL for the outro video to ensure external API access
+        const signedOutroUrl = await objectStorageService.getSignedUrlForPublicObject(outroVideoUrl, 7200); // 2 hours
+        signedVideoUrls.push(signedOutroUrl);
+        console.log("Added outro video to merge with signed URL:", outroVideoUrl, "->", signedOutroUrl);
+      } catch (error) {
+        console.error("Failed to generate signed URL for outro video:", error);
+        // Fallback to host-based URL for development
+        const host = req.get('host') || 'localhost:5000';
+        const fallbackOutroUrl = host.includes('localhost') ? `http://${host}${outroVideoUrl}` : `https://${host}${outroVideoUrl}`;
+        signedVideoUrls.push(fallbackOutroUrl);
+        console.log("Using fallback outro video URL:", outroVideoUrl, "->", fallbackOutroUrl);
+      }
       
       console.log("Signed video URLs for FFMPEG merge (including outro):", signedVideoUrls);
       

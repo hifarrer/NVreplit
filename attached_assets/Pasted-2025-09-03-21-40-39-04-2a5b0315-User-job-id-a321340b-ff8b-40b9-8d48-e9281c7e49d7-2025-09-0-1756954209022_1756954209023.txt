@@ -1,0 +1,104 @@
+2025-09-03 21:40:39.04
+2a5b0315
+User
+"job_id": "a321340b-ff8b-40b9-8d48-e9281c7e49d7",
+2025-09-03 21:40:39.04
+2a5b0315
+User
+"message": "Job submitted for async processing. Use /api/job/{job_id}/status to check progress.",
+2025-09-03 21:40:39.04
+2a5b0315
+User
+"status": "pending",
+2025-09-03 21:40:39.04
+2a5b0315
+User
+"status_url": "https://ffmpegapi.replit.app/api/job/a321340b-ff8b-40b9-8d48-e9281c7e49d7/status",
+2025-09-03 21:40:39.04
+2a5b0315
+User
+"success": true
+2025-09-03 21:40:39.04
+2a5b0315
+User
+}
+2025-09-03 21:40:39.04
+2a5b0315
+User
+Response success field: true
+2025-09-03 21:40:39.04
+2a5b0315
+User
+=== ASYNC PROCESSING DETECTED ===
+2025-09-03 21:40:39.04
+2a5b0315
+User
+Job ID: a321340b-ff8b-40b9-8d48-e9281c7e49d7
+2025-09-03 21:40:39.04
+2a5b0315
+User
+Status URL: https://ffmpegapi.replit.app/api/job/a321340b-ff8b-40b9-8d48-e9281c7e49d7/status
+2025-09-03 21:40:44.04
+2a5b0315
+User
+Polling attempt 1/60...
+2025-09-03 21:40:44.73
+2a5b0315
+User
+Job status: processing
+2025-09-03 21:40:49.73
+2a5b0315
+User
+Polling attempt 2/60...
+2025-09-03 21:40:50.44
+2a5b0315
+User
+Job status: processing
+2025-09-03 21:40:55.44
+2a5b0315
+User
+Polling attempt 3/60...
+2025-09-03 21:40:56.11
+2a5b0315
+User
+Job status: failed
+2025-09-03 21:40:56.11
+2a5b0315
+User
+Status polling error (attempt 3): Error: Async video merging failed: Unknown error
+2025-09-03 21:40:56.11
+2a5b0315
+User
+at mergeVideos (file:///home/runner/workspace/dist/index.js:2259:19)
+2025-09-03 21:40:56.11
+2a5b0315
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-09-03 21:40:56.11
+2a5b0315
+User
+at async file:///home/runner/workspace/dist/index.js:3474:22
+2025-09-03 21:41:01.11
+2a5b0315
+User
+Polling attempt 4/60...
+2025-09-03 21:41:01.77
+2a5b0315
+User
+Status polling error (attempt 4): Error: Async video merging failed: Unknown error
+2025-09-03 21:41:01.77
+2a5b0315
+User
+at mergeVideos (file:///home/runner/workspace/dist/index.js:2259:19)
+2025-09-03 21:41:01.77
+2a5b0315
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-09-03 21:41:01.77
+2a5b0315
+User
+at async file:///home/runner/workspace/dist/index.js:3474:22
+2025-09-03 21:41:01.77
+2a5b0315
+User
+Job status: failed

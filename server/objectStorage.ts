@@ -307,6 +307,30 @@ export class ObjectStorageService {
     });
   }
 
+  async getSignedUrlForPublicObject(publicObjectPath: string, ttlSec: number = 3600): Promise<string> {
+    // Convert public object path like "/public-objects/outro.mp4" to signed URL
+    if (!publicObjectPath.startsWith("/public-objects/")) {
+      throw new Error("Invalid public object path for signed URL generation");
+    }
+    
+    // Extract the file path after /public-objects/
+    const filePath = publicObjectPath.substring("/public-objects/".length);
+    
+    // Find the object using the search method
+    const file = await this.searchPublicObject(filePath);
+    if (!file) {
+      throw new Error(`Public object not found: ${publicObjectPath}`);
+    }
+    
+    // Generate signed URL directly from the file
+    return this.signObjectURL({
+      bucketName: file.bucket.name,
+      objectName: file.name,
+      method: "GET",
+      ttlSec
+    });
+  }
+
   async signObjectURL({
     bucketName,
     objectName,
