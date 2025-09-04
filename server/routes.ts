@@ -1403,8 +1403,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Add outro video to the end of the video list
       const outroVideoUrl = '/public-objects/outro.mp4';
-      signedVideoUrls.push(outroVideoUrl);
-      console.log("Added outro video to merge:", outroVideoUrl);
+      // Convert public object URL to full URL accessible by FFMPEG
+      const host = req.get('host') || 'localhost:5000';
+      const fullOutroVideoUrl = host.includes('localhost') ? `http://${host}${outroVideoUrl}` : `https://${host}${outroVideoUrl}`;
+      signedVideoUrls.push(fullOutroVideoUrl);
+      console.log("Added outro video to merge:", outroVideoUrl, "->", fullOutroVideoUrl);
       
       console.log("Signed video URLs for FFMPEG merge (including outro):", signedVideoUrls);
       
