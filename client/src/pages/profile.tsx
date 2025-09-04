@@ -24,9 +24,13 @@ export default function ProfilePage() {
   const [error, setError] = useState("");
 
   // Get avatar options from API (handles production URLs)
-  const { data: avatarData } = useQuery<{ avatarOptions: Array<{ id: number; url: string; localUrl: string }> }>({
+  const { data: avatarData, isLoading: avatarsLoading, error: avatarsError } = useQuery<{ avatarOptions: Array<{ id: number; url: string; localUrl: string }> }>({
     queryKey: ["/api/avatar-options"],
-    staleTime: 5 * 60 * 1000, // 5 minutes - avatars don't change often
+    staleTime: 2 * 60 * 1000, // 2 minutes - shorter to refresh signed URLs more often
+    retry: 2, // Retry failed requests
+    retryDelay: 500, // Shorter delay
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnMount: false, // Don't refetch on every mount
   });
   
   const avatarOptions = avatarData?.avatarOptions || [
@@ -295,39 +299,67 @@ export default function ProfilePage() {
                   {/* Avatar Selection Grid */}
                   <div>
                     <Label className="text-sm font-medium">Choose New Avatar</Label>
-                    <div className="grid grid-cols-10 gap-2 mt-2">
-                      {avatarOptions.map((avatar, index) => (
-                        <button
-                          key={avatar.id}
-                          onClick={() => handleAvatarSelect(avatar.localUrl)} // Use localUrl for database storage
-                          disabled={updateAvatarMutation.isPending}
-                          className={`relative h-12 w-12 rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
-                            user?.avatarUrl === avatar.localUrl 
-                              ? "border-primary ring-2 ring-primary/20" 
-                              : "border-border hover:border-primary/50"
-                          }`}
-                          data-testid={`avatar-option-${avatar.id}`}
-                        >
-                          <img
-                            src={avatar.url} // Use production-safe URL for display
-                            alt={`Avatar option ${avatar.id}`}
-                            className="h-full w-full object-cover"
-                            onError={(e) => {
-                              // Hide broken images
-                              (e.target as HTMLElement).style.display = 'none';
-                            }}
-                          />
-                          {user?.avatarUrl === avatar.localUrl && (
-                            <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
-                              <div className="h-2 w-2 bg-primary rounded-full" />
-                            </div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Click on any avatar to select it as your profile picture
-                    </p>
+                    
+                    {avatarsLoading && (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="text-sm text-muted-foreground">Loading avatar options...</div>
+                      </div>
+                    )}
+                    
+                    {avatarsError && (
+                      <Alert className="mt-2">
+                        <AlertDescription>
+                          Unable to load avatar options. Using default avatars.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    
+                    {!avatarsLoading && (
+                      <>
+                        <div className="grid grid-cols-10 gap-2 mt-2">
+                          {avatarOptions.map((avatar, index) => (
+                            <button
+                              key={avatar.id}
+                              onClick={() => handleAvatarSelect(avatar.localUrl)} // Use localUrl for database storage
+                              disabled={updateAvatarMutation.isPending}
+                              className={`relative h-12 w-12 rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
+                                user?.avatarUrl === avatar.localUrl 
+                                  ? "border-primary ring-2 ring-primary/20" 
+                                  : "border-border hover:border-primary/50"
+                              }`}
+                              data-testid={`avatar-option-${avatar.id}`}
+                            >
+                              <img
+                                src={avatar.url} // Use production-safe URL for display
+                                alt={`Avatar option ${avatar.id}`}
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  // If production URL fails, try fallback local URL
+                                  const img = e.target as HTMLImageElement;
+                                  if (img.src !== avatar.localUrl) {
+                                    console.warn(`Avatar ${avatar.id} failed to load from ${img.src}, trying fallback`);
+                                    img.src = avatar.localUrl;
+                                  } else {
+                                    // Both URLs failed, hide the image
+                                    img.style.display = 'none';
+                                  }
+                                }}
+                                loading="lazy" // Lazy load images for better performance
+                              />
+                              {user?.avatarUrl === avatar.localUrl && (
+                                <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+                                  <div className="h-2 w-2 bg-primary rounded-full" />
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Click on any avatar to select it as your profile picture
+                          {avatarsError && " (Using fallback avatars)"}
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               </CardContent>
