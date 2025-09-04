@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,6 +30,13 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
   const [progress, setProgress] = useState(0);
   const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Reset duration to 60 seconds when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setDuration([60]);
+    }
+  }, [isOpen]);
 
   const durationOptions = [30, 60, 90, 120];
   const getDurationLabel = (value: number) => {
