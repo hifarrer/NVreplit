@@ -86,7 +86,7 @@ export async function mergeVideos(videoUrls: string[], audioUrl?: string, subtit
   try {
     const requestBody: any = {
       video_urls: videoUrls,
-      async: true,
+      async: false,
     };
     
     // Add the full song audio URL if provided
