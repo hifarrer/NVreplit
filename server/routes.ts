@@ -1415,13 +1415,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.log("Final audio URL for FFMPEG merge:", finalAudioUrl);
       
-      // Get subtitle URL from project and convert to signed URL if needed
+      // Get subtitle URL from project
       let subtitleUrl: string | undefined;
       if (project.subtitleFileUrl) {
-        if (project.subtitleFileUrl.startsWith('/objects/')) {
-          // Internal object storage URL - convert to signed URL
+        if (project.subtitleFileUrl.startsWith('/public-objects/')) {
+          // Public object URL - convert to full URL accessible by FFMPEG
+          const host = req.get('host') || 'localhost:5000';
+          subtitleUrl = host.includes('localhost') ? `http://${host}${project.subtitleFileUrl}` : `https://${host}${project.subtitleFileUrl}`;
+          console.log("Generated public URL for subtitles:", project.subtitleFileUrl, "->", subtitleUrl);
+        } else if (project.subtitleFileUrl.startsWith('/objects/')) {
+          // Legacy private object URL - convert to signed URL (for backward compatibility)
           subtitleUrl = await objectStorageService.getSignedUrlForPath(project.subtitleFileUrl, 7200); // 2 hours
-          console.log("Generated signed URL for subtitles:", project.subtitleFileUrl, "->", subtitleUrl);
+          console.log("Generated signed URL for legacy subtitles:", project.subtitleFileUrl, "->", subtitleUrl);
         } else {
           // External URL - use as-is
           subtitleUrl = project.subtitleFileUrl;

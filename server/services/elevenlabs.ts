@@ -278,14 +278,19 @@ export async function storeElevenLabsSubtitleFile(
       "../objectStorage"
     );
     const objectStorageService = new ObjectStorageService();
-    const privateObjectDir = objectStorageService.getPrivateObjectDir();
+    const publicPaths = objectStorageService.getPublicObjectSearchPaths();
+
+    if (publicPaths.length === 0) {
+      throw new Error("No public object search paths configured");
+    }
 
     // Generate filename using song ID if available, otherwise random UUID
     const fileId = songId || randomUUID();
     const filename = `subtitles/${fileId}.ass`;
 
-    // Create full path in private directory
-    const fullPath = `${privateObjectDir}/${filename}`;
+    // Store in public directory so it's permanently accessible without signed URLs
+    const publicPath = publicPaths[0];
+    const fullPath = `${publicPath}/${filename}`;
 
     // Parse the path to get bucket and object name
     const { bucketName, objectName } = parseObjectPath(fullPath);
@@ -308,8 +313,8 @@ export async function storeElevenLabsSubtitleFile(
 
     console.log(`ElevenLabs subtitle file stored successfully at: ${fullPath}`);
 
-    // Return the stored URL that can be served via our API
-    const storedUrl = `/objects/${filename}`;
+    // Return the public URL that never expires
+    const storedUrl = `/public-objects/${filename}`;
 
     return storedUrl;
   } catch (error) {
