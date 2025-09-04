@@ -25,7 +25,7 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [lyrics, setLyrics] = useState("");
-  const [duration, setDuration] = useState([60]); // Default 60 seconds
+  const [duration, setDuration] = useState([60]); // Default 1 minute (60 seconds)
   const [addSubtitles, setAddSubtitles] = useState(false);
   const [progress, setProgress] = useState(0);
   const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(null);
@@ -173,8 +173,10 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
                   max={120}
                   min={30}
                   step={30}
+                  defaultValue={[60]}
                   className="w-full"
                   data-testid="duration-slider"
+                  key="duration-slider"
                 />
               </div>
               <div className="flex justify-between text-xs text-muted-foreground px-1">
