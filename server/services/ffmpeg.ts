@@ -15,10 +15,24 @@ export async function getWatermarkUrl(): Promise<string | null> {
           // Generate a signed URL that's accessible to external APIs
           const signedUrl = await watermarkFile.getSignedUrl({
             action: 'read',
-            expires: Date.now() + 2 * 60 * 60 * 1000, // 2 hours
+            expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours - longer expiration
           });
           console.log("Generated signed watermark URL for production:", signedUrl[0]);
-          return signedUrl[0];
+          
+          // Test the signed URL to make sure it's accessible
+          try {
+            const testResponse = await fetch(signedUrl[0], { method: 'HEAD' });
+            if (testResponse.ok) {
+              console.log("Signed watermark URL verified successfully");
+              return signedUrl[0];
+            } else {
+              console.warn("Signed watermark URL test failed:", testResponse.status);
+            }
+          } catch (testError) {
+            console.warn("Failed to test signed watermark URL:", testError);
+          }
+        } else {
+          console.log("Watermark file not found in object storage");
         }
       } catch (storageError) {
         console.warn("Failed to get signed watermark URL:", storageError);
@@ -28,6 +42,22 @@ export async function getWatermarkUrl(): Promise<string | null> {
       const baseUrl = `https://${process.env.REPL_SLUG}--${process.env.REPL_OWNER}.replit.app`;
       const fallbackUrl = `${baseUrl}/public-objects/neonlogo_watermark.png`;
       console.log("Using fallback watermark URL:", fallbackUrl);
+      
+      // Test the fallback URL too
+      try {
+        const fallbackResponse = await fetch(fallbackUrl, { method: 'HEAD' });
+        if (fallbackResponse.ok) {
+          console.log("Fallback watermark URL verified successfully");
+          return fallbackUrl;
+        } else {
+          console.warn("Fallback watermark URL test failed:", fallbackResponse.status);
+        }
+      } catch (testError) {
+        console.warn("Failed to test fallback watermark URL:", testError);
+      }
+      
+      // If all else fails, return the fallback URL anyway - our endpoint will provide an SVG
+      console.log("Returning fallback URL despite test failure - endpoint will provide SVG fallback");
       return fallbackUrl;
     } else {
       // In development, use the local public endpoint

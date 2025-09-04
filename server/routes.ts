@@ -400,6 +400,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.send(svgContent);
       }
       
+      // If it's a watermark request and file doesn't exist, provide a fallback watermark
+      if (filePath.includes('neonlogo_watermark.png')) {
+        // Generate a simple SVG watermark as fallback
+        const svgWatermark = `
+        <svg width="200" height="60" viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" style="stop-color:#ff00ff;stop-opacity:0.9" />
+              <stop offset="50%" style="stop-color:#00ffff;stop-opacity:0.9" />
+              <stop offset="100%" style="stop-color:#ff00ff;stop-opacity:0.9" />
+            </linearGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+              <feMerge> 
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          <rect width="200" height="60" fill="rgba(0,0,0,0.7)" rx="8"/>
+          <text x="100" y="35" font-family="Arial, sans-serif" font-size="18" font-weight="bold" 
+                text-anchor="middle" fill="url(#neonGrad)" filter="url(#glow)">NEONVIDEO.AI</text>
+        </svg>`;
+        
+        res.setHeader('Content-Type', 'image/svg+xml');
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+        return res.send(svgWatermark);
+      }
+      
       // For non-avatar files, return 404
       return res.status(404).json({ error: "File not found" });
     } catch (error) {
