@@ -1,5 +1,21 @@
 const FFMPEG_API_KEY = process.env.FFMPEG_API_KEY || "ffmpeg_KfTAf98EY9OCuriwBtLT34ZtWZLJtnXX";
 
+// Helper function to get watermark URL from public storage
+export async function getWatermarkUrl(): Promise<string | null> {
+  try {
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? `https://${process.env.REPL_SLUG}--${process.env.REPL_OWNER}.replit.app`
+      : 'http://localhost:5000';
+    
+    const watermarkUrl = `${baseUrl}/public-objects/neonlogo_watermark.png`;
+    console.log("Generated watermark URL:", watermarkUrl);
+    return watermarkUrl;
+  } catch (error) {
+    console.error("Failed to generate watermark URL:", error);
+    return null;
+  }
+}
+
 export async function splitAudio(audioUrl: string, parts: number = 4): Promise<{ part: string; download_url: string }[]> {
   try {
     console.log(`Splitting audio into ${parts} segments`);
@@ -77,7 +93,7 @@ export async function pictureInPicture(mainVideoUrl: string, pipVideoUrl: string
   }
 }
 
-export async function mergeVideos(videoUrls: string[], audioUrl?: string, subtitleUrl?: string): Promise<{ download_url: string; filename: string }> {
+export async function mergeVideos(videoUrls: string[], audioUrl?: string, subtitleUrl?: string, watermarkUrl?: string): Promise<{ download_url: string; filename: string }> {
   try {
     const requestBody: any = {
       video_urls: videoUrls,
@@ -94,11 +110,17 @@ export async function mergeVideos(videoUrls: string[], audioUrl?: string, subtit
       requestBody.subtitle_url = subtitleUrl;
     }
     
+    // Add watermark URL if provided
+    if (watermarkUrl) {
+      requestBody.watermark_url = watermarkUrl;
+    }
+    
     console.log("=== FFMPEG MERGE VIDEOS REQUEST ===");
     console.log("Endpoint: https://ffmpegapi.net/api/merge_videos");
     console.log("Number of videos to merge:", videoUrls.length);
     console.log("Audio URL (full song):", audioUrl || "Not provided");
     console.log("Subtitle URL (.ass file):", subtitleUrl || "Not provided");
+    console.log("Watermark URL:", watermarkUrl || "Not provided");
     console.log("Request body:", JSON.stringify(requestBody, null, 2));
     
     const response = await fetch("https://ffmpegapi.net/api/merge_videos", {

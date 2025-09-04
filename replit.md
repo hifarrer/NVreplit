@@ -43,7 +43,7 @@ Preferred communication style: Simple, everyday language.
 - **Text Generation**: OpenAI GPT-5 for lyrics and scene prompt generation
 - **Image Generation**: Fal.ai Imagen4 model for character and scene image creation
 - **Video Generation**: Wavespeed AI for converting images and audio into video segments
-- **Audio Processing**: FFMPEG API for splitting audio tracks and merging video segments
+- **Audio Processing**: FFMPEG API for splitting audio tracks and merging video segments with watermark branding
 - **Database**: Neon Database (PostgreSQL) for data persistence
 - **Deployment**: Replit-optimized with development tooling and error overlays
 

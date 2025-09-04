@@ -12,7 +12,7 @@ import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimes
 import { createForcedAlignment, convertElevenLabsAlignmentToASS, storeElevenLabsSubtitleFile } from "./services/elevenlabs";
 import { generateCharacterImage, generateCharacterImages, generateSceneImages, generateSingleSceneImage } from "./services/fal";
 import { generateAllVideoSegments, generateAllVideoSegmentsDynamic } from "./services/wavespeed";
-import { splitAudio, mergeVideos, pictureInPicture } from "./services/ffmpeg";
+import { splitAudio, mergeVideos, pictureInPicture, getWatermarkUrl } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import bcrypt from "bcryptjs";
@@ -1453,7 +1453,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let finalVideo;
       let savedFinalVideoUrl: string;
       try {
-        finalVideo = await mergeVideos(signedVideoUrls, finalAudioUrl, subtitleUrl);
+        // Get watermark URL for branding
+        const watermarkUrl = await getWatermarkUrl();
+        
+        finalVideo = await mergeVideos(signedVideoUrls, finalAudioUrl, subtitleUrl, watermarkUrl || undefined);
         console.log("Final video merge successful:", finalVideo.download_url);
         
         // Try to save the final video to object storage
