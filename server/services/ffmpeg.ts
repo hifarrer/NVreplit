@@ -3,13 +3,38 @@ const FFMPEG_API_KEY = process.env.FFMPEG_API_KEY || "ffmpeg_KfTAf98EY9OCuriwBtL
 // Helper function to get watermark URL from public storage
 export async function getWatermarkUrl(): Promise<string | null> {
   try {
-    const baseUrl = process.env.NODE_ENV === 'production' 
-      ? `https://${process.env.REPL_SLUG}--${process.env.REPL_OWNER}.replit.app`
-      : 'http://localhost:5000';
-    
-    const watermarkUrl = `${baseUrl}/public-objects/neonlogo_watermark.png`;
-    console.log("Generated watermark URL:", watermarkUrl);
-    return watermarkUrl;
+    if (process.env.NODE_ENV === 'production') {
+      // In production, we need to use a signed URL from object storage
+      const { ObjectStorageService } = await import('../objectStorage.js');
+      const objectStorageService = new ObjectStorageService();
+      
+      try {
+        // Search for the watermark in public storage
+        const watermarkFile = await objectStorageService.searchPublicObject('neonlogo_watermark.png');
+        if (watermarkFile) {
+          // Generate a signed URL that's accessible to external APIs
+          const signedUrl = await watermarkFile.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 2 * 60 * 60 * 1000, // 2 hours
+          });
+          console.log("Generated signed watermark URL for production:", signedUrl[0]);
+          return signedUrl[0];
+        }
+      } catch (storageError) {
+        console.warn("Failed to get signed watermark URL:", storageError);
+      }
+      
+      // Fallback: try the public endpoint
+      const baseUrl = `https://${process.env.REPL_SLUG}--${process.env.REPL_OWNER}.replit.app`;
+      const fallbackUrl = `${baseUrl}/public-objects/neonlogo_watermark.png`;
+      console.log("Using fallback watermark URL:", fallbackUrl);
+      return fallbackUrl;
+    } else {
+      // In development, use the local public endpoint
+      const watermarkUrl = 'http://localhost:5000/public-objects/neonlogo_watermark.png';
+      console.log("Generated local watermark URL:", watermarkUrl);
+      return watermarkUrl;
+    }
   } catch (error) {
     console.error("Failed to generate watermark URL:", error);
     return null;
