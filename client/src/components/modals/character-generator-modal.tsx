@@ -308,7 +308,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
 
         <div className="flex justify-end space-x-3 mt-6">
           <Button variant="secondary" onClick={handleClose} data-testid="cancel-character-generation">
-            Cancel
+            Exit
           </Button>
           
           {generatedImageUrls.length === 0 && (
