@@ -862,6 +862,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all user's completed videos
+  // Get public videos for a user by username (no auth required)
+  app.get("/api/users/:username/videos", async (req, res) => {
+    try {
+      const { username } = req.params;
+      
+      // Find user by username
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Get user's videos that have final videos (completed)
+      const projects = await storage.getProjectsByUser(user.id);
+      const videosWithFinal = projects.filter(p => p.isCompleted && p.finalVideoUrl);
+      
+      // Format the response
+      const publicVideos = videosWithFinal.map(project => ({
+        id: project.id,
+        title: project.title,
+        videoUrl: project.finalVideoUrl,
+        thumbnailUrl: project.characterImageUrl || null,
+        createdAt: project.createdAt,
+        duration: project.audioDuration || 30
+      }));
+      
+      res.json({
+        user: {
+          username: user.username,
+          avatarUrl: user.avatarUrl
+        },
+        videos: publicVideos
+      });
+    } catch (error) {
+      console.error("Get public videos error:", error);
+      res.status(500).json({ error: "Failed to get public videos" });
+    }
+  });
+
   app.get("/api/my-videos", authenticateToken, async (req, res) => {
     try {
       const userId = (req as any).user.userId;

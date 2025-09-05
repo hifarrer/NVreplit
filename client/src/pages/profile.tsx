@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut } from "lucide-react";
+import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -361,6 +361,40 @@ export default function ProfilePage() {
                       </>
                     )}
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Public Profile Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ExternalLink className="h-5 w-5" />
+                  Public Profile
+                </CardTitle>
+                <CardDescription>
+                  Share your public profile link with others to showcase your videos
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <p className="text-sm text-muted-foreground mb-2">Your public profile URL:</p>
+                      <code className="text-sm bg-muted px-2 py-1 rounded">
+                        https://neonvideo.ai/u/{user?.username}
+                      </code>
+                    </div>
+                    <Link href={`/u/${user?.username}`}>
+                      <Button variant="outline" data-testid="button-view-public-profile">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        View Public Profile
+                      </Button>
+                    </Link>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Only completed videos will be visible on your public profile
+                  </p>
                 </div>
               </CardContent>
             </Card>
