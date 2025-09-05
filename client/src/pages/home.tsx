@@ -129,30 +129,30 @@ export default function Home() {
               />
               <nav className="flex items-center space-x-4">
                 <Button variant="ghost" size="sm" disabled className="text-foreground">
-                  <HomeIcon className="h-4 w-4 mr-2" />
+                  <HomeIcon className="h-4 w-4 mr-1" />
                   Create
                 </Button>
                 <Link href="/my-songs">
                   <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <Music className="h-4 w-4 mr-2" />
-                    My Songs
+                    <Music className="h-4 w-4 mr-1" />
+                    Songs
                   </Button>
                 </Link>
                 <Link href="/my-videos">
                   <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <Video className="h-4 w-4 mr-2" />
-                    My Videos
+                    <Video className="h-4 w-4 mr-1" />
+                    Videos
                   </Button>
                 </Link>
                 <Link href="/characters">
                   <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <User className="h-4 w-4 mr-2" />
+                    <User className="h-4 w-4 mr-1" />
                     Characters
                   </Button>
                 </Link>
                 <Link href="/plans">
                   <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <i className="fas fa-crown h-4 w-4 mr-2"></i>
+                    <i className="fas fa-crown h-4 w-4 mr-1"></i>
                     Plans
                   </Button>
                 </Link>
