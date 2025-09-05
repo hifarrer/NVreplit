@@ -308,24 +308,6 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
             </div>
           </div>
 
-          {/* Debug: Display generated subtitles content */}
-          {generatedSubtitles && (
-            <div>
-              <Label className="flex items-center text-sm font-semibold mb-2">
-                🐛 Debug: Generated .ass Subtitle File
-              </Label>
-              <Textarea
-                value={generatedSubtitles}
-                readOnly
-                rows={8}
-                className="resize-none font-mono text-xs bg-muted"
-                data-testid="generated-subtitles-debug"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                This is the generated .ass subtitle file content for debugging
-              </p>
-            </div>
-          )}
 
           {/* Generation Progress */}
           {generateSongMutation.isPending && (
