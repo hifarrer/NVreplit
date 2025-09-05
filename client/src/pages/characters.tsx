@@ -74,10 +74,10 @@ export default function CharactersPage() {
   const handleCharacterGenerated = (result: { imageUrl: string; prompt: string }) => {
     // Invalidate the characters query to refetch the updated list
     queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
-    setShowCharacterModal(false);
+    // Don't close the modal - let users save multiple characters
     toast({
       title: "Success",
-      description: "Your character has been generated and saved!",
+      description: "Your character has been saved to your library!",
     });
   };
 
