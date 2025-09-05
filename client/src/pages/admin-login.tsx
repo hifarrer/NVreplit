@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Shield, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import logoImage from "@assets/neonlogo_1756693683433.png";
 
 interface AdminLoginResponse {
   admin: { username: string };
@@ -49,7 +50,11 @@ export default function AdminLogin() {
       <Card className="w-full max-w-md bg-black/50 border-purple-500/20">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <Shield className="h-12 w-12 text-purple-400" />
+            <img 
+              src={logoImage} 
+              alt="NeonVideo.ai Logo" 
+              className="h-48 w-auto"
+            />
           </div>
           <CardTitle className="text-2xl font-bold text-white">Admin Login</CardTitle>
           <CardDescription className="text-gray-300">
