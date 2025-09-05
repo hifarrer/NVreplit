@@ -34,7 +34,21 @@ export default function CharactersPage() {
   const deleteCharacterMutation = useMutation({
     mutationFn: async (characterId: string) => {
       const response = await apiRequest('DELETE', `/api/characters/${characterId}`);
-      return response.json();
+      
+      // Check if the request was successful (2xx status codes)
+      if (response.ok) {
+        return response.json();
+      }
+      
+      // If it's a 404, the character might have already been deleted
+      // Still consider it a success to avoid confusing the user
+      if (response.status === 404) {
+        return { success: true };
+      }
+      
+      // For other errors, throw to trigger onError
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errorData.error || 'Failed to delete character');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
@@ -43,10 +57,10 @@ export default function CharactersPage() {
         description: "The character has been removed from your library.",
       });
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to delete character. Please try again.",
+        description: error.message || "Failed to delete character. Please try again.",
         variant: "destructive",
       });
     }
