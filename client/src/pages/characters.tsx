@@ -42,26 +42,31 @@ export default function CharactersPage() {
         return response.json();
       }
       
-      // If it's a 404, the character might have already been deleted
-      // Still consider it a success to avoid confusing the user
+      // If it's a 404, the character has already been deleted
+      // This is actually a success case - the character is gone
       if (response.status === 404) {
-        return { success: true };
+        return { success: true, alreadyDeleted: true };
       }
       
       // For other errors, throw to trigger onError
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
       throw new Error(errorData.error || 'Failed to delete character');
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Always invalidate queries to refresh the list
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      
+      // Show appropriate success message
       toast({
         title: "Character deleted",
-        description: "The character has been removed from your library.",
+        description: data?.alreadyDeleted 
+          ? "The character was already removed from your library."
+          : "The character has been removed from your library.",
       });
     },
     onError: (error) => {
       toast({
-        title: "Error",
+        title: "Error", 
         description: error.message || "Failed to delete character. Please try again.",
         variant: "destructive",
       });
