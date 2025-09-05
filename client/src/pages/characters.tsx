@@ -341,7 +341,7 @@ export default function CharactersPage() {
                           className="px-2"
                           data-testid={`cancel-character-name-${character.id}`}
                         >
-                          ✕
+                          Exit
                         </Button>
                       </div>
                     ) : (
