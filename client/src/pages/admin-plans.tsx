@@ -1,6 +1,34 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { queryClient } from '@/lib/queryClient';
+
+// Admin API request function that uses adminToken
+async function adminApiRequest(
+  method: string,
+  url: string,
+  data?: unknown
+): Promise<Response> {
+  const headers: Record<string, string> = {};
+  
+  if (data) {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  // Include admin token
+  const token = localStorage.getItem('adminToken');
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(url, {
+    method,
+    headers,
+    body: data ? JSON.stringify(data) : undefined,
+    credentials: "include",
+  });
+
+  return res;
+}
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,12 +64,20 @@ export default function AdminPlansPage() {
   // Fetch plans
   const { data: plans = [], isLoading } = useQuery({
     queryKey: ['/api/admin/plans'],
+    queryFn: async () => {
+      const response = await adminApiRequest('GET', '/api/admin/plans');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch plans');
+      }
+      return response.json();
+    },
   });
 
   // Create plan mutation
   const createPlanMutation = useMutation({
     mutationFn: async (planData: any) => {
-      const response = await apiRequest('POST', '/api/admin/plans', planData);
+      const response = await adminApiRequest('POST', '/api/admin/plans', planData);
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || 'Failed to create plan');
@@ -68,7 +104,7 @@ export default function AdminPlansPage() {
   // Update plan mutation
   const updatePlanMutation = useMutation({
     mutationFn: async ({ id, ...planData }: any) => {
-      const response = await apiRequest('PUT', `/api/admin/plans/${id}`, planData);
+      const response = await adminApiRequest('PUT', `/api/admin/plans/${id}`, planData);
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || 'Failed to update plan');
@@ -96,7 +132,7 @@ export default function AdminPlansPage() {
   // Delete plan mutation
   const deletePlanMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest('DELETE', `/api/admin/plans/${id}`);
+      const response = await adminApiRequest('DELETE', `/api/admin/plans/${id}`);
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || 'Failed to delete plan');
