@@ -61,7 +61,7 @@ export default function CharactersPage() {
         title: "Character deleted",
         description: data?.alreadyDeleted 
           ? "The character was already removed from your library."
-          : "The character has been removed from your library.",
+          : "The character has been successfully removed from your library.",
       });
     },
     onError: (error) => {
