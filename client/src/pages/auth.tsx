@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,14 +7,46 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Music, Video, Sparkles } from 'lucide-react';
+import { FaGoogle } from 'react-icons/fa';
 import { useLocation } from 'wouter';
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
 export default function AuthPage() {
   const [, setLocation] = useLocation();
-  const { login, register, user } = useAuth();
+  const { login, register, user, setUserAndToken } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleGoogleLogin = () => {
+    window.location.href = '/api/auth/google';
+  };
+
+  // Handle OAuth callback
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const userParam = urlParams.get('user');
+    const oauthError = urlParams.get('error');
+
+    if (oauthError) {
+      setError('Google login failed. Please try again.');
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+
+    if (token && userParam) {
+      try {
+        const userData = JSON.parse(decodeURIComponent(userParam));
+        setUserAndToken(userData, token);
+        setLocation('/');
+      } catch (err) {
+        setError('Failed to process Google login. Please try again.');
+      }
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [setLocation, setUserAndToken]);
 
   // Redirect if already logged in
   if (user) {
@@ -148,6 +180,29 @@ export default function AuthPage() {
                         'Sign In'
                       )}
                     </Button>
+                    
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">
+                          Or continue with
+                        </span>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleGoogleLogin}
+                      disabled={isLoading}
+                      data-testid="button-google-login"
+                    >
+                      <FaGoogle className="mr-2 h-4 w-4" />
+                      Continue with Google
+                    </Button>
                   </form>
                 </CardContent>
               </Card>
@@ -225,6 +280,29 @@ export default function AuthPage() {
                       ) : (
                         'Create Account'
                       )}
+                    </Button>
+                    
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">
+                          Or continue with
+                        </span>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleGoogleLogin}
+                      disabled={isLoading}
+                      data-testid="button-google-register"
+                    >
+                      <FaGoogle className="mr-2 h-4 w-4" />
+                      Continue with Google
                     </Button>
                   </form>
                 </CardContent>

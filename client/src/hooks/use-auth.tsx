@@ -9,6 +9,7 @@ interface AuthContextType {
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  setUserAndToken: (user: User, token: string) => void;
   isLoading: boolean;
 }
 
@@ -104,6 +105,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const setUserAndToken = (userData: User, authToken: string) => {
+    setUser(userData);
+    setToken(authToken);
+    localStorage.setItem('auth_token', authToken);
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -112,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       logout,
       refreshUser,
+      setUserAndToken,
       isLoading
     }}>
       {children}
