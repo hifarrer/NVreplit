@@ -46,6 +46,7 @@ export interface IStorage {
 
   // Song methods
   getSongs(userId: string): Promise<Song[]>;
+  getSong(id: string): Promise<Song | undefined>;
   addSong(song: InsertSong): Promise<Song>;
   deleteSong(id: string): Promise<boolean>;
 
@@ -367,6 +368,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.songs.values()).filter(song => song.userId === userId);
   }
 
+  async getSong(id: string): Promise<Song | undefined> {
+    return this.songs.get(id);
+  }
+
   async addSong(insertSong: InsertSong): Promise<Song> {
     const id = randomUUID();
     const song: Song = {
@@ -680,6 +685,13 @@ export class DbStorage implements IStorage {
       .from(songs)
       .where(eq(songs.userId, userId))
       .orderBy(asc(songs.createdAt));
+  }
+
+  async getSong(id: string): Promise<Song | undefined> {
+    const result = await this.db.select()
+      .from(songs)
+      .where(eq(songs.id, id));
+    return result[0] || undefined;
   }
 
   async addSong(insertSong: InsertSong): Promise<Song> {

@@ -916,6 +916,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete user's own song
+  app.delete("/api/my-songs/:id", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const songId = req.params.id;
+      
+      // First check if the song exists and belongs to the user
+      const song = await storage.getSong(songId);
+      
+      if (!song) {
+        // Song doesn't exist - return 404 but frontend treats this as success
+        return res.status(404).json({ error: "Song not found" });
+      }
+      
+      // Check if the song belongs to the requesting user
+      if (song.userId !== userId) {
+        return res.status(403).json({ error: "You can only delete your own songs" });
+      }
+      
+      // Delete the song
+      await storage.deleteSong(songId);
+      res.json({ message: "Song deleted successfully" });
+    } catch (error) {
+      console.error("Delete song error:", error);
+      res.status(500).json({ error: "Failed to delete song" });
+    }
+  });
+
   // Get user's current project (most recent)
   app.get("/api/current-project", authenticateToken, async (req, res) => {
     try {
