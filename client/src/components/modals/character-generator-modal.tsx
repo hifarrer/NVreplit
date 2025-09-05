@@ -48,7 +48,12 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
         });
       }, 5000); // Slower progress for longer generation time
 
-      const response = await apiRequest("POST", `/api/projects/${projectId}/generate-character-options`, {
+      // Use different endpoints based on whether we have a project ID
+      const endpoint = projectId 
+        ? `/api/projects/${projectId}/generate-character-options`
+        : `/api/characters/generate-options`;
+
+      const response = await apiRequest("POST", endpoint, {
         prompt: fullPrompt,
         aspectRatio: "16:9"
       });
@@ -78,18 +83,36 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
 
   const saveCharacterMutation = useMutation({
     mutationFn: async (imageUrl: string) => {
-      const response = await apiRequest("POST", `/api/projects/${projectId}/save-character-option`, {
-        imageUrl,
-        prompt: currentPrompt
-      });
-      return response.json();
+      if (projectId) {
+        // Save to project
+        const response = await apiRequest("POST", `/api/projects/${projectId}/save-character-option`, {
+          imageUrl,
+          prompt: currentPrompt
+        });
+        return response.json();
+      } else {
+        // Save to character library
+        const response = await apiRequest("POST", `/api/characters`, {
+          imageUrl,
+          prompt: currentPrompt,
+          name: description || "AI Generated Character"
+        });
+        return response.json();
+      }
     },
     onSuccess: (data, imageUrl) => {
       onCharacterGenerated({ imageUrl, prompt: currentPrompt });
-      toast({
-        title: "Success",
-        description: "Character saved to project! Modal will stay open so you can save more characters.",
-      });
+      if (projectId) {
+        toast({
+          title: "Success",
+          description: "Character saved to project! Modal will stay open so you can save more characters.",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Character saved to your library! Modal will stay open so you can save more characters.",
+        });
+      }
       // Don't close modal - let user save multiple characters
     },
     onError: (error) => {

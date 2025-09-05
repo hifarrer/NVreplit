@@ -2073,6 +2073,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate character options for standalone character creation (without project)
+  app.post("/api/characters/generate-options", authenticateToken, async (req, res) => {
+    try {
+      console.log("Standalone character options generation route called with body:", req.body);
+      const { prompt, aspectRatio = "16:9" } = req.body;
+      console.log("Extracted prompt:", prompt);
+      console.log("Aspect ratio:", aspectRatio);
+      
+      if (!prompt || !prompt.trim()) {
+        throw new Error("No prompt provided");
+      }
+
+      console.log("About to call generateCharacterImages with aspect ratio:", aspectRatio);
+      const imageUrls = await generateCharacterImages(prompt, aspectRatio);
+      console.log("generateCharacterImages returned:", imageUrls);
+
+      res.json({ imageUrls, prompt });
+    } catch (error) {
+      console.error("Generate standalone character options error:", error);
+      res.status(500).json({ error: "Failed to generate character options" });
+    }
+  });
+
   // Saved characters routes
   app.get("/api/characters", authenticateToken, async (req, res) => {
     try {
