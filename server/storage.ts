@@ -11,10 +11,13 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
+  deleteUser(id: string): Promise<boolean>;
 
   // Project methods
   getProject(id: string): Promise<Project | undefined>;
   getProjectsByUser(userId: string): Promise<Project[]>;
+  getUserProjects(userId: string): Promise<Project[]>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, updates: Partial<Project>): Promise<Project | undefined>;
   deleteProject(id: string): Promise<boolean>;
@@ -128,11 +131,25 @@ export class MemStorage implements IStorage {
     return updatedUser;
   }
 
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    return this.users.delete(id);
+  }
+
   async getProject(id: string): Promise<Project | undefined> {
     return this.projects.get(id);
   }
 
   async getProjectsByUser(userId: string): Promise<Project[]> {
+    return Array.from(this.projects.values()).filter(
+      (project) => project.userId === userId,
+    );
+  }
+
+  async getUserProjects(userId: string): Promise<Project[]> {
     return Array.from(this.projects.values()).filter(
       (project) => project.userId === userId,
     );
@@ -413,12 +430,25 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
+  async getAllUsers(): Promise<User[]> {
+    return await this.db.select().from(users);
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await this.db.delete(users).where(eq(users.id, id));
+    return result.length > 0;
+  }
+
   async getProject(id: string): Promise<Project | undefined> {
     const result = await this.db.select().from(projects).where(eq(projects.id, id)).limit(1);
     return result[0];
   }
 
   async getProjectsByUser(userId: string): Promise<Project[]> {
+    return await this.db.select().from(projects).where(eq(projects.userId, userId));
+  }
+
+  async getUserProjects(userId: string): Promise<Project[]> {
     return await this.db.select().from(projects).where(eq(projects.userId, userId));
   }
 

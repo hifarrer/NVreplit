@@ -51,6 +51,12 @@ const JWT_SECRET = process.env.JWT_SECRET || "music-video-maker-secret-key";
 // Initialize video queue service
 const videoQueueService = new VideoQueueService();
 
+// Admin credentials (hardcoded for now)
+const ADMIN_CREDENTIALS = {
+  username: "admin",
+  password: "password123"
+};
+
 // Middleware to verify JWT token
 function authenticateToken(req: any, res: any, next: any) {
   const authHeader = req.headers['authorization'];
@@ -65,6 +71,30 @@ function authenticateToken(req: any, res: any, next: any) {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
     req.user = user;
+    next();
+  });
+}
+
+// Middleware to verify admin JWT token
+function authenticateAdmin(req: any, res: any, next: any) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err: any, decoded: any) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+    
+    // Check if this is an admin token
+    if (!decoded.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    req.admin = decoded;
     next();
   });
 }
@@ -206,6 +236,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Update username error:", error);
       res.status(500).json({ error: "Failed to update username" });
+    }
+  });
+
+  // Admin authentication routes
+  app.post("/api/admin/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ error: "Username and password are required" });
+      }
+      
+      // Check admin credentials
+      if (username !== ADMIN_CREDENTIALS.username || password !== ADMIN_CREDENTIALS.password) {
+        return res.status(401).json({ error: "Invalid admin credentials" });
+      }
+      
+      // Generate admin JWT token
+      const token = jwt.sign(
+        { username: ADMIN_CREDENTIALS.username, isAdmin: true },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      
+      res.json({
+        admin: { username: ADMIN_CREDENTIALS.username },
+        token
+      });
+    } catch (error) {
+      console.error("Admin login error:", error);
+      res.status(500).json({ error: "Admin login failed" });
+    }
+  });
+
+  // Admin routes
+  app.get("/api/admin/users", authenticateAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      const usersWithStats = await Promise.all(users.map(async (user) => {
+        const projects = await storage.getUserProjects(user.id);
+        const songs = await storage.getSongs(user.id);
+        return {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          avatarUrl: user.avatarUrl,
+          createdAt: user.createdAt,
+          projectCount: projects.length,
+          songCount: songs.length
+        };
+      }));
+      res.json(usersWithStats);
+    } catch (error) {
+      console.error("Admin get users error:", error);
+      res.status(500).json({ error: "Failed to get users" });
+    }
+  });
+
+  app.delete("/api/admin/users/:userId", authenticateAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      await storage.deleteUser(userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Admin delete user error:", error);
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
+  app.put("/api/admin/users/:userId", authenticateAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { username, email } = req.body;
+      await storage.updateUser(userId, { username, email });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Admin update user error:", error);
+      res.status(500).json({ error: "Failed to update user" });
+    }
+  });
+
+  app.get("/api/admin/stats", authenticateAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      const allProjects = await Promise.all(users.map(user => storage.getUserProjects(user.id)));
+      const allSongs = await Promise.all(users.map(user => storage.getSongs(user.id)));
+      
+      const projects = allProjects.flat();
+      const songs = allSongs.flat();
+      
+      // Calculate stats
+      const totalUsers = users.length;
+      const totalProjects = projects.length;
+      const totalSongs = songs.length;
+      const completedProjects = projects.filter(p => p.isCompleted).length;
+      
+      // Group by creation date for charts
+      const userSignupsByDay = users.reduce((acc: any, user) => {
+        const date = user.createdAt.toISOString().split('T')[0];
+        acc[date] = (acc[date] || 0) + 1;
+        return acc;
+      }, {});
+
+      const projectsByDay = projects.reduce((acc: any, project) => {
+        const date = project.createdAt.toISOString().split('T')[0];
+        acc[date] = (acc[date] || 0) + 1;
+        return acc;
+      }, {});
+      
+      res.json({
+        overview: {
+          totalUsers,
+          totalProjects,
+          totalSongs,
+          completedProjects
+        },
+        charts: {
+          userSignups: Object.entries(userSignupsByDay).map(([date, count]) => ({ date, count })),
+          projectCreations: Object.entries(projectsByDay).map(([date, count]) => ({ date, count }))
+        }
+      });
+    } catch (error) {
+      console.error("Admin get stats error:", error);
+      res.status(500).json({ error: "Failed to get stats" });
+    }
+  });
+
+  app.post("/api/admin/reset-password", authenticateAdmin, async (req, res) => {
+    try {
+      const { newPassword } = req.body;
+      if (!newPassword || newPassword.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+      
+      // In production, this would update the database
+      ADMIN_CREDENTIALS.password = newPassword;
+      res.json({ success: true, message: "Admin password updated successfully" });
+    } catch (error) {
+      console.error("Admin reset password error:", error);
+      res.status(500).json({ error: "Failed to reset password" });
     }
   });
 
