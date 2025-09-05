@@ -12,6 +12,7 @@ import CharactersPage from "@/pages/characters";
 import ProfilePage from "@/pages/profile";
 import AdminLogin from "@/pages/admin-login";
 import AdminDashboard from "@/pages/admin-dashboard";
+import AdminPlans from "@/pages/admin-plans";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -60,6 +61,7 @@ function AppRouter() {
       <Route path="/auth" component={AuthPage} />
       <Route path="/admin" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
+      <Route path="/admin/plans" component={AdminPlans} />
       <Route component={NotFound} />
     </Switch>
   );

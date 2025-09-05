@@ -4,7 +4,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { storage } from "./storage";
-import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema } from "@shared/schema";
+import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema, insertPlanSchema, type Plan, type InsertPlan } from "@shared/schema";
 import { generateLyrics, generateScenePrompts, splitLyricsIntoSections } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
@@ -485,6 +485,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Admin reset password error:", error);
       res.status(500).json({ error: "Failed to reset password" });
+    }
+  });
+
+  // Plans management routes (Admin only)
+  app.get("/api/admin/plans", authenticateAdmin, async (req, res) => {
+    try {
+      const plans = await storage.getAllPlans();
+      res.json(plans);
+    } catch (error) {
+      console.error("Get plans error:", error);
+      res.status(500).json({ error: "Failed to get plans" });
+    }
+  });
+
+  app.post("/api/admin/plans", authenticateAdmin, async (req, res) => {
+    try {
+      const planData = insertPlanSchema.parse(req.body);
+      const plan = await storage.createPlan(planData);
+      res.status(201).json(plan);
+    } catch (error) {
+      console.error("Create plan error:", error);
+      const message = error instanceof Error ? error.message : 'Failed to create plan';
+      res.status(400).json({ error: message });
+    }
+  });
+
+  app.put("/api/admin/plans/:id", authenticateAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      
+      const updatedPlan = await storage.updatePlan(id, updates);
+      if (!updatedPlan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+      
+      res.json(updatedPlan);
+    } catch (error) {
+      console.error("Update plan error:", error);
+      res.status(500).json({ error: "Failed to update plan" });
+    }
+  });
+
+  app.delete("/api/admin/plans/:id", authenticateAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deletePlan(id);
+      
+      if (!success) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+      
+      res.json({ success: true, message: "Plan deleted successfully" });
+    } catch (error) {
+      console.error("Delete plan error:", error);
+      res.status(500).json({ error: "Failed to delete plan" });
     }
   });
 

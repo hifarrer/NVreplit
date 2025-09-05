@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Users, Activity, Settings, LogOut, Shield, Music, Video } from "lucide-react";
+import { Users, Activity, Settings, LogOut, Shield, Music, Video, CreditCard } from "lucide-react";
 import { UserManagement } from "../components/admin/user-management";
 import { SiteSettings } from "../components/admin/site-settings";
 import { UsageStatistics } from "../components/admin/usage-statistics";
@@ -156,10 +156,14 @@ export default function AdminDashboard() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 bg-black/30 border border-purple-500/20">
+          <TabsList className="grid w-full grid-cols-4 bg-black/30 border border-purple-500/20">
             <TabsTrigger value="users" className="data-[state=active]:bg-purple-600">
               <Users className="h-4 w-4 mr-2" />
               Users
+            </TabsTrigger>
+            <TabsTrigger value="plans" className="data-[state=active]:bg-purple-600">
+              <CreditCard className="h-4 w-4 mr-2" />
+              Plans
             </TabsTrigger>
             <TabsTrigger value="statistics" className="data-[state=active]:bg-purple-600">
               <Activity className="h-4 w-4 mr-2" />
@@ -173,6 +177,41 @@ export default function AdminDashboard() {
 
           <TabsContent value="users" className="space-y-6">
             <UserManagement />
+          </TabsContent>
+
+          <TabsContent value="plans" className="space-y-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-xl font-semibold text-white">Subscription Plans Management</h2>
+                <p className="text-gray-300">Manage pricing plans and user subscriptions</p>
+              </div>
+              <Button
+                onClick={() => window.location.href = '/admin/plans'}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+                data-testid="button-manage-plans"
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Manage Plans
+              </Button>
+            </div>
+            
+            <Card className="bg-black/30 border-purple-500/20">
+              <CardContent className="p-6">
+                <div className="text-center py-8">
+                  <CreditCard className="h-12 w-12 text-purple-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-white mb-2">Plans Management</h3>
+                  <p className="text-gray-300 mb-4">
+                    Create and manage subscription plans, set pricing tiers, and configure credit allocations for your users.
+                  </p>
+                  <Button
+                    onClick={() => window.location.href = '/admin/plans'}
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    Go to Plans Management
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="statistics" className="space-y-6">

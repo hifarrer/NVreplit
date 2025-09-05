@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, users, projects, generationLogs, savedCharacters, videoQueue, songs, videoGenerationConfig } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -53,6 +53,14 @@ export interface IStorage {
   getAllVideoGenerationConfigs(): Promise<VideoGenerationConfig[]>;
   createVideoGenerationConfig(config: InsertVideoGenerationConfig): Promise<VideoGenerationConfig>;
   updateVideoGenerationConfig(id: string, updates: Partial<VideoGenerationConfig>): Promise<VideoGenerationConfig | undefined>;
+
+  // Plan methods
+  getAllPlans(): Promise<Plan[]>;
+  getActivePlans(): Promise<Plan[]>;
+  getPlan(id: string): Promise<Plan | undefined>;
+  createPlan(plan: InsertPlan): Promise<Plan>;
+  updatePlan(id: string, updates: Partial<Plan>): Promise<Plan | undefined>;
+  deletePlan(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -60,6 +68,7 @@ export class MemStorage implements IStorage {
   private projects: Map<string, Project>;
   private generationLogs: Map<string, GenerationLog>;
   private savedCharacters: Map<string, SavedCharacter>;
+  private plans: Map<string, Plan>;
   private videoQueues: Map<string, VideoQueue>;
   private songs: Map<string, Song>;
   private videoGenerationConfigs: Map<string, VideoGenerationConfig>;
@@ -69,6 +78,7 @@ export class MemStorage implements IStorage {
     this.projects = new Map();
     this.generationLogs = new Map();
     this.savedCharacters = new Map();
+    this.plans = new Map();
     this.videoQueues = new Map();
     this.songs = new Map();
     this.videoGenerationConfigs = new Map();
@@ -398,6 +408,46 @@ export class MemStorage implements IStorage {
     const updatedConfig = { ...existing, ...updates, updatedAt: new Date() };
     this.videoGenerationConfigs.set(id, updatedConfig);
     return updatedConfig;
+  }
+
+  // Plan methods
+  async getAllPlans(): Promise<Plan[]> {
+    return Array.from(this.plans.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async getActivePlans(): Promise<Plan[]> {
+    return Array.from(this.plans.values()).filter(plan => plan.isActive).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async getPlan(id: string): Promise<Plan | undefined> {
+    return this.plans.get(id);
+  }
+
+  async createPlan(insertPlan: InsertPlan): Promise<Plan> {
+    const id = randomUUID();
+    const now = new Date();
+    const plan: Plan = {
+      ...insertPlan,
+      id,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.plans.set(id, plan);
+    return plan;
+  }
+
+  async updatePlan(id: string, updates: Partial<Plan>): Promise<Plan | undefined> {
+    const existing = this.plans.get(id);
+    if (!existing) {
+      return undefined;
+    }
+    const updatedPlan = { ...existing, ...updates, updatedAt: new Date() };
+    this.plans.set(id, updatedPlan);
+    return updatedPlan;
+  }
+
+  async deletePlan(id: string): Promise<boolean> {
+    return this.plans.delete(id);
   }
 }
 
@@ -737,6 +787,39 @@ export class DbStorage implements IStorage {
     } catch (error) {
       console.warn('Failed to initialize video generation configs:', error);
     }
+  }
+
+  // Plan methods
+  async getAllPlans(): Promise<Plan[]> {
+    return await this.db.select().from(plans).orderBy(asc(plans.name));
+  }
+
+  async getActivePlans(): Promise<Plan[]> {
+    return await this.db.select().from(plans).where(eq(plans.isActive, true)).orderBy(asc(plans.name));
+  }
+
+  async getPlan(id: string): Promise<Plan | undefined> {
+    const result = await this.db.select().from(plans).where(eq(plans.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createPlan(plan: InsertPlan): Promise<Plan> {
+    const result = await this.db.insert(plans).values(plan).returning();
+    return result[0];
+  }
+
+  async updatePlan(id: string, updates: Partial<Plan>): Promise<Plan | undefined> {
+    const result = await this.db
+      .update(plans)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(plans.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deletePlan(id: string): Promise<boolean> {
+    const result = await this.db.delete(plans).where(eq(plans.id, id)).returning();
+    return result.length > 0;
   }
 }
 

@@ -67,6 +67,20 @@ export const savedCharacters = pgTable("saved_characters", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const plans = pgTable("plans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  features: jsonb("features").notNull().$type<string[]>(), // Array of feature strings
+  monthlyPrice: integer("monthly_price").notNull(), // Price in cents
+  yearlyPrice: integer("yearly_price").notNull(), // Price in cents
+  stripeMonthlyPriceId: text("stripe_monthly_price_id"),
+  stripeYearlyPriceId: text("stripe_yearly_price_id"),
+  credits: integer("credits").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const videoQueue = pgTable("video_queue", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   projectId: varchar("project_id").references(() => projects.id).notNull(),
@@ -136,6 +150,12 @@ export const insertSongSchema = createInsertSchema(songs).omit({
   createdAt: true,
 });
 
+export const insertPlanSchema = createInsertSchema(plans).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertVideoGenerationConfigSchema = createInsertSchema(videoGenerationConfig).omit({
   id: true,
   createdAt: true,
@@ -150,6 +170,8 @@ export type InsertGenerationLog = z.infer<typeof insertGenerationLogSchema>;
 export type GenerationLog = typeof generationLogs.$inferSelect;
 export type InsertSavedCharacter = z.infer<typeof insertSavedCharacterSchema>;
 export type SavedCharacter = typeof savedCharacters.$inferSelect;
+export type InsertPlan = z.infer<typeof insertPlanSchema>;
+export type Plan = typeof plans.$inferSelect;
 export type InsertVideoQueue = z.infer<typeof insertVideoQueueSchema>;
 export type VideoQueue = typeof videoQueue.$inferSelect;
 export type InsertSong = z.infer<typeof insertSongSchema>;
