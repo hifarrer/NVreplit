@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Music, Video, Sparkles } from 'lucide-react';
 import { useLocation } from 'wouter';
+import logoImage from "@assets/neonlogo_1756693683433.png";
 
 export default function AuthPage() {
   const [, setLocation] = useLocation();
@@ -73,9 +74,14 @@ export default function AuthPage() {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold gradient-text mb-2">
-              neonvideo.ai
-            </h1>
+            <div className="mb-4">
+              <img 
+                src={logoImage} 
+                alt="neonvideo.ai" 
+                className="h-16 mx-auto" 
+                data-testid="app-logo"
+              />
+            </div>
             <p className="text-muted-foreground">
               Create stunning music videos with AI
             </p>
