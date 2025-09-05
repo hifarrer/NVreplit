@@ -150,6 +150,12 @@ export default function Home() {
                     Characters
                   </Button>
                 </Link>
+                <Link href="/plans">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                    <i className="fas fa-crown h-4 w-4 mr-2"></i>
+                    Plans
+                  </Button>
+                </Link>
               </nav>
             </div>
             

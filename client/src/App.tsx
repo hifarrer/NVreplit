@@ -15,6 +15,7 @@ import VideoPage from "@/pages/video-page";
 import AdminLogin from "@/pages/admin-login";
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminPlans from "@/pages/admin-plans";
+import PlansPage from "@/pages/plans";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -62,6 +63,7 @@ function AppRouter() {
       <Route path="/profile" component={() => <ProtectedRoute component={ProfilePage} />} />
       <Route path="/u/:username" component={PublicProfilePage} />
       <Route path="/v/:videoId" component={VideoPage} />
+      <Route path="/plans" component={PlansPage} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/admin" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />

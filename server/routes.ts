@@ -488,6 +488,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public endpoint to get active plans
+  app.get("/api/plans", async (req, res) => {
+    try {
+      const plans = await storage.getAllPlans();
+      // Filter to only show active plans
+      const activePlans = plans.filter(plan => plan.isActive);
+      res.json(activePlans);
+    } catch (error) {
+      console.error("Get plans error:", error);
+      res.status(500).json({ error: "Failed to get plans" });
+    }
+  });
+
   // Plans management routes (Admin only)
   app.get("/api/admin/plans", authenticateAdmin, async (req, res) => {
     try {
