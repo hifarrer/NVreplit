@@ -8,7 +8,7 @@ export async function generateCharacterImages(
   aspectRatio: string = "16:9",
 ): Promise<string[]> {
   // Always prepend "A front shot of " to ensure we get a front-facing character image
-  const enhancedPrompt = `A front face shot of ${prompt}`;
+  const enhancedPrompt = `A front face shot of ${prompt} with a plain black background`;
 
   console.log(
     "Starting KIE.ai character generation with prompt:",
