@@ -35,20 +35,26 @@ export default function CharactersPage() {
 
   const deleteCharacterMutation = useMutation({
     mutationFn: async (characterId: string) => {
+      console.log('Deleting character:', characterId);
       const response = await apiRequest('DELETE', `/api/characters/${characterId}`);
+      
+      console.log('Delete response status:', response.status);
       
       // Check if the request was successful (2xx status codes)
       if (response.ok) {
+        console.log('Delete successful with 2xx status');
         return response.json();
       }
       
       // If it's a 404, the character has already been deleted
       // This is actually a success case - the character is gone
       if (response.status === 404) {
+        console.log('Character not found (404) - treating as success');
         return { success: true, alreadyDeleted: true };
       }
       
       // For other errors, throw to trigger onError
+      console.log('Delete failed with status:', response.status);
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
       throw new Error(errorData.error || 'Failed to delete character');
     },
