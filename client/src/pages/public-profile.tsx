@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Play, Pause, Video, ArrowLeft, ExternalLink, Share2 } from "lucide-react";
+import { Play, Pause, Video, ArrowLeft, ExternalLink, Share2, Link as LinkIcon } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import logoImage from "@assets/neonlogo_1756693683433.png";
@@ -70,12 +70,21 @@ export default function PublicProfilePage() {
     }
   };
 
-  const handleShare = () => {
+  const handleShareProfile = () => {
     const url = window.location.href;
     navigator.clipboard.writeText(url);
     toast({
       title: "Link copied!",
       description: "Profile link has been copied to clipboard",
+    });
+  };
+
+  const handleShareVideo = (videoId: string, videoTitle: string) => {
+    const url = `${window.location.origin}/v/${videoId}`;
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Video link copied!",
+      description: `Link for "${videoTitle}" has been copied to clipboard`,
     });
   };
 
@@ -142,7 +151,7 @@ export default function PublicProfilePage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleShare}
+              onClick={handleShareProfile}
               className="gap-2"
             >
               <Share2 className="h-4 w-4" />
@@ -216,9 +225,33 @@ export default function PublicProfilePage() {
                 </div>
                 <CardContent className="p-4">
                   <h3 className="font-semibold mb-2 line-clamp-1">{video.title}</h3>
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <div className="flex items-center justify-between text-sm text-muted-foreground mb-3">
                     <span>{format(new Date(video.createdAt), "MMM d, yyyy")}</span>
                     <span>{formatDuration(video.duration)}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Link href={`/v/${video.id}`} className="flex-1">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full"
+                        data-testid={`button-view-video-${video.id}`}
+                      >
+                        <LinkIcon className="h-3 w-3 mr-1" />
+                        View
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleShareVideo(video.id, video.title);
+                      }}
+                      data-testid={`button-share-video-${video.id}`}
+                    >
+                      <Share2 className="h-3 w-3" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
