@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowLeft, Search, Trash2, Users, Loader2, LogOut, User, Video, Home as HomeIcon, Music, Plus } from "lucide-react";
+import { ArrowLeft, Search, Trash2, Users, Loader2, LogOut, User, Video, Home as HomeIcon, Music, Plus, Edit3 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CharacterGeneratorModal } from "@/components/modals/character-generator-modal";
 import logoImage from "@assets/neonlogo_1756693683433.png";
@@ -23,6 +23,8 @@ interface SavedCharacter {
 export default function CharactersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showCharacterModal, setShowCharacterModal] = useState(false);
+  const [editingCharacter, setEditingCharacter] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
   const { user, logout } = useAuth();
   const { toast } = useToast();
 
@@ -65,6 +67,45 @@ export default function CharactersPage() {
       });
     }
   });
+
+  const updateCharacterMutation = useMutation({
+    mutationFn: async ({ characterId, name }: { characterId: string; name: string }) => {
+      const response = await apiRequest('PATCH', `/api/characters/${characterId}`, { name });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      setEditingCharacter(null);
+      setEditingName("");
+      toast({
+        title: "Character updated",
+        description: "The character name has been updated.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update character name. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleStartEdit = (character: SavedCharacter) => {
+    setEditingCharacter(character.id);
+    setEditingName(character.name);
+  };
+
+  const handleSaveEdit = (characterId: string) => {
+    if (editingName.trim()) {
+      updateCharacterMutation.mutate({ characterId, name: editingName.trim() });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCharacter(null);
+    setEditingName("");
+  };
 
   const filteredCharacters = characters.filter(character =>
     character.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -237,22 +278,72 @@ export default function CharactersPage() {
                       className="w-full h-48 object-cover rounded-lg"
                       data-testid={`character-image-${character.id}`}
                     />
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => deleteCharacterMutation.mutate(character.id)}
-                      disabled={deleteCharacterMutation.isPending}
-                      className="absolute top-2 right-2 w-8 h-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-red-600 hover:bg-red-700"
-                      data-testid={`delete-character-${character.id}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleStartEdit(character)}
+                        disabled={updateCharacterMutation.isPending}
+                        className="w-8 h-8 p-0 bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                        data-testid={`edit-character-${character.id}`}
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => deleteCharacterMutation.mutate(character.id)}
+                        disabled={deleteCharacterMutation.isPending}
+                        className="w-8 h-8 p-0 bg-red-600 hover:bg-red-700"
+                        data-testid={`delete-character-${character.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   
                   <div className="space-y-2">
-                    <h3 className="font-semibold text-sm" data-testid={`character-name-${character.id}`}>
-                      {character.name}
-                    </h3>
+                    {editingCharacter === character.id ? (
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          className="text-sm font-semibold"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSaveEdit(character.id);
+                            } else if (e.key === 'Escape') {
+                              handleCancelEdit();
+                            }
+                          }}
+                          autoFocus
+                          data-testid={`character-name-input-${character.id}`}
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSaveEdit(character.id)}
+                          disabled={updateCharacterMutation.isPending || !editingName.trim()}
+                          className="px-2"
+                          data-testid={`save-character-name-${character.id}`}
+                        >
+                          ✓
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCancelEdit}
+                          className="px-2"
+                          data-testid={`cancel-character-name-${character.id}`}
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    ) : (
+                      <h3 className="font-semibold text-sm" data-testid={`character-name-${character.id}`}>
+                        {character.name}
+                      </h3>
+                    )}
                     <p className="text-xs text-muted-foreground line-clamp-2" data-testid={`character-prompt-${character.id}`}>
                       {character.prompt}
                     </p>

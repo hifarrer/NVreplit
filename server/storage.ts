@@ -33,6 +33,7 @@ export interface IStorage {
   // Saved character methods
   getSavedCharacters(userId: string): Promise<SavedCharacter[]>;
   saveCharacter(character: InsertSavedCharacter): Promise<SavedCharacter>;
+  updateSavedCharacter(id: string, userId: string, updates: Partial<SavedCharacter>): Promise<SavedCharacter | undefined>;
   deleteSavedCharacter(id: string): Promise<boolean>;
 
   // Video queue methods
@@ -285,6 +286,16 @@ export class MemStorage implements IStorage {
     };
     this.savedCharacters.set(id, character);
     return character;
+  }
+
+  async updateSavedCharacter(id: string, userId: string, updates: Partial<SavedCharacter>): Promise<SavedCharacter | undefined> {
+    const existing = this.savedCharacters.get(id);
+    if (!existing || existing.userId !== userId) {
+      return undefined;
+    }
+    const updatedCharacter = { ...existing, ...updates };
+    this.savedCharacters.set(id, updatedCharacter);
+    return updatedCharacter;
   }
 
   async deleteSavedCharacter(id: string): Promise<boolean> {
@@ -588,6 +599,24 @@ export class DbStorage implements IStorage {
 
   async saveCharacter(insertCharacter: InsertSavedCharacter): Promise<SavedCharacter> {
     const result = await this.db.insert(savedCharacters).values(insertCharacter).returning();
+    return result[0];
+  }
+
+  async updateSavedCharacter(id: string, userId: string, updates: Partial<SavedCharacter>): Promise<SavedCharacter | undefined> {
+    // First check if the character exists and belongs to the user
+    const existing = await this.db.select().from(savedCharacters)
+      .where(eq(savedCharacters.id, id))
+      .limit(1);
+    
+    if (existing.length === 0 || existing[0].userId !== userId) {
+      return undefined;
+    }
+
+    const result = await this.db.update(savedCharacters)
+      .set(updates)
+      .where(eq(savedCharacters.id, id))
+      .returning();
+    
     return result[0];
   }
 

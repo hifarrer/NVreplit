@@ -2134,6 +2134,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/characters/:id", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const { name } = req.body;
+      
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: "Name is required" });
+      }
+
+      const updated = await storage.updateSavedCharacter(req.params.id, userId, { name: name.trim() });
+      if (!updated) {
+        return res.status(404).json({ error: "Character not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Update character error:", error);
+      res.status(500).json({ error: "Failed to update character" });
+    }
+  });
+
   app.delete("/api/characters/:id", authenticateToken, async (req, res) => {
     try {
       const deleted = await storage.deleteSavedCharacter(req.params.id);
