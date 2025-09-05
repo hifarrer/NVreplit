@@ -160,10 +160,16 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g., A lonely cowboy cat riding through the desert at sunset..."
               rows={3}
-              className="resize-none"
+              className={`resize-none ${description.trim().length > 0 && description.trim().length <= 10 ? 'border-red-500' : ''}`}
               data-testid="song-description-input"
             />
-            <p className="text-xs text-muted-foreground mt-1">Describe the theme, mood, or story of your song</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {description.trim().length > 0 && description.trim().length <= 10 ? (
+                <span className="text-red-500">Description must be more than 10 characters</span>
+              ) : (
+                "Describe the theme, mood, or story of your song"
+              )}
+            </p>
           </div>
 
           {/* Song Duration */}
@@ -210,9 +216,16 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
               value={tags}
               onChange={(e) => setTags(e.target.value)}
               placeholder="e.g., electronic, pop, female singer, upbeat, dreamy"
+              className={tags.trim().length === 0 && description.trim().length > 10 ? 'border-red-500' : ''}
               data-testid="song-tags-input"
             />
-            <p className="text-xs text-muted-foreground mt-1">Separate tags with commas</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {tags.trim().length === 0 && description.trim().length > 10 ? (
+                <span className="text-red-500">Tags are required</span>
+              ) : (
+                "Separate tags with commas"
+              )}
+            </p>
             
             {/* Suggested Tags */}
             <div className="flex flex-wrap gap-2 mt-3">
