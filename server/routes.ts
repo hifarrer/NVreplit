@@ -1708,19 +1708,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Add outro video to the end of the video list  
-      const outroVideoUrl = '/public-objects/outro.mp4';
       try {
-        // Generate signed URL for the outro video to ensure external API access
-        const signedOutroUrl = await objectStorageService.getSignedUrlForPublicObject(outroVideoUrl, 7200); // 2 hours
-        signedVideoUrls.push(signedOutroUrl);
-        console.log("Added outro video to merge with signed URL:", outroVideoUrl, "->", signedOutroUrl);
+        // Try to find outro.mp4 in the public object storage
+        const objectStorageService = new ObjectStorageService();
+        const outroFile = await objectStorageService.searchPublicObject('outro.mp4');
+        
+        if (outroFile) {
+          console.log("Found outro.mp4 in object storage, generating signed URL...");
+          // Generate signed URL for the outro video to ensure external API access
+          const signedOutroUrl = await objectStorageService.signObjectURL({
+            bucketName: outroFile.bucket.name,
+            objectName: outroFile.name,
+            method: "GET",
+            ttlSec: 7200
+          });
+          signedVideoUrls.push(signedOutroUrl);
+          console.log("Added outro video to merge with signed URL from object storage:", signedOutroUrl);
+        } else {
+          console.log("outro.mp4 not found in object storage, using fallback URL");
+          // Fallback to host-based URL for development
+          const host = req.get('host') || 'localhost:5000';
+          const fallbackOutroUrl = host.includes('localhost') ? `http://${host}/public-objects/outro.mp4` : `https://${host}/public-objects/outro.mp4`;
+          signedVideoUrls.push(fallbackOutroUrl);
+          console.log("Using fallback outro video URL:", fallbackOutroUrl);
+        }
       } catch (error) {
-        console.error("Failed to generate signed URL for outro video:", error);
-        // Fallback to host-based URL for development
+        console.error("Failed to handle outro video:", error);
+        // Final fallback to host-based URL
         const host = req.get('host') || 'localhost:5000';
-        const fallbackOutroUrl = host.includes('localhost') ? `http://${host}${outroVideoUrl}` : `https://${host}${outroVideoUrl}`;
+        const fallbackOutroUrl = host.includes('localhost') ? `http://${host}/public-objects/outro.mp4` : `https://${host}/public-objects/outro.mp4`;
         signedVideoUrls.push(fallbackOutroUrl);
-        console.log("Using fallback outro video URL:", outroVideoUrl, "->", fallbackOutroUrl);
+        console.log("Using final fallback outro video URL:", fallbackOutroUrl);
       }
       
       console.log("Signed video URLs for FFMPEG merge (including outro):", signedVideoUrls);
