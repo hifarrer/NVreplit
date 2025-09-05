@@ -179,7 +179,10 @@ function trimLyricsByDuration(lyrics: string, duration: number): string {
 }
 
 // Helper function to split lyrics into sections dynamically
-export function splitLyricsIntoSections(lyrics: string, numberOfSections: number = 4): string[] {
+export function splitLyricsIntoSections(
+  lyrics: string,
+  numberOfSections: number = 4,
+): string[] {
   // Split by section headers to get individual sections
   const parts = lyrics
     .split(/(\[(?:Verse \d+|Chorus|Bridge|Outro|Intro|Pre-Chorus|Refrain)\])/i)
@@ -229,7 +232,14 @@ export function splitLyricsIntoSections(lyrics: string, numberOfSections: number
   if (lines.length === 0) {
     // Generate placeholder sections
     const placeholders = [];
-    const sectionTypes = ["Verse 1", "Chorus", "Verse 2", "Bridge", "Verse 3", "Outro"];
+    const sectionTypes = [
+      "Verse 1",
+      "Chorus",
+      "Verse 2",
+      "Bridge",
+      "Verse 3",
+      "Outro",
+    ];
     for (let i = 0; i < numberOfSections; i++) {
       const sectionType = sectionTypes[i % sectionTypes.length];
       placeholders.push(`[${sectionType}]\nGenerated content`);
@@ -239,13 +249,13 @@ export function splitLyricsIntoSections(lyrics: string, numberOfSections: number
 
   const linesPerSection = Math.ceil(lines.length / numberOfSections);
   const result = [];
-  
+
   for (let i = 0; i < numberOfSections; i++) {
     const start = i * linesPerSection;
     const end = Math.min((i + 1) * linesPerSection, lines.length);
     result.push(lines.slice(start, end).join("\n"));
   }
-  
+
   return result;
 }
 
@@ -265,26 +275,34 @@ REQUIREMENTS:
 - First scenes: Start with zoom in from far away
 - Last scenes: Character actively singing with dynamic camera work
 - Middle scenes: Atmospheric/environmental shots
+- Very lights character actions and camera movements.
 
 Example format: "Character dancing on rooftop. Camera pans right while slowly zooming in."`;
 
     // If we have lyrics sections, add them to the prompt for better scene generation
     if (lyricsSections && lyricsSections.length > 0) {
       userContent += "\n\nBase scenes on these lyrics (keep prompts SHORT):\n";
-      
+
       // Distribute lyrics sections across the number of scenes
-      const scenesPerSection = Math.ceil(numberOfScenes / lyricsSections.length);
-      
+      const scenesPerSection = Math.ceil(
+        numberOfScenes / lyricsSections.length,
+      );
+
       for (let i = 0; i < lyricsSections.length; i++) {
         const startScene = i * scenesPerSection + 1;
         const endScene = Math.min((i + 1) * scenesPerSection, numberOfScenes);
-        let sceneRange = startScene === endScene ? `Scene ${startScene}` : `Scenes ${startScene}-${endScene}`;
-        
+        let sceneRange =
+          startScene === endScene
+            ? `Scene ${startScene}`
+            : `Scenes ${startScene}-${endScene}`;
+
         let instruction = "";
         if (i === 0) instruction = " - ZOOM IN from distance";
-        else if (i === lyricsSections.length - 1) instruction = " - Character actively singing";
-        else if (i === Math.floor(lyricsSections.length / 2)) instruction = " - Atmospheric shots";
-        
+        else if (i === lyricsSections.length - 1)
+          instruction = " - Character actively singing";
+        else if (i === Math.floor(lyricsSections.length / 2))
+          instruction = " - Atmospheric shots";
+
         userContent += `${sceneRange}: ${lyricsSections[i] || "[Instrumental]"}${instruction}\n`;
       }
     }
@@ -294,8 +312,12 @@ Example format: "Character dancing on rooftop. Camera pans right while slowly zo
       messages: [
         {
           role: "system",
-          content:
-            `You are a creative director for music videos. Generate ${numberOfScenes} SHORT and CONCISE scene prompts (1-2 sentences each). Each prompt must include a specific character action and camera movement. Keep them simple and focused for video generation. Respond with JSON in this format: {"prompts": [${Array(numberOfScenes).fill(0).map((_, i) => `"scene ${i + 1} description"`).join(", ")}]}`,
+          content: `You are a creative director for music videos. Generate ${numberOfScenes} SHORT and CONCISE scene prompts (1-2 sentences each). Each prompt must include a specific character action and camera movement. Keep them simple and focused for video generation. Respond with JSON in this format: {"prompts": [${Array(
+            numberOfScenes,
+          )
+            .fill(0)
+            .map((_, i) => `"scene ${i + 1} description"`)
+            .join(", ")}]}`,
         },
         {
           role: "user",
