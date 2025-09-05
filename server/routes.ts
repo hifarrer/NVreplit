@@ -190,7 +190,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
           
           // Redirect to frontend with token
-          const frontendURL = process.env.FRONTEND_URL || "http://localhost:5000";
+          const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+          const host = req.get('host');
+          const frontendURL = process.env.FRONTEND_URL || `${protocol}://${host}`;
           res.redirect(`${frontendURL}/auth?token=${token}&user=${encodeURIComponent(JSON.stringify({
             id: user.id,
             username: user.username,
@@ -199,7 +201,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }))}`);
         } catch (error) {
           console.error("Google OAuth callback error:", error);
-          res.redirect(`${process.env.FRONTEND_URL || "http://localhost:5000"}/auth?error=oauth_failed`);
+          const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+          const host = req.get('host');
+          const frontendURL = process.env.FRONTEND_URL || `${protocol}://${host}`;
+          res.redirect(`${frontendURL}/auth?error=oauth_failed`);
         }
       }
     );
