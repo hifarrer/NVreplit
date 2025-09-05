@@ -83,6 +83,12 @@ export default function MyVideosPage() {
                     My Songs
                   </Button>
                 </Link>
+                <Link href="/characters">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                    <User className="h-4 w-4 mr-2" />
+                    My Characters
+                  </Button>
+                </Link>
                 <Button variant="ghost" size="sm" disabled className="text-foreground">
                   <Video className="h-4 w-4 mr-2" />
                   My Videos
