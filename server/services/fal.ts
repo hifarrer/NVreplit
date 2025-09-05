@@ -568,10 +568,11 @@ export async function generateSceneImages(
       results.sort((a, b) => a.index - b.index);
     }
 
-    // Check if we have all 4 images
-    if (results.length < 4) {
+    // Check if we have all expected images based on the number of prompts
+    const expectedScenes = prompts.length;
+    if (results.length < expectedScenes) {
       const missingIndices = [];
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < expectedScenes; i++) {
         if (!results.find((r) => r.index === i)) {
           missingIndices.push(i + 1);
         }
