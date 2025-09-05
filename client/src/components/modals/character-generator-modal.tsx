@@ -249,26 +249,43 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors"></div>
                     <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        onClick={() => handleSaveCharacter(imageUrl)}
-                        disabled={saveCharacterMutation.isPending}
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                        size="sm"
-                        data-testid={`save-character-${index}`}
-                      >
-                        <Check className="w-4 h-4 mr-1" />
-                        Use for Project
-                      </Button>
-                      <Button
-                        onClick={() => handleSaveToLibrary(imageUrl)}
-                        disabled={saveToLibraryMutation.isPending}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                        size="sm"
-                        data-testid={`save-to-library-${index}`}
-                      >
-                        <Check className="w-4 h-4 mr-1" />
-                        Save to Library
-                      </Button>
+                      {projectId ? (
+                        // Project mode - show both buttons
+                        <>
+                          <Button
+                            onClick={() => handleSaveCharacter(imageUrl)}
+                            disabled={saveCharacterMutation.isPending}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            size="sm"
+                            data-testid={`save-character-${index}`}
+                          >
+                            <Check className="w-4 h-4 mr-1" />
+                            Use for Project
+                          </Button>
+                          <Button
+                            onClick={() => handleSaveToLibrary(imageUrl)}
+                            disabled={saveToLibraryMutation.isPending}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            size="sm"
+                            data-testid={`save-to-library-${index}`}
+                          >
+                            <Check className="w-4 h-4 mr-1" />
+                            Save to Library
+                          </Button>
+                        </>
+                      ) : (
+                        // Library mode - show only save button
+                        <Button
+                          onClick={() => handleSaveCharacter(imageUrl)}
+                          disabled={saveCharacterMutation.isPending}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          size="sm"
+                          data-testid={`save-character-${index}`}
+                        >
+                          <Check className="w-4 h-4 mr-1" />
+                          Save Character
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
