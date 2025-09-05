@@ -78,7 +78,7 @@ export default function AuthPage() {
               <img 
                 src={logoImage} 
                 alt="neonvideo.ai" 
-                className="h-16 mx-auto" 
+                className="h-48 mx-auto" 
                 data-testid="app-logo"
               />
             </div>
