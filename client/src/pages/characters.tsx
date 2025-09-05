@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowLeft, Search, Trash2, Users, Loader2, LogOut, User, Video, Home as HomeIcon, Music } from "lucide-react";
+import { ArrowLeft, Search, Trash2, Users, Loader2, LogOut, User, Video, Home as HomeIcon, Music, Plus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CharacterGeneratorModal } from "@/components/modals/character-generator-modal";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
 interface SavedCharacter {
@@ -21,6 +22,7 @@ interface SavedCharacter {
 
 export default function CharactersPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [showCharacterModal, setShowCharacterModal] = useState(false);
   const { user, logout } = useAuth();
   const { toast } = useToast();
 
@@ -54,6 +56,16 @@ export default function CharactersPage() {
     character.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     character.prompt.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleCharacterGenerated = (result: { imageUrl: string; prompt: string }) => {
+    // Invalidate the characters query to refetch the updated list
+    queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+    setShowCharacterModal(false);
+    toast({
+      title: "Success",
+      description: "Your character has been generated and saved!",
+    });
+  };
 
   if (isLoading) {
     return (
@@ -151,6 +163,14 @@ export default function CharactersPage() {
               Manage your saved AI-generated characters
             </p>
           </div>
+          <Button
+            onClick={() => setShowCharacterModal(true)}
+            className="floating-button"
+            data-testid="create-character-button"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Character
+          </Button>
         </div>
 
         {/* Search */}
@@ -181,11 +201,14 @@ export default function CharactersPage() {
               }
             </p>
             {!searchTerm && (
-              <Link href="/">
-                <Button className="floating-button" data-testid="create-first-character">
-                  Create Your First Character
-                </Button>
-              </Link>
+              <Button 
+                onClick={() => setShowCharacterModal(true)}
+                className="floating-button" 
+                data-testid="create-first-character"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Character
+              </Button>
             )}
           </div>
         ) : (
@@ -237,6 +260,14 @@ export default function CharactersPage() {
           </p>
         </div>
       </div>
+
+      {/* Character Generator Modal */}
+      <CharacterGeneratorModal
+        isOpen={showCharacterModal}
+        onClose={() => setShowCharacterModal(false)}
+        onCharacterGenerated={handleCharacterGenerated}
+        projectId="" // Empty project ID since we're creating standalone characters
+      />
     </div>
   );
 }

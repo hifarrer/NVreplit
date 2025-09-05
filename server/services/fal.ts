@@ -8,7 +8,7 @@ export async function generateCharacterImages(
   aspectRatio: string = "16:9",
 ): Promise<string[]> {
   // Always prepend "A front shot of " to ensure we get a front-facing character image
-  const enhancedPrompt = `A front shot of ${prompt}`;
+  const enhancedPrompt = `A front shot close up of ${prompt}`;
 
   console.log(
     "Starting KIE.ai character generation with prompt:",
@@ -162,11 +162,16 @@ export async function generateSingleSceneImage(
 
   // Convert internal object storage URL to publicly accessible signed URL
   let publicCharacterImageUrl = characterImageUrl;
-  if (characterImageUrl.startsWith('/objects/')) {
-    console.log('Converting internal object URL to signed URL for single scene...');
+  if (characterImageUrl.startsWith("/objects/")) {
+    console.log(
+      "Converting internal object URL to signed URL for single scene...",
+    );
     const { ObjectStorageService } = await import("../objectStorage");
     const objectStorageService = new ObjectStorageService();
-    publicCharacterImageUrl = await objectStorageService.getSignedUrlForPath(characterImageUrl, 86400); // 24 hour TTL
+    publicCharacterImageUrl = await objectStorageService.getSignedUrlForPath(
+      characterImageUrl,
+      86400,
+    ); // 24 hour TTL
     console.log(`Converted to signed URL: ${publicCharacterImageUrl}`);
   }
 
@@ -295,11 +300,14 @@ export async function generateSceneImages(
 
   // Convert internal object storage URL to publicly accessible signed URL
   let publicCharacterImageUrl = characterImageUrl;
-  if (characterImageUrl.startsWith('/objects/')) {
-    console.log('Converting internal object URL to signed URL...');
+  if (characterImageUrl.startsWith("/objects/")) {
+    console.log("Converting internal object URL to signed URL...");
     const { ObjectStorageService } = await import("../objectStorage");
     const objectStorageService = new ObjectStorageService();
-    publicCharacterImageUrl = await objectStorageService.getSignedUrlForPath(characterImageUrl, 86400); // 24 hour TTL
+    publicCharacterImageUrl = await objectStorageService.getSignedUrlForPath(
+      characterImageUrl,
+      86400,
+    ); // 24 hour TTL
     console.log(`Converted to signed URL: ${publicCharacterImageUrl}`);
   }
 
