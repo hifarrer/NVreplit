@@ -34,7 +34,7 @@ export default function PublicProfilePage() {
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
 
   const { data: profile, isLoading, error } = useQuery<PublicProfile>({
-    queryKey: [`/api/users/${username}/videos`],
+    queryKey: ['/api/users', username, 'videos'],
     retry: false
   });
 
