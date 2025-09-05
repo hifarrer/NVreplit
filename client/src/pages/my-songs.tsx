@@ -66,8 +66,28 @@ export default function MySongsPage() {
   // Delete mutation
   const deleteSongMutation = useMutation({
     mutationFn: async (songId: string) => {
-      const response = await apiRequest("DELETE", `/api/projects/${songId}`);
-      return response.json();
+      // Get the auth token
+      const token = localStorage.getItem('auth_token');
+      
+      // Make the request directly to handle 404 properly
+      // Note: Using the correct endpoint /api/my-songs instead of /api/projects
+      const response = await fetch(`/api/my-songs/${songId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        credentials: 'include'
+      });
+      
+      // Both 200 and 404 are success cases for deletion
+      if (response.ok || response.status === 404) {
+        return { success: true };
+      }
+      
+      // Only throw for real errors (500, 403, 401, etc)
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errorData.error || 'Failed to delete song');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/my-songs"] });
