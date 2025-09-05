@@ -18,6 +18,8 @@ import { downloadAndStoreImage } from "./services/imageStorage";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import passport from "passport";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 
 // Configure multer for audio uploads
 const uploadDir = path.join(process.cwd(), 'public', 'uploads');
@@ -47,6 +49,11 @@ const audioUpload = multer({
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || "music-video-maker-secret-key";
+
+// Google OAuth configuration
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || "http://localhost:5000/api/auth/google/callback";
 
 // Initialize video queue service
 const videoQueueService = new VideoQueueService();
@@ -99,7 +106,104 @@ function authenticateAdmin(req: any, res: any, next: any) {
   });
 }
 
+// Configure Google OAuth Strategy
+if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: GOOGLE_CLIENT_ID,
+        clientSecret: GOOGLE_CLIENT_SECRET,
+        callbackURL: GOOGLE_CALLBACK_URL,
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          console.log("Google OAuth profile:", profile);
+          
+          // Check if user exists by Google ID or email
+          let user = await storage.getUserByGoogleId(profile.id);
+          
+          if (!user && profile.emails && profile.emails[0]) {
+            // If no user found by Google ID, check by email
+            user = await storage.getUserByEmail(profile.emails[0].value);
+            
+            if (user) {
+              // Link existing account with Google ID
+              await storage.updateUserGoogleId(user.id, profile.id);
+            }
+          }
+          
+          if (!user) {
+            // Create new user
+            const email = profile.emails?.[0]?.value || '';
+            const username = profile.displayName || `user_${profile.id}`;
+            
+            // Generate a unique username if it already exists
+            let finalUsername = username;
+            let counter = 1;
+            while (await storage.getUserByUsername(finalUsername)) {
+              finalUsername = `${username}_${counter}`;
+              counter++;
+            }
+            
+            user = await storage.createUser({
+              username: finalUsername,
+              email,
+              password: crypto.randomBytes(32).toString('hex'), // Random password for OAuth users
+              avatarUrl: profile.photos?.[0]?.value || "/public-objects/public/avatars/anonymous.png",
+              googleId: profile.id
+            });
+          }
+          
+          return done(null, user);
+        } catch (error) {
+          console.error("Google OAuth error:", error);
+          return done(error, false);
+        }
+      }
+    )
+  );
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize Passport
+  app.use(passport.initialize());
+  
+  // Google OAuth routes
+  if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
+    app.get("/api/auth/google", 
+      passport.authenticate("google", { 
+        scope: ["profile", "email"] 
+      })
+    );
+
+    app.get("/api/auth/google/callback",
+      passport.authenticate("google", { session: false }),
+      async (req: any, res) => {
+        try {
+          const user = req.user;
+          
+          // Generate JWT token
+          const token = jwt.sign(
+            { userId: user.id, username: user.username },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+          );
+          
+          // Redirect to frontend with token
+          const frontendURL = process.env.FRONTEND_URL || "http://localhost:5000";
+          res.redirect(`${frontendURL}/auth?token=${token}&user=${encodeURIComponent(JSON.stringify({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatarUrl: user.avatarUrl
+          }))}`);
+        } catch (error) {
+          console.error("Google OAuth callback error:", error);
+          res.redirect(`${process.env.FRONTEND_URL || "http://localhost:5000"}/auth?error=oauth_failed`);
+        }
+      }
+    );
+  }
   // Authentication routes
   app.post("/api/register", async (req, res) => {
     try {
