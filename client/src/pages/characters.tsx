@@ -35,11 +35,15 @@ export default function CharactersPage() {
 
   const deleteCharacterMutation = useMutation({
     mutationFn: async (characterId: string) => {
+      // Get the auth token
+      const token = localStorage.getItem('auth_token');
+      
       // Make the request directly to handle 404 properly
       const response = await fetch(`/api/characters/${characterId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
         },
         credentials: 'include'
       });
@@ -49,7 +53,7 @@ export default function CharactersPage() {
         return { success: true };
       }
       
-      // Only throw for real errors (500, 403, etc)
+      // Only throw for real errors (500, 403, 401, etc)
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
       throw new Error(errorData.error || 'Failed to delete character');
     },
