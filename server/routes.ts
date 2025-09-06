@@ -1028,13 +1028,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .map(p => {
           // Get the last scene image if available
           let thumbnailUrl = null;
-          if (p.sceneData && Array.isArray(p.sceneData)) {
-            const scenes = p.sceneData as any[];
-            if (scenes.length > 0) {
-              const lastScene = scenes[scenes.length - 1];
-              thumbnailUrl = lastScene.imageUrl || null;
+          if (p.sceneData) {
+            try {
+              // Parse sceneData if it's a string
+              const scenes = typeof p.sceneData === 'string' 
+                ? JSON.parse(p.sceneData) 
+                : p.sceneData;
+              
+              if (Array.isArray(scenes) && scenes.length > 0) {
+                const lastScene = scenes[scenes.length - 1];
+                thumbnailUrl = lastScene.imageUrl || null;
+              }
+            } catch (e) {
+              console.log("Error parsing scene data for project", p.id, e);
             }
           }
+          
+          console.log(`Video ${p.id}: title="${p.title}", thumbnailUrl=${thumbnailUrl ? 'exists' : 'null'}`);
           
           return {
             id: p.id,
