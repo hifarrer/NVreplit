@@ -199,19 +199,39 @@ export default function PublicProfilePage() {
                 className="overflow-hidden hover:border-primary/50 transition-colors"
                 data-testid={`video-card-${video.id}`}
               >
-                <div className="relative aspect-video bg-black">
+                <div className="relative aspect-video bg-black group">
                   <video
                     ref={(el) => { videoRefs.current[video.id] = el; }}
                     src={video.videoUrl}
                     className="w-full h-full object-contain"
+                    preload="metadata"
+                    muted
                     onEnded={() => handleVideoEnded(video.id)}
                     playsInline
+                    onMouseEnter={(e) => {
+                      if (playingVideoId !== video.id) {
+                        const videoEl = e.currentTarget;
+                        videoEl.currentTime = 0;
+                        videoEl.play().catch(() => {});
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (playingVideoId !== video.id) {
+                        const videoEl = e.currentTarget;
+                        videoEl.pause();
+                        videoEl.currentTime = 0;
+                      }
+                    }}
+                    onError={(e) => {
+                      // Gracefully handle video load errors
+                      console.error('Video failed to load:', video.videoUrl);
+                    }}
                   />
-                  <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <Button
                       size="icon"
                       variant="secondary"
-                      className="rounded-full h-12 w-12 bg-background/80 hover:bg-background/90"
+                      className="rounded-full h-12 w-12 bg-background/80 hover:bg-background/90 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"
                       onClick={() => togglePlay(video.id)}
                       data-testid={`button-play-${video.id}`}
                     >
