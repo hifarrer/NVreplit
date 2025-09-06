@@ -13,15 +13,19 @@ import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Project } from "@shared/schema";
 
+interface VideoWithUser extends Project {
+  username?: string;
+}
+
 export function VideoManagement() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [editingVideo, setEditingVideo] = useState<Project | null>(null);
-  const [deletingVideo, setDeletingVideo] = useState<Project | null>(null);
+  const [editingVideo, setEditingVideo] = useState<VideoWithUser | null>(null);
+  const [deletingVideo, setDeletingVideo] = useState<VideoWithUser | null>(null);
 
   // Fetch all videos
-  const { data: videos = [], isLoading } = useQuery<Project[]>({
+  const { data: videos = [], isLoading } = useQuery<VideoWithUser[]>({
     queryKey: ["/api/admin/videos"],
     queryFn: async () => {
       const token = localStorage.getItem("adminToken");
@@ -102,6 +106,7 @@ export function VideoManagement() {
     const matchesSearch = 
       video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       video.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      video.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       video.userId.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === "all" || 
@@ -147,7 +152,7 @@ export function VideoManagement() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Search by title, description, or user ID..."
+                  placeholder="Search by title, description, or username..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 bg-black/50 border-purple-500/30 text-white placeholder:text-gray-400"
@@ -204,7 +209,7 @@ export function VideoManagement() {
                     <div className="flex items-center gap-6 text-sm text-gray-400">
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
-                        <span>User ID: {video.userId}</span>
+                        <span>{video.username || 'Unknown User'}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />

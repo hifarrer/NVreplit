@@ -561,7 +561,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/videos", authenticateAdmin, async (req, res) => {
     try {
       const videos = await storage.getAllVideosForAdmin();
-      res.json(videos);
+      // Add user information to each video
+      const videosWithUsers = await Promise.all(
+        videos.map(async (video) => {
+          const user = await storage.getUser(video.userId);
+          return {
+            ...video,
+            username: user?.username || 'Unknown User'
+          };
+        })
+      );
+      res.json(videosWithUsers);
     } catch (error) {
       console.error("Get all videos error:", error);
       res.status(500).json({ error: "Failed to get videos" });
