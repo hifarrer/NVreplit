@@ -61,7 +61,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [lyrics, setLyrics] = useState("");
-  const [duration, setDuration] = useState([120]); // Default 120 seconds (2 minutes)
+  const [duration, setDuration] = useState([60]); // Default 60 seconds (1 minute)
   const [addSubtitles, setAddSubtitles] = useState(false); // Subtitle toggle
   const [progress, setProgress] = useState(0);
   const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(null); // For debugging display
