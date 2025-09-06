@@ -1013,13 +1013,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Filter only completed projects with final videos
       const completedVideos = projects
         .filter(p => p.isCompleted && p.finalVideoUrl)
-        .map(p => ({
-          id: p.id,
-          title: p.title,
-          videoUrl: p.finalVideoUrl,
-          createdAt: p.createdAt,
-          updatedAt: p.updatedAt
-        }));
+        .map(p => {
+          // Get the last scene image if available
+          let thumbnailUrl = null;
+          if (p.sceneData && Array.isArray(p.sceneData)) {
+            const scenes = p.sceneData as any[];
+            if (scenes.length > 0) {
+              const lastScene = scenes[scenes.length - 1];
+              thumbnailUrl = lastScene.imageUrl || null;
+            }
+          }
+          
+          return {
+            id: p.id,
+            title: p.title,
+            videoUrl: p.finalVideoUrl,
+            thumbnailUrl,
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt
+          };
+        });
       res.json(completedVideos);
     } catch (error) {
       console.error("Get my videos error:", error);
