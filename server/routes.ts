@@ -2073,7 +2073,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           savedFinalVideoUrl = await objectStorageService.uploadVideoFromUrl(
             finalVideo.download_url,
-            `final_video_${Date.now()}.mp4`
+            `neonvideo_${Date.now()}.mp4`
           );
           console.log("Final video saved to storage:", savedFinalVideoUrl);
         } catch (storageError) {
