@@ -3,7 +3,146 @@ const FAL_KEY =
   "b479bcce-ae9a-439a-a9d6-3bf0ab5cf8f0:d9afcc34d42d7e0f0dc04607a81c60a0";
 const KIE_API_TOKEN = "f27547e627af203de39b3345de70c32b";
 
+// New Wavespeed.ai character generation function
+export async function generateCharacterImageWavespeed(
+  prompt: string,
+  aspectRatio: string = "16:9",
+): Promise<string> {
+  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
+
+  // Enhanced prompt for Wavespeed.ai
+  const enhancedPrompt = `front shot of a ${prompt} in a plain black background`;
+
+  console.log(
+    "Starting Wavespeed.ai character generation with prompt:",
+    enhancedPrompt,
+  );
+
+  try {
+    // Submit generation request to Wavespeed.ai
+    const response = await fetch(
+      "https://api.wavespeed.ai/api/v3/wavespeed-ai/wan-2.2/text-to-image-realism",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+        body: JSON.stringify({
+          enable_base64_output: false,
+          enable_sync_mode: false,
+          output_format: "png",
+          prompt: enhancedPrompt,
+          seed: -1,
+          size: "720*720",
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Wavespeed.ai submission failed:", errorText);
+      throw new Error(
+        `Wavespeed.ai submission error: ${response.status} - ${errorText}`,
+      );
+    }
+
+    const result = await response.json();
+    console.log("Wavespeed.ai submission result:", JSON.stringify(result, null, 2));
+
+    if (result.code !== 200) {
+      throw new Error(`Wavespeed.ai API error: ${result.message || "Unknown error"}`);
+    }
+
+    const requestId = result.data?.id;
+    if (!requestId) {
+      console.error("No request ID in response:", result);
+      throw new Error("No request ID received from Wavespeed.ai");
+    }
+
+    console.log("Got request ID:", requestId);
+
+    // Poll for results
+    let attempts = 0;
+    const maxAttempts = 60; // 5 minutes with 5-second intervals
+
+    console.log("Starting polling for completion...");
+
+    while (attempts < maxAttempts) {
+      console.log(`Polling attempt ${attempts + 1}/${maxAttempts}...`);
+      await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
+
+      const statusUrl = `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`;
+      console.log("Checking status at:", statusUrl);
+
+      const statusResponse = await fetch(statusUrl, {
+        headers: {
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+      });
+
+      if (!statusResponse.ok) {
+        const errorText = await statusResponse.text();
+        console.error("Status check failed:", errorText);
+        throw new Error(
+          `Status check failed: ${statusResponse.status} - ${errorText}`,
+        );
+      }
+
+      const statusResult = await statusResponse.json();
+      console.log("Status result:", JSON.stringify(statusResult, null, 2));
+
+      if (statusResult.code === 200 && statusResult.data?.status === "completed") {
+        console.log("Generation completed! Processing results...");
+
+        const outputs = statusResult.data?.outputs;
+        if (outputs && Array.isArray(outputs) && outputs.length > 0) {
+          const imageUrl = outputs[0];
+          console.log("Found image URL:", imageUrl);
+          return imageUrl;
+        } else {
+          console.error("No output URLs found:", statusResult);
+          throw new Error("No images in results");
+        }
+      } else if (statusResult.data?.status === "failed") {
+        console.error(
+          "Wavespeed.ai generation failed:",
+          statusResult.data.error || "Unknown error",
+        );
+        throw new Error(
+          `Image generation failed: ${statusResult.data.error || "Unknown error"}`,
+        );
+      } else {
+        console.log(`Task still in progress (status: ${statusResult.data?.status}), continuing to poll...`);
+      }
+
+      attempts++;
+    }
+
+    throw new Error("Image generation timed out");
+  } catch (error) {
+    console.error("Wavespeed.ai character generation error:", error);
+    throw new Error(
+      "Failed to generate character image: " + (error as Error).message,
+    );
+  }
+}
+
+// Updated to use Wavespeed.ai for character generation
 export async function generateCharacterImages(
+  prompt: string,
+  aspectRatio: string = "16:9",
+): Promise<string[]> {
+  // Use Wavespeed.ai for character generation (returns single image)
+  const imageUrl = await generateCharacterImageWavespeed(prompt, aspectRatio);
+  return [imageUrl]; // Return as array for compatibility
+}
+
+// Original KIE.ai implementation (kept for potential future use)
+export async function generateCharacterImagesKIE(
   prompt: string,
   aspectRatio: string = "16:9",
 ): Promise<string[]> {

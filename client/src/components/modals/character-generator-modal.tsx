@@ -227,7 +227,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
                 <div className="loading-spinner"></div>
               </div>
               <Progress value={progress} className="mb-2" />
-              <p className="text-sm text-muted-foreground">Creating 4 character variations for you to choose from...</p>
+              <p className="text-sm text-muted-foreground">Creating your character...</p>
             </div>
           )}
 
@@ -236,15 +236,15 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
             <div data-testid="generated-character-options">
               <Label className="flex items-center text-sm font-semibold mb-3">
                 <i className="fas fa-images text-primary mr-2"></i>
-                Choose Your Favorite Character ({generatedImageUrls.length} options)
+                {generatedImageUrls.length > 1 ? `Choose Your Favorite Character (${generatedImageUrls.length} options)` : 'Your Generated Character'}
               </Label>
-              <div className="grid grid-cols-2 gap-4">
+              <div className={generatedImageUrls.length === 1 ? "flex justify-center" : "grid grid-cols-2 gap-4"}>
                 {generatedImageUrls.map((imageUrl, index) => (
-                  <div key={index} className="relative group" data-testid={`character-option-${index}`}>
+                  <div key={index} className={generatedImageUrls.length === 1 ? "relative group max-w-md" : "relative group"} data-testid={`character-option-${index}`}>
                     <img
                       src={imageUrl}
                       alt={`Character option ${index + 1}`}
-                      className="w-full h-48 rounded-lg object-cover border-2 border-border group-hover:border-primary transition-colors"
+                      className={generatedImageUrls.length === 1 ? "w-full h-96 rounded-lg object-cover border-2 border-border group-hover:border-primary transition-colors" : "w-full h-48 rounded-lg object-cover border-2 border-border group-hover:border-primary transition-colors"}
                       data-testid={`character-image-${index}`}
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors"></div>

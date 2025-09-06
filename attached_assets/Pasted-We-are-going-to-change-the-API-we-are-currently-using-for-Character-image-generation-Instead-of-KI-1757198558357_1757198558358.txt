@@ -1,0 +1,66 @@
+We are going to change the API we are currently using for Character image generation.
+Instead of KIE.AI, we will use wavespeed.ai. DO NOT REMOVE the existing KIE.AI functionality as we may want to go back to it later.
+
+So now to generate the character image:
+We will improve the user's prompt like this: {enhancedPrompt}"front shot of a "+{prompt}+" in a plain black background" (do not show this to the user, this is just done in the background)
+To generate an Image we are going to use Wavespeed.ai:
+
+Sample request:
+curl --location --request POST 'https://api.wavespeed.ai/api/v3/wavespeed-ai/wan-2.2/text-to-image-realism' \
+--header "Content-Type: application/json" \
+--header "Authorization: Bearer ${WAVESPEED_API_KEY}" \
+--data-raw '{
+  "enable_base64_output": false,
+  "enable_sync_mode": false,
+  "output_format": "png",
+  "prompt": "{enhancedPrompt}",
+  "seed": -1,
+  "size": "720*720"
+}'
+
+You will get a JSON with an "id" inside a data node as a result, 
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": "315bdf98eca04e91b56984451492ffd1",
+...
+
+this id is the request_id that will be used to check for results like this:
+
+Query results:
+curl --location --request GET "https://api.wavespeed.ai/api/v3/predictions/${requestId}/result" \
+--header "Authorization: Bearer ${WAVESPEED_API_KEY}"
+
+Sample response:
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": "55ee5330593543fdb45f24dfc7ba8365",
+    "model": "wavespeed-ai/wan-2.2/text-to-image-realism",
+    "input": {
+      "enable_base64_output": false,
+      "enable_sync_mode": false,
+      "output_format": "png",
+      "prompt": "front shot of cute white kitty with a black leather jacket and headphones in 3D animation Pixar style",
+      "seed": 1629738723,
+      "size": "504*504"
+    },
+    "outputs": [
+      "https://d2p7pge43lyniu.cloudfront.net/output/8cb21d31-3fa7-4971-bb09-3dd5070d9b0f-u2_a208e7fb-469f-4edf-b440-0039066355df.jpeg"
+    ],
+    "urls": {
+      "get": "https://api.wavespeed.ai/api/v3/predictions/55ee5330593543fdb45f24dfc7ba8365/result"
+    },
+    "has_nsfw_contents": null,
+    "status": "completed",
+    "created_at": "2025-09-06T20:15:33.673594051Z",
+    "error": "",
+    "timings": {
+      "inference": 8778
+    }
+  }
+}
+
+This api endpoint will only generate 1 image, instead of 4. So make sure to only display 1 image.
