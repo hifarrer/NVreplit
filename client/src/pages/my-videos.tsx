@@ -118,24 +118,32 @@ export default function MyVideosPage() {
                     >
                       <X className="h-4 w-4" />
                     </Button>
-                    <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center relative overflow-hidden">
-                      {video.thumbnailUrl ? (
-                        <>
-                          <img 
-                            src={video.thumbnailUrl} 
-                            alt={`${video.title} thumbnail`}
-                            className="absolute inset-0 w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-black/20" />
-                        </>
-                      ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
-                          <Video className="h-12 w-12 text-primary/70 mb-2" />
-                          <p className="text-xs text-muted-foreground mb-1">Music Video</p>
-                          <p className="text-xs text-muted-foreground opacity-75">Click to play</p>
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                    <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center relative overflow-hidden group">
+                      <video
+                        className="absolute inset-0 w-full h-full object-cover"
+                        src={video.videoUrl}
+                        preload="metadata"
+                        muted
+                        playsInline
+                        onMouseEnter={(e) => {
+                          e.stopPropagation();
+                          const videoEl = e.currentTarget;
+                          videoEl.currentTime = 0;
+                          videoEl.play().catch(() => {});
+                        }}
+                        onMouseLeave={(e) => {
+                          e.stopPropagation();
+                          const videoEl = e.currentTarget;
+                          videoEl.pause();
+                          videoEl.currentTime = 0;
+                        }}
+                        onError={(e) => {
+                          // Hide video element if it fails to load
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-black/20 pointer-events-none" />
+                      <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                         <Play className="h-16 w-16 text-white drop-shadow-lg" />
                       </div>
                     </div>

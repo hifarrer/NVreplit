@@ -1040,11 +1040,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 thumbnailUrl = lastScene.imageUrl || null;
               }
             } catch (e) {
-              console.log("Error parsing scene data for project", p.id, e);
+              // Silently handle parse errors for old data
             }
           }
-          
-          console.log(`Video ${p.id}: title="${p.title}", thumbnailUrl=${thumbnailUrl ? 'exists' : 'null'}`);
           
           return {
             id: p.id,
