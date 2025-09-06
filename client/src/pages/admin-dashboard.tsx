@@ -11,6 +11,7 @@ import { UserManagement } from "../components/admin/user-management";
 import { SiteSettings } from "../components/admin/site-settings";
 import { UsageStatistics } from "../components/admin/usage-statistics";
 import { VideoManagement } from "../components/admin/video-management";
+import { AudioManagement } from "../components/admin/audio-management";
 
 interface AdminUser {
   username: string;
@@ -157,7 +158,7 @@ export default function AdminDashboard() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-black/30 border border-purple-500/20">
+          <TabsList className="grid w-full grid-cols-6 bg-black/30 border border-purple-500/20">
             <TabsTrigger value="users" className="data-[state=active]:bg-purple-600">
               <Users className="h-4 w-4 mr-2" />
               Users
@@ -165,6 +166,10 @@ export default function AdminDashboard() {
             <TabsTrigger value="videos" className="data-[state=active]:bg-purple-600">
               <Video className="h-4 w-4 mr-2" />
               Videos
+            </TabsTrigger>
+            <TabsTrigger value="audios" className="data-[state=active]:bg-purple-600">
+              <Music className="h-4 w-4 mr-2" />
+              Audios
             </TabsTrigger>
             <TabsTrigger value="plans" className="data-[state=active]:bg-purple-600">
               <CreditCard className="h-4 w-4 mr-2" />
@@ -186,6 +191,10 @@ export default function AdminDashboard() {
 
           <TabsContent value="videos" className="space-y-6">
             <VideoManagement />
+          </TabsContent>
+
+          <TabsContent value="audios" className="space-y-6">
+            <AudioManagement />
           </TabsContent>
 
           <TabsContent value="plans" className="space-y-6">
