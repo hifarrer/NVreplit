@@ -195,20 +195,36 @@ export function VideoManagement() {
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex gap-4 flex-1">
-                    {/* Thumbnail */}
-                    {video.thumbnailUrl && (
-                      <div className="w-32 h-20 rounded-md overflow-hidden bg-black/50 flex-shrink-0">
-                        <img 
-                          src={video.thumbnailUrl} 
-                          alt={`${video.title} thumbnail`}
+                    {/* Video Preview */}
+                    {video.finalVideoUrl && (
+                      <div className="w-32 h-20 rounded-md overflow-hidden bg-black/50 flex-shrink-0 group relative">
+                        <video
                           className="w-full h-full object-cover"
+                          src={video.finalVideoUrl}
+                          preload="metadata"
+                          muted
+                          playsInline
+                          onMouseEnter={(e) => {
+                            const videoEl = e.currentTarget;
+                            videoEl.currentTime = 0;
+                            videoEl.play().catch(() => {});
+                          }}
+                          onMouseLeave={(e) => {
+                            const videoEl = e.currentTarget;
+                            videoEl.pause();
+                            videoEl.currentTime = 0;
+                          }}
+                          onError={(e) => {
+                            // Hide video element if it fails to load
+                            e.currentTarget.style.display = 'none';
+                          }}
                         />
                       </div>
                     )}
                     
                     <div className="space-y-2 flex-1">
                       <div className="flex items-center gap-3">
-                        {!video.thumbnailUrl && <Video className="h-5 w-5 text-purple-400" />}
+                        {!video.finalVideoUrl && <Video className="h-5 w-5 text-purple-400" />}
                         <h3 className="text-lg font-semibold text-white">{video.title}</h3>
                         <Badge className={`${getStepColor(video.currentStep)} text-white`}>
                           {getStepName(video.currentStep)}
