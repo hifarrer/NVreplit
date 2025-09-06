@@ -560,7 +560,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin Video Management Routes
   app.get("/api/admin/videos", authenticateAdmin, async (req, res) => {
     try {
-      const videos = await storage.getAllVideosForAdmin();
+      const allProjects = await storage.getAllVideosForAdmin();
+      // Filter only completed videos (projects with finalVideoUrl)
+      const videos = allProjects.filter(p => p.finalVideoUrl && p.currentStep === 7);
+      
       // Add user information and thumbnail to each video
       const videosWithUsers = await Promise.all(
         videos.map(async (video) => {
@@ -568,11 +571,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Get the last scene image if available
           let thumbnailUrl = null;
-          if (video.sceneData && Array.isArray(video.sceneData)) {
-            const scenes = video.sceneData as any[];
-            if (scenes.length > 0) {
-              const lastScene = scenes[scenes.length - 1];
-              thumbnailUrl = lastScene.imageUrl || null;
+          if (video.sceneData) {
+            try {
+              const scenes = typeof video.sceneData === 'string' 
+                ? JSON.parse(video.sceneData) 
+                : video.sceneData;
+              
+              if (Array.isArray(scenes) && scenes.length > 0) {
+                const lastScene = scenes[scenes.length - 1];
+                thumbnailUrl = lastScene.imageUrl || null;
+              }
+            } catch (e) {
+              // Silently handle parse errors for old data
             }
           }
           
@@ -620,6 +630,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Delete video error:", error);
       res.status(500).json({ error: "Failed to delete video" });
+    }
+  });
+
+  // Admin Audio Management Routes
+  app.get("/api/admin/audios", authenticateAdmin, async (req, res) => {
+    try {
+      const allProjects = await storage.getAllVideosForAdmin();
+      // Filter only audio projects (projects with audioUrl but not finalVideoUrl)
+      const audios = allProjects.filter(p => p.audioUrl && !p.finalVideoUrl);
+      
+      // Add user information to each audio
+      const audiosWithUsers = await Promise.all(
+        audios.map(async (audio) => {
+          const user = await storage.getUser(audio.userId);
+          return {
+            ...audio,
+            username: user?.username || 'Unknown User'
+          };
+        })
+      );
+      res.json(audiosWithUsers);
+    } catch (error) {
+      console.error("Get all audios error:", error);
+      res.status(500).json({ error: "Failed to get audios" });
+    }
+  });
+
+  app.put("/api/admin/audios/:id", authenticateAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      
+      const updatedAudio = await storage.updateVideoAsAdmin(id, updates);
+      if (!updatedAudio) {
+        return res.status(404).json({ error: "Audio not found" });
+      }
+      
+      res.json(updatedAudio);
+    } catch (error) {
+      console.error("Update audio error:", error);
+      res.status(500).json({ error: "Failed to update audio" });
+    }
+  });
+
+  app.delete("/api/admin/audios/:id", authenticateAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteVideoAsAdmin(id);
+      
+      if (!success) {
+        return res.status(404).json({ error: "Audio not found" });
+      }
+      
+      res.json({ success: true, message: "Audio deleted successfully" });
+    } catch (error) {
+      console.error("Delete audio error:", error);
+      res.status(500).json({ error: "Failed to delete audio" });
     }
   });
 
