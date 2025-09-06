@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { Plan } from "@shared/schema";
 import { NavigationHeader } from "@/components/navigation-header";
+import { Footer } from "@/components/footer";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 
@@ -36,7 +37,7 @@ export default function PlansPage() {
   const sortedPlans = plans?.sort((a, b) => a.monthlyPrice - b.monthlyPrice) || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 flex flex-col">
       <NavigationHeader currentPage="plans" />
 
       <div className="container mx-auto px-4 py-16">
@@ -160,6 +161,7 @@ export default function PlansPage() {
           <p>Questions about our plans? <a href="/contact" className="text-primary hover:underline">Contact us</a></p>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

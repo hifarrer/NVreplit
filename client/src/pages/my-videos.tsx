@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users } from "lucide-react";
 import { NavigationHeader } from "@/components/navigation-header";
+import { Footer } from "@/components/footer";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -57,7 +58,7 @@ export default function MyVideosPage() {
   };
 
   return (
-    <div className="min-h-screen" data-testid="my-videos-page">
+    <div className="min-h-screen flex flex-col" data-testid="my-videos-page">
       <NavigationHeader currentPage="my-videos" />
 
       {/* Main Content */}
@@ -241,6 +242,7 @@ export default function MyVideosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Footer />
     </div>
   );
 }

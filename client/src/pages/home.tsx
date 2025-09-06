@@ -6,6 +6,7 @@ import { SceneGenerationStep } from "@/components/steps/scene-generation-step";
 import { VideoGenerationStep } from "@/components/steps/video-generation-step";
 import { VideoResultStep } from "@/components/steps/video-result-step";
 import { NavigationHeader } from "@/components/navigation-header";
+import { Footer } from "@/components/footer";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Project } from "@/lib/types";
@@ -111,7 +112,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen" data-testid="home-page">
+    <div className="min-h-screen flex flex-col" data-testid="home-page">
       <NavigationHeader currentPage="home" />
 
       {/* Main Content */}
@@ -172,6 +173,7 @@ export default function Home() {
           />
         )}
       </main>
+      <Footer />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { Search, Trash2, Users, Loader2, Plus, Edit3 } from "lucide-react";
 import { NavigationHeader } from "@/components/navigation-header";
+import { Footer } from "@/components/footer";
 import { CharacterGeneratorModal } from "@/components/modals/character-generator-modal";
 
 interface SavedCharacter {
@@ -145,7 +146,7 @@ export default function CharactersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <NavigationHeader currentPage="characters" />
 
       <div className="container mx-auto px-4 py-8">
@@ -315,6 +316,7 @@ export default function CharactersPage() {
         onCharacterGenerated={handleCharacterGenerated}
         projectId="" // Empty project ID since we're creating standalone characters
       />
+      <Footer />
     </div>
   );
 }

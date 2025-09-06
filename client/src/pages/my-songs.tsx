@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Music, Calendar, Download, Play, Tag, Clock, Trash2, Users } from "lucide-react";
 import { NavigationHeader } from "@/components/navigation-header";
+import { Footer } from "@/components/footer";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import {
@@ -113,7 +114,7 @@ export default function MySongsPage() {
   };
 
   return (
-    <div className="min-h-screen" data-testid="my-songs-page">
+    <div className="min-h-screen flex flex-col" data-testid="my-songs-page">
       <NavigationHeader currentPage="my-songs" />
 
       {/* Main Content */}
@@ -257,6 +258,7 @@ export default function MySongsPage() {
           </CardContent>
         </Card>
       </main>
+      <Footer />
     </div>
   );
 }
