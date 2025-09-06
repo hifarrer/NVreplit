@@ -1,15 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Check, Home as HomeIcon, Music, Video, User, LogOut } from "lucide-react";
+import { Check } from "lucide-react";
 import { Plan } from "@shared/schema";
+import { NavigationHeader } from "@/components/navigation-header";
 import { useAuth } from "@/hooks/use-auth";
-import { Link, useLocation } from "wouter";
-import logoImage from "@assets/neonlogo_1756693683433.png";
+import { useLocation } from "wouter";
 
 export default function PlansPage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [, navigate] = useLocation();
   
   const { data: plans, isLoading } = useQuery<Plan[]>({
@@ -38,90 +37,7 @@ export default function PlansPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link href="/">
-                <img 
-                  src={logoImage} 
-                  alt="neonvideo.ai" 
-                  className="h-16 cursor-pointer" 
-                  data-testid="app-logo"
-                />
-              </Link>
-              <nav className="flex items-center space-x-4">
-                <Link href="/">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <HomeIcon className="h-4 w-4 mr-1" />
-                    Create
-                  </Button>
-                </Link>
-                <Link href="/my-songs">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <Music className="h-4 w-4 mr-1" />
-                    Songs
-                  </Button>
-                </Link>
-                <Link href="/my-videos">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <Video className="h-4 w-4 mr-1" />
-                    Videos
-                  </Button>
-                </Link>
-                <Link href="/characters">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <User className="h-4 w-4 mr-1" />
-                    Characters
-                  </Button>
-                </Link>
-                <Button variant="ghost" size="sm" disabled className="text-foreground">
-                  <i className="fas fa-crown h-4 w-4 mr-1"></i>
-                  Plans
-                </Button>
-              </nav>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              {user ? (
-                <>
-                  <Link href="/profile">
-                    <div className="flex items-center space-x-2 hover:text-foreground cursor-pointer transition-colors">
-                      <Avatar className="h-6 w-6">
-                        {user.avatarUrl ? (
-                          <AvatarImage src={user.avatarUrl} alt={user.username} />
-                        ) : (
-                          <AvatarFallback className="text-xs bg-gradient-to-br from-primary/20 to-secondary/20">
-                            {user.username?.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                      <span className="text-sm text-muted-foreground hover:text-foreground">{user.username}</span>
-                    </div>
-                  </Link>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={logout}
-                    className="text-muted-foreground hover:text-foreground"
-                    data-testid="button-logout"
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Logout
-                  </Button>
-                </>
-              ) : (
-                <Link href="/auth">
-                  <Button size="sm">
-                    Sign In
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+      <NavigationHeader currentPage="plans" />
 
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
@@ -133,7 +49,7 @@ export default function PlansPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 max-w-7xl mx-auto">
           {sortedPlans.map((plan, index) => {
             // Mark the second plan as popular (if there are at least 2 plans)
             const isPopular = index === 1 && sortedPlans.length > 1;
@@ -207,9 +123,9 @@ export default function PlansPage() {
           </div>
         )}
 
-        <div className="mt-16 text-center">
-          <h2 className="text-2xl font-semibold mb-4">All Plans Include</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+        <div className="mt-12 sm:mt-16 text-center">
+          <h2 className="text-xl sm:text-2xl font-semibold mb-4">All Plans Include</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 max-w-4xl mx-auto">
             <div className="flex flex-col items-center p-4">
               <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-3">
                 <i className="fas fa-music text-primary"></i>

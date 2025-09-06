@@ -72,8 +72,8 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
   };
 
   return (
-    <div className="max-w-4xl mx-auto mb-12 bg-card rounded-lg p-4" data-testid="character-creation-step">
-      <div className="bg-background border border-border rounded-lg p-8">
+    <div className="max-w-4xl mx-auto mb-12 bg-card rounded-lg p-2 sm:p-4" data-testid="character-creation-step">
+      <div className="bg-background border border-border rounded-lg p-4 sm:p-6 md:p-8">
         <div className="flex justify-end mb-4">
           <Button
             variant="outline"
@@ -106,7 +106,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
           {/* Upload Character Image */}
           <div className="space-y-4">
             <h4 className="text-lg font-semibold flex items-center">
@@ -114,7 +114,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
               Upload Character Image
             </h4>
             
-            <div className="upload-zone rounded-lg p-12 text-center cursor-pointer" data-testid="character-upload-zone">
+            <div className="upload-zone rounded-lg p-8 sm:p-12 text-center cursor-pointer" data-testid="character-upload-zone">
               <User className="w-12 h-12 text-muted-foreground mb-4 mx-auto" />
               <p className="text-muted-foreground mb-2">Drag and drop your character image</p>
               <p className="text-sm text-muted-foreground">or click to browse</p>
@@ -138,7 +138,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
               Generate AI Character
             </h4>
             
-            <div className="bg-muted/30 rounded-lg p-8 text-center">
+            <div className="bg-muted/30 rounded-lg p-6 sm:p-8 text-center">
               <Bot className="w-12 h-12 text-accent mb-4 mx-auto" />
               <p className="text-muted-foreground mb-4">Create a unique character using AI image generation</p>
               <ul className="text-sm text-muted-foreground space-y-1 mb-4">
@@ -166,8 +166,8 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
               <UserCheck className="w-4 h-4 text-primary mr-2" />
               Your Character
             </h4>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-6">
+            <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row items-center gap-4 sm:space-x-6">
                 <img 
                   src={currentCharacterUrl}
                   alt="Generated character" 

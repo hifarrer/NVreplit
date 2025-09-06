@@ -7,10 +7,9 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowLeft, Search, Trash2, Users, Loader2, LogOut, User, Video, Home as HomeIcon, Music, Plus, Edit3 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Search, Trash2, Users, Loader2, Plus, Edit3 } from "lucide-react";
+import { NavigationHeader } from "@/components/navigation-header";
 import { CharacterGeneratorModal } from "@/components/modals/character-generator-modal";
-import logoImage from "@assets/neonlogo_1756693683433.png";
 
 interface SavedCharacter {
   id: string;
@@ -25,7 +24,7 @@ export default function CharactersPage() {
   const [showCharacterModal, setShowCharacterModal] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const { data: characters = [], isLoading } = useQuery<SavedCharacter[]>({

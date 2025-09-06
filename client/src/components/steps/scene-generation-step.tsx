@@ -115,8 +115,8 @@ export function SceneGenerationStep({ projectId, scenes = [], onNext, onBack, on
   };
 
   return (
-    <div className="max-w-6xl mx-auto mb-12 bg-card rounded-lg p-4" data-testid="scene-generation-step">
-      <div className="bg-background border border-border rounded-lg p-8">
+    <div className="max-w-6xl mx-auto mb-12 bg-card rounded-lg p-2 sm:p-4" data-testid="scene-generation-step">
+      <div className="bg-background border border-border rounded-lg p-4 sm:p-6 md:p-8">
         <div className="flex justify-end mb-4">
           <Button
             variant="outline"
@@ -153,11 +153,11 @@ export function SceneGenerationStep({ projectId, scenes = [], onNext, onBack, on
 
         {/* Generated Scenes */}
         {generatedScenes.length > 0 && (
-          <div className="grid md:grid-cols-2 gap-6 mb-8" data-testid="generated-scenes">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8" data-testid="generated-scenes">
             {generatedScenes.map((scene, index) => (
               <div key={index} className="bg-muted/20 rounded-lg p-4 border border-border" data-testid={`scene-${index + 1}`}>
                 <div className="space-y-4">
-                  <div className="flex items-start space-x-4">
+                  <div className="flex flex-col sm:flex-row items-start gap-4 sm:space-x-4">
                     <div className="w-20 h-20 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center flex-shrink-0">
                       {regeneratingScenes.includes(index) ? (
                         <div className="loading-spinner" />

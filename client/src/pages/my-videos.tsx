@@ -4,13 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Video, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeIcon, Music, AlertTriangle, X, Trash2 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users } from "lucide-react";
+import { NavigationHeader } from "@/components/navigation-header";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
-import logoImage from "@assets/neonlogo_1756693683433.png";
 
 interface CompletedVideo {
   id: string;
@@ -21,7 +20,7 @@ interface CompletedVideo {
 }
 
 export default function MyVideosPage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [selectedVideo, setSelectedVideo] = useState<CompletedVideo | null>(null);
   const [videoError, setVideoError] = useState<boolean>(false);
   const [videoToDelete, setVideoToDelete] = useState<CompletedVideo | null>(null);

@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Music, Calendar, Download, Play, ArrowLeft, LogOut, User, Home as HomeIcon, Video, Tag, Clock, Trash2 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Music, Calendar, Download, Play, Tag, Clock, Trash2, Users } from "lucide-react";
+import { NavigationHeader } from "@/components/navigation-header";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import {
@@ -20,7 +20,6 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import logoImage from "@assets/neonlogo_1756693683433.png";
 
 interface GeneratedSong {
   id: string;
@@ -34,7 +33,7 @@ interface GeneratedSong {
 }
 
 export default function MySongsPage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
 

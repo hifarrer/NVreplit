@@ -5,18 +5,14 @@ import { CharacterCreationStep } from "@/components/steps/character-creation-ste
 import { SceneGenerationStep } from "@/components/steps/scene-generation-step";
 import { VideoGenerationStep } from "@/components/steps/video-generation-step";
 import { VideoResultStep } from "@/components/steps/video-result-step";
+import { NavigationHeader } from "@/components/navigation-header";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Project } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import { LogOut, User, Video, Home as HomeIcon, Music } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Link } from "wouter";
-import logoImage from "@assets/neonlogo_1756693683433.png";
 
 export default function Home() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [projectId, setProjectId] = useState<string>("");
 
@@ -116,78 +112,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen" data-testid="home-page">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <img 
-                src={logoImage} 
-                alt="neonvideo.ai" 
-                className="h-16" 
-                data-testid="app-logo"
-              />
-              <nav className="flex items-center space-x-4">
-                <Button variant="ghost" size="sm" disabled className="text-foreground">
-                  <HomeIcon className="h-4 w-4 mr-1" />
-                  Create
-                </Button>
-                <Link href="/my-songs">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <Music className="h-4 w-4 mr-1" />
-                    Songs
-                  </Button>
-                </Link>
-                <Link href="/my-videos">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <Video className="h-4 w-4 mr-1" />
-                    Videos
-                  </Button>
-                </Link>
-                <Link href="/characters">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <User className="h-4 w-4 mr-1" />
-                    Characters
-                  </Button>
-                </Link>
-                <Link href="/plans">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <i className="fas fa-crown h-4 w-4 mr-1"></i>
-                    Plans
-                  </Button>
-                </Link>
-              </nav>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <Link href="/profile">
-                <div className="flex items-center space-x-2 hover:text-foreground cursor-pointer transition-colors">
-                  <Avatar className="h-6 w-6">
-                    {user?.avatarUrl ? (
-                      <AvatarImage src={user.avatarUrl} alt={user.username} />
-                    ) : (
-                      <AvatarFallback className="text-xs bg-gradient-to-br from-primary/20 to-secondary/20">
-                        {user?.username?.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                  <span className="text-sm text-muted-foreground hover:text-foreground">{user?.username}</span>
-                </div>
-              </Link>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={logout}
-                className="text-muted-foreground hover:text-foreground"
-                data-testid="button-logout"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <NavigationHeader currentPage="home" />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
