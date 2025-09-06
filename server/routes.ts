@@ -557,6 +557,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin Video Management Routes
+  app.get("/api/admin/videos", authenticateAdmin, async (req, res) => {
+    try {
+      const videos = await storage.getAllVideosForAdmin();
+      res.json(videos);
+    } catch (error) {
+      console.error("Get all videos error:", error);
+      res.status(500).json({ error: "Failed to get videos" });
+    }
+  });
+
+  app.put("/api/admin/videos/:id", authenticateAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      
+      const updatedVideo = await storage.updateVideoAsAdmin(id, updates);
+      if (!updatedVideo) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+      
+      res.json(updatedVideo);
+    } catch (error) {
+      console.error("Update video error:", error);
+      res.status(500).json({ error: "Failed to update video" });
+    }
+  });
+
+  app.delete("/api/admin/videos/:id", authenticateAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteVideoAsAdmin(id);
+      
+      if (!success) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+      
+      res.json({ success: true, message: "Video deleted successfully" });
+    } catch (error) {
+      console.error("Delete video error:", error);
+      res.status(500).json({ error: "Failed to delete video" });
+    }
+  });
+
   // Update password
   app.patch("/api/user/password", authenticateToken, async (req, res) => {
     try {

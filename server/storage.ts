@@ -63,6 +63,11 @@ export interface IStorage {
   createPlan(plan: InsertPlan): Promise<Plan>;
   updatePlan(id: string, updates: Partial<Plan>): Promise<Plan | undefined>;
   deletePlan(id: string): Promise<boolean>;
+
+  // Admin Video Management methods
+  getAllVideosForAdmin(): Promise<Project[]>;
+  updateVideoAsAdmin(id: string, updates: Partial<Project>): Promise<Project | undefined>;
+  deleteVideoAsAdmin(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -465,6 +470,31 @@ export class MemStorage implements IStorage {
   async deletePlan(id: string): Promise<boolean> {
     return this.plans.delete(id);
   }
+
+  // Admin Video Management methods
+  async getAllVideosForAdmin(): Promise<Project[]> {
+    return Array.from(this.projects.values()).sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  async updateVideoAsAdmin(id: string, updates: Partial<Project>): Promise<Project | undefined> {
+    const project = this.projects.get(id);
+    if (!project) return undefined;
+    const updated = { ...project, ...updates, updatedAt: new Date() };
+    this.projects.set(id, updated);
+    return updated;
+  }
+
+  async deleteVideoAsAdmin(id: string): Promise<boolean> {
+    // Delete associated generation logs first
+    for (const [logId, log] of this.generationLogs) {
+      if (log.projectId === id) {
+        this.generationLogs.delete(logId);
+      }
+    }
+    return this.projects.delete(id);
+  }
 }
 
 // Database Storage Implementation
@@ -860,6 +890,32 @@ export class DbStorage implements IStorage {
 
   async deletePlan(id: string): Promise<boolean> {
     const result = await this.db.delete(plans).where(eq(plans.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Admin Video Management methods
+  async getAllVideosForAdmin(): Promise<Project[]> {
+    const result = await this.db
+      .select()
+      .from(projects)
+      .orderBy(sql`${projects.createdAt} DESC`);
+    return result;
+  }
+
+  async updateVideoAsAdmin(id: string, updates: Partial<Project>): Promise<Project | undefined> {
+    const result = await this.db
+      .update(projects)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(projects.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteVideoAsAdmin(id: string): Promise<boolean> {
+    // Delete associated generation logs first
+    await this.db.delete(generationLogs).where(eq(generationLogs.projectId, id));
+    // Delete the project
+    const result = await this.db.delete(projects).where(eq(projects.id, id)).returning();
     return result.length > 0;
   }
 }
