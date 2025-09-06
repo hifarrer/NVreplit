@@ -3,7 +3,13 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Home as HomeIcon, Music, Video, User, LogOut, Menu, X } from "lucide-react";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Home as HomeIcon, Music, Video, User, LogOut, Menu, ChevronDown } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
@@ -66,30 +72,39 @@ export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
           <div className="hidden lg:flex items-center space-x-4">
             {user ? (
               <>
-                <Link href="/profile">
-                  <div className="flex items-center space-x-2 hover:text-foreground cursor-pointer transition-colors">
-                    <Avatar className="h-6 w-6">
-                      {user.avatarUrl ? (
-                        <AvatarImage src={user.avatarUrl} alt={user.username} />
-                      ) : (
-                        <AvatarFallback className="text-xs bg-gradient-to-br from-primary/20 to-secondary/20">
-                          {user.username?.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                    <span className="text-sm text-muted-foreground hover:text-foreground">{user.username}</span>
-                  </div>
-                </Link>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={logout}
-                  className="text-muted-foreground hover:text-foreground"
-                  data-testid="button-logout"
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="gap-2 p-1">
+                      <Avatar className="h-6 w-6">
+                        {user.avatarUrl ? (
+                          <AvatarImage src={user.avatarUrl} alt={user.username} />
+                        ) : (
+                          <AvatarFallback className="text-xs bg-gradient-to-br from-primary/20 to-secondary/20">
+                            {user.username?.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      <span className="text-sm">{user.username}</span>
+                      <ChevronDown className="h-3 w-3 opacity-50" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <Link href="/profile">
+                      <DropdownMenuItem className="cursor-pointer">
+                        <User className="h-4 w-4 mr-2" />
+                        Profile
+                      </DropdownMenuItem>
+                    </Link>
+                    <DropdownMenuItem 
+                      onClick={logout}
+                      className="cursor-pointer text-red-500 focus:text-red-500"
+                      data-testid="button-logout"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             ) : (
               <Link href="/auth">

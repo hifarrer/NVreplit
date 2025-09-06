@@ -15,9 +15,6 @@ export function Footer() {
             <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Terms & Conditions
             </Link>
-            <Link href="/plans" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Pricing
-            </Link>
           </nav>
         </div>
       </div>
