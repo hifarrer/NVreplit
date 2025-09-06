@@ -561,13 +561,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/videos", authenticateAdmin, async (req, res) => {
     try {
       const videos = await storage.getAllVideosForAdmin();
-      // Add user information to each video
+      // Add user information and thumbnail to each video
       const videosWithUsers = await Promise.all(
         videos.map(async (video) => {
           const user = await storage.getUser(video.userId);
+          
+          // Get the last scene image if available
+          let thumbnailUrl = null;
+          if (video.sceneData && Array.isArray(video.sceneData)) {
+            const scenes = video.sceneData as any[];
+            if (scenes.length > 0) {
+              const lastScene = scenes[scenes.length - 1];
+              thumbnailUrl = lastScene.imageUrl || null;
+            }
+          }
+          
           return {
             ...video,
-            username: user?.username || 'Unknown User'
+            username: user?.username || 'Unknown User',
+            thumbnailUrl
           };
         })
       );

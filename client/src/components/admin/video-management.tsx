@@ -15,6 +15,7 @@ import type { Project } from "@shared/schema";
 
 interface VideoWithUser extends Project {
   username?: string;
+  thumbnailUrl?: string | null;
 }
 
 export function VideoManagement() {
@@ -193,43 +194,56 @@ export function VideoManagement() {
             <Card key={video.id} className="bg-black/30 border-purple-500/20">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-3">
-                      <Video className="h-5 w-5 text-purple-400" />
-                      <h3 className="text-lg font-semibold text-white">{video.title}</h3>
-                      <Badge className={`${getStepColor(video.currentStep)} text-white`}>
-                        {getStepName(video.currentStep)}
-                      </Badge>
-                    </div>
+                  <div className="flex gap-4 flex-1">
+                    {/* Thumbnail */}
+                    {video.thumbnailUrl && (
+                      <div className="w-32 h-20 rounded-md overflow-hidden bg-black/50 flex-shrink-0">
+                        <img 
+                          src={video.thumbnailUrl} 
+                          alt={`${video.title} thumbnail`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-3">
+                        {!video.thumbnailUrl && <Video className="h-5 w-5 text-purple-400" />}
+                        <h3 className="text-lg font-semibold text-white">{video.title}</h3>
+                        <Badge className={`${getStepColor(video.currentStep)} text-white`}>
+                          {getStepName(video.currentStep)}
+                        </Badge>
+                      </div>
                     
                     {video.description && (
                       <p className="text-gray-300 text-sm">{video.description}</p>
                     )}
                     
-                    <div className="flex items-center gap-6 text-sm text-gray-400">
-                      <div className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        <span>{video.username || 'Unknown User'}</span>
+                      <div className="flex items-center gap-6 text-sm text-gray-400">
+                        <div className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          <span>{video.username || 'Unknown User'}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          <span>Created: {new Date(video.createdAt).toLocaleDateString()}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        <span>Created: {new Date(video.createdAt).toLocaleDateString()}</span>
-                      </div>
-                    </div>
 
-                    {video.finalVideoUrl && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <a
-                          href={video.finalVideoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-purple-400 hover:text-purple-300 text-sm flex items-center gap-1"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          View Video
-                        </a>
-                      </div>
-                    )}
+                      {video.finalVideoUrl && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <a
+                            href={video.finalVideoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-purple-400 hover:text-purple-300 text-sm flex items-center gap-1"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            View Video
+                          </a>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="flex items-center gap-2 ml-4">
