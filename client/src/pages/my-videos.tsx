@@ -58,72 +58,7 @@ export default function MyVideosPage() {
 
   return (
     <div className="min-h-screen" data-testid="my-videos-page">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <img 
-                src={logoImage} 
-                alt="neonvideo.ai" 
-                className="h-16" 
-                data-testid="app-logo"
-              />
-              <nav className="flex items-center space-x-4">
-                <Link href="/">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <HomeIcon className="h-4 w-4 mr-2" />
-                    Create
-                  </Button>
-                </Link>
-                <Link href="/my-songs">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <Music className="h-4 w-4 mr-2" />
-                    My Songs
-                  </Button>
-                </Link>
-                <Link href="/characters">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <User className="h-4 w-4 mr-2" />
-                    My Characters
-                  </Button>
-                </Link>
-                <Button variant="ghost" size="sm" disabled className="text-foreground">
-                  <Video className="h-4 w-4 mr-2" />
-                  My Videos
-                </Button>
-              </nav>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <Link href="/profile">
-                <div className="flex items-center space-x-2 hover:text-foreground cursor-pointer transition-colors">
-                  <Avatar className="h-6 w-6">
-                    {user?.avatarUrl ? (
-                      <AvatarImage src={user.avatarUrl} alt={user.username} />
-                    ) : (
-                      <AvatarFallback className="text-xs bg-gradient-to-br from-primary/20 to-secondary/20">
-                        {user?.username?.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                  <span className="text-sm text-muted-foreground hover:text-foreground">{user?.username}</span>
-                </div>
-              </Link>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={logout}
-                className="text-muted-foreground hover:text-foreground"
-                data-testid="button-logout"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <NavigationHeader currentPage="my-videos" />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
@@ -155,7 +90,7 @@ export default function MyVideosPage() {
                 </p>
                 <Link href="/">
                   <Button variant="outline">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    <Video className="h-4 w-4 mr-2" />
                     Create Your First Video
                   </Button>
                 </Link>
