@@ -562,7 +562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allProjects = await storage.getAllVideosForAdmin();
       // Filter only completed videos (projects with finalVideoUrl)
-      const videos = allProjects.filter(p => p.finalVideoUrl && p.currentStep === 7);
+      const videos = allProjects.filter(p => p.finalVideoUrl);
       
       // Add user information and thumbnail to each video
       const videosWithUsers = await Promise.all(
