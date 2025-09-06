@@ -25,7 +25,7 @@ export function VideoManagement() {
   const [editingVideo, setEditingVideo] = useState<VideoWithUser | null>(null);
   const [deletingVideo, setDeletingVideo] = useState<VideoWithUser | null>(null);
 
-  // Fetch all videos
+  // Fetch all completed videos (projects with finalVideoUrl)
   const { data: videos = [], isLoading } = useQuery<VideoWithUser[]>({
     queryKey: ["/api/admin/videos"],
     queryFn: async () => {
