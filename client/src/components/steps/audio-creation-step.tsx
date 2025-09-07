@@ -735,25 +735,6 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
           </div>
         )}
 
-        {/* Debugging: Show generated subtitles */}
-        {generatedSubtitles && (
-          <div className="mt-6 p-4 bg-muted rounded-lg">
-            <Label className="flex items-center text-sm font-semibold mb-3">
-              <Subtitles className="w-4 h-4 text-accent mr-2" />
-              Generated Subtitles (.ass format) - Debug View
-            </Label>
-            <Textarea
-              value={generatedSubtitles}
-              readOnly
-              rows={10}
-              className="font-mono text-xs bg-background"
-              placeholder="Subtitles will appear here when generated..."
-            />
-            <p className="text-xs text-muted-foreground mt-2">
-              This shows the generated subtitle file content for debugging purposes.
-            </p>
-          </div>
-        )}
 
         {/* Next Step Button */}
         <div className="text-center mt-8">
