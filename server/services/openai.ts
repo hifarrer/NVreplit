@@ -119,13 +119,7 @@ export async function generateLyricsWithTitle(
   duration: number = 120,
 ): Promise<{ lyrics: string; title: string }> {
   try {
-    const response = await openai.chat.completions.create({
-      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-      model: "gpt-5",
-      messages: [
-        {
-          role: "system",
-          content: `You are a creative songwriter. You MUST respond with valid JSON containing exactly two fields: "title" and "lyrics".
+    const systemPrompt = `You are a creative songwriter. You MUST respond with valid JSON containing exactly two fields: "title" and "lyrics".
 
 The JSON response format MUST be:
 {
@@ -133,11 +127,9 @@ The JSON response format MUST be:
   "lyrics": "Complete lyrics here with [Section] headers"
 }
 
-Format section headers ONLY using square brackets like [Verse 1], [Chorus], [Bridge], [Verse 2], etc. NEVER use asterisks or markdown.`,
-        },
-        {
-          role: "user",
-          content: `Generate a song title and lyrics for a song about: ${songDescription}
+Format section headers ONLY using square brackets like [Verse 1], [Chorus], [Bridge], [Verse 2], etc. NEVER use asterisks or markdown.`;
+
+    const userPrompt = `Generate a song title and lyrics for a song about: ${songDescription}
 
 CRITICAL: The song is EXACTLY ${duration} seconds long. You MUST follow these structures EXACTLY:
 
@@ -205,10 +197,30 @@ IMPORTANT: Return ONLY a valid JSON object with exactly these two fields:
 {
   "title": "Your Creative Song Title",
   "lyrics": "[Verse 1]\nLyrics here...\n\n[Chorus]\nMore lyrics..."
-}`,
+}`;
+
+    // Log the request we're sending
+    console.log("=== OpenAI Request ===");
+    console.log("System Prompt:", systemPrompt);
+    console.log("User Prompt:", userPrompt);
+    console.log("Model: gpt-5");
+    console.log("Max completion tokens: 2000");
+    console.log("======================");
+
+    const response = await openai.chat.completions.create({
+      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+      model: "gpt-5",
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt,
+        },
+        {
+          role: "user",
+          content: userPrompt,
         },
       ],
-      max_completion_tokens: 1000,
+      max_completion_tokens: 2000, // Increased from 1000 to avoid hitting limit
       response_format: { type: "json_object" },
     });
 
