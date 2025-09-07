@@ -173,12 +173,23 @@ export class ObjectStorageService {
     try {
       // Get file metadata
       const [metadata] = await file.getMetadata();
+      
+      // Check if this is an audio file
+      const isAudio = metadata.contentType && metadata.contentType.startsWith('audio/');
+      
       // Set appropriate headers
-      res.set({
+      const headers: any = {
         "Content-Type": metadata.contentType || "application/octet-stream",
         "Content-Length": metadata.size,
         "Cache-Control": `public, max-age=${cacheTtlSec}`,
-      });
+      };
+      
+      // Add Accept-Ranges header for audio files to enable seeking
+      if (isAudio) {
+        headers["Accept-Ranges"] = "bytes";
+      }
+      
+      res.set(headers);
 
       // Stream the file to the response
       const stream = file.createReadStream();
