@@ -335,7 +335,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
     }
   };
 
-  const canGenerate = description.trim().length > 10 && tags.trim().length > 0;
+  const canGenerate = description.trim().length >= 5 && tags.trim().length > 0;
 
   // Library handlers
   const togglePlay = (songId: string) => {
@@ -409,10 +409,18 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="e.g., A lonely cowboy cat riding through the desert at sunset..."
                 rows={3}
-                className="resize-none"
+                className={`resize-none ${description.trim().length > 0 && description.trim().length < 5 ? 'border-red-500' : ''}`}
                 data-testid="song-description-input"
               />
-              <p className="text-xs text-muted-foreground mt-1">Describe the theme, mood, or story of your song</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {description.trim().length > 0 && description.trim().length < 5 ? (
+                  <span className="text-red-500">Description must be at least 5 characters (currently: {description.trim().length})</span>
+                ) : description.trim().length >= 5 && tags.trim().length === 0 ? (
+                  <span className="text-orange-500">Good! Now add at least one tag below to enable generation</span>
+                ) : (
+                  "Describe the theme, mood, or story of your song"
+                )}
+              </p>
             </div>
 
             {/* Song Duration */}
@@ -474,9 +482,16 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                 value={tags}
                 onChange={(e) => setTags(e.target.value)}
                 placeholder="e.g., electronic, pop, female singer, upbeat, dreamy"
+                className={tags.trim().length === 0 && description.trim().length >= 5 ? 'border-red-500' : ''}
                 data-testid="song-tags-input"
               />
-              <p className="text-xs text-muted-foreground mt-1">Separate tags with commas</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {tags.trim().length === 0 && description.trim().length >= 5 ? (
+                  <span className="text-red-500">Tags are required to generate a song</span>
+                ) : (
+                  "Separate tags with commas"
+                )}
+              </p>
               
               <div className="flex flex-wrap gap-2 mt-3">
                 {suggestedTags.map((tag) => (
@@ -546,11 +561,30 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
               </div>
             )}
 
+            {/* Requirements indicator */}
+            {(description.trim().length > 0 || tags.trim().length > 0) && !canGenerate && (
+              <div className="bg-orange-500/10 border border-orange-500/30 rounded-md p-3">
+                <p className="text-sm text-orange-600 dark:text-orange-400">
+                  <i className="fas fa-info-circle mr-2"></i>
+                  To generate a song, you need:
+                  <span className="block mt-1 ml-6">
+                    {description.trim().length < 5 && (
+                      <span className="block">• At least 5 characters in description (currently: {description.trim().length})</span>
+                    )}
+                    {tags.trim().length === 0 && (
+                      <span className="block">• At least one tag</span>
+                    )}
+                  </span>
+                </p>
+              </div>
+            )}
+
             <Button
               onClick={() => generateSongMutation.mutate()}
               disabled={!canGenerate || generateSongMutation.isPending}
               className="w-full floating-button"
               data-testid="generate-song-button"
+              title={!canGenerate ? "Please enter at least 5 characters in description and add at least one tag" : "Generate your AI song"}
             >
               <Sparkles className="w-4 h-4 mr-2" />
               Generate Song
