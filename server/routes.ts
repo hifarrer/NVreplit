@@ -588,6 +588,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             ...video,
+            title: video.title === "My Music Video" ? (video.audioPrompt || video.title) : video.title,
             username: user?.username || 'Unknown User',
             thumbnailUrl
           };
@@ -1028,7 +1029,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Format the response
       const videoData = {
         id: project.id,
-        title: project.title,
+        title: project.title === "My Music Video" ? (project.audioPrompt || project.title) : project.title,
         videoUrl: project.finalVideoUrl,
         thumbnailUrl: project.characterImageUrl || null,
         createdAt: project.createdAt,
@@ -1065,7 +1066,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Format the response
       const publicVideos = videosWithFinal.map(project => ({
         id: project.id,
-        title: project.title,
+        title: project.title === "My Music Video" ? (project.audioPrompt || project.title) : project.title,
         videoUrl: project.finalVideoUrl,
         thumbnailUrl: project.characterImageUrl || null,
         createdAt: project.createdAt,
@@ -1113,7 +1114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             id: p.id,
-            title: p.title,
+            title: p.title === "My Music Video" ? (p.audioPrompt || p.title) : p.title,
             videoUrl: p.finalVideoUrl,
             thumbnailUrl,
             createdAt: p.createdAt,
@@ -1390,6 +1391,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "completed",
         metadata: { lyrics, title }
       });
+
+      // Update the project title with the AI-generated title
+      if (title) {
+        await storage.updateProject(req.params.id, { title });
+      }
 
       res.json({ lyrics, title });
     } catch (error) {

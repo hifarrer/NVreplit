@@ -291,6 +291,15 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
                 className="resize-none"
                 data-testid="lyrics-textarea"
               />
+              {songTitle && (
+                <div className="mt-3 p-3 bg-primary/10 rounded-md">
+                  <div className="flex items-center gap-2">
+                    <i className="fas fa-music text-primary"></i>
+                    <span className="text-sm font-semibold text-muted-foreground">Generated Title:</span>
+                    <span className="font-bold text-primary">{songTitle}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
