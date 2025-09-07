@@ -170,6 +170,8 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
             <p className="text-xs text-muted-foreground mt-1">
               {description.trim().length > 0 && description.trim().length < 5 ? (
                 <span className="text-red-500">Description must be at least 5 characters</span>
+              ) : description.trim().length >= 5 && tags.trim().length === 0 ? (
+                <span className="text-orange-500">Good! Now add at least one tag below to enable generation</span>
               ) : (
                 "Describe the theme, mood, or story of your song"
               )}
@@ -359,6 +361,24 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
           )}
         </div>
 
+        {/* Requirements indicator */}
+        {(description.trim().length > 0 || tags.trim().length > 0) && !canGenerate && (
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-md p-3 mt-4">
+            <p className="text-sm text-orange-600 dark:text-orange-400">
+              <i className="fas fa-info-circle mr-2"></i>
+              To generate a song, you need:
+              <span className="block mt-1 ml-6">
+                {description.trim().length < 5 && (
+                  <span className="block">• At least 5 characters in description (currently: {description.trim().length})</span>
+                )}
+                {tags.trim().length === 0 && (
+                  <span className="block">• At least one tag</span>
+                )}
+              </span>
+            </p>
+          </div>
+        )}
+
         <div className="flex justify-end space-x-3 mt-6">
           <Button variant="secondary" onClick={handleClose} data-testid="cancel-song-generation">
             Cancel
@@ -368,6 +388,7 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
             disabled={!canGenerate || generateSongMutation.isPending}
             className="floating-button"
             data-testid="generate-song-button"
+            title={!canGenerate ? "Please enter at least 5 characters in description and add at least one tag" : "Generate your AI song"}
           >
             <i className="fas fa-magic mr-2"></i>
             Generate Song
