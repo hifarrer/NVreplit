@@ -37,7 +37,7 @@ export async function generateCharacterImageWavespeed(
           output_format: "png",
           prompt: enhancedPrompt,
           seed: -1,
-          size: "720*720",
+          size: "1280*720",
         }),
       },
     );
@@ -51,10 +51,15 @@ export async function generateCharacterImageWavespeed(
     }
 
     const result = await response.json();
-    console.log("Wavespeed.ai submission result:", JSON.stringify(result, null, 2));
+    console.log(
+      "Wavespeed.ai submission result:",
+      JSON.stringify(result, null, 2),
+    );
 
     if (result.code !== 200) {
-      throw new Error(`Wavespeed.ai API error: ${result.message || "Unknown error"}`);
+      throw new Error(
+        `Wavespeed.ai API error: ${result.message || "Unknown error"}`,
+      );
     }
 
     const requestId = result.data?.id;
@@ -95,7 +100,10 @@ export async function generateCharacterImageWavespeed(
       const statusResult = await statusResponse.json();
       console.log("Status result:", JSON.stringify(statusResult, null, 2));
 
-      if (statusResult.code === 200 && statusResult.data?.status === "completed") {
+      if (
+        statusResult.code === 200 &&
+        statusResult.data?.status === "completed"
+      ) {
         console.log("Generation completed! Processing results...");
 
         const outputs = statusResult.data?.outputs;
@@ -116,7 +124,9 @@ export async function generateCharacterImageWavespeed(
           `Image generation failed: ${statusResult.data.error || "Unknown error"}`,
         );
       } else {
-        console.log(`Task still in progress (status: ${statusResult.data?.status}), continuing to poll...`);
+        console.log(
+          `Task still in progress (status: ${statusResult.data?.status}), continuing to poll...`,
+        );
       }
 
       attempts++;
