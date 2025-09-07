@@ -265,19 +265,44 @@ export async function generateScenePrompts(
   lyricsSections?: string[],
 ): Promise<string[]> {
   try {
+    // Determine which scenes will be used for infinitetalk (lipsync) vs seedance (regular)
+    // For 30-second videos (3 scenes): scene 1 is seedance, scenes 2-3 are infinitetalk
+    // For other videos: they alternate starting with seedance
+    const isThirtySecondVideo = numberOfScenes === 3;
+    
     // Create prompts for the specified number of scenes
     let userContent = `Generate ${numberOfScenes} SHORT and CONCISE image prompts for a music video based on "${songDescription}". Each prompt must be 1-2 sentences maximum.
 
-REQUIREMENTS:
-- Each prompt must include a specific CHARACTER ACTION (walking, dancing, singing, looking, pointing, etc.)
-- Each prompt must include a CAMERA MOVEMENT (zoom in, zoom out, pan left, pan right, tilt up, tilt down, dolly forward, etc.)
-- Keep prompts simple and focused
-- First scenes: Start with zoom in from far away
-- Last scenes: Character actively singing with dynamic camera work
-- Middle scenes: Atmospheric/environmental shots
-- Very lights character actions and camera movements.
+IMPORTANT PATTERN:
+${isThirtySecondVideo ? 
+  `Scene 1: REGULAR video (wider shots allowed, dynamic movements)
+Scene 2: LIPSYNC video (CLOSEUP required, minimal camera movement)
+Scene 3: LIPSYNC video (CLOSEUP required, minimal camera movement)` :
+  `ODD scenes (1, 3, 5, etc.): REGULAR videos (wider shots allowed, more dynamic)
+EVEN scenes (2, 4, 6, etc.): LIPSYNC videos (CLOSEUPS required, minimal movement)`}
 
-Example format: "Character dancing on rooftop. Camera pans right while slowly zooming in."`;
+REQUIREMENTS FOR REGULAR SCENES:
+- Can use wider shots and full body views
+- Dynamic camera movements allowed (zoom, pan, dolly, etc.)
+- Character can be at various distances
+- More creative freedom with angles and movements
+
+REQUIREMENTS FOR LIPSYNC SCENES:
+- MUST be CLOSEUP shots (head and shoulders, face clearly visible)
+- Use front-facing, side profile, or 3/4 angle shots
+- Character MUST be prominent and close to camera
+- MINIMAL camera movement (very slight pan or tilt only)
+- Focus on character's face for lip synchronization
+- Character should be singing, speaking, or emoting clearly
+
+General Requirements:
+- Each prompt must include a specific CHARACTER ACTION
+- Each prompt must include appropriate CAMERA positioning
+- Keep prompts simple and focused
+- Character must be present in ALL scenes
+
+Example REGULAR scene: "Character dancing on rooftop with city skyline. Camera dollies back revealing full scene."
+Example LIPSYNC scene: "Closeup of character's face singing emotionally. Camera holds steady with slight tilt up."`;
 
     // If we have lyrics sections, add them to the prompt for better scene generation
     if (lyricsSections && lyricsSections.length > 0) {
@@ -297,11 +322,19 @@ Example format: "Character dancing on rooftop. Camera pans right while slowly zo
             : `Scenes ${startScene}-${endScene}`;
 
         let instruction = "";
-        if (i === 0) instruction = " - ZOOM IN from distance";
-        else if (i === lyricsSections.length - 1)
-          instruction = " - Character actively singing";
-        else if (i === Math.floor(lyricsSections.length / 2))
-          instruction = " - Atmospheric shots";
+        // Add instructions based on the intercalation pattern
+        if (isThirtySecondVideo) {
+          // For 30-second videos: scene 1 is regular, scenes 2-3 are lipsync
+          if (i === 0) instruction = " - REGULAR scene with wider establishing shot";
+          else instruction = " - LIPSYNC scene with closeup character singing";
+        } else {
+          // For other videos: maintain the pattern guidance
+          if (i === 0) instruction = " - Mix of REGULAR (odd scenes) and LIPSYNC (even scenes)";
+          else if (i === lyricsSections.length - 1)
+            instruction = " - Character actively singing (follow REGULAR/LIPSYNC pattern)";
+          else
+            instruction = " - Follow REGULAR/LIPSYNC pattern for each scene";
+        }
 
         userContent += `${sceneRange}: ${lyricsSections[i] || "[Instrumental]"}${instruction}\n`;
       }
@@ -312,7 +345,13 @@ Example format: "Character dancing on rooftop. Camera pans right while slowly zo
       messages: [
         {
           role: "system",
-          content: `You are a creative director for music videos. Generate ${numberOfScenes} SHORT and CONCISE scene prompts (1-2 sentences each). Each prompt must include a specific character action and camera movement. Keep them simple and focused for video generation. Respond with JSON in this format: {"prompts": [${Array(
+          content: `You are a creative director for music videos. Generate ${numberOfScenes} SHORT and CONCISE scene prompts (1-2 sentences each). 
+CRITICAL: Follow the REGULAR vs LIPSYNC pattern exactly as specified.
+- REGULAR scenes: wider shots, dynamic movements
+- LIPSYNC scenes: CLOSEUPS only, minimal camera movement, face clearly visible
+Each prompt must include a specific character action and appropriate camera positioning.
+Keep them simple and focused for video generation.
+Respond with JSON in this format: {"prompts": [${Array(
             numberOfScenes,
           )
             .fill(0)
