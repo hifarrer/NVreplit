@@ -32,10 +32,10 @@ ${
     ? `
 STRUCTURE FOR 30 SECONDS: ONLY 1 verse + 1 chorus (NO MORE!)
 [Verse 1]
-4 lines maximum
+2 lines ONLY (keep it very short and concise)
 
 [Chorus] 
-4 lines maximum
+2 lines ONLY (keep it very short and concise)
 `
     : duration === 60
       ? `
