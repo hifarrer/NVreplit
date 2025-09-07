@@ -276,10 +276,10 @@ export async function generateScenePrompts(
 IMPORTANT PATTERN:
 ${isThirtySecondVideo ? 
   `Scene 1: REGULAR video (wider shots allowed, dynamic movements)
-Scene 2: LIPSYNC video (CLOSEUP required, minimal camera movement)
-Scene 3: LIPSYNC video (CLOSEUP required, minimal camera movement)` :
+Scene 2: LIPSYNC video (CLOSEUP required, slight camera movements)
+Scene 3: LIPSYNC video (CLOSEUP required, slight camera movements)` :
   `ODD scenes (1, 3, 5, etc.): REGULAR videos (wider shots allowed, more dynamic)
-EVEN scenes (2, 4, 6, etc.): LIPSYNC videos (CLOSEUPS required, minimal movement)`}
+EVEN scenes (2, 4, 6, etc.): LIPSYNC videos (CLOSEUPS required, slight camera movements)`}
 
 REQUIREMENTS FOR REGULAR SCENES:
 - Can use wider shots and full body views
@@ -291,7 +291,7 @@ REQUIREMENTS FOR LIPSYNC SCENES:
 - MUST be CLOSEUP shots (head and shoulders, face clearly visible)
 - Use front-facing, side profile, or 3/4 angle shots
 - Character MUST be prominent and close to camera
-- MINIMAL camera movement (very slight pan or tilt only)
+- Use SLIGHT camera movements (slowly panning to the side, gently rotating around character, subtle zoom in/out, slight tilt)
 - Focus on character's face for lip synchronization
 - Character should be singing, speaking, or emoting clearly
 
@@ -302,7 +302,7 @@ General Requirements:
 - Character must be present in ALL scenes
 
 Example REGULAR scene: "Character dancing on rooftop with city skyline. Camera dollies back revealing full scene."
-Example LIPSYNC scene: "Closeup of character's face singing emotionally. Camera holds steady with slight tilt up."`;
+Example LIPSYNC scene: "Closeup of character's face singing emotionally. Camera slowly pans to the right revealing her profile."`;
 
     // If we have lyrics sections, add them to the prompt for better scene generation
     if (lyricsSections && lyricsSections.length > 0) {
