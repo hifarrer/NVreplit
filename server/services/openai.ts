@@ -207,9 +207,13 @@ Return as JSON with "title" and "lyrics" fields.`,
       response_format: { type: "json_object" },
     });
 
-    const result = JSON.parse(response.choices[0].message.content || "{}");
+    const content = response.choices[0].message.content || "{}";
+    console.log("Raw OpenAI response:", content);
+    
+    const result = JSON.parse(content);
 
     if (!result.lyrics || !result.title) {
+      console.error("Invalid response format. Expected 'lyrics' and 'title' fields, got:", result);
       throw new Error("Invalid response format from OpenAI");
     }
 
