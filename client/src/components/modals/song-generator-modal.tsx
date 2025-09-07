@@ -25,6 +25,7 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [lyrics, setLyrics] = useState("");
+  const [songTitle, setSongTitle] = useState("");
   const [duration, setDuration] = useState([60]); // Default 1 minute (60 seconds)
   const [addSubtitles, setAddSubtitles] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -57,9 +58,10 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
     },
     onSuccess: (data) => {
       setLyrics(data.lyrics);
+      setSongTitle(data.title || "");
       toast({
         title: "Success",
-        description: "Lyrics generated successfully!",
+        description: "Lyrics and title generated successfully!",
       });
     },
     onError: (error) => {
@@ -88,6 +90,7 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
         description,
         tags,
         lyrics,
+        songTitle,
         duration: duration[0],
         addSubtitles: addSubtitles
       });
@@ -125,6 +128,7 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
     setDescription("");
     setTags("");
     setLyrics("");
+    setSongTitle("");
     setDuration([60]);
     setAddSubtitles(false);
     setProgress(0);
@@ -288,6 +292,24 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
                 data-testid="lyrics-textarea"
               />
             </div>
+          </div>
+
+          {/* Song Title */}
+          <div>
+            <Label className="flex items-center text-sm font-semibold mb-2">
+              <i className="fas fa-music text-primary mr-2"></i>
+              Song Title
+            </Label>
+            <Input
+              value={songTitle}
+              onChange={(e) => setSongTitle(e.target.value)}
+              placeholder="Enter song title or it will be generated with lyrics..."
+              className="w-full"
+              data-testid="song-title-input"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              This will be auto-populated when you generate lyrics with AI
+            </p>
           </div>
 
           {/* Add Subtitles Toggle */}
