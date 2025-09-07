@@ -55,6 +55,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   // Upload tab state
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadDuration, setUploadDuration] = useState([60]); // Default 60 seconds (1 minute) for upload
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Generate tab state
@@ -88,6 +89,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('audio', file);
+      formData.append('duration', uploadDuration[0].toString());
       
       const response = await fetch(`/api/projects/${projectId}/upload-audio`, {
         method: 'POST',
@@ -566,7 +568,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
             >
               <Music className="w-12 h-12 text-muted-foreground mb-4 mx-auto" />
               {isUploading ? (
-                <p className="text-muted-foreground mb-2">Uploading audio file...</p>
+                <p className="text-muted-foreground mb-2">Uploading and trimming audio file...</p>
               ) : (
                 <>
                   <p className="text-muted-foreground mb-2">Drag and drop your audio file here</p>
@@ -574,6 +576,39 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                 </>
               )}
               <p className="text-xs text-muted-foreground mt-2">Supports MP3, WAV, AAC (Max 10MB)</p>
+            </div>
+            
+            {/* Song Duration Slider for Upload */}
+            <div>
+              <Label className="flex items-center text-sm font-semibold mb-2">
+                <i className="fas fa-clock text-accent mr-2"></i>
+                Trim Audio Duration
+              </Label>
+              <div className="space-y-3">
+                <div className="px-3">
+                  <Slider
+                    value={uploadDuration}
+                    onValueChange={setUploadDuration}
+                    max={120}
+                    min={30}
+                    step={30}
+                    className="w-full"
+                    data-testid="upload-duration-slider"
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground px-1">
+                  {durationOptions.map(option => (
+                    <span 
+                      key={option}
+                      className={uploadDuration[0] === option ? "text-primary font-medium" : ""}
+                    >
+                      {getDurationLabel(option)}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">Audio will be trimmed to: {getDurationLabel(uploadDuration[0])}</p>
+                <p className="text-xs text-muted-foreground">Maximum duration: 2 minutes</p>
+              </div>
             </div>
             
             <input

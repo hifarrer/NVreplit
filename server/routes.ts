@@ -1243,12 +1243,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No audio file provided" });
       }
 
-      const audioUrl = `/uploads/${req.file.filename}`;
+      // Get duration from request (default to 60 seconds if not provided)
+      const requestedDuration = parseInt(req.body.duration) || 60;
+      // Cap at 120 seconds (2 minutes) maximum
+      const targetDuration = Math.min(requestedDuration, 120);
+
+      console.log(`Uploading audio with target duration: ${targetDuration} seconds`);
+
+      // First, store the uploaded audio to object storage to get a public URL
+      const objectStorageService = new ObjectStorageService();
+      const audioPath = `songs/${crypto.randomUUID()}.${req.file.originalname.split('.').pop()}`;
+      const audioBuffer = fs.readFileSync(req.file.path);
+      
+      // Upload to object storage
+      const uploadedUrl = await objectStorageService.uploadAudioBuffer(audioBuffer, audioPath);
+      const publicAudioUrl = await objectStorageService.getSignedUrlForPath(`/objects/${audioPath}`, 86400);
+
+      console.log(`Audio uploaded to object storage: ${uploadedUrl}`);
+
+      let finalAudioUrl = uploadedUrl;
+      let actualDuration = targetDuration;
+
+      // Trim the audio if needed
+      try {
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "audio_upload",
+          message: `Trimming audio to ${targetDuration} seconds...`,
+          status: "progress",
+          metadata: { targetDuration }
+        });
+
+        const { trimAudio } = await import("./services/ffmpeg");
+        const trimResult = await trimAudio(publicAudioUrl, targetDuration);
+        
+        console.log(`Audio trimmed successfully: ${trimResult.filename}`);
+        
+        // Download the trimmed audio and store it back to object storage
+        const trimmedResponse = await fetch(trimResult.download_url);
+        const trimmedBuffer = Buffer.from(await trimmedResponse.arrayBuffer());
+        
+        const trimmedPath = `songs/${crypto.randomUUID()}_trimmed.mp3`;
+        finalAudioUrl = await objectStorageService.uploadAudioBuffer(trimmedBuffer, trimmedPath);
+        actualDuration = trimResult.trimmed_length;
+        
+        console.log(`Trimmed audio stored at: ${finalAudioUrl}`);
+      } catch (trimError) {
+        console.error("Audio trimming failed, using original:", trimError);
+        // If trimming fails, continue with the original uploaded audio
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "audio_upload",
+          message: "Audio trimming failed, using original audio",
+          status: "warning",
+          metadata: { error: (trimError as Error).message }
+        });
+      }
       
       // Update project with audio URL
       const project = await storage.updateProject(req.params.id, { 
-        audioUrl,
-        audioType: 'uploaded'
+        audioUrl: finalAudioUrl,
+        audioType: 'uploaded',
+        audioDuration: actualDuration
       });
       
       if (!project) {
@@ -1258,21 +1314,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "audio_upload",
-        message: "Audio file uploaded successfully",
+        message: `Audio file uploaded successfully (${actualDuration}s)`,
         status: "completed",
         metadata: { 
           filename: req.file.filename,
           originalName: req.file.originalname,
           size: req.file.size,
-          audioUrl 
+          audioUrl: finalAudioUrl,
+          duration: actualDuration
         }
       });
 
+      // Clean up the temporary uploaded file
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupError) {
+        console.error("Failed to clean up uploaded file:", cleanupError);
+      }
+
       res.json({ 
-        audioUrl,
+        audioUrl: finalAudioUrl,
         filename: req.file.filename,
         originalName: req.file.originalname,
-        size: req.file.size
+        size: req.file.size,
+        duration: actualDuration
       });
     } catch (error) {
       console.error("Upload audio error:", error);

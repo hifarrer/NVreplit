@@ -199,6 +199,35 @@ export class ObjectStorageService {
     }
   }
 
+  async uploadAudioBuffer(buffer: Buffer, path: string): Promise<string> {
+    try {
+      const objectPath = `${this.getPrivateObjectDir()}/${path}`;
+      
+      // Parse the path to get bucket and object name
+      const { bucketName, objectName } = this.parseObjectPath(objectPath);
+      
+      // Upload to object storage
+      const bucket = objectStorageClient.bucket(bucketName);
+      const file = bucket.file(objectName);
+      
+      await file.save(buffer, {
+        metadata: {
+          contentType: 'audio/mpeg',
+        },
+      });
+      
+      console.log("Audio uploaded to object storage:", objectPath);
+      
+      // Return a permanent path that can be served through our application
+      const permanentPath = `/objects/${path}`;
+      console.log("Generated permanent audio path:", permanentPath);
+      return permanentPath;
+    } catch (error) {
+      console.error("Error uploading audio to storage:", error);
+      throw error;
+    }
+  }
+
   async uploadVideoFromUrl(videoUrl: string, filename?: string): Promise<string> {
     try {
       console.log("Downloading video from URL:", videoUrl);

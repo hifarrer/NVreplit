@@ -5,6 +5,46 @@ export async function getWatermarkUrl(): Promise<string | null> {
   return "https://notifications.nusong.ai/neonlogo.png";
 }
 
+export async function trimAudio(audioUrl: string, desiredLength: number): Promise<{ download_url: string; filename: string; trimmed_length: number }> {
+  try {
+    console.log(`Trimming audio to ${desiredLength} seconds`);
+    console.log(`Audio URL: ${audioUrl}`);
+    
+    const response = await fetch("https://ffmpegapi.net/api/trim_audio", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": FFMPEG_API_KEY,
+      },
+      body: JSON.stringify({
+        audio_url: audioUrl,
+        desired_length: desiredLength,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`FFMPEG API error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(`Audio trimming failed: ${result.message || "Unknown error"}`);
+    }
+
+    console.log(`Audio trimmed successfully: ${result.filename}`);
+    return {
+      download_url: result.download_url,
+      filename: result.filename,
+      trimmed_length: result.trimmed_length
+    };
+  } catch (error) {
+    console.error("Audio trimming error:", error);
+    throw new Error("Failed to trim audio: " + (error as Error).message);
+  }
+}
+
 export async function splitAudio(audioUrl: string, parts: number = 4): Promise<{ part: string; download_url: string }[]> {
   try {
     console.log(`Splitting audio into ${parts} segments`);
