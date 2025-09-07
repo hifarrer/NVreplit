@@ -199,14 +199,6 @@ IMPORTANT: Return ONLY a valid JSON object with exactly these two fields:
   "lyrics": "[Verse 1]\nLyrics here...\n\n[Chorus]\nMore lyrics..."
 }`;
 
-    // Log the request we're sending
-    console.log("=== OpenAI Request ===");
-    console.log("System Prompt:", systemPrompt);
-    console.log("User Prompt:", userPrompt);
-    console.log("Model: gpt-5");
-    console.log("Max completion tokens: 2000");
-    console.log("======================");
-
     const response = await openai.chat.completions.create({
       // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
       model: "gpt-5",
@@ -225,8 +217,6 @@ IMPORTANT: Return ONLY a valid JSON object with exactly these two fields:
     });
 
     const content = response.choices[0]?.message?.content;
-    console.log("Raw OpenAI response:", content);
-    console.log("Full response object:", JSON.stringify(response, null, 2));
     
     if (!content || content === "{}") {
       console.error("Empty or invalid response from OpenAI");
@@ -242,7 +232,6 @@ IMPORTANT: Return ONLY a valid JSON object with exactly these two fields:
     }
 
     if (!result.lyrics || !result.title) {
-      console.error("Invalid response format. Expected 'lyrics' and 'title' fields, got:", result);
       throw new Error("Invalid response format from OpenAI - missing required fields");
     }
 
