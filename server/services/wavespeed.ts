@@ -7,7 +7,7 @@ export async function generateVideoSegment(
   audioUrl: string,
   imageUrl: string,
   prompt: string,
-  model: "multitalk" | "seedance" = "multitalk",
+  model: "infinitetalk" | "seedance" = "infinitetalk",
 ): Promise<string> {
   try {
     console.log("=== GENERATING VIDEO SEGMENT ===");
@@ -18,11 +18,12 @@ export async function generateVideoSegment(
 
     // Submit video generation request
     const requestBody =
-      model === "multitalk"
+      model === "infinitetalk"
         ? {
             audio: audioUrl,
             image: imageUrl,
             prompt: prompt,
+            resolution: "480p",
             seed: -1,
           }
         : {
@@ -34,8 +35,8 @@ export async function generateVideoSegment(
           };
 
     const endpoint =
-      model === "multitalk"
-        ? "https://api.wavespeed.ai/api/v3/wavespeed-ai/multitalk"
+      model === "infinitetalk"
+        ? "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk"
         : "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1-pro-i2v-480p";
 
     console.log(
@@ -135,7 +136,7 @@ export async function generateAllVideoSegmentsDynamic(
   console.log(
     `- Regular videos (seedance): ${config.numberOfVideosRegularApi}`,
   );
-  console.log(`- Lipsync videos (multitalk): ${config.numberOfVideosLipsync}`);
+  console.log(`- Lipsync videos (infinitetalk): ${config.numberOfVideosLipsync}`);
   console.log(`- Make character sing: ${config.makeCharacterSing}`);
 
   const totalVideos =
@@ -153,34 +154,34 @@ export async function generateAllVideoSegmentsDynamic(
 
   // Generate videos using intercalated pattern when makeCharacterSing is enabled
   const videoPromises: Promise<string>[] = [];
-  const videoTypes: ("seedance" | "multitalk")[] = [];
+  const videoTypes: ("seedance" | "infinitetalk")[] = [];
 
   if (config.makeCharacterSing) {
     // Special handling for 30-second videos (3 segments)
     if (audioSegments.length === 3 && config.numberOfVideosRegularApi === 1 && config.numberOfVideosLipsync === 2) {
-      // For 30-second videos: first segment uses seedance, last two use multitalk
+      // For 30-second videos: first segment uses seedance, last two use infinitetalk
       for (let i = 0; i < audioSegments.length; i++) {
-        let model: "seedance" | "multitalk";
+        let model: "seedance" | "infinitetalk";
         
         if (i === 0) {
           // First segment: always seedance (no lipsync)
           model = "seedance";
         } else {
-          // Last two segments: multitalk (with lipsync)
-          model = "multitalk";
+          // Last two segments: infinitetalk (with lipsync)
+          model = "infinitetalk";
         }
         
         console.log(`Generating video segment ${i + 1} using ${model} model`);
         videoTypes.push(model);
         
-        if (model === "multitalk") {
-          // Multitalk requires audio for lipsync
+        if (model === "infinitetalk") {
+          // Infinitetalk requires audio for lipsync
           videoPromises.push(
             generateVideoSegment(
               audioSegments[i],
               imageUrls[i],
               prompts[i],
-              "multitalk",
+              "infinitetalk",
             ),
           );
         } else {
@@ -193,10 +194,10 @@ export async function generateAllVideoSegmentsDynamic(
     } else {
       // Default intercalation pattern for other video durations
       let seedanceCount = 0;
-      let multitalkCount = 0;
+      let infinitetalkCount = 0;
 
       for (let i = 0; i < audioSegments.length; i++) {
-        let model: "seedance" | "multitalk";
+        let model: "seedance" | "infinitetalk";
 
         // Always start with seedance, then alternate
         if (i % 2 === 0) {
@@ -205,14 +206,14 @@ export async function generateAllVideoSegmentsDynamic(
             model = "seedance";
             seedanceCount++;
           } else {
-            model = "multitalk";
-            multitalkCount++;
+            model = "infinitetalk";
+            infinitetalkCount++;
           }
         } else {
-          // Odd indices: Use multitalk if we haven't reached the limit
-          if (multitalkCount < config.numberOfVideosLipsync) {
-            model = "multitalk";
-            multitalkCount++;
+          // Odd indices: Use infinitetalk if we haven't reached the limit
+          if (infinitetalkCount < config.numberOfVideosLipsync) {
+            model = "infinitetalk";
+            infinitetalkCount++;
           } else {
             model = "seedance";
             seedanceCount++;
@@ -222,14 +223,14 @@ export async function generateAllVideoSegmentsDynamic(
         console.log(`Generating video segment ${i + 1} using ${model} model`);
         videoTypes.push(model);
 
-        if (model === "multitalk") {
-          // Multitalk requires audio for lipsync
+        if (model === "infinitetalk") {
+          // Infinitetalk requires audio for lipsync
           videoPromises.push(
             generateVideoSegment(
               audioSegments[i],
               imageUrls[i],
               prompts[i],
-              "multitalk",
+              "infinitetalk",
             ),
           );
         } else {
@@ -257,31 +258,31 @@ export async function generateAllVideoSegmentsDynamic(
   console.log(`All ${videoUrls.length} video segments generated successfully`);
 
   // Create segment pairs for Picture-in-Picture compositions
-  // Group videos into pairs based on their types: multitalk (main) + seedance (overlay)
+  // Group videos into pairs based on their types: infinitetalk (main) + seedance (overlay)
   const segmentPairs: Array<{ a: string; b: string }> = [];
 
   if (config.makeCharacterSing) {
     // Separate videos by type
-    const multitalkVideos: string[] = [];
+    const infinitetalkVideos: string[] = [];
     const seedanceVideos: string[] = [];
 
     for (let i = 0; i < videoUrls.length; i++) {
-      if (videoTypes[i] === "multitalk") {
-        multitalkVideos.push(videoUrls[i]);
+      if (videoTypes[i] === "infinitetalk") {
+        infinitetalkVideos.push(videoUrls[i]);
       } else {
         seedanceVideos.push(videoUrls[i]);
       }
     }
 
     console.log(
-      `Separating videos for PiP: ${multitalkVideos.length} multitalk, ${seedanceVideos.length} seedance`,
+      `Separating videos for PiP: ${infinitetalkVideos.length} infinitetalk, ${seedanceVideos.length} seedance`,
     );
 
-    // Create pairs: multitalk as main video (a), seedance as overlay (b)
-    const pairCount = Math.min(multitalkVideos.length, seedanceVideos.length);
+    // Create pairs: infinitetalk as main video (a), seedance as overlay (b)
+    const pairCount = Math.min(infinitetalkVideos.length, seedanceVideos.length);
     for (let i = 0; i < pairCount; i++) {
       segmentPairs.push({
-        a: multitalkVideos[i], // Main video (multitalk with lipsync)
+        a: infinitetalkVideos[i], // Main video (infinitetalk with lipsync)
         b: seedanceVideos[i], // Overlay video (seedance)
       });
     }
@@ -337,11 +338,11 @@ export async function generateAllVideoSegments(
   // Generate videos in parallel
   const videoPromises: Promise<string>[] = [];
 
-  // Generate 4 videos with audio using multitalk (part_1a, part_2a, etc.)
+  // Generate 4 videos with audio using infinitetalk (part_1a, part_2a, etc.)
   for (let i = 0; i < 4; i++) {
     const segmentLabel = `${i + 1}a`;
     console.log(
-      `Generating video segment ${segmentLabel} using multitalk model with audio`,
+      `Generating video segment ${segmentLabel} using infinitetalk model with audio`,
     );
     console.log(`Audio URL: ${audioSegments[i]}`);
     console.log(`Image URL: ${imageUrls[i * 2]}`); // Use every other image for 'a' videos
@@ -352,7 +353,7 @@ export async function generateAllVideoSegments(
         audioSegments[i],
         imageUrls[i * 2],
         prompts[i * 2],
-        "multitalk",
+        "infinitetalk",
       ),
     );
   }
@@ -385,7 +386,7 @@ export async function generateAllVideoSegments(
   const segmentPairs: Array<{ a: string; b: string }> = [];
   for (let i = 0; i < 4; i++) {
     segmentPairs.push({
-      a: videoUrls[i], // multitalk video with audio (1a, 2a, 3a, 4a)
+      a: videoUrls[i], // infinitetalk video with audio (1a, 2a, 3a, 4a)
       b: videoUrls[i + 4], // seedance video without audio (1b, 2b, 3b, 4b)
     });
   }
