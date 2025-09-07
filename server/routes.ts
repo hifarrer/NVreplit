@@ -2164,6 +2164,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
+      // Load subtitle data if available for smart lyrics detection
+      let subtitleData: { assContent?: string; totalDuration?: number } | undefined;
+      if (project.subtitleFileUrl) {
+        try {
+          console.log("Loading subtitle file for smart lyrics detection:", project.subtitleFileUrl);
+          
+          // Read the subtitle file content from object storage
+          const { objectStorageClient } = await import("./objectStorage");
+          
+          if (project.subtitleFileUrl.startsWith('/objects/')) {
+            // Parse the object path
+            const objectPath = project.subtitleFileUrl.replace('/objects/', '');
+            const privateObjectDir = process.env.PRIVATE_OBJECT_DIR || "";
+            const fullPath = `${privateObjectDir}/${objectPath}`;
+            
+            // Parse bucket and object name
+            const pathParts = fullPath.split('/');
+            const bucketName = pathParts[1];
+            const objectName = pathParts.slice(2).join('/');
+            
+            // Download the subtitle file
+            const bucket = objectStorageClient.bucket(bucketName);
+            const file = bucket.file(objectName);
+            const [exists] = await file.exists();
+            
+            if (exists) {
+              const [content] = await file.download();
+              subtitleData = {
+                assContent: content.toString('utf-8'),
+                totalDuration: audioDuration
+              };
+              console.log("Successfully loaded subtitle file for smart lyrics detection");
+            } else {
+              console.log("Subtitle file not found in object storage");
+            }
+          }
+        } catch (error) {
+          console.error("Error loading subtitle file for smart detection:", error);
+          // Continue without subtitle data - will use default pattern
+        }
+      }
+
       const { videoUrls: allVideoUrls, segmentPairs } = await generateAllVideoSegmentsDynamic(
         audioUrls,
         project.sceneImages as string[],
@@ -2172,7 +2214,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           numberOfVideosRegularApi: config.numberOfVideosRegularApi,
           numberOfVideosLipsync: config.numberOfVideosLipsync,
           makeCharacterSing: makeCharacterSing
-        }
+        },
+        subtitleData
       );
 
       await storage.updateProject(req.params.id, {
