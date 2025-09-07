@@ -56,12 +56,14 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadDuration, setUploadDuration] = useState([60]); // Default 60 seconds (1 minute) for upload
+  const [uploadSongTitle, setUploadSongTitle] = useState(""); // Song title for upload tab
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Generate tab state
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [lyrics, setLyrics] = useState("");
+  const [songTitle, setSongTitle] = useState(""); // Song title for generate tab
   const [duration, setDuration] = useState([60]); // Default 60 seconds (1 minute)
   const [addSubtitles, setAddSubtitles] = useState(false); // Subtitle toggle
   const [progress, setProgress] = useState(0);
@@ -609,6 +611,24 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                 <p className="text-xs text-muted-foreground">Audio will be trimmed to: {getDurationLabel(uploadDuration[0])}</p>
                 <p className="text-xs text-muted-foreground">Maximum duration: 2 minutes</p>
               </div>
+            </div>
+            
+            {/* Song Title for Upload */}
+            <div>
+              <Label className="flex items-center text-sm font-semibold mb-2">
+                <i className="fas fa-music text-primary mr-2"></i>
+                Song Title
+              </Label>
+              <Input
+                value={uploadSongTitle}
+                onChange={(e) => setUploadSongTitle(e.target.value)}
+                placeholder="Enter a title for your uploaded song..."
+                className="w-full"
+                data-testid="upload-song-title-input"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Give your uploaded song a memorable title
+              </p>
             </div>
             
             <input
