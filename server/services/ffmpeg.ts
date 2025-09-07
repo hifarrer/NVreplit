@@ -19,6 +19,7 @@ export async function trimAudio(audioUrl: string, desiredLength: number): Promis
       body: JSON.stringify({
         audio_url: audioUrl,
         desired_length: desiredLength,
+        fade_duration: 5  // Always use 5 seconds fade as specified
       }),
     });
 
