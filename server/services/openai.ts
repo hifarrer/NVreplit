@@ -125,15 +125,15 @@ export async function generateLyricsWithTitle(
       messages: [
         {
           role: "system",
-          content: `You are a creative songwriter. Generate a catchy song title and write original, imaginative song lyrics with sections appropriate for the specified duration. Make the lyrics emotionally engaging and fit the description.
+          content: `You are a creative songwriter. You MUST respond with valid JSON containing exactly two fields: "title" and "lyrics".
 
-Return your response in JSON format with two fields:
-- "title": A catchy, memorable song title (2-5 words)
-- "lyrics": The complete song lyrics using the exact structure specified
+The JSON response format MUST be:
+{
+  "title": "Song Title Here",
+  "lyrics": "Complete lyrics here with [Section] headers"
+}
 
-Format section headers ONLY using square brackets like [Verse 1], [Chorus], [Bridge], [Verse 2], etc. NEVER use asterisks (**), markdown formatting, or any other symbols for section headers. Only use square brackets [ ].
-
-Respond with valid JSON only.`,
+Format section headers ONLY using square brackets like [Verse 1], [Chorus], [Bridge], [Verse 2], etc. NEVER use asterisks or markdown.`,
         },
         {
           role: "user",
@@ -200,21 +200,38 @@ STRUCTURE FOR 120 SECONDS: ONLY 2 verses + 2 choruses
 }
 
 Do NOT add extra sections. Follow the exact structure above.
-Return as JSON with "title" and "lyrics" fields.`,
+
+IMPORTANT: Return ONLY a valid JSON object with exactly these two fields:
+{
+  "title": "Your Creative Song Title",
+  "lyrics": "[Verse 1]\nLyrics here...\n\n[Chorus]\nMore lyrics..."
+}`,
         },
       ],
       max_completion_tokens: 1000,
       response_format: { type: "json_object" },
     });
 
-    const content = response.choices[0].message.content || "{}";
+    const content = response.choices[0]?.message?.content;
     console.log("Raw OpenAI response:", content);
+    console.log("Full response object:", JSON.stringify(response, null, 2));
     
-    const result = JSON.parse(content);
+    if (!content || content === "{}") {
+      console.error("Empty or invalid response from OpenAI");
+      throw new Error("OpenAI returned an empty response. Please try again.");
+    }
+    
+    let result;
+    try {
+      result = JSON.parse(content);
+    } catch (parseError) {
+      console.error("Failed to parse OpenAI response as JSON:", content);
+      throw new Error("Invalid JSON response from OpenAI");
+    }
 
     if (!result.lyrics || !result.title) {
       console.error("Invalid response format. Expected 'lyrics' and 'title' fields, got:", result);
-      throw new Error("Invalid response format from OpenAI");
+      throw new Error("Invalid response format from OpenAI - missing required fields");
     }
 
     // Post-process to fix formatting: convert *Section:* or **Section:** to [Section]
