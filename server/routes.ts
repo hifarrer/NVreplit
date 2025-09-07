@@ -1247,6 +1247,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requestedDuration = parseInt(req.body.duration) || 60;
       // Cap at 120 seconds (2 minutes) maximum
       const targetDuration = Math.min(requestedDuration, 120);
+      
+      // Get song title from request (optional)
+      const songTitle = req.body.songTitle || "";
 
       console.log(`Uploading audio with target duration: ${targetDuration} seconds`);
 
@@ -1405,7 +1408,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate song
   app.post("/api/projects/:id/generate-song", async (req, res) => {
     try {
-      const { description, tags, lyrics, duration = 120, addSubtitles = false } = req.body; // Duration in seconds
+      const { description, tags, lyrics, songTitle, duration = 120, addSubtitles = false } = req.body; // Duration in seconds
       
       await storage.addGenerationLog({
         projectId: req.params.id,
@@ -1480,7 +1483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const selectedSong = result.songs[0];
       const songData = {
         userId: project.userId,
-        title: description || tags || "Generated Song",
+        title: songTitle || description || tags || "Generated Song",
         url: selectedSong.audioUrl,
         duration: duration,
         tags: tags || null,
