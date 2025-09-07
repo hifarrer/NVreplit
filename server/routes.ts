@@ -1376,17 +1376,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { description }
       });
 
-      const lyrics = await generateLyrics(description, duration);
+      // Import the new function that generates both lyrics and title
+      const { generateLyricsWithTitle } = await import("./services/openai");
+      const { lyrics, title } = await generateLyricsWithTitle(description, duration);
       
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "lyrics_generation",
-        message: "Lyrics generated successfully",
+        message: "Lyrics and title generated successfully",
         status: "completed",
-        metadata: { lyrics }
+        metadata: { lyrics, title }
       });
 
-      res.json({ lyrics });
+      res.json({ lyrics, title });
     } catch (error) {
       console.error("Generate lyrics error:", error);
       await storage.addGenerationLog({
