@@ -3,6 +3,64 @@ const WAVESPEED_API_KEY =
   process.env.WAVESPEED_API_KEY_ENV_VAR ||
   "default_key";
 
+// Interface for timestamped words from subtitles
+interface TimestampedWord {
+  start: number; // Start time in seconds
+  end: number; // End time in seconds
+  text: string;
+}
+
+// Function to parse .ass subtitle file and extract timestamped words
+export function parseAssSubtitles(assContent: string): TimestampedWord[] {
+  const words: TimestampedWord[] = [];
+  const lines = assContent.split('\n');
+  
+  for (const line of lines) {
+    if (line.startsWith('Dialogue:')) {
+      // Format: Dialogue: Marked=0,0:00:00.00,0:00:01.00,Default,,0000,0000,0000,,word
+      const parts = line.split(',');
+      if (parts.length >= 10) {
+        const startTimeStr = parts[1];
+        const endTimeStr = parts[2];
+        const text = parts.slice(9).join(',').trim();
+        
+        // Convert ASS time format (H:MM:SS.CC) to seconds
+        const parseTime = (timeStr: string): number => {
+          const [hours, minutes, secondsAndCentiseconds] = timeStr.split(':');
+          const [seconds, centiseconds] = secondsAndCentiseconds.split('.');
+          return parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds) + parseInt(centiseconds || '0') / 100;
+        };
+        
+        if (text) {
+          words.push({
+            start: parseTime(startTimeStr),
+            end: parseTime(endTimeStr),
+            text
+          });
+        }
+      }
+    }
+  }
+  
+  return words;
+}
+
+// Function to check if a time segment contains lyrics
+export function segmentHasLyrics(
+  segmentStartTime: number,
+  segmentEndTime: number,
+  timestampedWords: TimestampedWord[]
+): boolean {
+  // Check if any word overlaps with this segment
+  for (const word of timestampedWords) {
+    // Word overlaps if it starts before segment ends AND ends after segment starts
+    if (word.start < segmentEndTime && word.end > segmentStartTime) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export async function generateVideoSegment(
   audioUrl: string,
   imageUrl: string,
@@ -116,7 +174,7 @@ export async function generateVideoSegment(
   }
 }
 
-// Dynamic video generation based on configuration
+// Dynamic video generation based on configuration with smart lyrics detection
 export async function generateAllVideoSegmentsDynamic(
   audioSegments: string[],
   imageUrls: string[],
@@ -126,6 +184,10 @@ export async function generateAllVideoSegmentsDynamic(
     numberOfVideosLipsync: number;
     makeCharacterSing: boolean;
   },
+  subtitleData?: {
+    assContent?: string;
+    totalDuration?: number;
+  }
 ): Promise<{
   videoUrls: string[];
   segmentPairs: Array<{ a: string; b: string }>;
@@ -138,6 +200,7 @@ export async function generateAllVideoSegmentsDynamic(
   );
   console.log(`- Lipsync videos (infinitetalk): ${config.numberOfVideosLipsync}`);
   console.log(`- Make character sing: ${config.makeCharacterSing}`);
+  console.log(`- Has subtitle data: ${!!subtitleData?.assContent}`);
 
   const totalVideos =
     config.numberOfVideosRegularApi +
@@ -152,6 +215,17 @@ export async function generateAllVideoSegmentsDynamic(
     );
   }
 
+  // Parse subtitle data if available for smart lyrics detection
+  let timestampedWords: TimestampedWord[] = [];
+  if (subtitleData?.assContent) {
+    timestampedWords = parseAssSubtitles(subtitleData.assContent);
+    console.log(`Parsed ${timestampedWords.length} timestamped words from subtitles`);
+  }
+  
+  // Calculate segment durations (assuming equal length segments)
+  const totalDuration = subtitleData?.totalDuration || (audioSegments.length * 10); // Default 10 seconds per segment
+  const segmentDuration = totalDuration / audioSegments.length;
+  
   // Generate videos using intercalated pattern when makeCharacterSing is enabled
   const videoPromises: Promise<string>[] = [];
   const videoTypes: ("seedance" | "infinitetalk")[] = [];
@@ -159,16 +233,31 @@ export async function generateAllVideoSegmentsDynamic(
   if (config.makeCharacterSing) {
     // Special handling for 30-second videos (3 segments)
     if (audioSegments.length === 3 && config.numberOfVideosRegularApi === 1 && config.numberOfVideosLipsync === 2) {
-      // For 30-second videos: first segment uses seedance, last two use infinitetalk
+      // For 30-second videos with smart lyrics detection
       for (let i = 0; i < audioSegments.length; i++) {
         let model: "seedance" | "infinitetalk";
+        
+        // Calculate time range for this segment
+        const segmentStart = i * segmentDuration;
+        const segmentEnd = (i + 1) * segmentDuration;
+        
+        // Check if this segment has lyrics
+        const hasLyrics = timestampedWords.length > 0 
+          ? segmentHasLyrics(segmentStart, segmentEnd, timestampedWords)
+          : true; // Default to true if no subtitle data
         
         if (i === 0) {
           // First segment: always seedance (no lipsync)
           model = "seedance";
         } else {
-          // Last two segments: infinitetalk (with lipsync)
-          model = "infinitetalk";
+          // Last two segments: use infinitetalk only if there are lyrics
+          if (hasLyrics) {
+            model = "infinitetalk";
+            console.log(`Segment ${i + 1}: Has lyrics (${segmentStart}s-${segmentEnd}s), using infinitetalk`);
+          } else {
+            model = "seedance";
+            console.log(`Segment ${i + 1}: No lyrics detected (${segmentStart}s-${segmentEnd}s), switching to seedance`);
+          }
         }
         
         console.log(`Generating video segment ${i + 1} using ${model} model`);
@@ -192,31 +281,52 @@ export async function generateAllVideoSegmentsDynamic(
         }
       }
     } else {
-      // Default intercalation pattern for other video durations
+      // Default intercalation pattern for other video durations with smart lyrics detection
       let seedanceCount = 0;
       let infinitetalkCount = 0;
 
       for (let i = 0; i < audioSegments.length; i++) {
         let model: "seedance" | "infinitetalk";
+        
+        // Calculate time range for this segment
+        const segmentStart = i * segmentDuration;
+        const segmentEnd = (i + 1) * segmentDuration;
+        
+        // Check if this segment has lyrics
+        const hasLyrics = timestampedWords.length > 0 
+          ? segmentHasLyrics(segmentStart, segmentEnd, timestampedWords)
+          : true; // Default to true if no subtitle data
 
-        // Always start with seedance, then alternate
+        // Smart model selection based on lyrics presence and pattern
         if (i % 2 === 0) {
-          // Even indices: Use seedance if we haven't reached the limit
+          // Even indices: Prefer seedance for wider shots
           if (seedanceCount < config.numberOfVideosRegularApi) {
             model = "seedance";
             seedanceCount++;
-          } else {
+          } else if (hasLyrics && infinitetalkCount < config.numberOfVideosLipsync) {
             model = "infinitetalk";
             infinitetalkCount++;
-          }
-        } else {
-          // Odd indices: Use infinitetalk if we haven't reached the limit
-          if (infinitetalkCount < config.numberOfVideosLipsync) {
-            model = "infinitetalk";
-            infinitetalkCount++;
+            console.log(`Segment ${i + 1}: Has lyrics (${segmentStart}s-${segmentEnd}s), using infinitetalk`);
           } else {
             model = "seedance";
             seedanceCount++;
+          }
+        } else {
+          // Odd indices: Prefer infinitetalk if lyrics are present
+          if (hasLyrics && infinitetalkCount < config.numberOfVideosLipsync) {
+            model = "infinitetalk";
+            infinitetalkCount++;
+            console.log(`Segment ${i + 1}: Has lyrics (${segmentStart}s-${segmentEnd}s), using infinitetalk`);
+          } else if (seedanceCount < config.numberOfVideosRegularApi) {
+            model = "seedance";
+            seedanceCount++;
+            if (!hasLyrics) {
+              console.log(`Segment ${i + 1}: No lyrics detected (${segmentStart}s-${segmentEnd}s), using seedance`);
+            }
+          } else {
+            // Fallback to infinitetalk even without lyrics if we need more
+            model = "infinitetalk";
+            infinitetalkCount++;
           }
         }
 
