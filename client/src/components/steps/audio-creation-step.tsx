@@ -77,6 +77,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   // Library tab state
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
+  const [librarySongTitle, setLibrarySongTitle] = useState(""); // Custom title for library song
   
   const { toast } = useToast();
 
@@ -734,6 +735,26 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                     </Card>
                   ))}
                 </div>
+                
+                {/* Song Title for Library */}
+                {selectedSongId && (
+                  <div>
+                    <Label className="flex items-center text-sm font-semibold mb-2">
+                      <i className="fas fa-music text-primary mr-2"></i>
+                      Song Title
+                    </Label>
+                    <Input
+                      value={librarySongTitle}
+                      onChange={(e) => setLibrarySongTitle(e.target.value)}
+                      placeholder="Enter a custom title for this song (optional)..."
+                      className="w-full"
+                      data-testid="library-song-title-input"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Leave empty to use the original song title
+                    </p>
+                  </div>
+                )}
                 
                 <Button 
                   onClick={handleSelectSong} 
