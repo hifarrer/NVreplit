@@ -88,7 +88,7 @@ STRUCTURE FOR 120 SECONDS: ONLY 2 verses + 2 choruses
 Do NOT add extra sections. Follow the exact structure above.`,
         },
       ],
-      max_tokens: 1000,
+      max_completion_tokens: 1000,
     });
 
     const rawLyrics = response.choices[0].message.content || "";
@@ -203,7 +203,7 @@ Do NOT add extra sections. Follow the exact structure above.
 Return as JSON with "title" and "lyrics" fields.`,
         },
       ],
-      max_tokens: 1000,
+      max_completion_tokens: 1000,
       response_format: { type: "json_object" },
     });
 
