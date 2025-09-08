@@ -349,7 +349,7 @@ export default function LandingPage() {
                 className="h-8"
               />
               <span className="text-sm text-muted-foreground">
-                © 2024 neonvideo.ai. All rights reserved.
+                © 2025 neonvideo.ai. All rights reserved.
               </span>
             </div>
             <div className="flex items-center space-x-6">
