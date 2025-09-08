@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Video, Sparkles, Music, Wand2, Play, Calendar, User, ArrowRight } from "lucide-react";
+import { Video, Sparkles, Music, Wand2, Play, Calendar, User, ArrowRight, Volume2, VolumeX } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
 import logoImage from "@assets/neonlogo_1756693683433.png";
+import heroVideo from "@assets/hero_video.mp4";
 import { useAuth } from "@/hooks/use-auth";
 
 interface TrendingVideo {
@@ -27,6 +28,8 @@ export default function LandingPage() {
   const { user } = useAuth();
   const [selectedVideo, setSelectedVideo] = useState<TrendingVideo | null>(null);
   const [videoError, setVideoError] = useState<boolean>(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const heroVideoRef = useRef<HTMLVideoElement>(null);
 
   const { data: videos = [], isLoading } = useQuery<TrendingVideo[]>({
     queryKey: ["/api/trending-videos"],
@@ -103,62 +106,112 @@ export default function LandingPage() {
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 opacity-50"></div>
         <div className="container mx-auto px-4 py-16 md:py-24 relative">
-          <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent">
-              Create AI Music Videos in Minutes
-            </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground mb-8">
-              Transform your ideas into stunning music videos with the power of AI. 
-              Generate songs, create characters, and produce professional videos effortlessly.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-              <Button 
-                size="lg" 
-                onClick={handleGetStarted}
-                className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-lg px-8 py-6"
-                data-testid="hero-get-started"
-              >
-                <Sparkles className="mr-2 h-5 w-5" />
-                Start Creating Free
-              </Button>
-              <Link href="/plans">
-                <Button size="lg" variant="outline" className="text-lg px-8 py-6">
-                  View Plans
-                  <ArrowRight className="ml-2 h-5 w-5" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center max-w-7xl mx-auto">
+            {/* Left side - Text content */}
+            <div className="text-center lg:text-left">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent">
+                Create AI Music Videos in Minutes
+              </h1>
+              <p className="text-lg md:text-xl lg:text-2xl text-muted-foreground mb-8">
+                Transform your ideas into stunning music videos with the power of AI. 
+                Generate songs, create characters, and produce professional videos effortlessly.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start items-center mb-12">
+                <Button 
+                  size="lg" 
+                  onClick={handleGetStarted}
+                  className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-lg px-8 py-6"
+                  data-testid="hero-get-started"
+                >
+                  <Sparkles className="mr-2 h-5 w-5" />
+                  Start Creating Free
                 </Button>
-              </Link>
+                <Link href="/plans">
+                  <Button size="lg" variant="outline" className="text-lg px-8 py-6">
+                    View Plans
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </Link>
+              </div>
             </div>
-            
-            {/* Feature Highlights */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-              <Card className="bg-card/50 border-border/50 backdrop-blur-sm">
-                <CardContent className="p-6 text-center">
-                  <Music className="h-10 w-10 text-primary mx-auto mb-3" />
-                  <h3 className="font-semibold mb-2">AI Song Generation</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Create original songs with lyrics in any style
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="bg-card/50 border-border/50 backdrop-blur-sm">
-                <CardContent className="p-6 text-center">
-                  <Wand2 className="h-10 w-10 text-accent mx-auto mb-3" />
-                  <h3 className="font-semibold mb-2">Smart Character Creation</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Generate unique characters that lip-sync perfectly
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="bg-card/50 border-border/50 backdrop-blur-sm">
-                <CardContent className="p-6 text-center">
-                  <Video className="h-10 w-10 text-primary mx-auto mb-3" />
-                  <h3 className="font-semibold mb-2">Professional Videos</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Export high-quality videos ready to share
-                  </p>
-                </CardContent>
-              </Card>
+
+            {/* Right side - Video */}
+            <div className="relative mx-auto lg:mx-0">
+              <div className="relative overflow-hidden rounded-xl shadow-2xl" style={{ aspectRatio: '3/4', maxWidth: '400px', margin: '0 auto' }}>
+                <video
+                  ref={heroVideoRef}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  src={heroVideo}
+                  autoPlay
+                  loop
+                  muted={isMuted}
+                  playsInline
+                  onClick={() => {
+                    setIsMuted(!isMuted);
+                    if (heroVideoRef.current) {
+                      heroVideoRef.current.muted = !isMuted;
+                    }
+                  }}
+                />
+                {/* Sound toggle overlay */}
+                <button
+                  className="absolute bottom-4 right-4 bg-black/50 hover:bg-black/70 transition-colors p-3 rounded-full backdrop-blur-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMuted(!isMuted);
+                    if (heroVideoRef.current) {
+                      heroVideoRef.current.muted = !isMuted;
+                    }
+                  }}
+                  aria-label={isMuted ? "Unmute video" : "Mute video"}
+                >
+                  {isMuted ? (
+                    <VolumeX className="h-5 w-5 text-white" />
+                  ) : (
+                    <Volume2 className="h-5 w-5 text-white" />
+                  )}
+                </button>
+                {/* Play icon overlay - shows when muted */}
+                {isMuted && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="bg-black/30 rounded-full p-4 backdrop-blur-sm">
+                      <Play className="h-12 w-12 text-white/80" />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
+          </div>
+
+          {/* Feature Highlights */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 max-w-5xl mx-auto">
+            <Card className="bg-card/50 border-border/50 backdrop-blur-sm">
+              <CardContent className="p-6 text-center">
+                <Music className="h-10 w-10 text-primary mx-auto mb-3" />
+                <h3 className="font-semibold mb-2">AI Song Generation</h3>
+                <p className="text-sm text-muted-foreground">
+                  Create original songs with lyrics in any style
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-card/50 border-border/50 backdrop-blur-sm">
+              <CardContent className="p-6 text-center">
+                <Wand2 className="h-10 w-10 text-accent mx-auto mb-3" />
+                <h3 className="font-semibold mb-2">Smart Character Creation</h3>
+                <p className="text-sm text-muted-foreground">
+                  Generate unique characters that lip-sync perfectly
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-card/50 border-border/50 backdrop-blur-sm">
+              <CardContent className="p-6 text-center">
+                <Video className="h-10 w-10 text-primary mx-auto mb-3" />
+                <h3 className="font-semibold mb-2">Professional Videos</h3>
+                <p className="text-sm text-muted-foreground">
+                  Export high-quality videos ready to share
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
