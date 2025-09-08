@@ -1,11 +1,25 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, MessageSquare, User, Send, MapPin, Phone, Clock } from "lucide-react";
+import {
+  Mail,
+  MessageSquare,
+  User,
+  Send,
+  MapPin,
+  Phone,
+  Clock,
+} from "lucide-react";
 import { Link } from "wouter";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
@@ -16,38 +30,45 @@ export default function ContactPage() {
     name: "",
     email: "",
     subject: "",
-    message: ""
+    message: "",
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.name || !formData.email || !formData.subject || !formData.message) {
+
+    if (
+      !formData.name ||
+      !formData.email ||
+      !formData.subject ||
+      !formData.message
+    ) {
       toast({
         title: "Missing Information",
         description: "Please fill in all fields before submitting.",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
     setIsSubmitting(true);
-    
+
     try {
       const response = await fetch("/api/contact", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
       });
 
       if (!response.ok) {
@@ -64,13 +85,13 @@ export default function ContactPage() {
         name: "",
         email: "",
         subject: "",
-        message: ""
+        message: "",
       });
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to send message. Please try again later.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
@@ -84,10 +105,10 @@ export default function ContactPage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/">
-              <img 
-                src={logoImage} 
-                alt="neonvideo.ai" 
-                className="h-12 sm:h-16 cursor-pointer" 
+              <img
+                src={logoImage}
+                alt="neonvideo.ai"
+                className="h-12 sm:h-16 cursor-pointer"
                 data-testid="contact-logo"
               />
             </Link>
@@ -103,7 +124,10 @@ export default function ContactPage() {
                 </Button>
               </Link>
               <Link href="/auth">
-                <Button size="sm" className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70">
+                <Button
+                  size="sm"
+                  className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                >
                   Get Started
                 </Button>
               </Link>
@@ -120,7 +144,7 @@ export default function ContactPage() {
               Get in Touch
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Have questions about neonvideo.ai? We'd love to hear from you. 
+              Have questions about neonvideo.ai? We'd love to hear from you.
               Send us a message and we'll respond as soon as possible.
             </p>
           </div>
@@ -140,23 +164,19 @@ export default function ContactPage() {
                     <Mail className="h-5 w-5 text-primary mt-1" />
                     <div>
                       <p className="font-medium">Email</p>
-                      <p className="text-sm text-muted-foreground">support@neonvideo.ai</p>
+                      <p className="text-sm text-muted-foreground">
+                        support@neonvideo.ai
+                      </p>
                     </div>
                   </div>
-                  
-                  <div className="flex items-start gap-3">
-                    <MessageSquare className="h-5 w-5 text-primary mt-1" />
-                    <div>
-                      <p className="font-medium">Live Chat</p>
-                      <p className="text-sm text-muted-foreground">Available 24/7 for premium users</p>
-                    </div>
-                  </div>
-                  
+
                   <div className="flex items-start gap-3">
                     <Clock className="h-5 w-5 text-primary mt-1" />
                     <div>
                       <p className="font-medium">Response Time</p>
-                      <p className="text-sm text-muted-foreground">We typically respond within 24 hours</p>
+                      <p className="text-sm text-muted-foreground">
+                        We typically respond within 24 hours
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -171,19 +191,25 @@ export default function ContactPage() {
                   <div>
                     <p className="font-medium text-sm">How do I get started?</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Simply sign up for a free account and follow our step-by-step tutorial.
+                      Simply sign up for a free account and follow our
+                      step-by-step tutorial.
                     </p>
                   </div>
                   <div>
-                    <p className="font-medium text-sm">What payment methods do you accept?</p>
+                    <p className="font-medium text-sm">
+                      What payment methods do you accept?
+                    </p>
                     <p className="text-sm text-muted-foreground mt-1">
                       We accept all major credit cards and PayPal.
                     </p>
                   </div>
                   <div>
-                    <p className="font-medium text-sm">Can I cancel my subscription?</p>
+                    <p className="font-medium text-sm">
+                      Can I cancel my subscription?
+                    </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Yes, you can cancel your subscription at any time from your account settings.
+                      Yes, you can cancel your subscription at any time from
+                      your account settings.
                     </p>
                   </div>
                 </CardContent>
@@ -196,7 +222,8 @@ export default function ContactPage() {
                 <CardHeader>
                   <CardTitle>Send us a Message</CardTitle>
                   <CardDescription>
-                    Fill out the form below and we'll get back to you as soon as possible
+                    Fill out the form below and we'll get back to you as soon as
+                    possible
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -218,7 +245,7 @@ export default function ContactPage() {
                           data-testid="contact-name-input"
                         />
                       </div>
-                      
+
                       <div className="space-y-2">
                         <Label htmlFor="email">
                           <Mail className="inline h-4 w-4 mr-1" />
@@ -236,7 +263,7 @@ export default function ContactPage() {
                         />
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="subject">
                         <MessageSquare className="inline h-4 w-4 mr-1" />
@@ -253,11 +280,9 @@ export default function ContactPage() {
                         data-testid="contact-subject-input"
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
-                      <Label htmlFor="message">
-                        Message
-                      </Label>
+                      <Label htmlFor="message">Message</Label>
                       <Textarea
                         id="message"
                         name="message"
@@ -269,7 +294,7 @@ export default function ContactPage() {
                         data-testid="contact-message-input"
                       />
                     </div>
-                    
+
                     <Button
                       type="submit"
                       size="lg"
@@ -302,28 +327,36 @@ export default function ContactPage() {
         <div className="container mx-auto px-4 py-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center space-x-4">
-              <img 
-                src={logoImage} 
-                alt="neonvideo.ai" 
-                className="h-8"
-              />
+              <img src={logoImage} alt="neonvideo.ai" className="h-8" />
               <span className="text-sm text-muted-foreground">
                 © 2025 neonvideo.ai. All rights reserved.
               </span>
             </div>
             <div className="flex items-center space-x-6">
               <Link href="/terms">
-                <Button variant="link" size="sm" className="text-muted-foreground hover:text-foreground">
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-muted-foreground hover:text-foreground"
+                >
                   Terms
                 </Button>
               </Link>
               <Link href="/privacy">
-                <Button variant="link" size="sm" className="text-muted-foreground hover:text-foreground">
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-muted-foreground hover:text-foreground"
+                >
                   Privacy
                 </Button>
               </Link>
               <Link href="/plans">
-                <Button variant="link" size="sm" className="text-muted-foreground hover:text-foreground">
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-muted-foreground hover:text-foreground"
+                >
                   Pricing
                 </Button>
               </Link>
