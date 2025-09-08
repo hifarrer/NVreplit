@@ -320,6 +320,3 @@ export async function generateSceneImages(
   
   return generateSceneImagesKie(prompts, characterImageUrls);
 }
-
-      console.log(
-        `Scene ${index + 1} request body:`,
