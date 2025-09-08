@@ -2615,6 +2615,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+  // Contact form submission endpoint
+  app.post("/api/contact", async (req, res) => {
+    try {
+      const { name, email, subject, message } = req.body;
+      
+      // Validate required fields
+      if (!name || !email || !subject || !message) {
+        return res.status(400).json({ error: "All fields are required" });
+      }
+      
+      // Log the contact form submission (in production, you'd send an email or store in database)
+      console.log("Contact form submission:", {
+        name,
+        email,
+        subject,
+        message,
+        timestamp: new Date().toISOString()
+      });
+      
+      // In a production environment, you would:
+      // 1. Send an email to the support team
+      // 2. Store the message in a database
+      // 3. Send a confirmation email to the user
+      
+      res.json({ success: true, message: "Contact form submitted successfully" });
+    } catch (error) {
+      console.error("Contact form error:", error);
+      res.status(500).json({ error: "Failed to submit contact form" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

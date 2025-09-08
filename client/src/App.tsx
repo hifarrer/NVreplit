@@ -19,6 +19,7 @@ import AdminPlans from "@/pages/admin-plans";
 import PlansPage from "@/pages/plans";
 import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
+import ContactPage from "@/pages/contact";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -69,6 +70,7 @@ function AppRouter() {
       <Route path="/plans" component={PlansPage} />
       <Route path="/privacy" component={PrivacyPage} />
       <Route path="/terms" component={TermsPage} />
+      <Route path="/contact" component={ContactPage} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/admin" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />

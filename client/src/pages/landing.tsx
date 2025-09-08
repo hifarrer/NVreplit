@@ -368,6 +368,11 @@ export default function LandingPage() {
                   Pricing
                 </Button>
               </Link>
+              <Link href="/contact">
+                <Button variant="link" size="sm" className="text-muted-foreground hover:text-foreground">
+                  Contact
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
