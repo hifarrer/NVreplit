@@ -142,6 +142,80 @@ The neonvideo.ai Team
       return false;
     }
   }
+
+  async sendNewUserRegistrationEmail(userData: {
+    username: string;
+    email: string;
+    createdAt?: Date;
+  }): Promise<boolean> {
+    if (!this.transporter) {
+      console.error('Email transporter not initialized');
+      return false;
+    }
+
+    try {
+      // Send email to support team
+      await this.transporter.sendMail({
+        from: `"neonvideo.ai System" <${process.env.SMTP_USER}>`,
+        to: 'support@neonvideo.ai',
+        subject: 'New User Registration',
+        text: `
+A new user has registered on neonvideo.ai!
+
+User Details:
+-------------
+Username: ${userData.username}
+Email: ${userData.email}
+Registration Date: ${userData.createdAt ? new Date(userData.createdAt).toLocaleString() : new Date().toLocaleString()}
+
+Please welcome our new user and ensure they have a great experience on the platform.
+
+---
+This is an automated notification from neonvideo.ai
+        `,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 8px 8px 0 0;">
+              <h1 style="color: white; margin: 0;">🎉 New User Registration</h1>
+            </div>
+            <div style="background: #fff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
+              <p style="font-size: 16px; color: #333;">A new user has registered on neonvideo.ai!</p>
+              
+              <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="color: #333; margin-top: 0;">User Details</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #666;"><strong>Username:</strong></td>
+                    <td style="padding: 8px 0; color: #333;">${userData.username}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #666;"><strong>Email:</strong></td>
+                    <td style="padding: 8px 0; color: #333;"><a href="mailto:${userData.email}" style="color: #667eea;">${userData.email}</a></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #666;"><strong>Registration Date:</strong></td>
+                    <td style="padding: 8px 0; color: #333;">${userData.createdAt ? new Date(userData.createdAt).toLocaleString() : new Date().toLocaleString()}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <p style="color: #666;">Please welcome our new user and ensure they have a great experience on the platform.</p>
+            </div>
+            <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
+              <p>This is an automated notification from neonvideo.ai</p>
+              <p>© 2025 neonvideo.ai. All rights reserved.</p>
+            </div>
+          </div>
+        `
+      });
+
+      console.log('New user registration email sent to support@neonvideo.ai');
+      return true;
+    } catch (error) {
+      console.error('Failed to send new user registration email:', error);
+      return false;
+    }
+  }
 }
 
 export const emailService = new EmailService();

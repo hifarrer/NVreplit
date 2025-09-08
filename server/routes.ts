@@ -238,6 +238,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         avatarUrl: "/public-objects/public/avatars/anonymous.png"
       });
       
+      // Send notification email to support about new user registration
+      try {
+        await emailService.sendNewUserRegistrationEmail({
+          username: user.username,
+          email: user.email,
+          createdAt: user.createdAt
+        });
+      } catch (emailError) {
+        // Log error but don't fail the registration
+        console.error("Failed to send new user registration email:", emailError);
+      }
+      
       // Generate JWT token
       const token = jwt.sign(
         { userId: user.id, username: user.username },
