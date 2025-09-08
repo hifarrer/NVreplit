@@ -15,6 +15,7 @@ import { generateAllVideoSegments, generateAllVideoSegmentsDynamic } from "./ser
 import { splitAudio, mergeVideos, pictureInPicture, getWatermarkUrl } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
+import { emailService } from "./services/email";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -2625,7 +2626,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "All fields are required" });
       }
       
-      // Log the contact form submission (in production, you'd send an email or store in database)
+      // Log the contact form submission
       console.log("Contact form submission:", {
         name,
         email,
@@ -2634,12 +2635,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timestamp: new Date().toISOString()
       });
       
-      // In a production environment, you would:
-      // 1. Send an email to the support team
-      // 2. Store the message in a database
-      // 3. Send a confirmation email to the user
+      // Send emails using the email service
+      const emailSent = await emailService.sendContactFormEmail({
+        name,
+        email,
+        subject,
+        message
+      });
       
-      res.json({ success: true, message: "Contact form submitted successfully" });
+      if (!emailSent) {
+        // If email fails, still log it but notify that email failed
+        console.warn("Email service failed, but contact form was logged");
+        return res.json({ 
+          success: true, 
+          message: "Contact form submitted successfully. We'll review your message soon." 
+        });
+      }
+      
+      res.json({ success: true, message: "Contact form submitted successfully. You should receive a confirmation email shortly." });
     } catch (error) {
       console.error("Contact form error:", error);
       res.status(500).json({ error: "Failed to submit contact form" });
