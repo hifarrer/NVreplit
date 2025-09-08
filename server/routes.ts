@@ -1086,6 +1086,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get trending/public videos (no auth required)
+  app.get("/api/trending-videos", async (req, res) => {
+    try {
+      // Get all completed projects with final videos from all users
+      const allProjects = await storage.getAllVideosForAdmin(); // Reuse admin function to get all videos
+      
+      // Filter for completed videos and sort by creation date (newest first)
+      const trendingVideos = allProjects
+        .filter(p => p.isCompleted && p.finalVideoUrl)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 12) // Get top 12 videos
+        .map(async (project) => {
+          // Get the user info for each video
+          const user = await storage.getUser(project.userId);
+          
+          // Get thumbnail
+          let thumbnailUrl = null;
+          if (project.sceneData) {
+            try {
+              const scenes = typeof project.sceneData === 'string' 
+                ? JSON.parse(project.sceneData) 
+                : project.sceneData;
+              
+              if (Array.isArray(scenes) && scenes.length > 0) {
+                const lastScene = scenes[scenes.length - 1];
+                thumbnailUrl = lastScene.imageUrl || null;
+              }
+            } catch (e) {
+              // Silently handle parse errors
+            }
+          }
+          
+          return {
+            id: project.id,
+            title: project.title === "My Music Video" ? (project.audioPrompt || project.title) : project.title,
+            videoUrl: project.finalVideoUrl,
+            thumbnailUrl,
+            createdAt: project.createdAt,
+            duration: project.audioDuration || 30,
+            creator: {
+              username: user?.username || 'Unknown User',
+              avatarUrl: user?.avatarUrl || null
+            }
+          };
+        });
+      
+      // Wait for all promises to resolve
+      const videos = await Promise.all(trendingVideos);
+      
+      res.json(videos);
+    } catch (error) {
+      console.error("Get trending videos error:", error);
+      res.status(500).json({ error: "Failed to get trending videos" });
+    }
+  });
+
   app.get("/api/my-videos", authenticateToken, async (req, res) => {
     try {
       const userId = (req as any).user.userId;

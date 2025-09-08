@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import Home from "@/pages/home";
 import AuthPage from "@/pages/auth";
+import LandingPage from "@/pages/landing";
 import MyVideosPage from "@/pages/my-videos";
 import MySongsPage from "@/pages/my-songs";
 import CharactersPage from "@/pages/characters";
@@ -43,7 +44,7 @@ function ProtectedRoute({ component: Component }: { component: () => JSX.Element
 }
 
 function AppRouter() {
-  const { isLoading } = useAuth();
+  const { isLoading, user } = useAuth();
 
   if (isLoading) {
     return (
@@ -58,7 +59,7 @@ function AppRouter() {
 
   return (
     <Switch>
-      <Route path="/" component={() => <ProtectedRoute component={Home} />} />
+      <Route path="/" component={user ? () => <ProtectedRoute component={Home} /> : LandingPage} />
       <Route path="/my-songs" component={() => <ProtectedRoute component={MySongsPage} />} />
       <Route path="/my-videos" component={() => <ProtectedRoute component={MyVideosPage} />} />
       <Route path="/characters" component={() => <ProtectedRoute component={CharactersPage} />} />
