@@ -3,8 +3,6 @@ const WAVESPEED_API_KEY =
   process.env.WAVESPEED_API_KEY_ENV_VAR ||
   "default_key";
 
-const FAL_KEY = process.env.FAL_KEY || "b479bcce-ae9a-439a-a9d6-3bf0ab5cf8f0:d9afcc34d42d7e0f0dc04607a81c60a0";
-
 // Interface for timestamped words from subtitles
 interface TimestampedWord {
   start: number; // Start time in seconds
@@ -76,115 +74,28 @@ export async function generateVideoSegment(
     console.log("Prompt:", prompt);
     console.log("Model:", model);
 
-    // Use FAL.AI for regular video generation (seedance model)
-    if (model === "seedance") {
-      console.log("Using FAL.AI decart/lucy-5b for regular video generation");
-      
-      // Submit to FAL.AI
-      const falResponse = await fetch(
-        "https://queue.fal.run/fal-ai/decart/lucy-5b/image-to-video",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Key ${FAL_KEY}`,
-          },
-          body: JSON.stringify({
+    // Submit video generation request
+    const requestBody =
+      model === "infinitetalk"
+        ? {
+            audio: audioUrl,
+            image: imageUrl,
             prompt: prompt,
-            image_url: imageUrl,
-          }),
-        },
-      );
-
-      if (!falResponse.ok) {
-        const errorText = await falResponse.text();
-        throw new Error(`FAL.AI API error: ${falResponse.status} - ${errorText}`);
-      }
-
-      const falResult = await falResponse.json();
-      const requestId = falResult.request_id;
-
-      if (!requestId) {
-        console.error("FAL.AI response:", JSON.stringify(falResult, null, 2));
-        throw new Error("No request ID received from FAL.AI");
-      }
-
-      console.log(`FAL.AI submission successful, request ID: ${requestId}`);
-
-      // Poll for results
-      let attempts = 0;
-      const maxAttempts = 60; // 10 minutes with 10-second intervals
-
-      while (attempts < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds
-
-        // Check status
-        const statusResponse = await fetch(
-          `https://queue.fal.run/fal-ai/decart/requests/${requestId}/status`,
-          {
-            headers: {
-              Authorization: `Key ${FAL_KEY}`,
-            },
-          },
-        );
-
-        if (!statusResponse.ok) {
-          throw new Error(`FAL.AI status check failed: ${statusResponse.status}`);
-        }
-
-        const statusResult = await statusResponse.json();
-        console.log(`FAL.AI status: ${statusResult.status}`);
-
-        if (statusResult.status === "completed") {
-          // Get the result
-          const resultResponse = await fetch(
-            `https://queue.fal.run/fal-ai/decart/requests/${requestId}`,
-            {
-              headers: {
-                Authorization: `Key ${FAL_KEY}`,
-              },
-            },
-          );
-
-          if (!resultResponse.ok) {
-            throw new Error(`FAL.AI result fetch failed: ${resultResponse.status}`);
+            resolution: "480p",
+            seed: -1,
           }
+        : {
+            camera_fixed: false,
+            duration: 10,
+            image: imageUrl,
+            prompt: prompt,
+            seed: -1,
+          };
 
-          const result = await resultResponse.json();
-          
-          // Extract video URL from result
-          if (result.video && result.video.url) {
-            console.log("FAL.AI video generation completed:", result.video.url);
-            return result.video.url;
-          } else if (result.output) {
-            // Alternative response structure
-            console.log("FAL.AI video generation completed:", result.output);
-            return result.output;
-          } else {
-            throw new Error("No video URL found in FAL.AI result");
-          }
-        } else if (statusResult.status === "failed") {
-          throw new Error(
-            `FAL.AI video generation failed: ${statusResult.error || "Unknown error"}`,
-          );
-        }
-
-        attempts++;
-      }
-
-      throw new Error("FAL.AI video generation timed out");
-    }
-
-    // Use Wavespeed for lipsync (infinitetalk model)
-    const requestBody = {
-      audio: audioUrl,
-      image: imageUrl,
-      prompt: prompt,
-      resolution: "480p",
-      seed: -1,
-    };
-
-    const endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk";
+    const endpoint =
+      model === "infinitetalk"
+        ? "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk"
+        : "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1-pro-i2v-480p";
 
     console.log(
       "Wavespeed request body:",
@@ -256,7 +167,7 @@ export async function generateVideoSegment(
 
     throw new Error("Video generation timed out");
   } catch (error) {
-    console.error("Video generation error:", error);
+    console.error("Wavespeed generation error:", error);
     throw new Error(
       "Failed to generate video segment: " + (error as Error).message,
     );
