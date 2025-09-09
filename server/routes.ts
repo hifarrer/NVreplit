@@ -2093,6 +2093,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing required project data" });
       }
 
+      // Calculate credits needed for video generation based on duration
+      const audioDuration = project.audioDuration || 120; // Default to 2 minutes
+      let VIDEO_GENERATION_CREDITS = 0;
+      if (audioDuration <= 30) {
+        VIDEO_GENERATION_CREDITS = 1000; // 30 seconds or less = 1000 credits
+      } else if (audioDuration <= 60) {
+        VIDEO_GENERATION_CREDITS = 2000; // 1 minute = 2000 credits
+      } else {
+        VIDEO_GENERATION_CREDITS = 2000; // 2+ minutes = 2000 credits (capped)
+      }
+      
+      // Check if user has enough credits for video generation
+      const canAfford = await storage.canUserAffordCredits(project.userId, VIDEO_GENERATION_CREDITS);
+      if (!canAfford) {
+        const creditsRemaining = await storage.getUserCreditsRemaining(project.userId);
+        return res.status(402).json({ 
+          error: "Insufficient credits for video generation", 
+          creditsRequired: VIDEO_GENERATION_CREDITS,
+          creditsRemaining,
+          videoDuration: audioDuration
+        });
+      }
+      
       // Check if video generation is already in progress or completed
       if ((project as any).generationStatus === 'generating') {
         // Check if generation has timed out (30 minutes)
@@ -2493,6 +2516,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Complete video processing in queue
       await videoQueueService.completeVideoGeneration(req.params.id, true);
+
+      // Deduct credits for successful video generation
+      const creditDeducted = await storage.deductUserCredits(project.userId, VIDEO_GENERATION_CREDITS);
+      if (!creditDeducted) {
+        console.error("Failed to deduct credits for video generation, but video was already generated");
+      } else {
+        console.log(`Deducted ${VIDEO_GENERATION_CREDITS} credits for video generation (${audioDuration}s) from user ${project.userId}`);
+      }
 
       res.json({ finalVideoUrl: savedFinalVideoUrl });
     } catch (error) {
