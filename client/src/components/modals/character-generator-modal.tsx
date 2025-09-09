@@ -54,7 +54,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
       const response = await apiRequest("POST", endpoint, {
         prompt: fullPrompt,
         aspectRatio: "16:9"
-      });
+      }, { timeout: 900000 }); // 15-minute timeout for character generation
 
       clearInterval(progressInterval);
       setProgress(100);

@@ -72,7 +72,7 @@ export async function generateCharacterImageWavespeed(
 
     // Poll for results
     let attempts = 0;
-    const maxAttempts = 60; // 5 minutes with 5-second intervals
+    const maxAttempts = 180; // 15 minutes with 5-second intervals
 
     console.log("Starting polling for completion...");
 
@@ -222,7 +222,7 @@ export async function generateCharacterImagesKIE(
 
     // Poll for results every 10 seconds
     let attempts = 0;
-    const maxAttempts = 60; // 10 minutes with 10-second intervals
+    const maxAttempts = 90; // 15 minutes with 10-second intervals
 
     console.log("Starting polling for completion...");
 
@@ -374,7 +374,7 @@ export async function generateSingleSceneImage(
 
     // Poll for result
     let attempts = 0;
-    const maxAttempts = 60;
+    const maxAttempts = 180; // 15 minutes with 3-second intervals
 
     while (attempts < maxAttempts) {
       await new Promise((resolve) => setTimeout(resolve, 3000)); // Wait 3 seconds
@@ -524,7 +524,7 @@ export async function generateSceneImages(
     const resultPromises = submissions.map(
       async ({ requestId, index, prompt }) => {
         let attempts = 0;
-        const maxAttempts = 60;
+        const maxAttempts = 180; // 15 minutes with 3-second intervals
 
         while (attempts < maxAttempts) {
           await new Promise((resolve) => setTimeout(resolve, 3000)); // Wait 3 seconds

@@ -68,7 +68,7 @@ export async function generateSong(tags: string, lyrics?: string, duration: numb
 
     // Poll for results
     let attempts = 0;
-    const maxAttempts = 60; // Poll for up to 5 minutes
+    const maxAttempts = 180; // Poll for up to 15 minutes
 
     while (attempts < maxAttempts) {
       await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds between polls
