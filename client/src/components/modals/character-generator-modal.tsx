@@ -18,15 +18,13 @@ interface CharacterGeneratorModalProps {
 }
 
 const artStyles = [
-  { id: "cartoon", name: "Cartoon", description: "Fun and animated" },
   { id: "realistic", name: "Realistic", description: "Photorealistic style" },
-  { id: "anime", name: "Anime", description: "Japanese animation style" },
   { id: "3d", name: "3D Animation", description: "Modern 3D rendered style" }
 ];
 
 export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated, projectId }: CharacterGeneratorModalProps) {
   const [description, setDescription] = useState("");
-  const [selectedStyle, setSelectedStyle] = useState("cartoon");
+  const [selectedStyle, setSelectedStyle] = useState("realistic");
   const [generatedImageUrls, setGeneratedImageUrls] = useState<string[]>([]);
   const [currentPrompt, setCurrentPrompt] = useState("");
   const [progress, setProgress] = useState(0);
@@ -162,7 +160,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
 
   const handleClose = () => {
     setDescription("");
-    setSelectedStyle("cartoon");
+    setSelectedStyle("realistic");
     setGeneratedImageUrls([]);
     setCurrentPrompt("");
     setProgress(0);
