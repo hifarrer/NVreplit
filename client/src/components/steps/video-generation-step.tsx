@@ -8,6 +8,7 @@ import { AudioSegment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { RotateCcw, Clock, Users } from "lucide-react";
 import loadingAnimation from "@assets/loading_1756677254636.mp4";
+import { TrendingVideosCarousel } from "@/components/trending-videos-carousel";
 
 interface VideoGenerationStepProps {
   projectId: string;
@@ -260,17 +261,26 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
           </div>
         )}
 
-        {/* Loading Animation */}
-        <div className="flex flex-col items-center justify-center mb-8">
-          <video 
-            autoPlay 
-            loop 
-            muted 
-            playsInline
-            className="mb-6"
-            src={loadingAnimation}
-          />
-        </div>
+        {/* Loading Animation or Trending Videos */}
+        {currentStep === 6 ? (
+          <div className="mb-8">
+            <h3 className="text-xl font-semibold text-center mb-6">
+              Watch some trending videos while your video is ready!
+            </h3>
+            <TrendingVideosCarousel />
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center mb-8">
+            <video 
+              autoPlay 
+              loop 
+              muted 
+              playsInline
+              className="mb-6"
+              src={loadingAnimation}
+            />
+          </div>
+        )}
 
         {/* Overall Progress */}
         <div className="bg-muted/30 rounded-lg p-6 mb-8">
