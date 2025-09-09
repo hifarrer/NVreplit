@@ -1121,12 +1121,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get trending/public videos (no auth required)
   app.get("/api/trending-videos", async (req, res) => {
     try {
+      // Get excludeUserId from query params if provided
+      const excludeUserId = req.query.excludeUserId as string | undefined;
+      
       // Get all completed projects with final videos from all users
       const allProjects = await storage.getAllVideosForAdmin(); // Reuse admin function to get all videos
       
       // Filter for completed videos and sort by creation date (newest first)
       const trendingVideos = allProjects
-        .filter(p => p.isCompleted && p.finalVideoUrl)
+        .filter(p => {
+          // Filter out videos from excluded user if specified
+          if (excludeUserId && p.userId === excludeUserId) {
+            return false;
+          }
+          return p.isCompleted && p.finalVideoUrl;
+        })
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 12) // Get top 12 videos
         .map(async (project) => {

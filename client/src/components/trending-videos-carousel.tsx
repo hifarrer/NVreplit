@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Play, Video } from "lucide-react";
 import { format } from "date-fns";
+import { useAuth } from "@/hooks/use-auth";
 
 interface TrendingVideo {
   id: string;
@@ -27,9 +28,16 @@ function formatDuration(seconds: number): string {
 export function TrendingVideosCarousel() {
   const [selectedVideo, setSelectedVideo] = useState<TrendingVideo | null>(null);
   const [videoError, setVideoError] = useState(false);
+  const { user } = useAuth();
 
   const { data, isLoading } = useQuery<TrendingVideo[]>({
-    queryKey: ["/api/trending-videos"],
+    queryKey: ["/api/trending-videos", user?.id],
+    queryFn: async () => {
+      const params = user?.id ? `?excludeUserId=${user.id}` : '';
+      const response = await fetch(`/api/trending-videos${params}`);
+      if (!response.ok) throw new Error('Failed to fetch trending videos');
+      return response.json();
+    },
   });
 
   const videos = data || [];
