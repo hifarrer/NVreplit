@@ -418,6 +418,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const usersWithStats = await Promise.all(users.map(async (user) => {
         const projects = await storage.getUserProjects(user.id);
         const songs = await storage.getSongs(user.id);
+        const userWithPlan = await storage.getUserWithPlan(user.id);
+        const creditsRemaining = await storage.getUserCreditsRemaining(user.id);
+        
         return {
           id: user.id,
           username: user.username,
@@ -425,7 +428,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           avatarUrl: user.avatarUrl,
           createdAt: user.createdAt,
           projectCount: projects.length,
-          songCount: songs.length
+          songCount: songs.length,
+          planName: userWithPlan?.plan?.name || "Free",
+          planId: userWithPlan?.planId || "",
+          creditsUsed: userWithPlan?.creditsUsed || 0,
+          creditsLimit: userWithPlan?.plan?.credits || 0
         };
       }));
       res.json(usersWithStats);
@@ -455,6 +462,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Admin update user error:", error);
       res.status(500).json({ error: "Failed to update user" });
+    }
+  });
+
+  app.put("/api/admin/users/:userId/plan", authenticateAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { planId } = req.body;
+      
+      if (!planId) {
+        return res.status(400).json({ error: "Plan ID is required" });
+      }
+      
+      // Verify the plan exists
+      const plans = await storage.getAllPlans();
+      const planExists = plans.some(p => p.id === planId);
+      
+      if (!planExists) {
+        return res.status(400).json({ error: "Invalid plan ID" });
+      }
+      
+      await storage.updateUser(userId, { planId });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Admin update user plan error:", error);
+      res.status(500).json({ error: "Failed to update user plan" });
+    }
+  });
+
+  app.get("/api/admin/plans", authenticateAdmin, async (req, res) => {
+    try {
+      const plans = await storage.getAllPlans();
+      res.json(plans);
+    } catch (error) {
+      console.error("Admin get plans error:", error);
+      res.status(500).json({ error: "Failed to get plans" });
     }
   });
 

@@ -8,8 +8,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle } from "lucide-react";
+import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface UserWithStats {
   id: string;
@@ -19,6 +20,18 @@ interface UserWithStats {
   createdAt: string;
   projectCount: number;
   songCount: number;
+  planName: string;
+  planId: string;
+  creditsUsed: number;
+  creditsLimit: number;
+}
+
+interface Plan {
+  id: string;
+  name: string;
+  credits: number;
+  monthlyPrice: number;
+  yearlyPrice: number;
 }
 
 export function UserManagement() {
@@ -27,6 +40,8 @@ export function UserManagement() {
   const [editingUser, setEditingUser] = useState<UserWithStats | null>(null);
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<UserWithStats | null>(null);
   const [editFormData, setEditFormData] = useState({ username: "", email: "" });
+  const [changePlanUser, setChangePlanUser] = useState<UserWithStats | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
 
   // Fetch users with auth header
   const { data: users, isLoading } = useQuery<UserWithStats[]>({
@@ -39,6 +54,21 @@ export function UserManagement() {
         },
       });
       if (!res.ok) throw new Error("Failed to fetch users");
+      return res.json();
+    },
+  });
+
+  // Fetch available plans
+  const { data: plans } = useQuery<Plan[]>({
+    queryKey: ["/api/admin/plans"],
+    queryFn: async () => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch("/api/admin/plans", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) throw new Error("Failed to fetch plans");
       return res.json();
     },
   });
@@ -105,6 +135,39 @@ export function UserManagement() {
     },
   });
 
+  // Change plan mutation
+  const changePlanMutation = useMutation({
+    mutationFn: async ({ userId, planId }: { userId: string; planId: string }) => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(`/api/admin/users/${userId}/plan`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ planId }),
+      });
+      if (!res.ok) throw new Error("Failed to change user plan");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setChangePlanUser(null);
+      setSelectedPlanId("");
+      toast({
+        title: "Success",
+        description: "User plan updated successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEdit = (user: UserWithStats) => {
     setEditingUser(user);
     setEditFormData({ username: user.username, email: user.email });
@@ -125,6 +188,19 @@ export function UserManagement() {
   const confirmDelete = () => {
     if (!deleteConfirmUser) return;
     deleteUserMutation.mutate(deleteConfirmUser.id);
+  };
+
+  const handleChangePlan = (user: UserWithStats) => {
+    setChangePlanUser(user);
+    setSelectedPlanId(user.planId);
+  };
+
+  const confirmChangePlan = () => {
+    if (!changePlanUser || !selectedPlanId) return;
+    changePlanMutation.mutate({
+      userId: changePlanUser.id,
+      planId: selectedPlanId,
+    });
   };
 
   if (isLoading) {
@@ -186,6 +262,15 @@ export function UserManagement() {
                       {user.songCount} songs
                     </span>
                   </div>
+                  
+                  <div className="flex items-center space-x-3 mt-1">
+                    <Badge className="bg-purple-600/20 text-purple-300 border-purple-500/30">
+                      {user.planName || "Free"}
+                    </Badge>
+                    <span className="text-xs text-gray-400">
+                      {user.creditsUsed?.toLocaleString() || 0}/{user.creditsLimit?.toLocaleString() || 0} credits used
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -193,9 +278,20 @@ export function UserManagement() {
                 <Button
                   size="sm"
                   variant="outline"
+                  onClick={() => handleChangePlan(user)}
+                  className="border-purple-600 text-purple-300 hover:bg-purple-700/20"
+                  data-testid={`button-change-plan-${user.id}`}
+                  title="Change Plan"
+                >
+                  <CreditCard className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
                   onClick={() => handleEdit(user)}
                   className="border-gray-600 text-gray-300 hover:bg-gray-700"
                   data-testid={`button-edit-user-${user.id}`}
+                  title="Edit User"
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
@@ -205,6 +301,7 @@ export function UserManagement() {
                   onClick={() => handleDelete(user)}
                   className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-500"
                   data-testid={`button-delete-user-${user.id}`}
+                  title="Delete User"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -324,6 +421,105 @@ export function UserManagement() {
                 </>
               ) : (
                 "Delete User"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Plan Dialog */}
+      <Dialog open={!!changePlanUser} onOpenChange={() => {
+        setChangePlanUser(null);
+        setSelectedPlanId("");
+      }}>
+        <DialogContent className="bg-gray-900 border-purple-500/20">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center">
+              <CreditCard className="h-5 w-5 mr-2 text-purple-400" />
+              Change User Plan
+            </DialogTitle>
+            <DialogDescription className="text-gray-300">
+              Select a new plan for {changePlanUser?.username}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {changePlanUser && (
+            <div className="space-y-4">
+              <div className="bg-gray-800/50 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-400">Current Plan:</span>
+                  <Badge className="bg-purple-600/20 text-purple-300">
+                    {changePlanUser.planName || "Free"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">Credits Used:</span>
+                  <span className="text-sm text-white">
+                    {changePlanUser.creditsUsed?.toLocaleString() || 0}/{changePlanUser.creditsLimit?.toLocaleString() || 0}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-white">Select New Plan</Label>
+                <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
+                  <SelectTrigger className="bg-gray-800/50 border-gray-600 text-white">
+                    <SelectValue placeholder="Choose a plan" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600">
+                    {plans?.map((plan) => (
+                      <SelectItem 
+                        key={plan.id} 
+                        value={plan.id}
+                        className="text-white hover:bg-gray-700"
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span>{plan.name}</span>
+                          <span className="text-xs text-gray-400 ml-4">
+                            {plan.credits.toLocaleString()} credits
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedPlanId && selectedPlanId !== changePlanUser.planId && (
+                <Alert className="border-purple-500/50 bg-purple-500/10">
+                  <AlertDescription className="text-purple-300">
+                    Changing to {plans?.find(p => p.id === selectedPlanId)?.name} plan will update the user's credit limit to {plans?.find(p => p.id === selectedPlanId)?.credits.toLocaleString()} credits.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+          
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setChangePlanUser(null);
+                setSelectedPlanId("");
+              }}
+              className="border-gray-600 text-gray-300"
+              data-testid="button-cancel-change-plan"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmChangePlan}
+              disabled={changePlanMutation.isPending || !selectedPlanId || selectedPlanId === changePlanUser?.planId}
+              className="bg-purple-600 hover:bg-purple-700"
+              data-testid="button-confirm-change-plan"
+            >
+              {changePlanMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Update Plan"
               )}
             </Button>
           </div>
