@@ -15,6 +15,13 @@ export interface IStorage {
   updateUserGoogleId(id: string, googleId: string): Promise<void>;
   getAllUsers(): Promise<User[]>;
   deleteUser(id: string): Promise<boolean>;
+  
+  // Credit methods
+  getUserWithPlan(id: string): Promise<(User & { plan?: Plan }) | undefined>;
+  getUserCreditsRemaining(userId: string): Promise<number>;
+  canUserAffordCredits(userId: string, credits: number): Promise<boolean>;
+  deductUserCredits(userId: string, credits: number): Promise<boolean>;
+  getFreePlan(): Promise<Plan | undefined>;
 
   // Project methods
   getProject(id: string): Promise<Project | undefined>;
@@ -171,6 +178,52 @@ export class MemStorage implements IStorage {
 
   async deleteUser(id: string): Promise<boolean> {
     return this.users.delete(id);
+  }
+
+  async getUserWithPlan(id: string): Promise<(User & { plan?: Plan }) | undefined> {
+    const user = await this.getUser(id);
+    if (!user) return undefined;
+    
+    let plan: Plan | undefined;
+    if (user.planId) {
+      plan = await this.getPlan(user.planId);
+    }
+    if (!plan) {
+      plan = await this.getFreePlan();
+    }
+    
+    return { ...user, plan };
+  }
+
+  async getUserCreditsRemaining(userId: string): Promise<number> {
+    const userWithPlan = await this.getUserWithPlan(userId);
+    if (!userWithPlan || !userWithPlan.plan) return 0;
+    
+    const creditsLimit = userWithPlan.plan.credits;
+    const creditsUsed = userWithPlan.creditsUsed || 0;
+    return Math.max(0, creditsLimit - creditsUsed);
+  }
+
+  async canUserAffordCredits(userId: string, credits: number): Promise<boolean> {
+    const remaining = await this.getUserCreditsRemaining(userId);
+    return remaining >= credits;
+  }
+
+  async deductUserCredits(userId: string, credits: number): Promise<boolean> {
+    const user = await this.getUser(userId);
+    if (!user) return false;
+    
+    const canAfford = await this.canUserAffordCredits(userId, credits);
+    if (!canAfford) return false;
+    
+    const newCreditsUsed = (user.creditsUsed || 0) + credits;
+    await this.updateUser(userId, { creditsUsed: newCreditsUsed });
+    return true;
+  }
+
+  async getFreePlan(): Promise<Plan | undefined> {
+    const plans = Array.from(this.plans.values());
+    return plans.find(p => p.name.toLowerCase() === 'free' && p.isActive);
   }
 
   async getProject(id: string): Promise<Project | undefined> {
@@ -561,6 +614,55 @@ export class DbStorage implements IStorage {
   async deleteUser(id: string): Promise<boolean> {
     const result = await this.db.delete(users).where(eq(users.id, id));
     return result.length > 0;
+  }
+
+  async getUserWithPlan(id: string): Promise<(User & { plan?: Plan }) | undefined> {
+    const user = await this.getUser(id);
+    if (!user) return undefined;
+    
+    let plan: Plan | undefined;
+    if (user.planId) {
+      plan = await this.getPlan(user.planId);
+    }
+    if (!plan) {
+      plan = await this.getFreePlan();
+    }
+    
+    return { ...user, plan };
+  }
+
+  async getUserCreditsRemaining(userId: string): Promise<number> {
+    const userWithPlan = await this.getUserWithPlan(userId);
+    if (!userWithPlan || !userWithPlan.plan) return 0;
+    
+    const creditsLimit = userWithPlan.plan.credits;
+    const creditsUsed = userWithPlan.creditsUsed || 0;
+    return Math.max(0, creditsLimit - creditsUsed);
+  }
+
+  async canUserAffordCredits(userId: string, credits: number): Promise<boolean> {
+    const remaining = await this.getUserCreditsRemaining(userId);
+    return remaining >= credits;
+  }
+
+  async deductUserCredits(userId: string, credits: number): Promise<boolean> {
+    const user = await this.getUser(userId);
+    if (!user) return false;
+    
+    const canAfford = await this.canUserAffordCredits(userId, credits);
+    if (!canAfford) return false;
+    
+    const newCreditsUsed = (user.creditsUsed || 0) + credits;
+    await this.updateUser(userId, { creditsUsed: newCreditsUsed });
+    return true;
+  }
+
+  async getFreePlan(): Promise<Plan | undefined> {
+    const result = await this.db.select()
+      .from(plans)
+      .where(sql`LOWER(${plans.name}) = 'free' AND ${plans.isActive} = true`)
+      .limit(1);
+    return result[0];
   }
 
   async getProject(id: string): Promise<Project | undefined> {

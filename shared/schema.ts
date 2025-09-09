@@ -3,6 +3,21 @@ import { pgTable, text, varchar, timestamp, jsonb, integer, boolean } from "driz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Plans table needs to be defined before users since users references it
+export const plans = pgTable("plans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  features: jsonb("features").notNull().$type<string[]>(), // Array of feature strings
+  monthlyPrice: integer("monthly_price").notNull(), // Price in cents
+  yearlyPrice: integer("yearly_price").notNull(), // Price in cents
+  stripeMonthlyPriceId: text("stripe_monthly_price_id"),
+  stripeYearlyPriceId: text("stripe_yearly_price_id"),
+  credits: integer("credits").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
@@ -10,6 +25,8 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   googleId: text("google_id").unique(),
   avatarUrl: text("avatar_url").default("/public-objects/avatars/anonymous.png"),
+  planId: varchar("plan_id").references(() => plans.id),
+  creditsUsed: integer("credits_used").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -65,20 +82,6 @@ export const savedCharacters = pgTable("saved_characters", {
   prompt: text("prompt").notNull(),
   imageUrl: text("image_url").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const plans = pgTable("plans", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  features: jsonb("features").notNull().$type<string[]>(), // Array of feature strings
-  monthlyPrice: integer("monthly_price").notNull(), // Price in cents
-  yearlyPrice: integer("yearly_price").notNull(), // Price in cents
-  stripeMonthlyPriceId: text("stripe_monthly_price_id"),
-  stripeYearlyPriceId: text("stripe_yearly_price_id"),
-  credits: integer("credits").notNull(),
-  isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const videoQueue = pgTable("video_queue", {
