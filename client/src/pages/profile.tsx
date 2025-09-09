@@ -399,6 +399,96 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
 
+            {/* Credit Usage */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Credit Usage
+                </CardTitle>
+                <CardDescription>
+                  Track your credit consumption and plan limits
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Plan Information */}
+                  <div className="p-4 bg-secondary/10 rounded-lg">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium">Current Plan</span>
+                      <span className="text-lg font-bold gradient-text">
+                        {user?.plan?.name || "Free"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Total Credits</span>
+                      <span className="text-sm font-medium">
+                        {user?.plan?.credits?.toLocaleString() || "2,500"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Credit Usage Bar */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Credits Used</span>
+                      <span className="font-medium">
+                        {user?.creditsUsed?.toLocaleString() || "0"} / {user?.plan?.credits?.toLocaleString() || "2,500"}
+                      </span>
+                    </div>
+                    <div className="h-3 bg-secondary/30 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-500"
+                        style={{ 
+                          width: `${Math.min(100, ((user?.creditsUsed || 0) / (user?.plan?.credits || 2500)) * 100)}%` 
+                        }}
+                      />
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {user?.creditsRemaining?.toLocaleString() || "2,500"} credits remaining
+                    </div>
+                  </div>
+
+                  {/* Credit Usage Breakdown */}
+                  <div className="pt-2 border-t">
+                    <p className="text-sm font-medium mb-2">Credit Costs:</p>
+                    <div className="space-y-1 text-sm text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>• Song Generation</span>
+                        <span>500 credits</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>• Video (30 seconds)</span>
+                        <span>1,000 credits</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>• Video (1 minute)</span>
+                        <span>2,000 credits</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>• Video (2+ minutes)</span>
+                        <span>2,000 credits</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Upgrade Button if on Free plan */}
+                  {(!user?.plan || user?.plan?.name === "Free") && (
+                    <div className="pt-2">
+                      <Link href="/pricing">
+                        <Button className="w-full" variant="outline">
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Upgrade to Get More Credits
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             <Separator />
             {/* Username Update */}
             <Card>

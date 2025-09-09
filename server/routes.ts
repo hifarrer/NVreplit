@@ -316,16 +316,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/me", authenticateToken, async (req, res) => {
     try {
-      const user = await storage.getUser((req as any).user.userId);
-      if (!user) {
+      const userWithPlan = await storage.getUserWithPlan((req as any).user.userId);
+      if (!userWithPlan) {
         return res.status(404).json({ error: "User not found" });
       }
       
+      // Calculate credits remaining
+      const creditsRemaining = await storage.getUserCreditsRemaining(userWithPlan.id);
+      
       res.json({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        avatarUrl: user.avatarUrl
+        id: userWithPlan.id,
+        username: userWithPlan.username,
+        email: userWithPlan.email,
+        avatarUrl: userWithPlan.avatarUrl,
+        planId: userWithPlan.planId,
+        creditsUsed: userWithPlan.creditsUsed || 0,
+        creditsRemaining,
+        plan: userWithPlan.plan ? {
+          id: userWithPlan.plan.id,
+          name: userWithPlan.plan.name,
+          credits: userWithPlan.plan.credits,
+          features: userWithPlan.plan.features,
+          monthlyPrice: userWithPlan.plan.monthlyPrice,
+          yearlyPrice: userWithPlan.plan.yearlyPrice
+        } : null
       });
     } catch (error) {
       console.error("Get user error:", error);

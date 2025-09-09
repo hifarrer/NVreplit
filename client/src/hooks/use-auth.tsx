@@ -1,22 +1,35 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiRequest } from '@/lib/queryClient';
-import { User } from '@shared/schema';
+import { User, Plan } from '@shared/schema';
+
+// Extended user type that includes credit and plan information from API
+interface AuthUser extends User {
+  creditsRemaining?: number;
+  plan?: {
+    id: string;
+    name: string;
+    credits: number;
+    features: string[];
+    monthlyPrice: number;
+    yearlyPrice: number;
+  };
+}
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
-  setUserAndToken: (user: User, token: string) => void;
+  setUserAndToken: (user: AuthUser, token: string) => void;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -105,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const setUserAndToken = (userData: User, authToken: string) => {
+  const setUserAndToken = (userData: AuthUser, authToken: string) => {
     setUser(userData);
     setToken(authToken);
     localStorage.setItem('auth_token', authToken);
