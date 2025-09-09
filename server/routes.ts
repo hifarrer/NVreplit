@@ -2222,8 +2222,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Get configuration based on audio duration
-      const audioDuration = project.audioDuration || 120; // Use stored duration or default to 2 minutes
+      // Get configuration based on audio duration (reuse the variable from earlier)
+      // audioDuration is already declared above
       
       console.log(`Using audio duration: ${audioDuration} seconds for video generation`);
       
