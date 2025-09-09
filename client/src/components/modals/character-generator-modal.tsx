@@ -105,15 +105,18 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
       if (projectId) {
         toast({
           title: "Success",
-          description: "Character saved to project! Modal will stay open so you can save more characters.",
+          description: "Character saved to project!",
         });
+        // Close the modal after saving to project
+        handleClose();
       } else {
         toast({
           title: "Success",
-          description: "Character saved to your library! Modal will stay open so you can save more characters.",
+          description: "Character saved to your library!",
         });
+        // Close the modal after saving to library
+        handleClose();
       }
-      // Don't close modal - let user save multiple characters
     },
     onError: (error) => {
       toast({
