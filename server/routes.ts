@@ -230,12 +230,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
       
-      // Create user with default avatar
+      // Get the free plan for new users
+      const freePlan = await storage.getFreePlan();
+      
+      // Create user with default avatar and free plan
       const user = await storage.createUser({
         username,
         email,
         password: hashedPassword,
-        avatarUrl: "/public-objects/public/avatars/anonymous.png"
+        avatarUrl: "/public-objects/public/avatars/anonymous.png",
+        planId: freePlan?.id || null,
+        creditsUsed: 0
       });
       
       // Send notification email to support about new user registration
@@ -1485,6 +1490,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { description, tags, lyrics, songTitle, duration = 120, addSubtitles = false } = req.body; // Duration in seconds
       
+      // Get project to find the user
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      
+      // Check if user has enough credits for song generation (500 credits)
+      const SONG_GENERATION_CREDITS = 500;
+      const canAfford = await storage.canUserAffordCredits(project.userId, SONG_GENERATION_CREDITS);
+      if (!canAfford) {
+        const creditsRemaining = await storage.getUserCreditsRemaining(project.userId);
+        return res.status(402).json({ 
+          error: "Insufficient credits", 
+          creditsRequired: SONG_GENERATION_CREDITS,
+          creditsRemaining 
+        });
+      }
+      
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "song_generation",
@@ -1548,13 +1571,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Get the project to find the user ID
-      const project = await storage.getProject(req.params.id);
-      if (!project) {
-        return res.status(404).json({ error: "Project not found" });
-      }
-      
       // Save the song to the user's library
+      // Note: We already have 'project' from earlier in this endpoint
       const selectedSong = result.songs[0];
       const songData = {
         userId: project.userId,
@@ -1628,6 +1646,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { songs: result.songs }
       });
 
+      // Deduct credits for successful song generation
+      const creditDeducted = await storage.deductUserCredits(project.userId, SONG_GENERATION_CREDITS);
+      if (!creditDeducted) {
+        console.error("Failed to deduct credits for song generation, but song was already generated");
+      } else {
+        console.log(`Deducted ${SONG_GENERATION_CREDITS} credits for song generation from user ${project.userId}`);
+      }
+      
       // Add debugging subtitle content to response if generated
       const responseData = {
         ...result,
