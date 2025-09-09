@@ -378,22 +378,10 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   return (
     <div className="max-w-5xl mx-auto mb-12 bg-card rounded-lg p-4" data-testid="audio-creation-step">
       <div className="bg-background border border-border rounded-lg p-8">
-        <div className="flex justify-between items-start mb-4">
+        <div className="flex justify-between items-center mb-4">
           {/* Credit Usage Info */}
-          <div className="text-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-muted-foreground">Credits Required:</span>
-              <span className="font-medium">{totalCreditsNeeded.toLocaleString()}</span>
-            </div>
-            <div className="text-xs text-muted-foreground space-y-1">
-              <div>• Song Generation: {SONG_GENERATION_CREDITS} credits</div>
-              <div>• Video Generation ({getDurationLabel(duration[0])}): {getVideoCreditCost(duration[0]).toLocaleString()} credits</div>
-              <div className="pt-1 border-t">
-                <span className={hasEnoughCredits ? "text-green-600" : "text-red-600"}>
-                  Your remaining credits: {userCreditsRemaining.toLocaleString()}
-                </span>
-              </div>
-            </div>
+          <div className="text-sm text-muted-foreground">
+            {((user?.plan?.credits || 0) - userCreditsRemaining).toLocaleString()}/{(user?.plan?.credits || 0).toLocaleString()} credits used
           </div>
           
           <Button
@@ -621,23 +609,21 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
               Generate Song
             </Button>
             
-            {/* Credit Warning Message */}
-            {!hasEnoughCredits && (
-              <div className="mt-3 bg-red-500/10 border border-red-500/30 rounded-md p-3">
-                <div className="text-sm text-red-600 dark:text-red-400">
-                  <div className="flex items-start">
-                    <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p>You don't have enough credits for this video duration.</p>
-                      <p className="mt-1">You need {totalCreditsNeeded.toLocaleString()} credits but only have {userCreditsRemaining.toLocaleString()} remaining.</p>
-                      {duration[0] > 30 && (
-                        <p className="mt-1">Try selecting a shorter duration or upgrade your plan.</p>
-                      )}
-                    </div>
-                  </div>
+            {/* Credit Info/Warning Message */}
+            <div className="mt-3">
+              {!hasEnoughCredits ? (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-md p-3">
+                  <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                    Credits required: {totalCreditsNeeded.toLocaleString()} (You have {userCreditsRemaining.toLocaleString()} remaining)
+                  </p>
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-muted-foreground text-center">
+                  Credits required: {totalCreditsNeeded.toLocaleString()}
+                </p>
+              )}
+            </div>
           </TabsContent>
 
           {/* Upload Audio File Tab */}
