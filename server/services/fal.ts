@@ -22,9 +22,9 @@ export async function generateCharacterImageWavespeed(
   );
 
   try {
-    // Submit generation request to Wavespeed.ai
+    // Submit generation request to Wavespeed.ai using seedream-v4 model
     const response = await fetch(
-      "https://api.wavespeed.ai/api/v3/wavespeed-ai/wan-2.2/text-to-image-realism",
+      "https://api.wavespeed.ai/api/v3/bytedance/seedream-v4",
       {
         method: "POST",
         headers: {
@@ -34,10 +34,8 @@ export async function generateCharacterImageWavespeed(
         body: JSON.stringify({
           enable_base64_output: false,
           enable_sync_mode: false,
-          output_format: "png",
           prompt: enhancedPrompt,
-          seed: -1,
-          size: "1280*720",
+          size: "1024*1024",
         }),
       },
     );
