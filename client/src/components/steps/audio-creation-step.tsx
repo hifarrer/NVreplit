@@ -10,11 +10,12 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock, X, Subtitles } from "lucide-react";
+import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock, X, Subtitles, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
+import { useAuth } from "@/hooks/use-auth";
 
 interface AudioCreationStepProps {
   projectId: string;
@@ -80,6 +81,19 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const [librarySongTitle, setLibrarySongTitle] = useState(""); // Custom title for library song
   
   const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // Calculate credit costs based on duration
+  const SONG_GENERATION_CREDITS = 500;
+  const getVideoCreditCost = (durationSeconds: number) => {
+    if (durationSeconds <= 30) return 1000;
+    if (durationSeconds <= 60) return 2000;
+    return 2000; // 90 seconds and above
+  };
+  
+  const totalCreditsNeeded = SONG_GENERATION_CREDITS + getVideoCreditCost(duration[0]);
+  const userCreditsRemaining = user?.creditsRemaining || 0;
+  const hasEnoughCredits = userCreditsRemaining >= totalCreditsNeeded;
 
   // Fetch user's songs for library tab
   const { data: songs = [], isLoading: songsLoading } = useQuery<GeneratedSong[]>({
@@ -364,7 +378,24 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   return (
     <div className="max-w-5xl mx-auto mb-12 bg-card rounded-lg p-4" data-testid="audio-creation-step">
       <div className="bg-background border border-border rounded-lg p-8">
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-between items-start mb-4">
+          {/* Credit Usage Info */}
+          <div className="text-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-muted-foreground">Credits Required:</span>
+              <span className="font-medium">{totalCreditsNeeded.toLocaleString()}</span>
+            </div>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <div>• Song Generation: {SONG_GENERATION_CREDITS} credits</div>
+              <div>• Video Generation ({getDurationLabel(duration[0])}): {getVideoCreditCost(duration[0]).toLocaleString()} credits</div>
+              <div className="pt-1 border-t">
+                <span className={hasEnoughCredits ? "text-green-600" : "text-red-600"}>
+                  Your remaining credits: {userCreditsRemaining.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
+          
           <Button
             variant="outline"
             size="sm"
@@ -581,14 +612,32 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
 
             <Button
               onClick={() => generateSongMutation.mutate()}
-              disabled={!canGenerate || generateSongMutation.isPending}
+              disabled={!canGenerate || generateSongMutation.isPending || !hasEnoughCredits}
               className="w-full floating-button"
               data-testid="generate-song-button"
-              title={!canGenerate ? "Please enter at least 5 characters in description and add at least one tag" : "Generate your AI song"}
+              title={!canGenerate ? "Please enter at least 5 characters in description and add at least one tag" : !hasEnoughCredits ? "Not enough credits for this video duration" : "Generate your AI song"}
             >
               <Sparkles className="w-4 h-4 mr-2" />
               Generate Song
             </Button>
+            
+            {/* Credit Warning Message */}
+            {!hasEnoughCredits && (
+              <div className="mt-3 bg-red-500/10 border border-red-500/30 rounded-md p-3">
+                <div className="text-sm text-red-600 dark:text-red-400">
+                  <div className="flex items-start">
+                    <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p>You don't have enough credits for this video duration.</p>
+                      <p className="mt-1">You need {totalCreditsNeeded.toLocaleString()} credits but only have {userCreditsRemaining.toLocaleString()} remaining.</p>
+                      {duration[0] > 30 && (
+                        <p className="mt-1">Try selecting a shorter duration or upgrade your plan.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           {/* Upload Audio File Tab */}
