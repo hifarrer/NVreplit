@@ -265,7 +265,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
         {currentStep === 6 ? (
           <div className="mb-8">
             <h3 className="text-xl font-semibold text-center mb-6">
-              Watch some trending videos while your video is ready!
+              While you wait for your video, watch other fun videos!
             </h3>
             <TrendingVideosCarousel />
           </div>
