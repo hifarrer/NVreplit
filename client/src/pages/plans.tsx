@@ -170,9 +170,9 @@ export default function PlansPage() {
                         Redirecting to checkout...
                       </>
                     ) : subscriptionStatus?.planId === plan.id && subscriptionStatus?.hasSubscription ? (
-                      'Your Current Plan'
+                      'Current Plan'
                     ) : (
-                      user ? 'Select Plan' : 'Sign Up'
+                      user ? 'Upgrade' : 'Sign Up'
                     )}
                   </Button>
                 </CardContent>
