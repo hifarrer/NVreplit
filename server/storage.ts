@@ -2,7 +2,7 @@ import { type User, type InsertUser, type Project, type InsertProject, type Gene
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { eq, asc, sql } from "drizzle-orm";
+import { eq, asc, sql, and } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -1376,8 +1376,7 @@ export class DbStorage implements IStorage {
     try {
       const result = await this.db
         .delete(videoComments)
-        .where(eq(videoComments.id, commentId))
-        .where(eq(videoComments.userId, userId))
+        .where(and(eq(videoComments.id, commentId), eq(videoComments.userId, userId)))
         .returning();
       
       return result.length > 0;
