@@ -234,6 +234,13 @@ This is an automated notification from neonvideo.ai
         from: `"neonvideo.ai" <${process.env.SMTP_USER}>`,
         to: userData.email,
         subject: 'Verify your email address - neonvideo.ai',
+        attachments: [
+          {
+            filename: 'neonvideo-logo.png',
+            path: require('path').join(process.cwd(), 'attached_assets', 'neonlogo_1756693683433.png'),
+            cid: 'neonvideo_logo'
+          }
+        ],
         text: `
 Hi ${userData.username},
 
@@ -250,7 +257,8 @@ The neonvideo.ai Team
         `,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 8px 8px 0 0;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+              <img src="cid:neonvideo_logo" alt="neonvideo.ai" width="180" height="60" style="height: 60px; width: auto; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto;" />
               <h1 style="color: white; margin: 0;">🎉 Welcome to neonvideo.ai!</h1>
             </div>
             <div style="background: #fff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
