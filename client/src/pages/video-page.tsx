@@ -10,7 +10,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import { checkProfanity, getCategoryMessage } from "@/lib/profanity-filter";
+import { checkProfanity, getCategoryMessage, type ProfanityCheckResult } from "@/lib/profanity-filter";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
 interface VideoData {
@@ -53,6 +53,7 @@ export default function VideoPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [commentProfanityCheck, setCommentProfanityCheck] = useState<ProfanityCheckResult | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const { user } = useAuth();
   const isAuthenticated = !!user;
@@ -456,18 +457,33 @@ export default function VideoPage() {
                         <Textarea
                           placeholder="Add a comment..."
                           value={newComment}
-                          onChange={(e) => setNewComment(e.target.value)}
-                          className="min-h-[80px] resize-none"
+                          onChange={(e) => {
+                            const newValue = e.target.value;
+                            setNewComment(newValue);
+                            // Check for profanity in real-time
+                            const profanityResult = checkProfanity(newValue);
+                            setCommentProfanityCheck(profanityResult);
+                          }}
+                          className={`min-h-[80px] resize-none ${
+                            commentProfanityCheck && !commentProfanityCheck.isClean ? 'border-red-500' : ''
+                          }`}
                           maxLength={500}
                           data-testid="textarea-add-comment"
                         />
                         <div className="flex justify-between items-center mt-2">
-                          <span className="text-xs text-muted-foreground">
-                            {newComment.length}/500 characters
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-xs text-muted-foreground">
+                              {newComment.length}/500 characters
+                            </span>
+                            {commentProfanityCheck && !commentProfanityCheck.isClean && (
+                              <span className="text-xs text-red-500 mt-1">
+                                {getCategoryMessage(commentProfanityCheck.category || "")}
+                              </span>
+                            )}
+                          </div>
                           <Button
                             onClick={handleCommentSubmit}
-                            disabled={!newComment.trim() || isSubmittingComment || addCommentMutation.isPending}
+                            disabled={!newComment.trim() || isSubmittingComment || addCommentMutation.isPending || (commentProfanityCheck && !commentProfanityCheck.isClean)}
                             size="sm"
                             className="gap-2"
                             data-testid="button-submit-comment"
