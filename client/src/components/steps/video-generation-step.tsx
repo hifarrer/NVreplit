@@ -262,7 +262,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
         )}
 
         {/* Loading Animation or Trending Videos */}
-        {currentStep === 6 ? (
+        {currentStep >= 3 ? (
           <div className="mb-8">
             <h3 className="text-xl font-semibold text-center mb-6">
               While you wait for your video, watch other fun videos!
