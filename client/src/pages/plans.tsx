@@ -183,7 +183,7 @@ export default function PlansPage() {
                     ) : isCurrentPlan ? (
                       'Current Plan'
                     ) : (
-                      user ? 'Upgrade' : 'Sign Up'
+                      user ? 'Upgrade' : 'Sign up Now'
                     )}
                   </Button>
                 </CardContent>
