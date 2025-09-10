@@ -4,13 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users } from "lucide-react";
+import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users, Share2 } from "lucide-react";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface CompletedVideo {
   id: string;
@@ -23,6 +24,7 @@ interface CompletedVideo {
 
 export default function MyVideosPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [selectedVideo, setSelectedVideo] = useState<CompletedVideo | null>(null);
   const [videoError, setVideoError] = useState<boolean>(false);
   const [videoToDelete, setVideoToDelete] = useState<CompletedVideo | null>(null);
@@ -56,6 +58,15 @@ export default function MyVideosPage() {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleShareVideo = (videoId: string, videoTitle: string) => {
+    const url = `${window.location.origin}/v/${videoId}`;
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Video link copied!",
+      description: `Link for "${videoTitle}" has been copied to clipboard`,
+    });
   };
 
   return (
@@ -179,6 +190,19 @@ export default function MyVideosPage() {
                         >
                           <Download className="h-3 w-3 mr-1" />
                           Download
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShareVideo(video.id, video.title);
+                          }}
+                          data-testid={`button-share-${video.id}`}
+                        >
+                          <Share2 className="h-3 w-3 mr-1" />
+                          Share
                         </Button>
                       </div>
                     </CardContent>
