@@ -1153,6 +1153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         thumbnailUrl: project.characterImageUrl || null,
         createdAt: project.createdAt,
         duration: project.audioDuration || 30,
+        likesCount: project.likesCount || 0,
         creator: {
           id: user.id,
           username: user.username,
@@ -1309,6 +1310,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get my videos error:", error);
       res.status(500).json({ error: "Failed to get videos" });
+    }
+  });
+
+  // Like a video
+  app.post("/api/videos/:videoId/like", authenticateToken, async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      const userId = (req as any).user.userId;
+      
+      // Check if video exists
+      const project = await storage.getProject(videoId);
+      if (!project || !project.isCompleted || !project.finalVideoUrl) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+      
+      // Like the video
+      const liked = await storage.likeVideo(videoId, userId);
+      if (!liked) {
+        return res.status(400).json({ error: "Video already liked" });
+      }
+      
+      // Get updated likes count
+      const likesCount = await storage.getVideoLikesCount(videoId);
+      
+      res.json({ 
+        success: true, 
+        liked: true,
+        likesCount 
+      });
+    } catch (error) {
+      console.error("Like video error:", error);
+      res.status(500).json({ error: "Failed to like video" });
+    }
+  });
+
+  // Unlike a video
+  app.delete("/api/videos/:videoId/like", authenticateToken, async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      const userId = (req as any).user.userId;
+      
+      // Check if video exists
+      const project = await storage.getProject(videoId);
+      if (!project || !project.isCompleted || !project.finalVideoUrl) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+      
+      // Unlike the video
+      const unliked = await storage.unlikeVideo(videoId, userId);
+      if (!unliked) {
+        return res.status(400).json({ error: "Video not liked" });
+      }
+      
+      // Get updated likes count
+      const likesCount = await storage.getVideoLikesCount(videoId);
+      
+      res.json({ 
+        success: true, 
+        liked: false,
+        likesCount 
+      });
+    } catch (error) {
+      console.error("Unlike video error:", error);
+      res.status(500).json({ error: "Failed to unlike video" });
+    }
+  });
+
+  // Check if a video is liked by the current user
+  app.get("/api/videos/:videoId/like", authenticateToken, async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      const userId = (req as any).user.userId;
+      
+      // Check if video exists
+      const project = await storage.getProject(videoId);
+      if (!project || !project.isCompleted || !project.finalVideoUrl) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+      
+      // Check if user has liked the video
+      const isLiked = await storage.isVideoLikedByUser(videoId, userId);
+      const likesCount = await storage.getVideoLikesCount(videoId);
+      
+      res.json({ 
+        liked: isLiked,
+        likesCount 
+      });
+    } catch (error) {
+      console.error("Check video like error:", error);
+      res.status(500).json({ error: "Failed to check video like status" });
     }
   });
 
