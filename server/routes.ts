@@ -2826,7 +2826,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Determine the price ID to use
-      const priceId = billingPeriod === 'yearly' ? plan.stripePriceIdYearly : plan.stripePriceIdMonthly;
+      const priceId = billingPeriod === 'yearly' ? plan.stripeYearlyPriceId : plan.stripeMonthlyPriceId;
       
       if (!priceId) {
         return res.status(400).json({ error: "Price ID not configured for this plan" });
