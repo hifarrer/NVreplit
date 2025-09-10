@@ -10,13 +10,10 @@ interface ProgressIndicatorProps {
 const steps = [
   { number: 1, title: "Create Music", description: "Upload or generate audio" },
   { number: 2, title: "Create Character", description: "Upload or generate character" },
-  { number: 3, title: "Generate Scenes", description: "AI creates video scenes" },
-  { number: 4, title: "Split Audio", description: "Divide audio into segments" },
-  { number: 5, title: "Create Videos", description: "Generate video segments" },
-  { number: 6, title: "Merge Video", description: "Combine into final video" }
+  { number: 3, title: "Generate Scenes", description: "AI creates video scenes" }
 ];
 
-export function ProgressIndicator({ currentStep, totalSteps = 6, className }: ProgressIndicatorProps) {
+export function ProgressIndicator({ currentStep, totalSteps = 3, className }: ProgressIndicatorProps) {
   return (
     <div className={cn("mb-12", className)}>
       <div className="flex items-center justify-center mb-8">
