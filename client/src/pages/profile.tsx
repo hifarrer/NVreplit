@@ -392,9 +392,10 @@ export default function ProfilePage() {
                       </code>
                     </div>
                     <Link href={`/u/${user?.username}`}>
-                      <Button variant="outline" data-testid="button-view-public-profile">
+                      <Button variant="outline" data-testid="button-view-public-profile" className="px-3">
                         <ExternalLink className="h-4 w-4 mr-2" />
-                        View Public Profile
+                        <span className="hidden sm:inline">View Public Profile</span>
+                        <span className="sm:hidden">View</span>
                       </Button>
                     </Link>
                   </div>
