@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, CheckCircle } from 'lucide-react';
 import { Loader2, Music, Video, Sparkles } from 'lucide-react';
 import { FaGoogle } from 'react-icons/fa';
 import { useLocation } from 'wouter';
@@ -17,6 +17,7 @@ export default function AuthPage() {
   const { login, register, user, setUserAndToken } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [email, setEmail] = useState('');
   const [isGmailEmail, setIsGmailEmail] = useState(false);
 
@@ -61,6 +62,7 @@ export default function AuthPage() {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setSuccessMessage(''); // Clear success message when switching forms
 
     const formData = new FormData(e.currentTarget);
     const username = formData.get('username') as string;
@@ -93,6 +95,7 @@ export default function AuthPage() {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setSuccessMessage(''); // Clear success message on new registration attempt
 
     const formData = new FormData(e.currentTarget);
     const username = formData.get('username') as string;
@@ -120,7 +123,7 @@ export default function AuthPage() {
         setError(''); // Clear any previous errors
         setEmail(''); // Clear the form
         // Show success message - the user now needs to check their email
-        alert(`✅ Registration successful!\n\n${response.message}\n\nPlease check your email and click the verification link before logging in.`);
+        setSuccessMessage(`Registration successful! ${response.message} Please check your email and click the verification link before logging in.`);
       } else {
         // Fallback - this should not happen with the new flow for regular registration
         setLocation('/');
@@ -151,7 +154,7 @@ export default function AuthPage() {
             </p>
           </div>
 
-          <Tabs defaultValue="login" className="w-full">
+          <Tabs defaultValue="login" className="w-full" onValueChange={() => { setError(''); setSuccessMessage(''); }}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login" data-testid="tab-login">Login</TabsTrigger>
               <TabsTrigger value="register" data-testid="tab-register">Sign Up</TabsTrigger>
@@ -160,6 +163,15 @@ export default function AuthPage() {
             {error && (
               <Alert variant="destructive" className="mt-4">
                 <AlertDescription data-testid="error-message">{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {successMessage && (
+              <Alert className="mt-4 border-green-200 bg-green-50">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800" data-testid="success-message">
+                  {successMessage}
+                </AlertDescription>
               </Alert>
             )}
 
