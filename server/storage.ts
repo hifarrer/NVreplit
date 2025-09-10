@@ -10,6 +10,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByGoogleId(googleId: string): Promise<User | undefined>;
+  getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
   updateUserGoogleId(id: string, googleId: string): Promise<void>;
@@ -67,6 +68,7 @@ export interface IStorage {
   getAllPlans(): Promise<Plan[]>;
   getActivePlans(): Promise<Plan[]>;
   getPlan(id: string): Promise<Plan | undefined>;
+  getPlanById(id: string): Promise<Plan | undefined>;
   createPlan(plan: InsertPlan): Promise<Plan>;
   updatePlan(id: string, updates: Partial<Plan>): Promise<Plan | undefined>;
   deletePlan(id: string): Promise<boolean>;
@@ -145,6 +147,12 @@ export class MemStorage implements IStorage {
   async getUserByGoogleId(googleId: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
       (user) => user.googleId === googleId,
+    );
+  }
+
+  async getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.stripeCustomerId === stripeCustomerId,
     );
   }
 
@@ -504,6 +512,10 @@ export class MemStorage implements IStorage {
     return this.plans.get(id);
   }
 
+  async getPlanById(id: string): Promise<Plan | undefined> {
+    return this.plans.get(id);
+  }
+
   async createPlan(insertPlan: InsertPlan): Promise<Plan> {
     const id = randomUUID();
     const now = new Date();
@@ -610,6 +622,11 @@ export class DbStorage implements IStorage {
 
   async getUserByGoogleId(googleId: string): Promise<User | undefined> {
     const result = await this.db.select().from(users).where(eq(users.googleId, googleId)).limit(1);
+    return result[0];
+  }
+
+  async getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.stripeCustomerId, stripeCustomerId)).limit(1);
     return result[0];
   }
 
@@ -997,6 +1014,11 @@ export class DbStorage implements IStorage {
   }
 
   async getPlan(id: string): Promise<Plan | undefined> {
+    const result = await this.db.select().from(plans).where(eq(plans.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getPlanById(id: string): Promise<Plan | undefined> {
     const result = await this.db.select().from(plans).where(eq(plans.id, id)).limit(1);
     return result[0];
   }
