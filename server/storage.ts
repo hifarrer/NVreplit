@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -82,6 +82,12 @@ export interface IStorage {
   getSetting(key: string): Promise<string | null>;
   setSetting(key: string, value: string, isSecret?: boolean): Promise<void>;
   getAllSettings(): Promise<{ key: string; value: string; isSecret: boolean }[]>;
+
+  // Video likes methods
+  likeVideo(projectId: string, userId: string): Promise<boolean>;
+  unlikeVideo(projectId: string, userId: string): Promise<boolean>;
+  isVideoLikedByUser(projectId: string, userId: string): Promise<boolean>;
+  getVideoLikesCount(projectId: string): Promise<number>;
 }
 
 export class MemStorage implements IStorage {
@@ -94,6 +100,7 @@ export class MemStorage implements IStorage {
   private songs: Map<string, Song>;
   private videoGenerationConfigs: Map<string, VideoGenerationConfig>;
   private appSettingsStorage: Map<string, { value: string; isSecret: boolean }>;
+  private videoLikesStorage: Map<string, VideoLike>;
 
   constructor() {
     this.users = new Map();
@@ -105,6 +112,7 @@ export class MemStorage implements IStorage {
     this.songs = new Map();
     this.videoGenerationConfigs = new Map();
     this.appSettingsStorage = new Map();
+    this.videoLikesStorage = new Map();
     
     // Initialize default video generation configs
     this.initializeDefaultConfigs();
@@ -584,6 +592,64 @@ export class MemStorage implements IStorage {
       settings.push({ key, value: data.value, isSecret: data.isSecret });
     }
     return settings;
+  }
+
+  // Video likes methods
+  async likeVideo(projectId: string, userId: string): Promise<boolean> {
+    const likeKey = `${projectId}:${userId}`;
+    
+    // Check if already liked
+    if (this.videoLikesStorage.has(likeKey)) {
+      return false; // Already liked
+    }
+    
+    // Add like
+    const like: VideoLike = {
+      id: randomUUID(),
+      projectId,
+      userId,
+      createdAt: new Date()
+    };
+    this.videoLikesStorage.set(likeKey, like);
+    
+    // Increment likes count on project
+    const project = this.projects.get(projectId);
+    if (project) {
+      project.likesCount = (project.likesCount || 0) + 1;
+      this.projects.set(projectId, project);
+    }
+    
+    return true;
+  }
+
+  async unlikeVideo(projectId: string, userId: string): Promise<boolean> {
+    const likeKey = `${projectId}:${userId}`;
+    
+    if (!this.videoLikesStorage.has(likeKey)) {
+      return false; // Not liked
+    }
+    
+    // Remove like
+    this.videoLikesStorage.delete(likeKey);
+    
+    // Decrement likes count on project
+    const project = this.projects.get(projectId);
+    if (project && project.likesCount > 0) {
+      project.likesCount = project.likesCount - 1;
+      this.projects.set(projectId, project);
+    }
+    
+    return true;
+  }
+
+  async isVideoLikedByUser(projectId: string, userId: string): Promise<boolean> {
+    const likeKey = `${projectId}:${userId}`;
+    return this.videoLikesStorage.has(likeKey);
+  }
+
+  async getVideoLikesCount(projectId: string): Promise<number> {
+    const project = this.projects.get(projectId);
+    return project?.likesCount || 0;
   }
 }
 
@@ -1098,6 +1164,96 @@ export class DbStorage implements IStorage {
       value: s.value || '',
       isSecret: s.isSecret
     }));
+  }
+
+  // Video likes methods
+  async likeVideo(projectId: string, userId: string): Promise<boolean> {
+    try {
+      // Check if already liked
+      const existingLike = await this.db
+        .select()
+        .from(videoLikes)
+        .where(eq(videoLikes.projectId, projectId))
+        .where(eq(videoLikes.userId, userId))
+        .limit(1);
+      
+      if (existingLike.length > 0) {
+        return false; // Already liked
+      }
+
+      // Add like
+      await this.db.insert(videoLikes).values({
+        projectId,
+        userId
+      });
+
+      // Increment likes count on project
+      await this.db
+        .update(projects)
+        .set({ likesCount: sql`${projects.likesCount} + 1` })
+        .where(eq(projects.id, projectId));
+
+      return true;
+    } catch (error) {
+      console.error("Error liking video:", error);
+      return false;
+    }
+  }
+
+  async unlikeVideo(projectId: string, userId: string): Promise<boolean> {
+    try {
+      // Remove like
+      const result = await this.db
+        .delete(videoLikes)
+        .where(eq(videoLikes.projectId, projectId))
+        .where(eq(videoLikes.userId, userId));
+
+      if (result.rowCount === 0) {
+        return false; // Not liked
+      }
+
+      // Decrement likes count on project
+      await this.db
+        .update(projects)
+        .set({ likesCount: sql`GREATEST(${projects.likesCount} - 1, 0)` })
+        .where(eq(projects.id, projectId));
+
+      return true;
+    } catch (error) {
+      console.error("Error unliking video:", error);
+      return false;
+    }
+  }
+
+  async isVideoLikedByUser(projectId: string, userId: string): Promise<boolean> {
+    try {
+      const result = await this.db
+        .select()
+        .from(videoLikes)
+        .where(eq(videoLikes.projectId, projectId))
+        .where(eq(videoLikes.userId, userId))
+        .limit(1);
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error checking if video is liked:", error);
+      return false;
+    }
+  }
+
+  async getVideoLikesCount(projectId: string): Promise<number> {
+    try {
+      const result = await this.db
+        .select({ likesCount: projects.likesCount })
+        .from(projects)
+        .where(eq(projects.id, projectId))
+        .limit(1);
+      
+      return result[0]?.likesCount || 0;
+    } catch (error) {
+      console.error("Error getting video likes count:", error);
+      return 0;
+    }
   }
 }
 

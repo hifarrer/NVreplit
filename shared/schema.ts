@@ -58,6 +58,7 @@ export const projects = pgTable("projects", {
   videoSegments: jsonb("video_segments"), // Array of generated video URLs
   finalVideoUrl: text("final_video_url"),
   isCompleted: boolean("is_completed").default(false),
+  likesCount: integer("likes_count").default(0).notNull(),
   // Video generation tracking
   generationId: varchar("generation_id"), // Unique identifier for each generation attempt
   generationStatus: text("generation_status"), // 'idle' | 'generating' | 'completed' | 'failed'
@@ -65,6 +66,13 @@ export const projects = pgTable("projects", {
   generationTimeoutAt: timestamp("generation_timeout_at"), // 30 minutes from start
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const videoLikes = pgTable("video_likes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").references(() => projects.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const generationLogs = pgTable("generation_logs", {
@@ -177,6 +185,11 @@ export const insertVideoGenerationConfigSchema = createInsertSchema(videoGenerat
   updatedAt: true,
 });
 
+export const insertVideoLikeSchema = createInsertSchema(videoLikes).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -193,3 +206,5 @@ export type InsertSong = z.infer<typeof insertSongSchema>;
 export type Song = typeof songs.$inferSelect;
 export type InsertVideoGenerationConfig = z.infer<typeof insertVideoGenerationConfigSchema>;
 export type VideoGenerationConfig = typeof videoGenerationConfig.$inferSelect;
+export type InsertVideoLike = z.infer<typeof insertVideoLikeSchema>;
+export type VideoLike = typeof videoLikes.$inferSelect;
