@@ -21,6 +21,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { checkProfanity, getCategoryMessage } from "./profanity-filter";
 
 // Configure multer for audio uploads
 const uploadDir = path.join(process.cwd(), 'public', 'uploads');
@@ -1621,6 +1622,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Check for profanity in generated lyrics
+      const profanityCheck = checkProfanity(lyrics);
+      if (!profanityCheck.isClean) {
+        console.log("Generated lyrics contain inappropriate content:", profanityCheck.detectedWords);
+        
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "lyrics_generation",
+          message: `Generated lyrics contain inappropriate content: ${profanityCheck.category}`,
+          status: "error",
+          metadata: { 
+            detectedWords: profanityCheck.detectedWords,
+            category: profanityCheck.category
+          }
+        });
+        
+        return res.status(400).json({ 
+          error: "Generated lyrics contain inappropriate content",
+          details: getCategoryMessage(profanityCheck.category || 'unknown'),
+          category: profanityCheck.category
+        });
+      }
+
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "lyrics_generation",
@@ -1655,6 +1679,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/projects/:id/generate-song", async (req, res) => {
     try {
       const { description, tags, lyrics, songTitle, duration = 120, addSubtitles = false } = req.body; // Duration in seconds
+      
+      // Check for profanity in user-provided lyrics
+      if (lyrics) {
+        const profanityCheck = checkProfanity(lyrics);
+        if (!profanityCheck.isClean) {
+          console.log("User-provided lyrics contain inappropriate content:", profanityCheck.detectedWords);
+          
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "song_generation",
+            message: `Song generation blocked: lyrics contain inappropriate content (${profanityCheck.category})`,
+            status: "error",
+            metadata: { 
+              detectedWords: profanityCheck.detectedWords,
+              category: profanityCheck.category
+            }
+          });
+          
+          return res.status(400).json({ 
+            error: "Content Policy Violation",
+            details: getCategoryMessage(profanityCheck.category || 'unknown'),
+            category: profanityCheck.category
+          });
+        }
+      }
       
       // Get project to find the user
       const project = await storage.getProject(req.params.id);

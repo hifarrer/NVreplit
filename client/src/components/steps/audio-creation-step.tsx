@@ -16,6 +16,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
+import { checkProfanity, getCategoryMessage, type ProfanityCheckResult } from "@/lib/profanity-filter";
 
 interface AudioCreationStepProps {
   projectId: string;
@@ -69,6 +70,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const [addSubtitles, setAddSubtitles] = useState(true); // Subtitle toggle - enabled by default
   const [progress, setProgress] = useState(0);
   const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(null); // For debugging display
+  const [profanityCheck, setProfanityCheck] = useState<ProfanityCheckResult | null>(null);
   
   // Song selection state
   const [generatedSongs, setGeneratedSongs] = useState<Array<{audioUrl: string; duration: number; title: string; id: string}>>([]);
@@ -149,10 +151,22 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
     },
     onSuccess: (data) => {
       setLyrics(data.lyrics);
-      toast({
-        title: "Success",
-        description: "Lyrics generated successfully!",
-      });
+      // Check for profanity in AI-generated lyrics
+      const profanityResult = checkProfanity(data.lyrics);
+      setProfanityCheck(profanityResult);
+      
+      if (profanityResult.isClean) {
+        toast({
+          title: "Success",
+          description: "Lyrics generated successfully!",
+        });
+      } else {
+        toast({
+          title: "Lyrics Generated with Issues",
+          description: "AI generated lyrics contain inappropriate content. Please edit them before proceeding.",
+          variant: "destructive",
+        });
+      }
     },
     onError: (error) => {
       toast({
@@ -554,12 +568,24 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
               <div className="space-y-3">
                 <Textarea
                   value={lyrics}
-                  onChange={(e) => setLyrics(e.target.value)}
+                  onChange={(e) => {
+                    const newLyrics = e.target.value;
+                    setLyrics(newLyrics);
+                    // Check for profanity when lyrics change
+                    const profanityResult = checkProfanity(newLyrics);
+                    setProfanityCheck(profanityResult);
+                  }}
                   placeholder="Enter your lyrics here or click 'Generate Lyrics with AI' to create them automatically..."
                   rows={6}
-                  className="resize-none"
+                  className={`resize-none ${profanityCheck?.isClean === false ? 'border-red-500 focus:border-red-500' : ''}`}
                   data-testid="lyrics-textarea"
                 />
+                {profanityCheck?.isClean === false && (
+                  <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded-md">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                    <span>{profanityCheck.category ? getCategoryMessage(profanityCheck.category) : 'Please remove inappropriate content from your lyrics.'}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -599,11 +625,30 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
             )}
 
             <Button
-              onClick={() => generateSongMutation.mutate()}
-              disabled={!canGenerate || generateSongMutation.isPending || !hasEnoughCredits}
+              onClick={() => {
+                // Check for profanity before generating
+                if (profanityCheck?.isClean === false) {
+                  toast({
+                    title: "Content Policy Violation",
+                    description: profanityCheck.category ? getCategoryMessage(profanityCheck.category) : "Please remove inappropriate content from your lyrics before generating.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                generateSongMutation.mutate();
+              }}
+              disabled={!canGenerate || generateSongMutation.isPending || !hasEnoughCredits || (profanityCheck?.isClean === false)}
               className="w-full floating-button"
               data-testid="generate-song-button"
-              title={!canGenerate ? "Please enter at least 5 characters in description and add at least one tag" : !hasEnoughCredits ? "Not enough credits for this video duration" : "Generate your AI song"}
+              title={
+                profanityCheck?.isClean === false
+                  ? "Please remove inappropriate content from your lyrics" 
+                  : !canGenerate 
+                    ? "Please enter at least 5 characters in description and add at least one tag" 
+                    : !hasEnoughCredits 
+                      ? "Not enough credits for this video duration" 
+                      : "Generate your AI song"
+              }
             >
               <Sparkles className="w-4 h-4 mr-2" />
               Generate Song
