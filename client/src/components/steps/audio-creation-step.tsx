@@ -924,11 +924,11 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
 
 
         {/* Next Step Button */}
-        <div className="text-center mt-8">
+        <div className="text-center mt-8 px-4">
           <Button
             onClick={onNext}
             disabled={!currentAudioUrl}
-            className="floating-button text-lg py-3 px-8"
+            className="floating-button text-lg py-3 px-4 sm:px-8 w-full sm:w-auto"
             data-testid="continue-to-character-button"
           >
             Continue to Character Creation
