@@ -1,27 +1,66 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { Plan } from "@shared/schema";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 export default function PlansPage() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   
   const { data: plans, isLoading } = useQuery<Plan[]>({
     queryKey: ["/api/plans"],
   });
 
-  const handleSelectPlan = (plan: Plan) => {
+  // Mutation to create checkout session
+  const createCheckoutSession = useMutation({
+    mutationFn: async ({ planId, billingPeriod }: { planId: string; billingPeriod: 'monthly' | 'yearly' }) => {
+      const res = await apiRequest("POST", "/api/stripe/create-checkout-session", {
+        planId,
+        billingPeriod
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      // Redirect to Stripe checkout
+      if (data.sessionUrl) {
+        window.location.href = data.sessionUrl;
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to start checkout",
+        variant: "destructive",
+      });
+      setSelectedPlanId(null);
+    }
+  });
+
+  const handleSelectPlan = (plan: Plan, billingPeriod: 'monthly' | 'yearly' = 'monthly') => {
     if (!user) {
       navigate("/auth");
     } else {
-      // In a real implementation, this would go to a checkout page
-      alert(`Selected ${plan.name} plan - Checkout flow would go here`);
+      // Skip checkout for free plan
+      if (plan.name.toLowerCase() === 'free') {
+        toast({
+          title: "Free Plan",
+          description: "You already have access to the free plan!",
+        });
+        return;
+      }
+      
+      setSelectedPlanId(plan.id);
+      createCheckoutSession.mutate({ planId: plan.id, billingPeriod });
     }
   };
 
@@ -106,9 +145,17 @@ export default function PlansPage() {
                     className={`w-full ${isPopular ? 'bg-primary hover:bg-primary/90' : ''}`}
                     variant={isPopular ? "default" : "outline"}
                     onClick={() => handleSelectPlan(plan)}
+                    disabled={createCheckoutSession.isPending && selectedPlanId === plan.id}
                     data-testid={`select-plan-${plan.id}`}
                   >
-                    {user ? 'Select Plan' : 'Sign Up'}
+                    {createCheckoutSession.isPending && selectedPlanId === plan.id ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Redirecting to checkout...
+                      </>
+                    ) : (
+                      user ? 'Select Plan' : 'Sign Up'
+                    )}
                   </Button>
                 </CardContent>
               </Card>

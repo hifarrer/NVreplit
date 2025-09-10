@@ -17,6 +17,7 @@ import AdminLogin from "@/pages/admin-login";
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminPlans from "@/pages/admin-plans";
 import PlansPage from "@/pages/plans";
+import PaymentSuccessPage from "@/pages/payment-success";
 import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
 import ContactPage from "@/pages/contact";
@@ -68,6 +69,7 @@ function AppRouter() {
       <Route path="/u/:username" component={PublicProfilePage} />
       <Route path="/v/:videoId" component={VideoPage} />
       <Route path="/plans" component={PlansPage} />
+      <Route path="/payment-success" component={() => <ProtectedRoute component={PaymentSuccessPage} />} />
       <Route path="/privacy" component={PrivacyPage} />
       <Route path="/terms" component={TermsPage} />
       <Route path="/contact" component={ContactPage} />
