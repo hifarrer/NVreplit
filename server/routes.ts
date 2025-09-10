@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
+import { spawn } from "child_process";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -477,10 +478,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Database backup endpoint
   app.get("/api/admin/database-backup", authenticateAdmin, async (req, res) => {
     try {
-      const { spawn } = require('child_process');
-      const fs = require('fs');
-      const path = require('path');
-      
       // Create temporary backup file
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const backupFileName = `neonvideo_backup_${timestamp}.sql`;
