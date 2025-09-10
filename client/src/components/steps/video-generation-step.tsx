@@ -224,42 +224,6 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
           <p className="text-muted-foreground">Creating your video, this could take up to 15 minutes.</p>
         </div>
 
-        {/* Queue Status Indicator */}
-        {(isQueued || queuePosition !== null || (queueStats?.activeCount !== undefined)) && (
-          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6" data-testid="queue-status">
-            <div className="flex items-center justify-center gap-3">
-              {isQueued ? (
-                <>
-                  <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  <div className="text-center">
-                    <p className="text-blue-800 dark:text-blue-200 font-medium">
-                      {queuePosition !== null && queuePosition > 0 
-                        ? `Queued - Position ${queuePosition}` 
-                        : "Queued - Waiting for processing slot"}
-                    </p>
-                    <p className="text-blue-600 dark:text-blue-400 text-sm">
-                      Your video will start processing automatically when a slot becomes available
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  <div className="text-center">
-                    <p className="text-blue-800 dark:text-blue-200 font-medium">
-                      Processing your video
-                    </p>
-                    {queueStats && (
-                      <p className="text-blue-600 dark:text-blue-400 text-sm">
-                        {queueStats.activeCount} of {queueStats.maxConcurrent} generation slots in use
-                      </p>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Loading Animation or Trending Videos */}
         {generateVideoMutation.isPending ? (
