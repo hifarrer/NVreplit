@@ -417,17 +417,17 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="generate" className="flex items-center gap-2">
-              <Music className="w-4 h-4" />
-              Generate with AI
+            <TabsTrigger value="generate" className="flex items-center justify-center gap-2 px-2 sm:px-4">
+              <Music className="w-5 h-5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Generate with AI</span>
             </TabsTrigger>
-            <TabsTrigger value="upload" className="flex items-center gap-2">
-              <Upload className="w-4 h-4" />
-              Upload Audio File
+            <TabsTrigger value="upload" className="flex items-center justify-center gap-2 px-2 sm:px-4">
+              <Upload className="w-5 h-5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Upload Audio File</span>
             </TabsTrigger>
-            <TabsTrigger value="library" className="flex items-center gap-2">
-              <Library className="w-4 h-4" />
-              Select from Library
+            <TabsTrigger value="library" className="flex items-center justify-center gap-2 px-2 sm:px-4">
+              <Library className="w-5 h-5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Select from Library</span>
             </TabsTrigger>
           </TabsList>
 
