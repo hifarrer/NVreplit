@@ -384,18 +384,17 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                     <div className="flex-1">
                       <p className="text-sm text-muted-foreground mb-2">Your public profile URL:</p>
-                      <code className="text-sm bg-muted px-2 py-1 rounded">
+                      <code className="text-sm bg-muted px-2 py-1 rounded break-all">
                         https://neonvideo.ai/u/{user?.username}
                       </code>
                     </div>
-                    <Link href={`/u/${user?.username}`}>
-                      <Button variant="outline" data-testid="button-view-public-profile" className="px-3">
+                    <Link href={`/u/${user?.username}`} className="sm:shrink-0">
+                      <Button variant="outline" data-testid="button-view-public-profile" className="w-full sm:w-auto">
                         <ExternalLink className="h-4 w-4 mr-2" />
-                        <span className="hidden sm:inline">View Public Profile</span>
-                        <span className="sm:hidden">View</span>
+                        View Public Profile
                       </Button>
                     </Link>
                   </div>
