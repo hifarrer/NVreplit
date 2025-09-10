@@ -810,6 +810,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin get all comments
+  app.get("/api/admin/comments", authenticateAdmin, async (req, res) => {
+    try {
+      const comments = await storage.getAllComments();
+      res.json(comments);
+    } catch (error) {
+      console.error("Admin get comments error:", error);
+      res.status(500).json({ error: "Failed to get comments" });
+    }
+  });
+
+  // Admin delete comment
+  app.delete("/api/admin/comments/:commentId", authenticateAdmin, async (req, res) => {
+    try {
+      const { commentId } = req.params;
+      
+      const success = await storage.adminDeleteComment(commentId);
+      
+      if (!success) {
+        return res.status(404).json({ error: "Comment not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Admin delete comment error:", error);
+      res.status(500).json({ error: "Failed to delete comment" });
+    }
+  });
+
   // Update password
   app.patch("/api/user/password", authenticateToken, async (req, res) => {
     try {

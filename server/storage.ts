@@ -93,6 +93,8 @@ export interface IStorage {
   addComment(comment: InsertVideoComment): Promise<VideoComment>;
   getComments(projectId: string): Promise<VideoComment[]>;
   deleteComment(commentId: string, userId: string): Promise<boolean>;
+  getAllComments(): Promise<VideoComment[]>;
+  adminDeleteComment(commentId: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -689,6 +691,47 @@ export class MemStorage implements IStorage {
     const comment = this.videoCommentsStorage.get(commentId);
     if (!comment || comment.userId !== userId) {
       return false; // Comment doesn't exist or user doesn't own it
+    }
+    
+    this.videoCommentsStorage.delete(commentId);
+    return true;
+  }
+
+  async getAllComments(): Promise<VideoComment[]> {
+    // Get all comments with user and video details
+    const commentsWithDetails = await Promise.all(
+      Array.from(this.videoCommentsStorage.values()).map(async (comment) => {
+        const user = this.users.get(comment.userId);
+        const project = this.projects.get(comment.projectId);
+        const videoCreator = project ? this.users.get(project.userId) : null;
+        
+        return {
+          ...comment,
+          user: {
+            id: comment.userId,
+            username: user?.username || 'Unknown',
+            avatarUrl: user?.avatarUrl || null
+          },
+          video: {
+            id: comment.projectId,
+            title: project?.title || 'Unknown Video',
+            creator: {
+              username: videoCreator?.username || 'Unknown'
+            }
+          }
+        };
+      })
+    );
+    
+    return commentsWithDetails.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  async adminDeleteComment(commentId: string): Promise<boolean> {
+    const exists = this.videoCommentsStorage.has(commentId);
+    if (!exists) {
+      return false;
     }
     
     this.videoCommentsStorage.delete(commentId);
@@ -1340,6 +1383,80 @@ export class DbStorage implements IStorage {
       return result.length > 0;
     } catch (error) {
       console.error("Error deleting comment:", error);
+      return false;
+    }
+  }
+
+  async getAllComments(): Promise<VideoComment[]> {
+    try {
+      // Get all comments with user and video details
+      const results = await this.db
+        .select({
+          id: videoComments.id,
+          content: videoComments.content,
+          createdAt: videoComments.createdAt,
+          updatedAt: videoComments.updatedAt,
+          userId: videoComments.userId,
+          projectId: videoComments.projectId,
+          userUsername: users.username,
+          userAvatarUrl: users.avatarUrl,
+          videoTitle: projects.title,
+          videoUserId: projects.userId
+        })
+        .from(videoComments)
+        .innerJoin(users, eq(videoComments.userId, users.id))
+        .innerJoin(projects, eq(videoComments.projectId, projects.id))
+        .orderBy(sql`${videoComments.createdAt} DESC`);
+      
+      // Get video creators for each comment
+      const commentsWithCreators = await Promise.all(
+        results.map(async (result) => {
+          const videoCreator = await this.db
+            .select({ username: users.username })
+            .from(users)
+            .where(eq(users.id, result.videoUserId))
+            .limit(1);
+          
+          return {
+            id: result.id,
+            content: result.content,
+            createdAt: result.createdAt,
+            updatedAt: result.updatedAt,
+            userId: result.userId,
+            projectId: result.projectId,
+            user: {
+              id: result.userId,
+              username: result.userUsername,
+              avatarUrl: result.userAvatarUrl
+            },
+            video: {
+              id: result.projectId,
+              title: result.videoTitle,
+              creator: {
+                username: videoCreator[0]?.username || 'Unknown'
+              }
+            }
+          };
+        })
+      );
+      
+      return commentsWithCreators;
+    } catch (error) {
+      console.error("Error getting all comments:", error);
+      return [];
+    }
+  }
+
+  async adminDeleteComment(commentId: string): Promise<boolean> {
+    try {
+      const result = await this.db
+        .delete(videoComments)
+        .where(eq(videoComments.id, commentId))
+        .returning();
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error admin deleting comment:", error);
       return false;
     }
   }
