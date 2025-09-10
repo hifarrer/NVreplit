@@ -483,7 +483,7 @@ export default function ProfilePage() {
                   {/* Upgrade Button if on Free plan */}
                   {(!user?.plan || user?.plan?.name === "Free") && (
                     <div className="pt-2">
-                      <Link href="/pricing">
+                      <Link href="/plans">
                         <Button className="w-full" variant="outline">
                           <ExternalLink className="h-4 w-4 mr-2" />
                           Upgrade to Get More Credits
