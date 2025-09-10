@@ -228,9 +228,7 @@ This is an automated notification from neonvideo.ai
     }
 
     try {
-      const verificationUrl = `${process.env.REPL_ID ? 
-        `https://${process.env.REPL_ID}.replit.app` : 
-        'http://localhost:5000'}/verify-email?token=${userData.verificationToken}`;
+      const verificationUrl = `https://neonvideo.ai/verify-email?token=${userData.verificationToken}`;
 
       await this.transporter.sendMail({
         from: `"neonvideo.ai" <${process.env.SMTP_USER}>`,
