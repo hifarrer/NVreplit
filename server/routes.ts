@@ -2985,7 +2985,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Update user with subscription details
             await storage.updateUser(userId, {
               stripeSubscriptionId: session.subscription,
-              plan: planId,
+              planId: planId,
             });
             
             // Get plan details and add credits
@@ -3024,10 +3024,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Find user by Stripe customer ID
           const user = await storage.getUserByStripeCustomerId(customerId);
           if (user) {
-            // Clear subscription
+            // Clear subscription and reset to free plan
+            const freePlan = await storage.getFreePlan();
             await storage.updateUser(user.id, {
               stripeSubscriptionId: null,
-              plan: 'free',
+              planId: freePlan?.id || null,
             });
           }
           break;
