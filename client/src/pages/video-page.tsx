@@ -25,6 +25,11 @@ interface VideoData {
   };
 }
 
+interface LikeStatus {
+  liked: boolean;
+  likesCount: number;
+}
+
 export default function VideoPage() {
   const params = useParams();
   const videoId = params.videoId as string;
@@ -43,7 +48,7 @@ export default function VideoPage() {
   const isAuthenticated = !!token;
 
   // Get like status for authenticated users
-  const { data: likeStatus } = useQuery({
+  const { data: likeStatus } = useQuery<LikeStatus>({
     queryKey: ['/api/videos', videoId, 'like'],
     enabled: isAuthenticated,
     retry: false
