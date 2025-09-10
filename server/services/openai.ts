@@ -1,11 +1,13 @@
 import OpenAI from "openai";
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+// Validate API key exists
+if (!process.env.OPENAI_API_KEY) {
+  throw new Error("OPENAI_API_KEY environment variable is required");
+}
+
 const openai = new OpenAI({
-  apiKey:
-    process.env.OPENAI_API_KEY ||
-    process.env.OPENAI_API_KEY_ENV_VAR ||
-    "default_key",
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function generateLyrics(
@@ -200,8 +202,8 @@ IMPORTANT: Return ONLY a valid JSON object with exactly these two fields:
 }`;
 
     const response = await openai.chat.completions.create({
-      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-      model: "gpt-5",
+      // Using gpt-4o-mini for better reliability and cost efficiency
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -220,8 +222,11 @@ IMPORTANT: Return ONLY a valid JSON object with exactly these two fields:
     
     if (!content || content === "{}") {
       console.error("Empty or invalid response from OpenAI");
+      console.error("Full OpenAI response:", JSON.stringify(response, null, 2));
       throw new Error("OpenAI returned an empty response. Please try again.");
     }
+    
+    console.log("OpenAI response content:", content);
     
     let result;
     try {

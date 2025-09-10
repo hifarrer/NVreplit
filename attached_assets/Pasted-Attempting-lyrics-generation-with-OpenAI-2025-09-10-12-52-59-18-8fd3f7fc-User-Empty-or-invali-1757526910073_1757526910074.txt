@@ -1,0 +1,81 @@
+Attempting lyrics generation with OpenAI...
+2025-09-10 12:52:59.18
+8fd3f7fc
+User
+Empty or invalid response from OpenAI
+2025-09-10 12:52:59.18
+8fd3f7fc
+User
+OpenAI lyrics and title generation error: Error: OpenAI returned an empty response. Please try again.
+2025-09-10 12:52:59.18
+8fd3f7fc
+User
+at generateLyricsWithTitle (file:///home/runner/workspace/dist/index.js:1454:13)
+2025-09-10 12:52:59.18
+8fd3f7fc
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-09-10 12:52:59.18
+8fd3f7fc
+User
+at async file:///home/runner/workspace/dist/index.js:5530:30
+2025-09-10 12:52:59.18
+8fd3f7fc
+User
+OpenAI error: Failed to generate lyrics and title: OpenAI returned an empty response. Please try again.
+2025-09-10 12:52:59.18
+8fd3f7fc
+User
+OpenAI lyrics generation failed, trying KIE.AI fallback...
+2025-09-10 12:52:59.24
+8fd3f7fc
+User
+Generating lyrics and title with KIE.AI
+2025-09-10 12:52:59.24
+8fd3f7fc
+User
+Starting KIE.AI lyrics generation for prompt: Generate a song title and complete lyrics for a song about: a man lost in time.
+2025-09-10 12:52:59.24
+8fd3f7fc
+User
+The song should be approximately 60 seconds long.
+2025-09-10 12:52:59.24
+8fd3f7fc
+User
+Please include a clear song title and well-structured lyrics with verses, chorus, and other sections as appropriate.
+2025-09-10 12:52:59.43
+8fd3f7fc
+User
+KIE.AI lyrics generation error: TypeError: Cannot read properties of null (reading 'taskId')
+2025-09-10 12:52:59.43
+8fd3f7fc
+User
+at generateLyricsWithKie (file:///home/runner/workspace/dist/index.js:2720:71)
+2025-09-10 12:52:59.43
+8fd3f7fc
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-09-10 12:52:59.43
+8fd3f7fc
+User
+at async generateLyricsWithKieAndTitle (file:///home/runner/workspace/dist/index.js:2773:20)
+2025-09-10 12:52:59.43
+8fd3f7fc
+User
+at async file:///home/runner/workspace/dist/index.js:5547:29
+2025-09-10 12:52:59.43
+8fd3f7fc
+User
+KIE.AI lyrics and title generation error: Error: KIE.AI lyrics generation failed: Cannot read properties of null (reading 'taskId')
+2025-09-10 12:52:59.43
+8fd3f7fc
+User
+at generateLyricsWithKie (file:///home/runner/workspace/dist/index.js:2745:11)
+2025-09-10 12:52:59.43
+8fd3f7fc
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-09-10 12:52:59.43
+8fd3f7fc
+User
+at async generateLyricsWithKieAndTitle (file:///home/runner/workspace/dist/index.js:2773:20)

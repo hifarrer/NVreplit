@@ -89,8 +89,14 @@ export async function generateSong(tags: string, lyrics?: string, duration: numb
     const result = await response.json();
     console.log("KIE.ai submission result:", JSON.stringify(result, null, 2));
 
-    if (!result.data?.taskId) {
-      throw new Error("No task ID received from KIE.ai");
+    if (!result || !result.data || !result.data.taskId) {
+      console.error("Invalid KIE.ai response structure:", {
+        hasResult: !!result,
+        hasData: !!(result && result.data),
+        hasTaskId: !!(result && result.data && result.data.taskId),
+        fullResponse: result
+      });
+      throw new Error(`KIE.ai returned invalid response: ${JSON.stringify(result)}`);
     }
 
     const taskId = result.data.taskId;
