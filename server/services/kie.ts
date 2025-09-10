@@ -1,5 +1,35 @@
 import { downloadAndStoreImage } from "./imageStorage";
 
+export interface KieLyricsResponse {
+  code: number;
+  msg: string;
+  data: {
+    taskId: string;
+  };
+}
+
+export interface KieLyricsResult {
+  code: number;
+  msg: string;
+  data: {
+    taskId: string;
+    param: string;
+    response: {
+      taskId: string;
+      data: Array<{
+        text: string;
+        title: string;
+        status: string;
+        errorMessage: string;
+      }>;
+    };
+    status: string;
+    type: string;
+    errorCode: string | null;
+    errorMessage: string | null;
+  };
+}
+
 export interface TimestampedWord {
   word: string;
   success: boolean;
@@ -404,4 +434,151 @@ function formatTimeForASS(seconds: number): string {
   const centiseconds = Math.floor((seconds % 1) * 100);
   
   return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
+}
+
+// KIE.AI Lyrics Generation Functions
+
+export async function generateLyricsWithKie(prompt: string): Promise<string> {
+  const KIE_API_TOKEN = process.env.KIE_API_TOKEN || "f27547e627af203de39b3345de70c32b";
+  
+  try {
+    console.log("Starting KIE.AI lyrics generation for prompt:", prompt);
+    
+    // Submit lyrics generation request to KIE.AI
+    const response = await fetch("https://api.kie.ai/api/v1/lyrics", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${KIE_API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        callBackUrl: "https://api.example.com/callback" // Required parameter
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("KIE.AI lyrics request failed:", response.status, errorText);
+      throw new Error(`KIE.AI API request failed: ${response.status} ${errorText}`);
+    }
+
+    const data: KieLyricsResponse = await response.json();
+    console.log("KIE.AI lyrics request submitted, taskId:", data.data.taskId);
+
+    if (data.code !== 200) {
+      throw new Error(`KIE.AI API error: ${data.msg}`);
+    }
+
+    // Poll for results
+    const taskId = data.data.taskId;
+    const maxAttempts = 30; // Wait up to 5 minutes (30 * 10 seconds)
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      console.log(`Checking KIE.AI lyrics task status, attempt ${attempt + 1}/${maxAttempts}`);
+      
+      const result = await checkKieLyricsTask(taskId);
+      
+      if (result.data.status === "SUCCESS" && result.data.response.data.length > 0) {
+        const lyricsData = result.data.response.data[0];
+        
+        if (lyricsData.status === "complete" && lyricsData.text) {
+          console.log("KIE.AI lyrics generation completed successfully");
+          return lyricsData.text;
+        } else if (lyricsData.status === "failed" || lyricsData.errorMessage) {
+          throw new Error(`KIE.AI lyrics generation failed: ${lyricsData.errorMessage || "Unknown error"}`);
+        }
+      } else if (result.data.status === "FAILED") {
+        throw new Error(`KIE.AI task failed: ${result.data.errorMessage || "Unknown error"}`);
+      }
+      
+      // Wait 10 seconds before next check
+      await new Promise(resolve => setTimeout(resolve, 10000));
+    }
+    
+    throw new Error("KIE.AI lyrics generation timed out after 5 minutes");
+  } catch (error) {
+    console.error("KIE.AI lyrics generation error:", error);
+    throw new Error(`KIE.AI lyrics generation failed: ${(error as Error).message}`);
+  }
+}
+
+export async function checkKieLyricsTask(taskId: string): Promise<KieLyricsResult> {
+  const KIE_API_TOKEN = process.env.KIE_API_TOKEN || "f27547e627af203de39b3345de70c32b";
+  
+  const response = await fetch(`https://api.kie.ai/api/v1/lyrics/record-info?taskId=${taskId}`, {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${KIE_API_TOKEN}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("KIE.AI task check failed:", response.status, errorText);
+    throw new Error(`KIE.AI task check failed: ${response.status} ${errorText}`);
+  }
+
+  const data: KieLyricsResult = await response.json();
+  
+  if (data.code !== 200) {
+    throw new Error(`KIE.AI API error: ${data.msg}`);
+  }
+
+  return data;
+}
+
+export async function generateLyricsWithKieAndTitle(
+  songDescription: string, 
+  duration: number = 120
+): Promise<{ lyrics: string; title: string }> {
+  try {
+    console.log("Generating lyrics and title with KIE.AI");
+    
+    // Create a prompt that requests both title and lyrics
+    const prompt = `Generate a song title and complete lyrics for a song about: ${songDescription}. 
+    The song should be approximately ${duration} seconds long. 
+    Please include a clear song title and well-structured lyrics with verses, chorus, and other sections as appropriate.`;
+    
+    const result = await generateLyricsWithKie(prompt);
+    
+    // Parse the result to extract title and lyrics
+    // KIE.AI might return the result in various formats, so we need to handle this flexibly
+    let title = "Generated Song";
+    let lyrics = result;
+    
+    // Try to extract title if it's clearly marked
+    const titleMatch = result.match(/(?:Title:|Song Title:|Song:)\s*(.+?)(?:\n|$)/i);
+    if (titleMatch) {
+      title = titleMatch[1].trim();
+      // Remove the title line from lyrics
+      lyrics = result.replace(titleMatch[0], "").trim();
+    } else {
+      // If no clear title marker, try to use the first line as title if it looks like one
+      const lines = result.split('\n').filter(line => line.trim());
+      if (lines.length > 0 && lines[0].length < 50 && !lines[0].includes('[')) {
+        title = lines[0].trim();
+        lyrics = lines.slice(1).join('\n').trim();
+      }
+    }
+    
+    // Ensure lyrics have proper section formatting
+    if (!lyrics.includes('[') && !lyrics.includes(']')) {
+      // If no section markers, try to add basic structure
+      const lyricsLines = lyrics.split('\n').filter(line => line.trim());
+      if (lyricsLines.length > 4) {
+        const mid = Math.floor(lyricsLines.length / 2);
+        lyrics = `[Verse 1]\n${lyricsLines.slice(0, mid).join('\n')}\n\n[Chorus]\n${lyricsLines.slice(mid).join('\n')}`;
+      }
+    }
+    
+    console.log("KIE.AI lyrics and title generated successfully");
+    console.log("Title:", title);
+    console.log("Lyrics length:", lyrics.length);
+    
+    return { lyrics, title };
+  } catch (error) {
+    console.error("KIE.AI lyrics and title generation error:", error);
+    throw new Error(`KIE.AI lyrics generation failed: ${(error as Error).message}`);
+  }
 }

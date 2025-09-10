@@ -1550,7 +1550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate lyrics
+  // Generate lyrics with OpenAI and KIE.AI fallback
   app.post("/api/projects/:id/generate-lyrics", async (req, res) => {
     try {
       const { description, duration = 120 } = req.body; // Duration in seconds
@@ -1563,16 +1563,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { description }
       });
 
-      // Import the new function that generates both lyrics and title
-      const { generateLyricsWithTitle } = await import("./services/openai");
-      const { lyrics, title } = await generateLyricsWithTitle(description, duration);
+      let lyrics: string;
+      let title: string;
+      let generationMethod = "OpenAI";
+
+      try {
+        // First, try OpenAI lyrics generation
+        console.log("Attempting lyrics generation with OpenAI...");
+        const { generateLyricsWithTitle } = await import("./services/openai");
+        const openaiResult = await generateLyricsWithTitle(description, duration);
+        lyrics = openaiResult.lyrics;
+        title = openaiResult.title;
+        generationMethod = "OpenAI";
+        
+        console.log("OpenAI lyrics generation successful");
+      } catch (openaiError) {
+        console.log("OpenAI lyrics generation failed, trying KIE.AI fallback...");
+        console.error("OpenAI error:", (openaiError as Error).message);
+        
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "lyrics_generation",
+          message: `OpenAI failed, trying KIE.AI fallback: ${(openaiError as Error).message}`,
+          status: "retry",
+          metadata: { openaiError: (openaiError as Error).message }
+        });
+
+        try {
+          // Fallback to KIE.AI lyrics generation
+          const { generateLyricsWithKieAndTitle } = await import("./services/kie");
+          const kieResult = await generateLyricsWithKieAndTitle(description, duration);
+          lyrics = kieResult.lyrics;
+          title = kieResult.title;
+          generationMethod = "KIE.AI";
+          
+          console.log("KIE.AI lyrics generation successful");
+        } catch (kieError) {
+          console.log("Both OpenAI and KIE.AI lyrics generation failed");
+          console.error("KIE.AI error:", (kieError as Error).message);
+          
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "lyrics_generation",
+            message: `Both OpenAI and KIE.AI failed. OpenAI: ${(openaiError as Error).message}. KIE.AI: ${(kieError as Error).message}`,
+            status: "error",
+            metadata: { 
+              openaiError: (openaiError as Error).message,
+              kieError: (kieError as Error).message
+            }
+          });
+          
+          // Both methods failed
+          return res.status(500).json({ 
+            error: "Lyrics generation failed, please try again.",
+            details: "Both OpenAI and KIE.AI generation methods failed"
+          });
+        }
+      }
       
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "lyrics_generation",
-        message: "Lyrics and title generated successfully",
+        message: `Lyrics and title generated successfully using ${generationMethod}`,
         status: "completed",
-        metadata: { lyrics, title }
+        metadata: { lyrics, title, generationMethod }
       });
 
       // Update the project title with the AI-generated title
@@ -1580,7 +1634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateProject(req.params.id, { title });
       }
 
-      res.json({ lyrics, title });
+      res.json({ lyrics, title, generationMethod });
     } catch (error) {
       console.error("Generate lyrics error:", error);
       await storage.addGenerationLog({
@@ -1590,7 +1644,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "error",
         metadata: { error: (error as Error).message }
       });
-      res.status(500).json({ error: "Failed to generate lyrics" });
+      res.status(500).json({ 
+        error: "Lyrics generation failed, please try again.",
+        details: (error as Error).message
+      });
     }
   });
 
