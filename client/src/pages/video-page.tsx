@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Play, Pause, ArrowLeft, Share2, User } from "lucide-react";
+import { Play, Pause, ArrowLeft, Share2, User, ThumbsUp } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
 interface VideoData {
@@ -16,6 +17,7 @@ interface VideoData {
   thumbnailUrl: string | null;
   createdAt: string;
   duration: number;
+  likesCount: number;
   creator: {
     id: string;
     username: string;
@@ -27,12 +29,70 @@ export default function VideoPage() {
   const params = useParams();
   const videoId = params.videoId as string;
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const { data: video, isLoading, error } = useQuery<VideoData>({
     queryKey: ['/api/videos', videoId],
     retry: false
+  });
+
+  // Check if user is authenticated by checking for auth token
+  const token = localStorage.getItem('token');
+  const isAuthenticated = !!token;
+
+  // Get like status for authenticated users
+  const { data: likeStatus } = useQuery({
+    queryKey: ['/api/videos', videoId, 'like'],
+    enabled: isAuthenticated,
+    retry: false
+  });
+
+  // Like mutation
+  const likeMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', `/api/videos/${videoId}/like`);
+    },
+    onSuccess: () => {
+      // Invalidate both the video data and like status
+      queryClient.invalidateQueries({ queryKey: ['/api/videos', videoId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/videos', videoId, 'like'] });
+      toast({
+        title: "Liked!",
+        description: "You liked this video"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to like video",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Unlike mutation
+  const unlikeMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('DELETE', `/api/videos/${videoId}/like`);
+    },
+    onSuccess: () => {
+      // Invalidate both the video data and like status
+      queryClient.invalidateQueries({ queryKey: ['/api/videos', videoId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/videos', videoId, 'like'] });
+      toast({
+        title: "Unliked",
+        description: "You unliked this video"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to unlike video",
+        variant: "destructive"
+      });
+    }
   });
 
   useEffect(() => {
@@ -53,6 +113,24 @@ export default function VideoPage() {
     } else {
       videoRef.current.play();
       setIsPlaying(true);
+    }
+  };
+
+  const handleLikeToggle = () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to like videos",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const isLiked = likeStatus?.liked;
+    if (isLiked) {
+      unlikeMutation.mutate();
+    } else {
+      likeMutation.mutate();
     }
   };
 
@@ -185,6 +263,29 @@ export default function VideoPage() {
                   <span>{format(new Date(video.createdAt), "MMM d, yyyy")}</span>
                   <span>•</span>
                   <span>{formatDuration(video.duration)}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  {/* Likes Count */}
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <ThumbsUp className="h-4 w-4" />
+                    <span data-testid="likes-count">{video.likesCount || 0}</span>
+                  </div>
+                  {/* Like Button - Only show for authenticated users */}
+                  {isAuthenticated && (
+                    <Button
+                      variant={likeStatus?.liked ? "default" : "outline"}
+                      size="sm"
+                      onClick={handleLikeToggle}
+                      disabled={likeMutation.isPending || unlikeMutation.isPending}
+                      className="gap-2"
+                      data-testid="button-like-video"
+                    >
+                      <ThumbsUp 
+                        className={`h-4 w-4 ${likeStatus?.liked ? 'fill-current' : ''}`} 
+                      />
+                      {likeStatus?.liked ? 'Liked' : 'Like'}
+                    </Button>
+                  )}
                 </div>
               </div>
 
