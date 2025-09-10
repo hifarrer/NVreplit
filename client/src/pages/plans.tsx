@@ -100,11 +100,12 @@ export default function PlansPage() {
             // Mark the second plan as popular (if there are at least 2 plans)
             const isPopular = index === 1 && sortedPlans.length > 1;
             
-            // For Free plan: user is on it if they don't have an active subscription
-            // For paid plans: user is on it if they have an active subscription for that plan
+            // For Free plan: user is on it if they don't have an active subscription AND no database plan
+            // For paid plans: user is on it if they have an active subscription for that plan OR database plan matches
             const isCurrentPlan = plan.name.toLowerCase() === 'free' 
-              ? user && !subscriptionStatus?.hasSubscription 
-              : subscriptionStatus?.planId === plan.id && subscriptionStatus?.hasSubscription;
+              ? user && !subscriptionStatus?.hasSubscription && !user.plan
+              : (subscriptionStatus?.planId === plan.id && subscriptionStatus?.hasSubscription) || 
+                (user?.plan === plan.id);
             
             return (
               <Card 
