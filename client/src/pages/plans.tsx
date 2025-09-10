@@ -22,7 +22,13 @@ export default function PlansPage() {
   });
 
   // Get user's subscription status
-  const { data: subscriptionStatus } = useQuery({
+  const { data: subscriptionStatus } = useQuery<{
+    hasSubscription: boolean;
+    planId?: string;
+    status?: string;
+    currentPeriodEnd?: string;
+    cancelAtPeriodEnd?: boolean;
+  }>({
     queryKey: ["/api/stripe/subscription-status"],
     enabled: !!user,
   });
@@ -105,7 +111,7 @@ export default function PlansPage() {
             const isCurrentPlan = plan.name.toLowerCase() === 'free' 
               ? user && !subscriptionStatus?.hasSubscription && !user.plan
               : (subscriptionStatus?.planId === plan.id && subscriptionStatus?.hasSubscription) || 
-                (user?.plan === plan.id);
+                (user?.plan?.id === plan.id);
             
             return (
               <Card 
@@ -165,7 +171,7 @@ export default function PlansPage() {
                     onClick={() => handleSelectPlan(plan)}
                     disabled={
                       (createCheckoutSession.isPending && selectedPlanId === plan.id) ||
-                      isCurrentPlan
+                      Boolean(isCurrentPlan)
                     }
                     data-testid={`select-plan-${plan.id}`}
                   >
