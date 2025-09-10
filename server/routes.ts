@@ -1556,6 +1556,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { description, duration = 120 } = req.body; // Duration in seconds
       
+      // Check for profanity in description
+      if (description) {
+        const profanityCheck = checkProfanity(description);
+        if (!profanityCheck.isClean) {
+          console.log("Description contains inappropriate content:", profanityCheck.detectedWords);
+          
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "lyrics_generation",
+            message: `Lyrics generation blocked: description contains inappropriate content (${profanityCheck.category})`,
+            status: "error",
+            metadata: { 
+              detectedWords: profanityCheck.detectedWords,
+              category: profanityCheck.category
+            }
+          });
+          
+          return res.status(400).json({ 
+            error: "Content Policy Violation",
+            details: getCategoryMessage(profanityCheck.category || 'unknown'),
+            category: profanityCheck.category
+          });
+        }
+      }
+      
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "lyrics_generation",

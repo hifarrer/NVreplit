@@ -71,6 +71,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const [progress, setProgress] = useState(0);
   const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(null); // For debugging display
   const [profanityCheck, setProfanityCheck] = useState<ProfanityCheckResult | null>(null);
+  const [descriptionProfanityCheck, setDescriptionProfanityCheck] = useState<ProfanityCheckResult | null>(null);
   
   // Song selection state
   const [generatedSongs, setGeneratedSongs] = useState<Array<{audioUrl: string; duration: number; title: string; id: string}>>([]);
@@ -439,14 +440,34 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
               </Label>
               <Textarea
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => {
+                  const newDescription = e.target.value;
+                  setDescription(newDescription);
+                  // Check for profanity when description changes
+                  const profanityResult = checkProfanity(newDescription);
+                  setDescriptionProfanityCheck(profanityResult);
+                }}
                 placeholder="e.g., A lonely cowboy cat riding through the desert at sunset..."
                 rows={3}
-                className={`resize-none ${description.trim().length > 0 && description.trim().length < 5 ? 'border-red-500' : ''}`}
+                className={`resize-none ${
+                  descriptionProfanityCheck?.isClean === false 
+                    ? 'border-red-500 focus:border-red-500' 
+                    : description.trim().length > 0 && description.trim().length < 5 
+                      ? 'border-red-500' 
+                      : ''
+                }`}
                 data-testid="song-description-input"
               />
+              {descriptionProfanityCheck?.isClean === false && (
+                <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded-md mt-2">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  <span>{descriptionProfanityCheck.category ? getCategoryMessage(descriptionProfanityCheck.category) : 'Please remove inappropriate content from your description.'}</span>
+                </div>
+              )}
               <p className="text-xs text-muted-foreground mt-1">
-                {description.trim().length > 0 && description.trim().length < 5 ? (
+                {descriptionProfanityCheck?.isClean === false ? (
+                  <span className="text-red-500">Please remove inappropriate content from your description before proceeding.</span>
+                ) : description.trim().length > 0 && description.trim().length < 5 ? (
                   <span className="text-red-500">Description must be at least 5 characters (currently: {description.trim().length})</span>
                 ) : description.trim().length >= 5 && tags.trim().length === 0 ? (
                   <span className="text-orange-500">Good! Now add at least one tag below to enable generation</span>
@@ -626,7 +647,16 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
 
             <Button
               onClick={() => {
-                // Check for profanity before generating
+                // Check for profanity in description
+                if (descriptionProfanityCheck?.isClean === false) {
+                  toast({
+                    title: "Content Policy Violation",
+                    description: descriptionProfanityCheck.category ? getCategoryMessage(descriptionProfanityCheck.category) : "Please remove inappropriate content from your description before generating.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                // Check for profanity in lyrics
                 if (profanityCheck?.isClean === false) {
                   toast({
                     title: "Content Policy Violation",
@@ -637,17 +667,19 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                 }
                 generateSongMutation.mutate();
               }}
-              disabled={!canGenerate || generateSongMutation.isPending || !hasEnoughCredits || (profanityCheck?.isClean === false)}
+              disabled={!canGenerate || generateSongMutation.isPending || !hasEnoughCredits || (profanityCheck?.isClean === false) || (descriptionProfanityCheck?.isClean === false)}
               className="w-full floating-button"
               data-testid="generate-song-button"
               title={
-                profanityCheck?.isClean === false
-                  ? "Please remove inappropriate content from your lyrics" 
-                  : !canGenerate 
-                    ? "Please enter at least 5 characters in description and add at least one tag" 
-                    : !hasEnoughCredits 
-                      ? "Not enough credits for this video duration" 
-                      : "Generate your AI song"
+                descriptionProfanityCheck?.isClean === false
+                  ? "Please remove inappropriate content from your description"
+                  : profanityCheck?.isClean === false
+                    ? "Please remove inappropriate content from your lyrics" 
+                    : !canGenerate 
+                      ? "Please enter at least 5 characters in description and add at least one tag" 
+                      : !hasEnoughCredits 
+                        ? "Not enough credits for this video duration" 
+                        : "Generate your AI song"
               }
             >
               <Sparkles className="w-4 h-4 mr-2" />
