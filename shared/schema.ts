@@ -122,6 +122,16 @@ export const videoGenerationConfig = pgTable("video_generation_config", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Application settings table for storing configuration like Stripe keys
+export const appSettings = pgTable("app_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  value: text("value"),
+  isSecret: boolean("is_secret").default(false).notNull(), // Flag for sensitive data
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,

@@ -561,6 +561,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to reset password" });
     }
   });
+  
+  // Get Stripe settings
+  app.get("/api/admin/stripe-settings", authenticateAdmin, async (req, res) => {
+    try {
+      const publishableKey = await storage.getSetting('stripe_publishable_key');
+      const secretKey = await storage.getSetting('stripe_secret_key');
+      const webhookSecret = await storage.getSetting('stripe_webhook_secret');
+      
+      res.json({
+        stripePublishableKey: publishableKey || '',
+        stripeSecretKey: secretKey ? '••••••••' + secretKey.slice(-4) : '', // Mask the secret key
+        stripeWebhookSecret: webhookSecret ? '••••••••' + webhookSecret.slice(-8) : '', // Mask the webhook secret
+        isConfigured: !!(publishableKey && secretKey && webhookSecret)
+      });
+    } catch (error) {
+      console.error("Get Stripe settings error:", error);
+      res.status(500).json({ error: "Failed to get Stripe settings" });
+    }
+  });
+  
+  // Update Stripe settings
+  app.post("/api/admin/stripe-settings", authenticateAdmin, async (req, res) => {
+    try {
+      const { stripePublishableKey, stripeSecretKey, stripeWebhookSecret } = req.body;
+      
+      // Save each key if provided (don't overwrite if not provided)
+      if (stripePublishableKey) {
+        await storage.setSetting('stripe_publishable_key', stripePublishableKey, false);
+      }
+      
+      if (stripeSecretKey && !stripeSecretKey.includes('••••')) { // Only update if not masked
+        await storage.setSetting('stripe_secret_key', stripeSecretKey, true);
+      }
+      
+      if (stripeWebhookSecret && !stripeWebhookSecret.includes('••••')) { // Only update if not masked
+        await storage.setSetting('stripe_webhook_secret', stripeWebhookSecret, true);
+      }
+      
+      res.json({ success: true, message: "Stripe settings updated successfully" });
+    } catch (error) {
+      console.error("Update Stripe settings error:", error);
+      res.status(500).json({ error: "Failed to update Stripe settings" });
+    }
+  });
 
   // Public endpoint to get active plans
   app.get("/api/plans", async (req, res) => {

@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -75,6 +75,11 @@ export interface IStorage {
   getAllVideosForAdmin(): Promise<Project[]>;
   updateVideoAsAdmin(id: string, updates: Partial<Project>): Promise<Project | undefined>;
   deleteVideoAsAdmin(id: string): Promise<boolean>;
+  
+  // App settings methods
+  getSetting(key: string): Promise<string | null>;
+  setSetting(key: string, value: string, isSecret?: boolean): Promise<void>;
+  getAllSettings(): Promise<{ key: string; value: string; isSecret: boolean }[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -86,6 +91,7 @@ export class MemStorage implements IStorage {
   private videoQueues: Map<string, VideoQueue>;
   private songs: Map<string, Song>;
   private videoGenerationConfigs: Map<string, VideoGenerationConfig>;
+  private appSettingsStorage: Map<string, { value: string; isSecret: boolean }>;
 
   constructor() {
     this.users = new Map();
@@ -96,6 +102,7 @@ export class MemStorage implements IStorage {
     this.videoQueues = new Map();
     this.songs = new Map();
     this.videoGenerationConfigs = new Map();
+    this.appSettingsStorage = new Map();
     
     // Initialize default video generation configs
     this.initializeDefaultConfigs();
@@ -547,6 +554,24 @@ export class MemStorage implements IStorage {
       }
     }
     return this.projects.delete(id);
+  }
+  
+  // App settings methods
+  async getSetting(key: string): Promise<string | null> {
+    const setting = this.appSettingsStorage.get(key);
+    return setting ? setting.value : null;
+  }
+  
+  async setSetting(key: string, value: string, isSecret: boolean = false): Promise<void> {
+    this.appSettingsStorage.set(key, { value, isSecret });
+  }
+  
+  async getAllSettings(): Promise<{ key: string; value: string; isSecret: boolean }[]> {
+    const settings: { key: string; value: string; isSecret: boolean }[] = [];
+    for (const [key, data] of this.appSettingsStorage) {
+      settings.push({ key, value: data.value, isSecret: data.isSecret });
+    }
+    return settings;
   }
 }
 
@@ -1019,6 +1044,38 @@ export class DbStorage implements IStorage {
     // Delete the project
     const result = await this.db.delete(projects).where(eq(projects.id, id)).returning();
     return result.length > 0;
+  }
+  
+  // App settings methods
+  async getSetting(key: string): Promise<string | null> {
+    const [setting] = await this.db
+      .select()
+      .from(appSettings)
+      .where(eq(appSettings.key, key));
+    return setting ? setting.value : null;
+  }
+  
+  async setSetting(key: string, value: string, isSecret: boolean = false): Promise<void> {
+    await this.db
+      .insert(appSettings)
+      .values({ key, value, isSecret })
+      .onConflictDoUpdate({
+        target: appSettings.key,
+        set: {
+          value,
+          isSecret,
+          updatedAt: new Date()
+        }
+      });
+  }
+  
+  async getAllSettings(): Promise<{ key: string; value: string; isSecret: boolean }[]> {
+    const settings = await this.db.select().from(appSettings);
+    return settings.map(s => ({
+      key: s.key,
+      value: s.value || '',
+      isSecret: s.isSecret
+    }));
   }
 }
 

@@ -1,17 +1,74 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Settings, Shield, Loader2, CheckCircle } from "lucide-react";
+import { Settings, Shield, Loader2, CheckCircle, CreditCard, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export function SiteSettings() {
   const { toast } = useToast();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [stripePublishableKey, setStripePublishableKey] = useState("");
+  const [stripeSecretKey, setStripeSecretKey] = useState("");
+  const [stripeWebhookSecret, setStripeWebhookSecret] = useState("");
+  
+  // Fetch Stripe settings
+  const { data: stripeSettings } = useQuery({
+    queryKey: ["/api/admin/stripe-settings"],
+    queryFn: async () => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch("/api/admin/stripe-settings", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) throw new Error("Failed to fetch Stripe settings");
+      return res.json();
+    },
+  });
+  
+  // Update form when settings are loaded
+  useEffect(() => {
+    if (stripeSettings) {
+      setStripePublishableKey(stripeSettings.stripePublishableKey || "");
+      setStripeSecretKey(stripeSettings.stripeSecretKey || "");
+      setStripeWebhookSecret(stripeSettings.stripeWebhookSecret || "");
+    }
+  }, [stripeSettings]);
+  
+  // Update Stripe settings mutation
+  const updateStripeSettingsMutation = useMutation({
+    mutationFn: async (settings: { stripePublishableKey: string; stripeSecretKey: string; stripeWebhookSecret: string }) => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch("/api/admin/stripe-settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(settings),
+      });
+      if (!res.ok) throw new Error("Failed to update Stripe settings");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Stripe settings updated successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   // Reset admin password mutation
   const resetPasswordMutation = useMutation({
@@ -169,6 +226,112 @@ export function SiteSettings() {
                 )}
               </Button>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Stripe Settings */}
+      <Card className="bg-black/30 border-purple-500/20">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center">
+            <CreditCard className="h-5 w-5 mr-2" />
+            Stripe Payment Configuration
+          </CardTitle>
+          <CardDescription className="text-gray-300">
+            Configure Stripe payment gateway for subscription billing
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {stripeSettings?.isConfigured ? (
+            <Alert className="border-green-500/50 bg-green-500/10">
+              <CheckCircle className="h-4 w-4 text-green-400" />
+              <AlertDescription className="text-green-400">
+                Stripe is configured and ready for payments
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert className="border-yellow-500/50 bg-yellow-500/10">
+              <AlertCircle className="h-4 w-4 text-yellow-400" />
+              <AlertDescription className="text-yellow-400">
+                Stripe is not fully configured. Please add all required keys to enable payments.
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="stripePublishableKey" className="text-white">
+                Stripe Publishable Key
+              </Label>
+              <Input
+                id="stripePublishableKey"
+                type="text"
+                value={stripePublishableKey}
+                onChange={(e) => setStripePublishableKey(e.target.value)}
+                className="bg-gray-800/50 border-gray-600 text-white font-mono text-sm"
+                placeholder="pk_live_..."
+                data-testid="input-stripe-publishable-key"
+              />
+              <p className="text-xs text-gray-400">
+                The publishable key is safe to expose in frontend code
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="stripeSecretKey" className="text-white">
+                Stripe Secret Key
+              </Label>
+              <Input
+                id="stripeSecretKey"
+                type="password"
+                value={stripeSecretKey}
+                onChange={(e) => setStripeSecretKey(e.target.value)}
+                className="bg-gray-800/50 border-gray-600 text-white font-mono text-sm"
+                placeholder="sk_live_..."
+                data-testid="input-stripe-secret-key"
+              />
+              <p className="text-xs text-gray-400">
+                Keep this key secure - it can perform any API request to Stripe
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="stripeWebhookSecret" className="text-white">
+                Stripe Webhook Secret
+              </Label>
+              <Input
+                id="stripeWebhookSecret"
+                type="password"
+                value={stripeWebhookSecret}
+                onChange={(e) => setStripeWebhookSecret(e.target.value)}
+                className="bg-gray-800/50 border-gray-600 text-white font-mono text-sm"
+                placeholder="whsec_..."
+                data-testid="input-stripe-webhook-secret"
+              />
+              <p className="text-xs text-gray-400">
+                Used to verify webhook events from Stripe
+              </p>
+            </div>
+            
+            <Button
+              onClick={() => updateStripeSettingsMutation.mutate({
+                stripePublishableKey,
+                stripeSecretKey,
+                stripeWebhookSecret
+              })}
+              disabled={updateStripeSettingsMutation.isPending}
+              className="bg-purple-600 hover:bg-purple-700"
+              data-testid="button-save-stripe-settings"
+            >
+              {updateStripeSettingsMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Stripe Settings"
+              )}
+            </Button>
           </div>
         </CardContent>
       </Card>
