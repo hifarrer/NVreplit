@@ -75,6 +75,15 @@ export const videoLikes = pgTable("video_likes", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const videoComments = pgTable("video_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").references(() => projects.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const generationLogs = pgTable("generation_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   projectId: varchar("project_id").references(() => projects.id).notNull(),
@@ -190,6 +199,12 @@ export const insertVideoLikeSchema = createInsertSchema(videoLikes).omit({
   createdAt: true,
 });
 
+export const insertVideoCommentSchema = createInsertSchema(videoComments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -208,3 +223,5 @@ export type InsertVideoGenerationConfig = z.infer<typeof insertVideoGenerationCo
 export type VideoGenerationConfig = typeof videoGenerationConfig.$inferSelect;
 export type InsertVideoLike = z.infer<typeof insertVideoLikeSchema>;
 export type VideoLike = typeof videoLikes.$inferSelect;
+export type InsertVideoComment = z.infer<typeof insertVideoCommentSchema>;
+export type VideoComment = typeof videoComments.$inferSelect;

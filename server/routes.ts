@@ -1403,6 +1403,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get comments for a video (no auth required)
+  app.get("/api/videos/:videoId/comments", async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      
+      // Check if video exists
+      const project = await storage.getProject(videoId);
+      if (!project || !project.isCompleted || !project.finalVideoUrl) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+      
+      // Get comments
+      const comments = await storage.getComments(videoId);
+      
+      // Get user details for each comment
+      const commentsWithUsers = await Promise.all(
+        comments.map(async (comment) => {
+          const user = await storage.getUser(comment.userId);
+          return {
+            id: comment.id,
+            content: comment.content,
+            createdAt: comment.createdAt,
+            updatedAt: comment.updatedAt,
+            user: {
+              id: user?.id || '',
+              username: user?.username || 'Unknown User',
+              avatarUrl: user?.avatarUrl || null
+            }
+          };
+        })
+      );
+      
+      res.json(commentsWithUsers);
+    } catch (error) {
+      console.error("Get video comments error:", error);
+      res.status(500).json({ error: "Failed to get video comments" });
+    }
+  });
+
+  // Add a comment to a video
+  app.post("/api/videos/:videoId/comments", authenticateToken, async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      const { content } = req.body;
+      const userId = (req as any).user.userId;
+      
+      // Validate input
+      if (!content || typeof content !== 'string' || content.trim().length === 0) {
+        return res.status(400).json({ error: "Comment content is required" });
+      }
+      
+      if (content.length > 500) {
+        return res.status(400).json({ error: "Comment too long (max 500 characters)" });
+      }
+      
+      // Server-side profanity filtering
+      const { checkProfanity, getCategoryMessage } = await import('../server/profanity-filter.js');
+      const profanityCheck = checkProfanity(content.trim());
+      if (!profanityCheck.isClean) {
+        return res.status(400).json({ 
+          error: getCategoryMessage(profanityCheck.category || ""),
+          type: "profanity_detected"
+        });
+      }
+      
+      // Check if video exists
+      const project = await storage.getProject(videoId);
+      if (!project || !project.isCompleted || !project.finalVideoUrl) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+      
+      // Add comment
+      const comment = await storage.addComment({
+        projectId: videoId,
+        userId,
+        content: content.trim()
+      });
+      
+      // Get user details for response
+      const user = await storage.getUser(userId);
+      
+      res.status(201).json({
+        id: comment.id,
+        content: comment.content,
+        createdAt: comment.createdAt,
+        updatedAt: comment.updatedAt,
+        user: {
+          id: user?.id || '',
+          username: user?.username || 'Unknown User',
+          avatarUrl: user?.avatarUrl || null
+        }
+      });
+    } catch (error) {
+      console.error("Add video comment error:", error);
+      res.status(500).json({ error: "Failed to add comment" });
+    }
+  });
+
+  // Delete a comment
+  app.delete("/api/videos/:videoId/comments/:commentId", authenticateToken, async (req, res) => {
+    try {
+      const { videoId, commentId } = req.params;
+      const userId = (req as any).user.userId;
+      
+      // Check if video exists
+      const project = await storage.getProject(videoId);
+      if (!project || !project.isCompleted || !project.finalVideoUrl) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+      
+      // Get all comments for this video to verify comment belongs to this video
+      const comments = await storage.getComments(videoId);
+      const comment = comments.find(c => c.id === commentId);
+      
+      if (!comment) {
+        return res.status(404).json({ error: "Comment not found on this video" });
+      }
+      
+      if (comment.userId !== userId) {
+        return res.status(403).json({ error: "You don't have permission to delete this comment" });
+      }
+      
+      // Delete comment
+      const success = await storage.deleteComment(commentId, userId);
+      
+      if (!success) {
+        return res.status(500).json({ error: "Failed to delete comment" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete video comment error:", error);
+      res.status(500).json({ error: "Failed to delete comment" });
+    }
+  });
+
   // Get all user's generated songs
   app.get("/api/my-songs", authenticateToken, async (req, res) => {
     try {

@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -88,6 +88,11 @@ export interface IStorage {
   unlikeVideo(projectId: string, userId: string): Promise<boolean>;
   isVideoLikedByUser(projectId: string, userId: string): Promise<boolean>;
   getVideoLikesCount(projectId: string): Promise<number>;
+
+  // Video comments methods
+  addComment(comment: InsertVideoComment): Promise<VideoComment>;
+  getComments(projectId: string): Promise<VideoComment[]>;
+  deleteComment(commentId: string, userId: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -101,6 +106,7 @@ export class MemStorage implements IStorage {
   private videoGenerationConfigs: Map<string, VideoGenerationConfig>;
   private appSettingsStorage: Map<string, { value: string; isSecret: boolean }>;
   private videoLikesStorage: Map<string, VideoLike>;
+  private videoCommentsStorage: Map<string, VideoComment>;
 
   constructor() {
     this.users = new Map();
@@ -113,6 +119,7 @@ export class MemStorage implements IStorage {
     this.videoGenerationConfigs = new Map();
     this.appSettingsStorage = new Map();
     this.videoLikesStorage = new Map();
+    this.videoCommentsStorage = new Map();
     
     // Initialize default video generation configs
     this.initializeDefaultConfigs();
@@ -650,6 +657,42 @@ export class MemStorage implements IStorage {
   async getVideoLikesCount(projectId: string): Promise<number> {
     const project = this.projects.get(projectId);
     return project?.likesCount || 0;
+  }
+
+  // Video comments methods
+  async addComment(comment: InsertVideoComment): Promise<VideoComment> {
+    const newComment: VideoComment = {
+      id: randomUUID(),
+      projectId: comment.projectId,
+      userId: comment.userId,
+      content: comment.content,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    this.videoCommentsStorage.set(newComment.id, newComment);
+    return newComment;
+  }
+
+  async getComments(projectId: string): Promise<VideoComment[]> {
+    const comments: VideoComment[] = [];
+    for (const comment of this.videoCommentsStorage.values()) {
+      if (comment.projectId === projectId) {
+        comments.push(comment);
+      }
+    }
+    // Sort by creation date (newest first)
+    return comments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async deleteComment(commentId: string, userId: string): Promise<boolean> {
+    const comment = this.videoCommentsStorage.get(commentId);
+    if (!comment || comment.userId !== userId) {
+      return false; // Comment doesn't exist or user doesn't own it
+    }
+    
+    this.videoCommentsStorage.delete(commentId);
+    return true;
   }
 }
 
@@ -1253,6 +1296,51 @@ export class DbStorage implements IStorage {
     } catch (error) {
       console.error("Error getting video likes count:", error);
       return 0;
+    }
+  }
+
+  // Video comments methods
+  async addComment(comment: InsertVideoComment): Promise<VideoComment> {
+    try {
+      const result = await this.db
+        .insert(videoComments)
+        .values(comment)
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      throw new Error("Failed to add comment");
+    }
+  }
+
+  async getComments(projectId: string): Promise<VideoComment[]> {
+    try {
+      const result = await this.db
+        .select()
+        .from(videoComments)
+        .where(eq(videoComments.projectId, projectId))
+        .orderBy(sql`${videoComments.createdAt} DESC`);
+      
+      return result;
+    } catch (error) {
+      console.error("Error getting comments:", error);
+      return [];
+    }
+  }
+
+  async deleteComment(commentId: string, userId: string): Promise<boolean> {
+    try {
+      const result = await this.db
+        .delete(videoComments)
+        .where(eq(videoComments.id, commentId))
+        .where(eq(videoComments.userId, userId))
+        .returning();
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      return false;
     }
   }
 }

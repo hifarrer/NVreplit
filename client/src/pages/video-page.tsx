@@ -4,11 +4,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Play, Pause, ArrowLeft, Share2, User, ThumbsUp } from "lucide-react";
-import { format } from "date-fns";
+import { Textarea } from "@/components/ui/textarea";
+import { Play, Pause, ArrowLeft, Share2, User, ThumbsUp, MessageCircle, Trash2, Send } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
+import { checkProfanity, getCategoryMessage } from "@/lib/profanity-filter";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
 interface VideoData {
@@ -31,12 +33,26 @@ interface LikeStatus {
   likesCount: number;
 }
 
+interface Comment {
+  id: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    id: string;
+    username: string;
+    avatarUrl: string | null;
+  };
+}
+
 export default function VideoPage() {
   const params = useParams();
   const videoId = params.videoId as string;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isPlaying, setIsPlaying] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const { user } = useAuth();
   const isAuthenticated = !!user;
@@ -50,6 +66,12 @@ export default function VideoPage() {
   const { data: likeStatus } = useQuery<LikeStatus>({
     queryKey: ['/api/videos', videoId, 'like'],
     enabled: isAuthenticated,
+    retry: false
+  });
+
+  // Get comments for the video
+  const { data: comments = [] } = useQuery<Comment[]>({
+    queryKey: ['/api/videos', videoId, 'comments'],
     retry: false
   });
 
@@ -99,6 +121,55 @@ export default function VideoPage() {
     }
   });
 
+  // Add comment mutation
+  const addCommentMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const response = await apiRequest('POST', `/api/videos/${videoId}/comments`, { content });
+      if (!response.ok) {
+        throw new Error('Failed to add comment');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      setNewComment("");
+      setIsSubmittingComment(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/videos', videoId, 'comments'] });
+      toast({
+        title: "Success",
+        description: "Comment added successfully"
+      });
+    },
+    onError: (error: any) => {
+      setIsSubmittingComment(false);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add comment",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Delete comment mutation
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (commentId: string) => {
+      return await apiRequest('DELETE', `/api/videos/${videoId}/comments/${commentId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/videos', videoId, 'comments'] });
+      toast({
+        title: "Success",
+        description: "Comment deleted successfully"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete comment",
+        variant: "destructive"
+      });
+    }
+  });
+
   useEffect(() => {
     // Pause video when component unmounts
     return () => {
@@ -136,6 +207,45 @@ export default function VideoPage() {
     } else {
       likeMutation.mutate();
     }
+  };
+
+  const handleCommentSubmit = () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to comment",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const trimmedComment = newComment.trim();
+    if (!trimmedComment) {
+      toast({
+        title: "Error",
+        description: "Please enter a comment",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check for profanity
+    const profanityCheck = checkProfanity(trimmedComment);
+    if (!profanityCheck.isClean) {
+      toast({
+        title: "Content not allowed",
+        description: getCategoryMessage(profanityCheck.category || ""),
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmittingComment(true);
+    addCommentMutation.mutate(trimmedComment);
+  };
+
+  const handleDeleteComment = (commentId: string) => {
+    deleteCommentMutation.mutate(commentId);
   };
 
   const handleVideoEnded = () => {
@@ -319,6 +429,109 @@ export default function VideoPage() {
                       View Profile
                     </Button>
                   </Link>
+                </div>
+              </div>
+
+              {/* Comments Section */}
+              <div className="border-t pt-6 mt-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <MessageCircle className="h-5 w-5" />
+                  <h3 className="text-lg font-semibold">Comments ({comments.length})</h3>
+                </div>
+
+                {/* Add Comment Form - Only for authenticated users */}
+                {isAuthenticated && (
+                  <div className="mb-6">
+                    <div className="flex gap-3">
+                      <Avatar className="h-8 w-8 border border-border">
+                        {user?.avatarUrl ? (
+                          <AvatarImage src={user.avatarUrl} alt={user.username} />
+                        ) : (
+                          <AvatarFallback className="text-sm bg-gradient-to-br from-primary/20 to-secondary/20">
+                            {user?.username.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      <div className="flex-1">
+                        <Textarea
+                          placeholder="Add a comment..."
+                          value={newComment}
+                          onChange={(e) => setNewComment(e.target.value)}
+                          className="min-h-[80px] resize-none"
+                          maxLength={500}
+                          data-testid="textarea-add-comment"
+                        />
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="text-xs text-muted-foreground">
+                            {newComment.length}/500 characters
+                          </span>
+                          <Button
+                            onClick={handleCommentSubmit}
+                            disabled={!newComment.trim() || isSubmittingComment || addCommentMutation.isPending}
+                            size="sm"
+                            className="gap-2"
+                            data-testid="button-submit-comment"
+                          >
+                            <Send className="h-4 w-4" />
+                            {isSubmittingComment ? "Posting..." : "Post"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Comments List */}
+                <div className="space-y-4">
+                  {comments.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No comments yet</p>
+                      <p className="text-sm">Be the first to share your thoughts!</p>
+                    </div>
+                  ) : (
+                    comments.map((comment) => (
+                      <div key={comment.id} className="flex gap-3" data-testid={`comment-${comment.id}`}>
+                        <Avatar className="h-8 w-8 border border-border">
+                          {comment.user.avatarUrl ? (
+                            <AvatarImage src={comment.user.avatarUrl} alt={comment.user.username} />
+                          ) : (
+                            <AvatarFallback className="text-sm bg-gradient-to-br from-primary/20 to-secondary/20">
+                              {comment.user.username.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm" data-testid={`comment-username-${comment.id}`}>
+                                @{comment.user.username}
+                              </span>
+                              <span className="text-xs text-muted-foreground" data-testid={`comment-time-${comment.id}`}>
+                                {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                              </span>
+                            </div>
+                            {/* Delete button - only show for comment owner */}
+                            {isAuthenticated && user?.id === comment.user.id && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteComment(comment.id)}
+                                disabled={deleteCommentMutation.isPending}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
+                                data-testid={`button-delete-comment-${comment.id}`}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                          <p className="text-sm mt-1 whitespace-pre-wrap" data-testid={`comment-content-${comment.id}`}>
+                            {comment.content}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </CardContent>
