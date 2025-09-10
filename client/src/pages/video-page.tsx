@@ -8,6 +8,7 @@ import { Play, Pause, ArrowLeft, Share2, User, ThumbsUp } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
 interface VideoData {
@@ -37,15 +38,13 @@ export default function VideoPage() {
   const queryClient = useQueryClient();
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const { user } = useAuth();
+  const isAuthenticated = !!user;
 
   const { data: video, isLoading, error } = useQuery<VideoData>({
     queryKey: ['/api/videos', videoId],
     retry: false
   });
-
-  // Check if user is authenticated by checking for auth token
-  const token = localStorage.getItem('token');
-  const isAuthenticated = !!token;
 
   // Get like status for authenticated users
   const { data: likeStatus } = useQuery<LikeStatus>({
