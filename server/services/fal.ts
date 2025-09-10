@@ -35,7 +35,7 @@ export async function generateCharacterImageWavespeed(
           enable_base64_output: false,
           enable_sync_mode: false,
           prompt: enhancedPrompt,
-          size: "1024*1024",
+          size: "1280*720",
         }),
       },
     );
