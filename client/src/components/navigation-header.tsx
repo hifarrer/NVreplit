@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Home as HomeIcon, Music, Video, User, LogOut, Menu, ChevronDown } from "lucide-react";
+import { Home as HomeIcon, Music, Video, User, LogOut, Menu, ChevronDown, HelpCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
@@ -95,6 +95,12 @@ export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
                         Profile
                       </DropdownMenuItem>
                     </Link>
+                    <Link href="/contact">
+                      <DropdownMenuItem className="cursor-pointer" data-testid="link-support">
+                        <HelpCircle className="h-4 w-4 mr-2" />
+                        Support
+                      </DropdownMenuItem>
+                    </Link>
                     <DropdownMenuItem 
                       onClick={logout}
                       className="cursor-pointer text-red-500 focus:text-red-500"
@@ -165,6 +171,15 @@ export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
                           )}
                         </Avatar>
                         {user.username}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="justify-start w-full"
+                        onClick={() => handleNavClick("/contact")}
+                        data-testid="link-support-mobile"
+                      >
+                        <HelpCircle className="h-4 w-4 mr-3" />
+                        Support
                       </Button>
                       <Button
                         variant="ghost"
