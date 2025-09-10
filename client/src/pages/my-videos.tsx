@@ -3,8 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users, Share2 } from "lucide-react";
+import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users, Share2, Edit3 } from "lucide-react";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { format } from "date-fns";
@@ -29,6 +30,9 @@ export default function MyVideosPage() {
   const [videoError, setVideoError] = useState<boolean>(false);
   const [videoToDelete, setVideoToDelete] = useState<CompletedVideo | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [editingVideo, setEditingVideo] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState<string>("");
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   const { data: videos = [], isLoading, refetch } = useQuery<CompletedVideo[]>({
     queryKey: ["/api/my-videos"],
@@ -67,6 +71,46 @@ export default function MyVideosPage() {
       title: "Video link copied!",
       description: `Link for "${videoTitle}" has been copied to clipboard`,
     });
+  };
+
+  const handleEditTitle = (video: CompletedVideo) => {
+    setEditingVideo(video.id);
+    setEditTitle(video.title);
+  };
+
+  const handleSaveTitle = async () => {
+    if (!editingVideo || !editTitle.trim()) return;
+    
+    setIsSaving(true);
+    try {
+      await apiRequest("PATCH", `/api/projects/${editingVideo}`, {
+        title: editTitle.trim()
+      });
+      
+      // Refresh the videos list
+      refetch();
+      setEditingVideo(null);
+      setEditTitle("");
+      
+      toast({
+        title: "Title updated!",
+        description: "Video title has been updated successfully",
+      });
+    } catch (error) {
+      console.error('Error updating title:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update video title",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingVideo(null);
+    setEditTitle("");
   };
 
   return (
@@ -159,7 +203,62 @@ export default function MyVideosPage() {
                       </div>
                     </div>
                     <CardContent className="p-4">
-                      <h3 className="font-semibold mb-2 line-clamp-1">{video.title}</h3>
+                      <div className="flex items-center gap-2 mb-2">
+                        {editingVideo === video.id ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <Input
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleSaveTitle();
+                                } else if (e.key === 'Escape') {
+                                  e.preventDefault();
+                                  handleCancelEdit();
+                                }
+                              }}
+                              className="text-sm h-8"
+                              autoFocus
+                              data-testid={`edit-title-input-${video.id}`}
+                            />
+                            <Button
+                              size="sm"
+                              onClick={handleSaveTitle}
+                              disabled={isSaving || !editTitle.trim()}
+                              className="h-8 px-2"
+                              data-testid={`save-title-${video.id}`}
+                            >
+                              {isSaving ? "..." : "✓"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={handleCancelEdit}
+                              className="h-8 px-2"
+                              data-testid={`cancel-edit-${video.id}`}
+                            >
+                              ✕
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            <h3 className="font-semibold line-clamp-1 flex-1">{video.title}</h3>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditTitle(video);
+                              }}
+                              className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                              data-testid={`edit-title-${video.id}`}
+                            >
+                              <Edit3 className="h-3 w-3" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Calendar className="h-3 w-3" />
                         {format(new Date(video.createdAt), "MMM d, yyyy")}

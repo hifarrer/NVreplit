@@ -1328,7 +1328,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             id: p.id,
-            title: p.title === "My Music Video" ? (p.audioPrompt || p.title) : p.title,
+            title: p.title || p.audioPrompt || "Untitled Video", // Use actual title (song title) if available, fallback to audio prompt, then default
             videoUrl: p.finalVideoUrl,
             thumbnailUrl,
             createdAt: p.createdAt,
