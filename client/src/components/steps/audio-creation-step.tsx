@@ -152,6 +152,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
     },
     onSuccess: (data) => {
       setLyrics(data.lyrics);
+      setSongTitle(data.title); // Set the generated song title
       // Check for profanity in AI-generated lyrics
       const profanityResult = checkProfanity(data.lyrics);
       setProfanityCheck(profanityResult);
@@ -159,7 +160,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
       if (profanityResult.isClean) {
         toast({
           title: "Success",
-          description: "Lyrics generated successfully!",
+          description: "Lyrics and song title generated successfully!",
         });
       } else {
         toast({
@@ -609,6 +610,17 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                 )}
               </div>
             </div>
+
+            {/* Generated Song Title Display */}
+            {songTitle && (
+              <div className="mt-3 p-3 bg-primary/10 rounded-md">
+                <div className="flex items-center gap-2">
+                  <Music className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold text-muted-foreground">Generated Song Title:</span>
+                  <span className="font-bold text-primary">{songTitle}</span>
+                </div>
+              </div>
+            )}
 
             {generateSongMutation.isPending && (
               <div className="bg-muted/30 rounded-lg p-4" data-testid="song-generation-progress">
