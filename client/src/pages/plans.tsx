@@ -100,7 +100,11 @@ export default function PlansPage() {
             // Mark the second plan as popular (if there are at least 2 plans)
             const isPopular = index === 1 && sortedPlans.length > 1;
             
-            const isCurrentPlan = subscriptionStatus?.planId === plan.id && subscriptionStatus?.hasSubscription;
+            // For Free plan: user is on it if they don't have an active subscription
+            // For paid plans: user is on it if they have an active subscription for that plan
+            const isCurrentPlan = plan.name.toLowerCase() === 'free' 
+              ? user && !subscriptionStatus?.hasSubscription 
+              : subscriptionStatus?.planId === plan.id && subscriptionStatus?.hasSubscription;
             
             return (
               <Card 
@@ -160,7 +164,7 @@ export default function PlansPage() {
                     onClick={() => handleSelectPlan(plan)}
                     disabled={
                       (createCheckoutSession.isPending && selectedPlanId === plan.id) ||
-                      (subscriptionStatus?.planId === plan.id && subscriptionStatus?.hasSubscription)
+                      isCurrentPlan
                     }
                     data-testid={`select-plan-${plan.id}`}
                   >
@@ -169,7 +173,7 @@ export default function PlansPage() {
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Redirecting to checkout...
                       </>
-                    ) : subscriptionStatus?.planId === plan.id && subscriptionStatus?.hasSubscription ? (
+                    ) : isCurrentPlan ? (
                       'Current Plan'
                     ) : (
                       user ? 'Upgrade' : 'Sign Up'
