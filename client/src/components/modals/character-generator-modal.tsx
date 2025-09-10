@@ -82,14 +82,25 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
   const saveCharacterMutation = useMutation({
     mutationFn: async (imageUrl: string) => {
       if (projectId) {
-        // Save to project
-        const response = await apiRequest("POST", `/api/projects/${projectId}/save-character-option`, {
-          imageUrl,
-          prompt: currentPrompt
-        });
-        return response.json();
+        // Save to both project and user's character library
+        const [projectResponse, libraryResponse] = await Promise.all([
+          apiRequest("POST", `/api/projects/${projectId}/save-character-option`, {
+            imageUrl,
+            prompt: currentPrompt
+          }),
+          apiRequest("POST", `/api/characters`, {
+            imageUrl,
+            prompt: currentPrompt,
+            name: description || "AI Generated Character",
+            style: selectedStyle
+          })
+        ]);
+        return {
+          project: await projectResponse.json(),
+          library: await libraryResponse.json()
+        };
       } else {
-        // Save to character library
+        // Save to character library only
         const response = await apiRequest("POST", `/api/characters`, {
           imageUrl,
           prompt: currentPrompt,
@@ -103,7 +114,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
       if (projectId) {
         toast({
           title: "Success",
-          description: "Character saved to project!",
+          description: "Character saved to project and your library!",
         });
         // Close the modal after saving to project
         handleClose();
