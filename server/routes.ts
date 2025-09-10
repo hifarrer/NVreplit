@@ -216,6 +216,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { username, email, password } = insertUserSchema.parse(req.body);
       
+      // Check for Gmail emails and reject them
+      const emailDomain = email.toLowerCase().split('@')[1];
+      const gmailDomains = ['gmail.com', 'googlemail.com'];
+      if (gmailDomains.includes(emailDomain)) {
+        return res.status(400).json({ 
+          error: "Gmail accounts must use Google Login. Please use the \"Continue with Google\" button." 
+        });
+      }
+      
       // Check if user already exists
       const existingUserByUsername = await storage.getUserByUsername(username);
       if (existingUserByUsername) {
@@ -231,18 +240,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
       
+      // Generate email verification token and expiry date
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+      
       // Get the free plan for new users
       const freePlan = await storage.getFreePlan();
       
-      // Create user with default avatar and free plan
+      // Create user with email verification fields
       const user = await storage.createUser({
         username,
         email,
         password: hashedPassword,
+        emailVerified: false,
+        emailVerificationToken: verificationToken,
+        emailVerificationTokenExpiresAt: tokenExpiresAt,
         avatarUrl: "/public-objects/public/avatars/anonymous.png",
         planId: freePlan?.id || null,
         creditsUsed: 0
       });
+      
+      // Send email verification instead of logging user in
+      try {
+        await emailService.sendEmailVerification({
+          username: user.username,
+          email: user.email,
+          verificationToken: verificationToken
+        });
+        
+        console.log(`Email verification sent to ${user.email}`);
+      } catch (emailError) {
+        console.error("Failed to send email verification:", emailError);
+        return res.status(500).json({ 
+          error: "Failed to send verification email. Please try again later." 
+        });
+      }
       
       // Send notification email to support about new user registration
       try {
@@ -256,16 +288,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Failed to send new user registration email:", emailError);
       }
       
-      // Generate JWT token
-      const token = jwt.sign(
-        { userId: user.id, username: user.username },
-        JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-      
+      // Return success message without token - user needs to verify email first
       res.status(201).json({
-        user: { id: user.id, username: user.username, email: user.email, avatarUrl: user.avatarUrl },
-        token
+        message: "Account created successfully! Please check your email to verify your account before logging in.",
+        email: user.email
       });
     } catch (error) {
       console.error("Register error:", error);
@@ -289,7 +315,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (!user) {
-        return res.status(401).json({ error: "Invalid credentials" });
+        return res.status(400).json({ error: "Invalid credentials" });
+      }
+      
+      // Check if email is verified (skip for Google OAuth users)
+      if (!user.emailVerified && !user.googleId) {
+        return res.status(400).json({ 
+          error: "Please verify your email address before logging in. Check your email for the verification link." 
+        });
       }
       
       // Verify password
@@ -312,6 +345,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Login error:", error);
       res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  // Email verification endpoint
+  app.get("/verify-email", async (req, res) => {
+    try {
+      const { token } = req.query;
+      
+      if (!token || typeof token !== 'string') {
+        return res.status(400).send(`
+          <html>
+            <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+              <h2 style="color: #e74c3c;">❌ Invalid Verification Link</h2>
+              <p>The verification link is invalid or missing. Please check your email for the correct link.</p>
+              <a href="/auth" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: #667eea; color: white; text-decoration: none; border-radius: 5px;">Go to Login</a>
+            </body>
+          </html>
+        `);
+      }
+      
+      // Find user by verification token
+      const user = await storage.getUserByVerificationToken(token);
+      
+      if (!user) {
+        return res.status(400).send(`
+          <html>
+            <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+              <h2 style="color: #e74c3c;">❌ Invalid Verification Token</h2>
+              <p>The verification token is invalid or has already been used.</p>
+              <a href="/auth" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: #667eea; color: white; text-decoration: none; border-radius: 5px;">Go to Login</a>
+            </body>
+          </html>
+        `);
+      }
+      
+      // Check if token has expired
+      if (user.emailVerificationTokenExpiresAt && new Date() > user.emailVerificationTokenExpiresAt) {
+        return res.status(400).send(`
+          <html>
+            <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+              <h2 style="color: #e74c3c;">⏰ Verification Link Expired</h2>
+              <p>Your verification link has expired. Please register again or contact support.</p>
+              <a href="/auth" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: #667eea; color: white; text-decoration: none; border-radius: 5px;">Go to Registration</a>
+            </body>
+          </html>
+        `);
+      }
+      
+      // Verify the user's email
+      await storage.verifyUserEmail(user.id);
+      
+      // Success page
+      res.send(`
+        <html>
+          <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+            <h2 style="color: #27ae60;">✅ Email Verified Successfully!</h2>
+            <p>Welcome to neonvideo.ai, ${user.username}! Your email has been verified and you can now log in to your account.</p>
+            <a href="/auth" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: #667eea; color: white; text-decoration: none; border-radius: 5px;">Log In Now</a>
+          </body>
+        </html>
+      `);
+      
+    } catch (error) {
+      console.error("Email verification error:", error);
+      res.status(500).send(`
+        <html>
+          <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+            <h2 style="color: #e74c3c;">❌ Verification Error</h2>
+            <p>Something went wrong during verification. Please try again or contact support.</p>
+            <a href="/auth" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: #667eea; color: white; text-decoration: none; border-radius: 5px;">Go to Login</a>
+          </body>
+        </html>
+      `);
     }
   });
 

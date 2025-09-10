@@ -216,6 +216,93 @@ This is an automated notification from neonvideo.ai
       return false;
     }
   }
+
+  async sendEmailVerification(userData: {
+    username: string;
+    email: string;
+    verificationToken: string;
+  }): Promise<boolean> {
+    if (!this.transporter) {
+      console.error('Email transporter not initialized');
+      return false;
+    }
+
+    try {
+      const verificationUrl = `${process.env.REPL_ID ? 
+        `https://${process.env.REPL_ID}.replit.app` : 
+        'http://localhost:5000'}/verify-email?token=${userData.verificationToken}`;
+
+      await this.transporter.sendMail({
+        from: `"neonvideo.ai" <${process.env.SMTP_USER}>`,
+        to: userData.email,
+        subject: 'Verify your email address - neonvideo.ai',
+        text: `
+Hi ${userData.username},
+
+Welcome to neonvideo.ai! 
+
+To complete your registration and start creating amazing music videos with AI, please verify your email address by clicking the link below:
+
+${verificationUrl}
+
+This verification link will expire in 24 hours. If you didn't create an account with neonvideo.ai, you can safely ignore this email.
+
+Best regards,
+The neonvideo.ai Team
+        `,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 8px 8px 0 0;">
+              <h1 style="color: white; margin: 0;">🎉 Welcome to neonvideo.ai!</h1>
+            </div>
+            <div style="background: #fff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
+              <p style="font-size: 16px; color: #333;">Hi ${userData.username},</p>
+              
+              <p style="color: #666;">Welcome to neonvideo.ai! To complete your registration and start creating amazing music videos with AI, please verify your email address.</p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${verificationUrl}" 
+                   style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                          color: white; 
+                          padding: 15px 30px; 
+                          text-decoration: none; 
+                          border-radius: 25px; 
+                          display: inline-block; 
+                          font-weight: bold;">
+                  Verify Email Address
+                </a>
+              </div>
+              
+              <p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:</p>
+              <p style="word-break: break-all; background: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 12px;">
+                ${verificationUrl}
+              </p>
+              
+              <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p style="color: #856404; margin: 0; font-size: 14px;">
+                  ⏰ This verification link will expire in 24 hours.
+                </p>
+              </div>
+              
+              <p style="color: #666; font-size: 14px;">If you didn't create an account with neonvideo.ai, you can safely ignore this email.</p>
+              
+              <p>Best regards,<br>
+              <strong>The neonvideo.ai Team</strong></p>
+            </div>
+            <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
+              <p>© 2025 neonvideo.ai. All rights reserved.</p>
+            </div>
+          </div>
+        `
+      });
+
+      console.log(`Email verification sent to ${userData.email}`);
+      return true;
+    } catch (error) {
+      console.error('Failed to send email verification:', error);
+      return false;
+    }
+  }
 }
 
 export const emailService = new EmailService();

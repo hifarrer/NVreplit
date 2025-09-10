@@ -11,9 +11,11 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByGoogleId(googleId: string): Promise<User | undefined>;
   getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined>;
+  getUserByVerificationToken(token: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
   updateUserGoogleId(id: string, googleId: string): Promise<void>;
+  verifyUserEmail(id: string): Promise<void>;
   getAllUsers(): Promise<User[]>;
   deleteUser(id: string): Promise<boolean>;
   
@@ -173,6 +175,12 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async getUserByVerificationToken(token: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.emailVerificationToken === token,
+    );
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
     const user: User = { 
@@ -200,6 +208,19 @@ export class MemStorage implements IStorage {
     const existingUser = this.users.get(id);
     if (existingUser) {
       const updatedUser = { ...existingUser, googleId };
+      this.users.set(id, updatedUser);
+    }
+  }
+
+  async verifyUserEmail(id: string): Promise<void> {
+    const existingUser = this.users.get(id);
+    if (existingUser) {
+      const updatedUser = { 
+        ...existingUser, 
+        emailVerified: true, 
+        emailVerificationToken: null,
+        emailVerificationTokenExpiresAt: null
+      };
       this.users.set(id, updatedUser);
     }
   }
@@ -782,6 +803,11 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
+  async getUserByVerificationToken(token: string): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.emailVerificationToken, token)).limit(1);
+    return result[0];
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const result = await this.db.insert(users).values(insertUser).returning();
     return result[0];
@@ -798,6 +824,16 @@ export class DbStorage implements IStorage {
   async updateUserGoogleId(id: string, googleId: string): Promise<void> {
     await this.db.update(users)
       .set({ googleId })
+      .where(eq(users.id, id));
+  }
+
+  async verifyUserEmail(id: string): Promise<void> {
+    await this.db.update(users)
+      .set({ 
+        emailVerified: true, 
+        emailVerificationToken: null,
+        emailVerificationTokenExpiresAt: null
+      })
       .where(eq(users.id, id));
   }
 

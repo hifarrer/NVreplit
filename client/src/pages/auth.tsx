@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 import { Loader2, Music, Video, Sparkles } from 'lucide-react';
 import { FaGoogle } from 'react-icons/fa';
 import { useLocation } from 'wouter';
@@ -16,6 +17,8 @@ export default function AuthPage() {
   const { login, register, user, setUserAndToken } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [email, setEmail] = useState('');
+  const [isGmailEmail, setIsGmailEmail] = useState(false);
 
   const handleGoogleLogin = () => {
     window.location.href = '/api/auth/google';
@@ -73,6 +76,19 @@ export default function AuthPage() {
     }
   };
 
+  // Check if email is Gmail
+  const checkGmailEmail = (email: string) => {
+    const gmailDomains = ['gmail.com', 'googlemail.com'];
+    const domain = email.toLowerCase().split('@')[1];
+    return gmailDomains.includes(domain);
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const emailValue = e.target.value;
+    setEmail(emailValue);
+    setIsGmailEmail(checkGmailEmail(emailValue));
+  };
+
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
@@ -90,9 +106,24 @@ export default function AuthPage() {
       return;
     }
 
+    // Block Gmail registration 
+    if (checkGmailEmail(email)) {
+      setError('Gmail accounts must use Google Login. Please use the "Continue with Google" button.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      await register(username, email, password);
-      setLocation('/');
+      const response = await register(username, email, password);
+      // For non-Gmail accounts, show success message instead of redirecting
+      if (response && (response as any).message) {
+        setError(''); // Clear any previous errors
+        // Show success message - the user now needs to check their email
+        alert(`✅ Registration successful!\n\n${(response as any).message}\n\nPlease check your email and click the verification link before logging in.`);
+      } else {
+        // Fallback - this should not happen with the new flow
+        setLocation('/');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
@@ -237,6 +268,8 @@ export default function AuthPage() {
                         name="email"
                         type="email"
                         placeholder="Enter your email"
+                        value={email}
+                        onChange={handleEmailChange}
                         required
                         disabled={isLoading}
                         data-testid="input-register-email"
@@ -266,10 +299,20 @@ export default function AuthPage() {
                         data-testid="input-register-confirm-password"
                       />
                     </div>
+                    
+                    {isGmailEmail && email && (
+                      <Alert variant="destructive" className="bg-yellow-50 border-yellow-200">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription className="text-yellow-800">
+                          Gmail accounts must use Google Login. Please use the "Continue with Google" button below.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    
                     <Button
                       type="submit"
                       className="w-full bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600"
-                      disabled={isLoading}
+                      disabled={isLoading || isGmailEmail}
                       data-testid="button-register"
                     >
                       {isLoading ? (
