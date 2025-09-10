@@ -203,6 +203,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
               data-testid="character-description-input"
             />
             <p className="text-xs text-muted-foreground mt-1">Be detailed about appearance, style, clothing, and mood</p>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">For best results, make sure only 1 character is shown. Front shots from waist up are also better than full body shots</p>
           </div>
 
           {/* Style Presets */}
