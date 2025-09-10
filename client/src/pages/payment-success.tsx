@@ -73,10 +73,10 @@ export default function PaymentSuccessPage() {
             <div className="space-y-3">
               <Button 
                 className="w-full"
-                onClick={() => navigate("/dashboard")}
+                onClick={() => navigate("/")}
                 data-testid="button-go-to-dashboard"
               >
-                Go to Dashboard
+                Start Creating
               </Button>
               
               <Button 
