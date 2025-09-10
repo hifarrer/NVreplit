@@ -21,6 +21,12 @@ export default function PlansPage() {
     queryKey: ["/api/plans"],
   });
 
+  // Get user's subscription status
+  const { data: subscriptionStatus } = useQuery({
+    queryKey: ["/api/stripe/subscription-status"],
+    enabled: !!user,
+  });
+
   // Mutation to create checkout session
   const createCheckoutSession = useMutation({
     mutationFn: async ({ planId, billingPeriod }: { planId: string; billingPeriod: 'monthly' | 'yearly' }) => {
@@ -94,17 +100,24 @@ export default function PlansPage() {
             // Mark the second plan as popular (if there are at least 2 plans)
             const isPopular = index === 1 && sortedPlans.length > 1;
             
+            const isCurrentPlan = subscriptionStatus?.planId === plan.id && subscriptionStatus?.hasSubscription;
+            
             return (
               <Card 
                 key={plan.id} 
                 className={`relative overflow-hidden transition-all hover:shadow-xl ${
                   isPopular ? 'border-primary shadow-lg scale-105' : ''
-                }`}
+                } ${isCurrentPlan ? 'border-green-500 bg-green-50/5' : ''}`}
                 data-testid={`plan-card-${plan.id}`}
               >
-                {isPopular && (
+                {isPopular && !isCurrentPlan && (
                   <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-bold rounded-bl-lg">
                     MOST POPULAR
+                  </div>
+                )}
+                {isCurrentPlan && (
+                  <div className="absolute top-0 right-0 bg-green-500 text-white px-3 py-1 text-xs font-bold rounded-bl-lg">
+                    CURRENT PLAN
                   </div>
                 )}
                 
@@ -145,7 +158,10 @@ export default function PlansPage() {
                     className={`w-full ${isPopular ? 'bg-primary hover:bg-primary/90' : ''}`}
                     variant={isPopular ? "default" : "outline"}
                     onClick={() => handleSelectPlan(plan)}
-                    disabled={createCheckoutSession.isPending && selectedPlanId === plan.id}
+                    disabled={
+                      (createCheckoutSession.isPending && selectedPlanId === plan.id) ||
+                      (subscriptionStatus?.planId === plan.id && subscriptionStatus?.hasSubscription)
+                    }
                     data-testid={`select-plan-${plan.id}`}
                   >
                     {createCheckoutSession.isPending && selectedPlanId === plan.id ? (
@@ -153,6 +169,8 @@ export default function PlansPage() {
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Redirecting to checkout...
                       </>
+                    ) : subscriptionStatus?.planId === plan.id && subscriptionStatus?.hasSubscription ? (
+                      'Your Current Plan'
                     ) : (
                       user ? 'Select Plan' : 'Sign Up'
                     )}

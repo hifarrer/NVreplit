@@ -2806,7 +2806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get Stripe settings from database
       const stripeSettings = await storage.getAllSettings();
-      const stripeSecretKey = stripeSettings.find(s => s.key === 'stripeSecretKey')?.value;
+      const stripeSecretKey = stripeSettings.find(s => s.key === 'stripe_secret_key')?.value;
       
       if (!stripeSecretKey) {
         console.error("Stripe secret key not configured");
@@ -2883,7 +2883,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get Stripe settings from database
       const stripeSettings = await storage.getAllSettings();
-      const stripeSecretKey = stripeSettings.find(s => s.key === 'stripeSecretKey')?.value;
+      const stripeSecretKey = stripeSettings.find(s => s.key === 'stripe_secret_key')?.value;
       
       if (!stripeSecretKey) {
         return res.json({ hasSubscription: false });
@@ -2923,7 +2923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get Stripe settings from database
       const stripeSettings = await storage.getAllSettings();
-      const stripeSecretKey = stripeSettings.find(s => s.key === 'stripeSecretKey')?.value;
+      const stripeSecretKey = stripeSettings.find(s => s.key === 'stripe_secret_key')?.value;
       
       if (!stripeSecretKey) {
         return res.status(500).json({ error: "Payment system not configured" });
@@ -2953,8 +2953,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Get Stripe settings from database
       const stripeSettings = await storage.getAllSettings();
-      const stripeSecretKey = stripeSettings.find(s => s.key === 'stripeSecretKey')?.value;
-      const stripeWebhookSecret = stripeSettings.find(s => s.key === 'stripeWebhookSecret')?.value;
+      const stripeSecretKey = stripeSettings.find(s => s.key === 'stripe_secret_key')?.value;
+      const stripeWebhookSecret = stripeSettings.find(s => s.key === 'stripe_webhook_secret')?.value;
       
       if (!stripeSecretKey || !stripeWebhookSecret) {
         console.error("Stripe not configured for webhooks");
