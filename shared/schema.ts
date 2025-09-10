@@ -27,6 +27,8 @@ export const users = pgTable("users", {
   avatarUrl: text("avatar_url").default("/public-objects/avatars/anonymous.png"),
   planId: varchar("plan_id").references(() => plans.id),
   creditsUsed: integer("credits_used").default(0).notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
