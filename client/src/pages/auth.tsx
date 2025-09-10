@@ -116,12 +116,13 @@ export default function AuthPage() {
     try {
       const response = await register(username, email, password);
       // For non-Gmail accounts, show success message instead of redirecting
-      if (response && (response as any).message) {
+      if (response && response.message) {
         setError(''); // Clear any previous errors
+        setEmail(''); // Clear the form
         // Show success message - the user now needs to check their email
-        alert(`✅ Registration successful!\n\n${(response as any).message}\n\nPlease check your email and click the verification link before logging in.`);
+        alert(`✅ Registration successful!\n\n${response.message}\n\nPlease check your email and click the verification link before logging in.`);
       } else {
-        // Fallback - this should not happen with the new flow
+        // Fallback - this should not happen with the new flow for regular registration
         setLocation('/');
       }
     } catch (err) {
@@ -312,7 +313,7 @@ export default function AuthPage() {
                     <Button
                       type="submit"
                       className="w-full bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600"
-                      disabled={isLoading || isGmailEmail}
+                      disabled={isLoading || (isGmailEmail && email.trim() !== "")}
                       data-testid="button-register"
                     >
                       {isLoading ? (

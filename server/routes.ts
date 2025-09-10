@@ -152,7 +152,8 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
               email,
               password: crypto.randomBytes(32).toString('hex'), // Random password for OAuth users
               avatarUrl: profile.photos?.[0]?.value || "/public-objects/public/avatars/anonymous.png",
-              googleId: profile.id
+              googleId: profile.id,
+              emailVerified: true // Google OAuth users are considered verified
             });
           }
           
@@ -418,6 +419,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
           </body>
         </html>
       `);
+    }
+  });
+
+  // Resend email verification
+  app.post("/api/auth/resend-verification", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      // Find user by email
+      const user = await storage.getUserByEmail(email);
+      
+      if (!user) {
+        // Don't reveal if user exists or not for security
+        return res.status(200).json({ message: "If the email exists and is unverified, a new verification email has been sent." });
+      }
+
+      // Check if user is already verified
+      if (user.emailVerified) {
+        return res.status(400).json({ error: "Email is already verified. You can log in normally." });
+      }
+
+      // Generate new verification token
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+
+      // Update user with new token
+      await storage.updateUser(user.id, {
+        emailVerificationToken: verificationToken,
+        emailVerificationTokenExpiresAt: tokenExpiresAt
+      });
+
+      // Send new verification email
+      try {
+        await emailService.sendEmailVerification({
+          username: user.username,
+          email: user.email,
+          verificationToken: verificationToken
+        });
+
+        res.json({ message: "New verification email sent. Please check your email." });
+      } catch (emailError) {
+        console.error("Failed to resend verification email:", emailError);
+        res.status(500).json({ error: "Failed to send verification email. Please try again later." });
+      }
+
+    } catch (error) {
+      console.error("Resend verification error:", error);
+      res.status(500).json({ error: "Failed to resend verification email" });
     }
   });
 

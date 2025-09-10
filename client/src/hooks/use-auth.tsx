@@ -19,7 +19,7 @@ interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string) => Promise<{ message?: string; email?: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   setUserAndToken: (user: AuthUser, token: string) => void;
@@ -101,9 +101,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const data = await response.json();
-    setUser(data.user);
-    setToken(data.token);
-    localStorage.setItem('auth_token', data.token);
+    
+    // New flow: if message is present, email verification is required
+    if (data.message) {
+      return { message: data.message, email: data.email };
+    }
+    
+    // Legacy flow: direct login (for Google OAuth or if verification is disabled)
+    if (data.user && data.token) {
+      setUser(data.user);
+      setToken(data.token);
+      localStorage.setItem('auth_token', data.token);
+    }
+    
+    return data;
   };
 
   const logout = () => {
