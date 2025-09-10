@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Settings, Shield, Loader2, CheckCircle, CreditCard, AlertCircle } from "lucide-react";
+import { Settings, Shield, Loader2, CheckCircle, CreditCard, AlertCircle, Database, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export function SiteSettings() {
@@ -15,6 +15,7 @@ export function SiteSettings() {
   const [stripePublishableKey, setStripePublishableKey] = useState("");
   const [stripeSecretKey, setStripeSecretKey] = useState("");
   const [stripeWebhookSecret, setStripeWebhookSecret] = useState("");
+  const [isDownloadingBackup, setIsDownloadingBackup] = useState(false);
   
   // Fetch Stripe settings
   const { data: stripeSettings } = useQuery({
@@ -122,6 +123,59 @@ export function SiteSettings() {
     }
 
     resetPasswordMutation.mutate(newPassword);
+  };
+
+  const handleDatabaseBackup = async () => {
+    setIsDownloadingBackup(true);
+    try {
+      const token = localStorage.getItem("adminToken");
+      const response = await fetch("/api/admin/database-backup", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to download database backup");
+      }
+
+      // Get the filename from the response headers
+      const contentDisposition = response.headers.get("Content-Disposition");
+      let filename = "database_backup.sql";
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: `Database backup downloaded successfully: ${filename}`,
+      });
+    } catch (error) {
+      console.error("Database backup error:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to download database backup",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloadingBackup(false);
+    }
   };
 
   return (
@@ -398,6 +452,66 @@ export function SiteSettings() {
               <div className="text-green-400 flex items-center">
                 <CheckCircle className="h-4 w-4 mr-1" />
                 Connected
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Database Management */}
+      <Card className="bg-black/30 border-purple-500/20">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center">
+            <Database className="h-5 w-5 mr-2" />
+            Database Management
+          </CardTitle>
+          <CardDescription className="text-gray-300">
+            Backup and restore database operations
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert className="border-blue-500/50 bg-blue-500/10">
+            <AlertCircle className="h-4 w-4 text-blue-400" />
+            <AlertDescription className="text-blue-400">
+              Database backups include all tables, data, and structure. Store backups securely and regularly.
+            </AlertDescription>
+          </Alert>
+          
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-medium text-white mb-2">Full Database Backup</h3>
+              <p className="text-gray-300 text-sm mb-4">
+                Download a complete SQL backup of the database including structure and all data. 
+                This backup can be used to restore the entire database.
+              </p>
+              
+              <Button
+                onClick={handleDatabaseBackup}
+                disabled={isDownloadingBackup}
+                className="bg-blue-600 hover:bg-blue-700"
+                data-testid="button-download-backup"
+              >
+                {isDownloadingBackup ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating Backup...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Download Database Backup
+                  </>
+                )}
+              </Button>
+            </div>
+            
+            <div className="pt-4 border-t border-gray-600">
+              <h4 className="text-sm font-medium text-gray-300 mb-2">Backup Information</h4>
+              <div className="text-xs text-gray-400 space-y-1">
+                <div>• Includes all table structures and data</div>
+                <div>• File format: SQL dump with CREATE and INSERT statements</div>
+                <div>• Filename includes timestamp for easy organization</div>
+                <div>• Safe to download - no sensitive credentials included</div>
               </div>
             </div>
           </div>

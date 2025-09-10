@@ -474,6 +474,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Database backup endpoint
+  app.get("/api/admin/database-backup", authenticateAdmin, async (req, res) => {
+    try {
+      const { spawn } = require('child_process');
+      const fs = require('fs');
+      const path = require('path');
+      
+      // Create temporary backup file
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupFileName = `neonvideo_backup_${timestamp}.sql`;
+      const tempDir = path.join(process.cwd(), 'temp');
+      
+      // Ensure temp directory exists
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      
+      const backupPath = path.join(tempDir, backupFileName);
+      
+      // Database connection parameters
+      const dbParams = {
+        host: process.env.PGHOST,
+        port: process.env.PGPORT || '5432',
+        database: process.env.PGDATABASE,
+        username: process.env.PGUSER,
+        password: process.env.PGPASSWORD
+      };
+      
+      // Build pg_dump command
+      const pgDumpArgs = [
+        '-h', dbParams.host,
+        '-p', dbParams.port,
+        '-U', dbParams.username,
+        '-d', dbParams.database,
+        '--clean',  // Include DROP statements
+        '--create', // Include CREATE DATABASE statement  
+        '--if-exists', // Use IF EXISTS for DROP statements
+        '--verbose',
+        '--no-password', // Use PGPASSWORD env var
+        '-f', backupPath
+      ];
+      
+      // Set environment for pg_dump
+      const env = {
+        ...process.env,
+        PGPASSWORD: dbParams.password
+      };
+      
+      console.log(`Starting database backup: ${backupFileName}`);
+      
+      // Execute pg_dump
+      const pgDump = spawn('pg_dump', pgDumpArgs, { env });
+      
+      let errorOutput = '';
+      
+      pgDump.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+        console.log('pg_dump stderr:', data.toString());
+      });
+      
+      pgDump.stdout.on('data', (data) => {
+        console.log('pg_dump stdout:', data.toString());
+      });
+      
+      pgDump.on('close', (code) => {
+        if (code !== 0) {
+          console.error(`pg_dump failed with code ${code}: ${errorOutput}`);
+          return res.status(500).json({ 
+            error: `Database backup failed: ${errorOutput}` 
+          });
+        }
+        
+        try {
+          // Check if backup file exists and has content
+          if (!fs.existsSync(backupPath)) {
+            return res.status(500).json({ 
+              error: "Backup file was not created" 
+            });
+          }
+          
+          const stats = fs.statSync(backupPath);
+          if (stats.size === 0) {
+            return res.status(500).json({ 
+              error: "Backup file is empty" 
+            });
+          }
+          
+          console.log(`Database backup completed: ${backupFileName} (${stats.size} bytes)`);
+          
+          // Set appropriate headers for file download
+          res.setHeader('Content-Type', 'application/sql');
+          res.setHeader('Content-Disposition', `attachment; filename="${backupFileName}"`);
+          res.setHeader('Content-Length', stats.size);
+          
+          // Stream the file to the response
+          const fileStream = fs.createReadStream(backupPath);
+          
+          fileStream.on('end', () => {
+            // Clean up temporary file after download
+            setTimeout(() => {
+              try {
+                fs.unlinkSync(backupPath);
+                console.log(`Temporary backup file deleted: ${backupPath}`);
+              } catch (cleanupError) {
+                console.error(`Error cleaning up backup file: ${cleanupError}`);
+              }
+            }, 1000);
+          });
+          
+          fileStream.on('error', (streamError) => {
+            console.error(`Error streaming backup file: ${streamError}`);
+            res.status(500).json({ error: "Error downloading backup file" });
+          });
+          
+          fileStream.pipe(res);
+          
+        } catch (fileError) {
+          console.error(`Error processing backup file: ${fileError}`);
+          res.status(500).json({ error: "Error processing backup file" });
+        }
+      });
+      
+      pgDump.on('error', (error) => {
+        console.error(`pg_dump process error: ${error}`);
+        res.status(500).json({ 
+          error: `Failed to start database backup: ${error.message}` 
+        });
+      });
+      
+    } catch (error) {
+      console.error("Database backup error:", error);
+      res.status(500).json({ error: "Failed to create database backup" });
+    }
+  });
+
   app.get("/api/me", authenticateToken, async (req, res) => {
     try {
       const userWithPlan = await storage.getUserWithPlan((req as any).user.userId);
