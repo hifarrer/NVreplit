@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut, ExternalLink } from "lucide-react";
+import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut, ExternalLink, CreditCard } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -203,6 +203,12 @@ export default function ProfilePage() {
                   <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                     <Video className="h-4 w-4 mr-2" />
                     My Videos
+                  </Button>
+                </Link>
+                <Link href="/plans">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Plans
                   </Button>
                 </Link>
               </nav>
