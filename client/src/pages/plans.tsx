@@ -9,13 +9,64 @@ import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+// Declare gtag_report_conversion function globally
+declare global {
+  interface Window {
+    gtag_report_conversion: (url?: string) => boolean;
+  }
+}
 
 export default function PlansPage() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+
+  // Add conversion tracking script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.innerHTML = `
+      function gtag_report_conversion(url) {
+        if (url) {
+          try {
+            if (typeof gtag === 'function') {
+              let redirected = false;
+              var callback = function () {
+                if (!redirected) {
+                  redirected = true;
+                  window.location = url;
+                }
+              };
+              // Fallback timeout if callback never fires
+              setTimeout(callback, 800);
+              gtag('event', 'conversion', {
+                  'send_to': 'AW-17548478207/UEmACLiqy5kbEP-N4q9B',
+                  'value': 1.0,
+                  'currency': 'USD',
+                  'transaction_id': '',
+                  'event_callback': callback
+              });
+            } else {
+              window.location = url;
+            }
+          } catch (error) {
+            console.warn('Google Analytics conversion tracking failed:', error);
+            window.location = url;
+          }
+        }
+        return false;
+      }
+      window.gtag_report_conversion = gtag_report_conversion;
+    `;
+    document.head.appendChild(script);
+
+    return () => {
+      // Cleanup script on component unmount
+      document.head.removeChild(script);
+    };
+  }, []);
   
   const { data: plans, isLoading } = useQuery<Plan[]>({
     queryKey: ["/api/plans"],
@@ -43,9 +94,18 @@ export default function PlansPage() {
       return res.json();
     },
     onSuccess: (data) => {
-      // Redirect to Stripe checkout
+      // Track conversion when checkout session is successfully created
       if (data.sessionUrl) {
-        window.location.href = data.sessionUrl;
+        try {
+          if (window.gtag_report_conversion) {
+            window.gtag_report_conversion(data.sessionUrl);
+          } else {
+            window.location.href = data.sessionUrl;
+          }
+        } catch (error) {
+          console.warn('Conversion tracking failed, proceeding to checkout:', error);
+          window.location.href = data.sessionUrl;
+        }
       }
     },
     onError: (error) => {
@@ -62,8 +122,8 @@ export default function PlansPage() {
     if (!user) {
       navigate("/auth");
     } else {
-      // Skip checkout for free plan
-      if (plan.name.toLowerCase() === 'free') {
+      // Skip checkout for free plan (using price-based detection)
+      if (plan.monthlyPrice === 0) {
         toast({
           title: "Free Plan",
           description: "You already have access to the free plan!",
