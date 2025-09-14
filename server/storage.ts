@@ -2,7 +2,7 @@ import { type User, type InsertUser, type Project, type InsertProject, type Gene
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { eq, asc, sql, and } from "drizzle-orm";
+import { eq, asc, sql, and, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -842,8 +842,54 @@ export class DbStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<boolean> {
-    const result = await this.db.delete(users).where(eq(users.id, id));
-    return result.length > 0;
+    try {
+      return await this.db.transaction(async (tx) => {
+        // First, get all projects for this user to handle nested deletions
+        const userProjects = await tx.select({ id: projects.id }).from(projects).where(eq(projects.userId, id));
+        const projectIds = userProjects.map(p => p.id);
+
+        // Delete in order to respect foreign key constraints
+        
+        // 1. Delete generation logs for user's projects
+        if (projectIds.length > 0) {
+          await tx.delete(generationLogs).where(inArray(generationLogs.projectId, projectIds));
+        }
+        
+        // 2. Delete video likes for user's projects and by this user
+        if (projectIds.length > 0) {
+          await tx.delete(videoLikes).where(inArray(videoLikes.projectId, projectIds));
+        }
+        await tx.delete(videoLikes).where(eq(videoLikes.userId, id));
+        
+        // 3. Delete video comments for user's projects and by this user
+        if (projectIds.length > 0) {
+          await tx.delete(videoComments).where(inArray(videoComments.projectId, projectIds));
+        }
+        await tx.delete(videoComments).where(eq(videoComments.userId, id));
+        
+        // 4. Delete video queue entries for user's projects and by this user
+        if (projectIds.length > 0) {
+          await tx.delete(videoQueue).where(inArray(videoQueue.projectId, projectIds));
+        }
+        await tx.delete(videoQueue).where(eq(videoQueue.userId, id));
+        
+        // 5. Delete user's projects
+        await tx.delete(projects).where(eq(projects.userId, id));
+        
+        // 6. Delete user's saved characters
+        await tx.delete(savedCharacters).where(eq(savedCharacters.userId, id));
+        
+        // 7. Delete user's songs
+        await tx.delete(songs).where(eq(songs.userId, id));
+        
+        // 8. Finally, delete the user
+        const result = await tx.delete(users).where(eq(users.id, id)).returning({ id: users.id });
+        return result.length > 0;
+      });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      return false;
+    }
   }
 
   async getUserWithPlan(id: string): Promise<(User & { plan?: Plan }) | undefined> {
