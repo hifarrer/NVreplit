@@ -634,6 +634,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate credits remaining
       const creditsRemaining = await storage.getUserCreditsRemaining(userWithPlan.id);
       
+      // Debug logging
+      console.log('DEBUG /api/me - User credits calculation:', {
+        userId: userWithPlan.id,
+        username: userWithPlan.username,
+        planId: userWithPlan.planId,
+        planName: userWithPlan.plan?.name,
+        planCredits: userWithPlan.plan?.credits,
+        creditsUsed: userWithPlan.creditsUsed,
+        creditsRemaining
+      });
+      
       res.json({
         id: userWithPlan.id,
         username: userWithPlan.username,

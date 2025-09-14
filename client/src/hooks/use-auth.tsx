@@ -49,12 +49,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await fetch('/api/me', {
         headers: {
-          'Authorization': `Bearer ${authToken}`
+          'Authorization': `Bearer ${authToken}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         }
       });
       
       if (response.ok) {
         const userData = await response.json();
+        console.log('Fetched user data:', userData); // Debug log
         setUser(userData);
         setToken(authToken);
       } else {
