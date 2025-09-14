@@ -132,6 +132,19 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
             if (user) {
               // Link existing account with Google ID
               await storage.updateUserGoogleId(user.id, profile.id);
+              
+              // If user doesn't have a plan assigned, assign Free plan
+              if (!user.planId) {
+                const freePlan = await storage.getFreePlan();
+                if (freePlan) {
+                  await storage.updateUser(user.id, { 
+                    planId: freePlan.id, 
+                    creditsUsed: user.creditsUsed || 0 
+                  });
+                  user.planId = freePlan.id;
+                  user.creditsUsed = user.creditsUsed || 0;
+                }
+              }
             }
           }
           
@@ -148,13 +161,18 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
               counter++;
             }
             
+            // Get the free plan to assign to new OAuth users
+            const freePlan = await storage.getFreePlan();
+            
             user = await storage.createUser({
               username: finalUsername,
               email,
               password: crypto.randomBytes(32).toString('hex'), // Random password for OAuth users
               avatarUrl: profile.photos?.[0]?.value || "/public-objects/public/avatars/anonymous.png",
               googleId: profile.id,
-              emailVerified: true // Google OAuth users are considered verified
+              emailVerified: true, // Google OAuth users are considered verified
+              planId: freePlan?.id, // Assign free plan to new OAuth users
+              creditsUsed: 0 // Initialize credits usage
             });
           }
           
