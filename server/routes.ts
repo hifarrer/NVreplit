@@ -1083,6 +1083,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Toggle video featured status
+  app.patch("/api/admin/videos/:id/featured", authenticateAdmin, async (req, res) => {
+    try {
+      const { isFeatured } = req.body;
+      const videoId = req.params.id;
+      
+      // Validate the input
+      if (typeof isFeatured !== 'boolean') {
+        return res.status(400).json({ error: "isFeatured must be a boolean" });
+      }
+      
+      const success = await storage.updateProject(videoId, { isFeatured });
+      if (!success) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+      
+      res.json({ 
+        message: isFeatured ? "Video featured successfully" : "Video unfeatured successfully",
+        isFeatured 
+      });
+    } catch (error) {
+      console.error("Admin toggle featured video error:", error);
+      res.status(500).json({ error: "Failed to update video featured status" });
+    }
+  });
+
   // Admin Audio Management Routes
   app.get("/api/admin/audios", authenticateAdmin, async (req, res) => {
     try {
@@ -1574,14 +1600,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all completed projects with final videos from all users
       const allProjects = await storage.getAllVideosForAdmin(); // Reuse admin function to get all videos
       
-      // Filter for completed videos and sort by creation date (newest first)
+      // Filter for completed AND FEATURED videos and sort by creation date (newest first)
       const trendingVideos = allProjects
         .filter(p => {
           // Filter out videos from excluded user if specified
           if (excludeUserId && p.userId === excludeUserId) {
             return false;
           }
-          return p.isCompleted && p.finalVideoUrl;
+          // Only show completed videos that are marked as featured by admin
+          return p.isCompleted && p.finalVideoUrl && p.isFeatured;
         })
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 12) // Get top 12 videos

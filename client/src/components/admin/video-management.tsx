@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink } from "lucide-react";
+import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Project } from "@shared/schema";
@@ -97,6 +97,39 @@ export function VideoManagement() {
       toast({
         title: "Error",
         description: "Failed to delete video. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Toggle featured status mutation
+  const toggleFeaturedMutation = useMutation({
+    mutationFn: async ({ id, isFeatured }: { id: string; isFeatured: boolean }) => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(`/api/admin/videos/${id}/featured`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isFeatured }),
+      });
+      if (!res.ok) throw new Error("Failed to update featured status");
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/videos"] });
+      toast({
+        title: variables.isFeatured ? "Video Featured" : "Video Unfeatured",
+        description: variables.isFeatured 
+          ? "Video will now be shown on the home page." 
+          : "Video removed from home page showcase.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update featured status",
         variant: "destructive",
       });
     },
@@ -271,6 +304,26 @@ export function VideoManagement() {
                       data-testid={`edit-video-${video.id}`}
                     >
                       <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        toggleFeaturedMutation.mutate({
+                          id: video.id,
+                          isFeatured: !video.isFeatured
+                        });
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className={`border-yellow-500/30 ${
+                        video.isFeatured 
+                          ? 'text-yellow-300 bg-yellow-600/20' 
+                          : 'text-yellow-300 hover:bg-yellow-600/20'
+                      }`}
+                      disabled={toggleFeaturedMutation.isPending}
+                      data-testid={`feature-video-${video.id}`}
+                      title={video.isFeatured ? "Remove from featured" : "Add to featured"}
+                    >
+                      <Star className={`h-4 w-4 ${video.isFeatured ? 'fill-current' : ''}`} />
                     </Button>
                     <Button
                       onClick={() => setDeletingVideo(video)}
