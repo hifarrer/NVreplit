@@ -133,17 +133,19 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
               // Link existing account with Google ID
               await storage.updateUserGoogleId(user.id, profile.id);
               
-              // If user doesn't have a plan assigned, assign Free plan
+              // If user doesn't have a plan assigned, assign Free plan - CRITICAL FIX
               if (!user.planId) {
                 const freePlan = await storage.getFreePlan();
-                if (freePlan) {
-                  await storage.updateUser(user.id, { 
-                    planId: freePlan.id, 
-                    creditsUsed: user.creditsUsed || 0 
-                  });
-                  user.planId = freePlan.id;
-                  user.creditsUsed = user.creditsUsed || 0;
+                if (!freePlan) {
+                  console.error("CRITICAL: Free plan not found for existing user!");
+                  return done(new Error("System configuration error"), false);
                 }
+                await storage.updateUser(user.id, { 
+                  planId: freePlan.id, 
+                  creditsUsed: user.creditsUsed || 0 
+                });
+                user.planId = freePlan.id;
+                user.creditsUsed = user.creditsUsed || 0;
               }
             }
           }
@@ -161,8 +163,12 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
               counter++;
             }
             
-            // Get the free plan to assign to new OAuth users
+            // Get the free plan to assign to new OAuth users - CRITICAL: must assign free plan
             const freePlan = await storage.getFreePlan();
+            if (!freePlan) {
+              console.error("CRITICAL: Free plan not found for Google OAuth user!");
+              return done(new Error("System configuration error"), false);
+            }
             
             user = await storage.createUser({
               username: finalUsername,
@@ -171,7 +177,7 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
               avatarUrl: profile.photos?.[0]?.value || "/public-objects/public/avatars/anonymous.png",
               googleId: profile.id,
               emailVerified: true, // Google OAuth users are considered verified
-              planId: freePlan?.id, // Assign free plan to new OAuth users
+              planId: freePlan.id, // ALWAYS assign free plan - guaranteed to exist
               creditsUsed: 0 // Initialize credits usage
             });
           }
@@ -264,10 +270,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const verificationToken = crypto.randomBytes(32).toString('hex');
       const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
       
-      // Get the free plan for new users
+      // Get the free plan for new users - CRITICAL: must assign free plan
       const freePlan = await storage.getFreePlan();
+      if (!freePlan) {
+        console.error("CRITICAL: Free plan not found in database!");
+        return res.status(500).json({ error: "System configuration error. Please contact support." });
+      }
       
-      // Create user with email verification fields
+      // Create user with email verification fields - ALWAYS with Free plan
       const user = await storage.createUser({
         username,
         email,
@@ -276,7 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         emailVerificationToken: verificationToken,
         emailVerificationTokenExpiresAt: tokenExpiresAt,
         avatarUrl: "/public-objects/public/avatars/anonymous.png",
-        planId: freePlan?.id || null,
+        planId: freePlan.id, // ALWAYS assign free plan
         creditsUsed: 0
       });
       
