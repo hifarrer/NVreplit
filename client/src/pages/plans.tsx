@@ -2,6 +2,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Plan } from "@shared/schema";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
@@ -23,6 +25,7 @@ export default function PlansPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
 
   // Add conversion tracking script
   useEffect(() => {
@@ -159,6 +162,23 @@ export default function PlansPage() {
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Start creating amazing AI-powered music videos with our flexible pricing plans
           </p>
+          
+          {/* Billing Period Toggle */}
+          <div className="flex items-center justify-center gap-4 mt-8 p-4 bg-muted/30 rounded-lg max-w-sm mx-auto">
+            <Label htmlFor="billing-toggle" className={`text-sm font-medium ${billingPeriod === 'monthly' ? 'text-foreground' : 'text-muted-foreground'}`}>
+              Monthly
+            </Label>
+            <Switch
+              id="billing-toggle"
+              checked={billingPeriod === 'yearly'}
+              onCheckedChange={(checked) => setBillingPeriod(checked ? 'yearly' : 'monthly')}
+              data-testid="billing-period-toggle"
+            />
+            <Label htmlFor="billing-toggle" className={`text-sm font-medium ${billingPeriod === 'yearly' ? 'text-foreground' : 'text-muted-foreground'}`}>
+              <span>Yearly</span>
+              <span className="text-green-600 text-xs ml-1">(Save up to 20%)</span>
+            </Label>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 max-w-7xl mx-auto">
@@ -199,18 +219,28 @@ export default function PlansPage() {
                   </CardDescription>
                   <div className="flex items-baseline justify-center gap-1">
                     <span className="text-4xl font-bold">
-                      ${(plan.monthlyPrice / 100).toFixed(0)}
+                      ${billingPeriod === 'monthly' 
+                        ? (plan.monthlyPrice / 100).toFixed(0)
+                        : plan.yearlyPrice 
+                          ? (plan.yearlyPrice / 100).toFixed(0)
+                          : (plan.monthlyPrice * 12 / 100).toFixed(0)
+                      }
                     </span>
                     <span className="text-muted-foreground">
-                      /month
+                      /{billingPeriod === 'monthly' ? 'month' : 'year'}
                     </span>
                   </div>
                   <div className="mt-2 text-sm text-muted-foreground">
                     {plan.credits} credits included
                   </div>
-                  {plan.yearlyPrice && (
+                  {billingPeriod === 'yearly' && plan.yearlyPrice && (
                     <div className="mt-1 text-xs text-green-600">
-                      Save ${((plan.monthlyPrice * 12 - plan.yearlyPrice) / 100).toFixed(0)} yearly
+                      Save ${((plan.monthlyPrice * 12 - plan.yearlyPrice) / 100).toFixed(0)} compared to monthly
+                    </div>
+                  )}
+                  {billingPeriod === 'monthly' && plan.yearlyPrice && (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      ${(plan.yearlyPrice / 100).toFixed(0)}/year available
                     </div>
                   )}
                 </CardHeader>
@@ -228,7 +258,7 @@ export default function PlansPage() {
                   <Button 
                     className={`w-full ${isPopular ? 'bg-primary hover:bg-primary/90' : ''}`}
                     variant={isPopular ? "default" : "outline"}
-                    onClick={() => handleSelectPlan(plan)}
+                    onClick={() => handleSelectPlan(plan, billingPeriod)}
                     disabled={
                       (createCheckoutSession.isPending && selectedPlanId === plan.id) ||
                       Boolean(isCurrentPlan)
