@@ -89,6 +89,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
     setToken(data.token);
     localStorage.setItem('auth_token', data.token);
+    
+    // CRITICAL FIX: Refresh user data to get complete credits/plan info after login
+    // This ensures the user has complete data including credits/plan immediately
+    try {
+      await verifyToken(data.token);
+    } catch (error) {
+      console.error('Failed to refresh user data after login:', error);
+      // Don't throw - login was successful, just refresh failed
+    }
   };
 
   const register = async (username: string, email: string, password: string) => {
