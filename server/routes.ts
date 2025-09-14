@@ -756,6 +756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: user.id,
           username: user.username,
           email: user.email,
+          emailVerified: user.emailVerified,
           avatarUrl: user.avatarUrl,
           createdAt: user.createdAt,
           projectCount: projects.length,
@@ -1003,6 +1004,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Delete plan error:", error);
       res.status(500).json({ error: "Failed to delete plan" });
+    }
+  });
+
+  // Update user email verification status
+  app.patch("/api/admin/users/:id/email-verification", authenticateAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { emailVerified } = req.body;
+      
+      // Validate the input
+      if (typeof emailVerified !== 'boolean') {
+        return res.status(400).json({ error: "emailVerified must be a boolean" });
+      }
+      
+      const updatedUser = await storage.updateUser(id, { emailVerified });
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      res.json({ 
+        message: emailVerified ? "User email verified successfully" : "User email unverified successfully",
+        emailVerified 
+      });
+    } catch (error) {
+      console.error("Admin update email verification error:", error);
+      res.status(500).json({ error: "Failed to update email verification status" });
     }
   });
 

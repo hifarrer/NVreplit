@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard } from "lucide-react";
+import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard, Mail, MailCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -16,6 +16,7 @@ interface UserWithStats {
   id: string;
   username: string;
   email: string;
+  emailVerified: boolean;
   avatarUrl: string | null;
   createdAt: string;
   projectCount: number;
@@ -168,6 +169,39 @@ export function UserManagement() {
     },
   });
 
+  // Toggle email verification mutation
+  const toggleEmailVerificationMutation = useMutation({
+    mutationFn: async ({ userId, emailVerified }: { userId: string; emailVerified: boolean }) => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(`/api/admin/users/${userId}/email-verification`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ emailVerified }),
+      });
+      if (!res.ok) throw new Error("Failed to update email verification status");
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({
+        title: variables.emailVerified ? "Email Verified" : "Email Unverified",
+        description: variables.emailVerified 
+          ? "User's email has been marked as verified." 
+          : "User's email has been marked as unverified.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update email verification status",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEdit = (user: UserWithStats) => {
     setEditingUser(user);
     setEditFormData({ username: user.username, email: user.email });
@@ -246,6 +280,26 @@ export function UserManagement() {
                     <Badge variant="outline" className="border-purple-500/30 text-purple-300">
                       {user.email}
                     </Badge>
+                    <Badge 
+                      variant="outline" 
+                      className={`${
+                        user.emailVerified 
+                          ? 'border-green-500/30 text-green-400 bg-green-500/10' 
+                          : 'border-orange-500/30 text-orange-400 bg-orange-500/10'
+                      }`}
+                    >
+                      {user.emailVerified ? (
+                        <>
+                          <MailCheck className="h-3 w-3 mr-1" />
+                          Verified
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="h-3 w-3 mr-1" />
+                          Unverified
+                        </>
+                      )}
+                    </Badge>
                   </div>
                   
                   <div className="flex items-center space-x-4 text-sm text-gray-400">
@@ -284,6 +338,26 @@ export function UserManagement() {
                   title="Change Plan"
                 >
                   <CreditCard className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    toggleEmailVerificationMutation.mutate({
+                      userId: user.id,
+                      emailVerified: !user.emailVerified
+                    });
+                  }}
+                  className={`${
+                    user.emailVerified 
+                      ? 'border-green-500/30 text-green-400 hover:bg-green-600/20' 
+                      : 'border-orange-500/30 text-orange-400 hover:bg-orange-600/20'
+                  }`}
+                  disabled={toggleEmailVerificationMutation.isPending}
+                  data-testid={`button-toggle-email-verification-${user.id}`}
+                  title={user.emailVerified ? "Mark as Unverified" : "Mark as Verified"}
+                >
+                  {user.emailVerified ? <MailCheck className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
                 </Button>
                 <Button
                   size="sm"
