@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Music, Calendar, Download, Play, Tag, Clock, Trash2, Users } from "lucide-react";
+import { Music, Calendar, Download, Play, Tag, Clock, Trash2, Users, ArrowLeft } from "lucide-react";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { format } from "date-fns";
