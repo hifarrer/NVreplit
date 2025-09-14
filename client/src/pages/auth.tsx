@@ -14,7 +14,7 @@ import logoImage from "@assets/neonlogo_1756693683433.png";
 
 export default function AuthPage() {
   const [, setLocation] = useLocation();
-  const { login, register, user, setUserAndToken } = useAuth();
+  const { login, register, user, setUserAndToken, refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -43,14 +43,19 @@ export default function AuthPage() {
       try {
         const userData = JSON.parse(decodeURIComponent(userParam));
         setUserAndToken(userData, token);
-        setLocation('/');
+        
+        // CRITICAL FIX: Refresh user data to get credits/plan info after OAuth
+        setTimeout(async () => {
+          await refreshUser(); // This fetches full user data from /api/me
+          setLocation('/'); // Navigate after refreshing user data
+        }, 100);
       } catch (err) {
         setError('Failed to process Google login. Please try again.');
       }
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [setLocation, setUserAndToken]);
+  }, [setLocation, setUserAndToken, refreshUser]);
 
   // Redirect if already logged in
   if (user) {
