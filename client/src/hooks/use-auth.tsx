@@ -21,7 +21,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string, referralCode?: string) => Promise<{ message?: string; email?: string }>;
   logout: () => void;
-  refreshUser: () => Promise<void>;
+  refreshUser: (token?: string) => Promise<void>;
   setUserAndToken: (user: AuthUser, token: string) => void;
   setTokenOnly: (token: string) => void;
   isLoading: boolean;
@@ -137,9 +137,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('auth_token');
   };
 
-  const refreshUser = async () => {
-    if (token) {
-      await verifyToken(token);
+  const refreshUser = async (providedToken?: string) => {
+    const tokenToUse = providedToken || token;
+    if (tokenToUse) {
+      await verifyToken(tokenToUse);
     }
   };
 

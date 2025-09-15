@@ -79,7 +79,7 @@ export default function AuthPage() {
         }
         
         // CRITICAL FIX: Load full user data with credits/plan BEFORE navigation
-        refreshUser().then(() => {
+        refreshUser(token).then(() => {
           setLocation('/'); // Navigate only after full user data is loaded
         }).catch((err) => {
           console.error('Failed to load user data after OAuth:', err);
