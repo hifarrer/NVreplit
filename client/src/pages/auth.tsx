@@ -14,7 +14,7 @@ import logoImage from "@assets/neonlogo_1756693683433.png";
 
 export default function AuthPage() {
   const [, setLocation] = useLocation();
-  const { login, register, user, setUserAndToken, refreshUser } = useAuth();
+  const { login, register, user, setUserAndToken, setTokenOnly, refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -52,8 +52,8 @@ export default function AuthPage() {
 
     if (token && userParam) {
       try {
-        // Don't set incomplete user data immediately - only set the token
-        localStorage.setItem('auth_token', token);
+        // Set the token in auth context so user appears logged in
+        setTokenOnly(token);
         
         // CRITICAL FIX: Handle referral code after OAuth login
         const storedReferralCode = localStorage.getItem('pending_referral_code');
@@ -91,7 +91,7 @@ export default function AuthPage() {
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [setLocation, setUserAndToken, refreshUser]);
+  }, [setLocation, setUserAndToken, setTokenOnly, refreshUser]);
 
   // Redirect if already logged in
   if (user) {

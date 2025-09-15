@@ -23,6 +23,7 @@ interface AuthContextType {
   logout: () => void;
   refreshUser: () => Promise<void>;
   setUserAndToken: (user: AuthUser, token: string) => void;
+  setTokenOnly: (token: string) => void;
   isLoading: boolean;
 }
 
@@ -148,6 +149,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('auth_token', authToken);
   };
 
+  const setTokenOnly = (authToken: string) => {
+    setToken(authToken);
+    localStorage.setItem('auth_token', authToken);
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -157,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       refreshUser,
       setUserAndToken,
+      setTokenOnly,
       isLoading
     }}>
       {children}
