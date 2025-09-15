@@ -397,7 +397,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
         <div className="flex justify-between items-center mb-4">
           {/* Credit Usage Info */}
           <div className="text-sm text-muted-foreground">
-            {((user?.plan?.credits || 0) - userCreditsRemaining).toLocaleString()}/{(user?.plan?.credits || 0).toLocaleString()} credits used
+            {(user?.creditsUsed || 0).toLocaleString()}/{((user?.creditsUsed || 0) + (userCreditsRemaining || 0)).toLocaleString()} credits used
           </div>
           
           <Button
