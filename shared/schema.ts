@@ -170,6 +170,53 @@ export const referrals = pgTable("referrals", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Affiliates table to track users with affiliate status
+export const affiliates = pgTable("affiliates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull().unique(), // User who is an affiliate
+  affiliateCode: text("affiliate_code").notNull().unique(), // Custom affiliate code (similar to referral code)
+  commissionRate: integer("commission_rate").default(30).notNull(), // Commission percentage (30%)
+  totalEarnings: integer("total_earnings").default(0).notNull(), // Total earnings in cents
+  totalPaidOut: integer("total_paid_out").default(0).notNull(), // Total amount already paid out in cents
+  paypalEmail: text("paypal_email"), // PayPal email for payouts
+  isActive: boolean("is_active").default(true).notNull(), // Whether affiliate is active
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Affiliate signups to track users who signed up via affiliate links
+export const affiliateSignups = pgTable("affiliate_signups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  affiliateId: varchar("affiliate_id").references(() => affiliates.id).notNull(), // Which affiliate
+  signupUserId: varchar("signup_user_id").references(() => users.id).notNull(), // User who signed up
+  bonusCreditsAwarded: integer("bonus_credits_awarded").default(500).notNull(), // Credits given to new user
+  isCreditsAwarded: boolean("is_credits_awarded").default(false).notNull(), // Whether credits were given
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Affiliate earnings to track revenue from subscriptions
+export const affiliateEarnings = pgTable("affiliate_earnings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  affiliateId: varchar("affiliate_id").references(() => affiliates.id).notNull(), // Which affiliate
+  signupUserId: varchar("signup_user_id").references(() => users.id).notNull(), // User who subscribed
+  subscriptionAmount: integer("subscription_amount").notNull(), // Subscription amount in cents
+  commissionAmount: integer("commission_amount").notNull(), // Commission earned in cents (30% of subscription)
+  subscriptionPeriod: text("subscription_period").notNull(), // "monthly" or "yearly"
+  planName: text("plan_name").notNull(), // Which plan they subscribed to
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Affiliate payouts to track payout requests
+export const affiliatePayouts = pgTable("affiliate_payouts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  affiliateId: varchar("affiliate_id").references(() => affiliates.id).notNull(), // Which affiliate
+  requestedAmount: integer("requested_amount").notNull(), // Amount requested in cents
+  paypalEmail: text("paypal_email").notNull(), // PayPal email for payout
+  status: text("status").default("pending").notNull(), // "pending", "completed", "failed"
+  completedAt: timestamp("completed_at"), // When payout was completed
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -229,6 +276,27 @@ export const insertReferralSchema = createInsertSchema(referrals).omit({
   createdAt: true,
 });
 
+export const insertAffiliateSchema = createInsertSchema(affiliates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAffiliateSignupSchema = createInsertSchema(affiliateSignups).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAffiliateEarningSchema = createInsertSchema(affiliateEarnings).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAffiliatePayoutSchema = createInsertSchema(affiliatePayouts).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -251,3 +319,11 @@ export type InsertVideoComment = z.infer<typeof insertVideoCommentSchema>;
 export type VideoComment = typeof videoComments.$inferSelect;
 export type InsertReferral = z.infer<typeof insertReferralSchema>;
 export type Referral = typeof referrals.$inferSelect;
+export type InsertAffiliate = z.infer<typeof insertAffiliateSchema>;
+export type Affiliate = typeof affiliates.$inferSelect;
+export type InsertAffiliateSignup = z.infer<typeof insertAffiliateSignupSchema>;
+export type AffiliateSignup = typeof affiliateSignups.$inferSelect;
+export type InsertAffiliateEarning = z.infer<typeof insertAffiliateEarningSchema>;
+export type AffiliateEarning = typeof affiliateEarnings.$inferSelect;
+export type InsertAffiliatePayout = z.infer<typeof insertAffiliatePayoutSchema>;
+export type AffiliatePayout = typeof affiliatePayouts.$inferSelect;
