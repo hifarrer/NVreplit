@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -108,6 +108,21 @@ export interface IStorage {
   awardReferralCredits(referralId: string, credits: number): Promise<boolean>;
   addCreditsToUser(userId: string, credits: number): Promise<boolean>;
   updateReferral(referralId: string, updates: Partial<Referral>): Promise<boolean>;
+
+  // Affiliate methods
+  createAffiliate(affiliate: InsertAffiliate): Promise<Affiliate>;
+  getAffiliate(userId: string): Promise<Affiliate | undefined>;
+  getAffiliateByCode(code: string): Promise<Affiliate | undefined>;
+  updateAffiliate(affiliateId: string, updates: Partial<Affiliate>): Promise<Affiliate | undefined>;
+  setAffiliateCode(userId: string, code: string): Promise<boolean>;
+  createAffiliateSignup(signup: InsertAffiliateSignup): Promise<AffiliateSignup>;
+  getAffiliateSignups(affiliateId: string): Promise<AffiliateSignup[]>;
+  createAffiliateEarning(earning: InsertAffiliateEarning): Promise<AffiliateEarning>;
+  getAffiliateEarnings(affiliateId: string): Promise<AffiliateEarning[]>;
+  getAffiliateStats(affiliateId: string): Promise<{ totalSignups: number; totalEarnings: number; pendingBalance: number; totalPaidOut: number }>;
+  createAffiliatePayout(payout: InsertAffiliatePayout): Promise<AffiliatePayout>;
+  getAffiliatePayouts(affiliateId: string): Promise<AffiliatePayout[]>;
+  updateAffiliatePayout(payoutId: string, updates: Partial<AffiliatePayout>): Promise<AffiliatePayout | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -123,6 +138,10 @@ export class MemStorage implements IStorage {
   private videoLikesStorage: Map<string, VideoLike>;
   private videoCommentsStorage: Map<string, VideoComment>;
   private referralsStorage: Map<string, Referral>;
+  private affiliatesStorage: Map<string, Affiliate>;
+  private affiliateSignupsStorage: Map<string, AffiliateSignup>;
+  private affiliateEarningsStorage: Map<string, AffiliateEarning>;
+  private affiliatePayoutsStorage: Map<string, AffiliatePayout>;
 
   constructor() {
     this.users = new Map();
@@ -137,6 +156,10 @@ export class MemStorage implements IStorage {
     this.videoLikesStorage = new Map();
     this.videoCommentsStorage = new Map();
     this.referralsStorage = new Map();
+    this.affiliatesStorage = new Map();
+    this.affiliateSignupsStorage = new Map();
+    this.affiliateEarningsStorage = new Map();
+    this.affiliatePayoutsStorage = new Map();
     
     // Initialize default video generation configs
     this.initializeDefaultConfigs();

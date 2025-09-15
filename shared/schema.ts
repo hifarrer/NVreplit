@@ -188,7 +188,7 @@ export const affiliates = pgTable("affiliates", {
 export const affiliateSignups = pgTable("affiliate_signups", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   affiliateId: varchar("affiliate_id").references(() => affiliates.id).notNull(), // Which affiliate
-  signupUserId: varchar("signup_user_id").references(() => users.id).notNull(), // User who signed up
+  signupUserId: varchar("signup_user_id").references(() => users.id).notNull().unique(), // User who signed up (unique to prevent duplicate bonuses)
   bonusCreditsAwarded: integer("bonus_credits_awarded").default(500).notNull(), // Credits given to new user
   isCreditsAwarded: boolean("is_credits_awarded").default(false).notNull(), // Whether credits were given
   createdAt: timestamp("created_at").defaultNow().notNull(),
