@@ -52,8 +52,8 @@ export default function AuthPage() {
 
     if (token && userParam) {
       try {
-        const userData = JSON.parse(decodeURIComponent(userParam));
-        setUserAndToken(userData, token);
+        // Don't set incomplete user data immediately - only set the token
+        localStorage.setItem('auth_token', token);
         
         // CRITICAL FIX: Handle referral code after OAuth login
         const storedReferralCode = localStorage.getItem('pending_referral_code');
@@ -78,11 +78,13 @@ export default function AuthPage() {
           });
         }
         
-        // CRITICAL FIX: Refresh user data to get credits/plan info after OAuth
-        setTimeout(async () => {
-          await refreshUser(); // This fetches full user data from /api/me
-          setLocation('/'); // Navigate after refreshing user data
-        }, 100);
+        // CRITICAL FIX: Load full user data with credits/plan BEFORE navigation
+        refreshUser().then(() => {
+          setLocation('/'); // Navigate only after full user data is loaded
+        }).catch((err) => {
+          console.error('Failed to load user data after OAuth:', err);
+          setError('Failed to load user data. Please try again.');
+        });
       } catch (err) {
         setError('Failed to process Google login. Please try again.');
       }
