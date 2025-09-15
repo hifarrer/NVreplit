@@ -266,8 +266,9 @@ export class MemStorage implements IStorage {
     if (!userWithPlan || !userWithPlan.plan) return 0;
     
     const creditsLimit = userWithPlan.plan.credits;
+    const bonusCredits = userWithPlan.bonusCredits || 0;
     const creditsUsed = userWithPlan.creditsUsed || 0;
-    return Math.max(0, creditsLimit - creditsUsed);
+    return Math.max(0, creditsLimit + bonusCredits - creditsUsed);
   }
 
   async canUserAffordCredits(userId: string, credits: number): Promise<boolean> {
@@ -1040,8 +1041,9 @@ export class DbStorage implements IStorage {
     if (!userWithPlan || !userWithPlan.plan) return 0;
     
     const creditsLimit = userWithPlan.plan.credits;
+    const bonusCredits = userWithPlan.bonusCredits || 0;
     const creditsUsed = userWithPlan.creditsUsed || 0;
-    return Math.max(0, creditsLimit - creditsUsed);
+    return Math.max(0, creditsLimit + bonusCredits - creditsUsed);
   }
 
   async canUserAffordCredits(userId: string, credits: number): Promise<boolean> {

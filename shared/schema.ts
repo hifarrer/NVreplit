@@ -30,6 +30,7 @@ export const users = pgTable("users", {
   avatarUrl: text("avatar_url").default("/public-objects/avatars/anonymous.png"),
   planId: varchar("plan_id").references(() => plans.id),
   creditsUsed: integer("credits_used").default(0).notNull(),
+  bonusCredits: integer("bonus_credits").default(0).notNull(),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   referredBy: varchar("referred_by").references(() => users.id), // Who referred this user

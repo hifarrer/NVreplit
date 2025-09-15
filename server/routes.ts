@@ -6,6 +6,7 @@ import path from "path";
 import fs from "fs";
 import { storage } from "./storage";
 import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema, insertPlanSchema, insertReferralSchema, type Plan, type InsertPlan } from "@shared/schema";
+import { z } from "zod";
 import { generateLyrics, generateScenePrompts, splitLyricsIntoSections } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
@@ -1101,6 +1102,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Admin export users error:", error);
       res.status(500).json({ error: "Failed to export users" });
+    }
+  });
+
+  // Admin endpoint to give bonus credits to users
+  app.put("/api/admin/users/:userId/bonus-credits", authenticateAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Validate request body using Zod schema
+      const bonusCreditsSchema = z.object({
+        bonusCredits: z.number()
+          .int("Bonus credits must be an integer")
+          .min(0, "Bonus credits cannot be negative")
+          .max(1000000, "Bonus credits cannot exceed 1,000,000")
+          .finite("Bonus credits must be a finite number")
+      });
+      
+      const validation = bonusCreditsSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          error: "Invalid bonus credits amount", 
+          details: validation.error.errors.map(e => e.message).join(", ")
+        });
+      }
+      
+      const { bonusCredits } = validation.data;
+      
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Update user's bonus credits
+      await storage.updateUser(userId, { bonusCredits });
+      
+      res.json({ 
+        success: true, 
+        message: `Successfully updated bonus credits to ${bonusCredits} for user ${user.username}` 
+      });
+    } catch (error) {
+      console.error("Admin update bonus credits error:", error);
+      res.status(500).json({ error: "Failed to update bonus credits" });
     }
   });
 

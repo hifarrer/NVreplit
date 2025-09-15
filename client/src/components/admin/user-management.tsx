@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard, Mail, MailCheck, Download } from "lucide-react";
+import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard, Mail, MailCheck, Download, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -44,6 +44,8 @@ export function UserManagement() {
   const [changePlanUser, setChangePlanUser] = useState<UserWithStats | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
   const [isExporting, setIsExporting] = useState(false);
+  const [bonusCreditsUser, setBonusCreditsUser] = useState<UserWithStats | null>(null);
+  const [bonusCreditsAmount, setBonusCreditsAmount] = useState<number>(0);
 
   // Fetch users with auth header
   const { data: users, isLoading } = useQuery<UserWithStats[]>({
@@ -203,6 +205,39 @@ export function UserManagement() {
     },
   });
 
+  // Bonus credits mutation
+  const bonusCreditsMutation = useMutation({
+    mutationFn: async ({ userId, bonusCredits }: { userId: string; bonusCredits: number }) => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(`/api/admin/users/${userId}/bonus-credits`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ bonusCredits }),
+      });
+      if (!res.ok) throw new Error("Failed to update bonus credits");
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setBonusCreditsUser(null);
+      setBonusCreditsAmount(0);
+      toast({
+        title: "Bonus Credits Updated",
+        description: `Successfully updated bonus credits to ${variables.bonusCredits}`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update bonus credits",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEdit = (user: UserWithStats) => {
     setEditingUser(user);
     setEditFormData({ username: user.username, email: user.email });
@@ -235,6 +270,19 @@ export function UserManagement() {
     changePlanMutation.mutate({
       userId: changePlanUser.id,
       planId: selectedPlanId,
+    });
+  };
+
+  const handleBonusCredits = (user: UserWithStats) => {
+    setBonusCreditsUser(user);
+    setBonusCreditsAmount(0);
+  };
+
+  const confirmBonusCredits = () => {
+    if (!bonusCreditsUser) return;
+    bonusCreditsMutation.mutate({
+      userId: bonusCreditsUser.id,
+      bonusCredits: bonusCreditsAmount,
     });
   };
 
@@ -425,6 +473,16 @@ export function UserManagement() {
                   title={user.emailVerified ? "Mark as Unverified" : "Mark as Verified"}
                 >
                   {user.emailVerified ? <MailCheck className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleBonusCredits(user)}
+                  className="border-yellow-600 text-yellow-300 hover:bg-yellow-700/20"
+                  data-testid={`button-bonus-credits-${user.id}`}
+                  title="Give Bonus Credits"
+                >
+                  <Plus className="h-4 w-4" />
                 </Button>
                 <Button
                   size="sm"
@@ -661,6 +719,104 @@ export function UserManagement() {
                 </>
               ) : (
                 "Update Plan"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bonus Credits Dialog */}
+      <Dialog open={!!bonusCreditsUser} onOpenChange={() => setBonusCreditsUser(null)}>
+        <DialogContent className="bg-gray-900 border-purple-500/20">
+          <DialogHeader>
+            <DialogTitle className="text-white">Give Bonus Credits</DialogTitle>
+            <DialogDescription className="text-gray-300">
+              Award bonus credits to {bonusCreditsUser?.username}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-white">Bonus Credits Amount</Label>
+              <Input
+                type="number"
+                min="0"
+                max="1000000"
+                step="1"
+                value={bonusCreditsAmount}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 0;
+                  setBonusCreditsAmount(Math.max(0, Math.min(1000000, value)));
+                }}
+                className="bg-gray-800 border-purple-500/30 text-white"
+                placeholder="Enter bonus credits amount (0-1,000,000)"
+                data-testid="input-bonus-credits-amount"
+              />
+              {bonusCreditsAmount < 0 && (
+                <p className="text-red-400 text-sm">Bonus credits cannot be negative</p>
+              )}
+              {bonusCreditsAmount > 1000000 && (
+                <p className="text-red-400 text-sm">Bonus credits cannot exceed 1,000,000</p>
+              )}
+            </div>
+            
+            {bonusCreditsUser && (
+              <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+                <h4 className="text-white font-medium mb-2">User Credits Summary</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between text-gray-300">
+                    <span>Plan Credits:</span>
+                    <span>{bonusCreditsUser.creditsLimit?.toLocaleString() || 0}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-300">
+                    <span>Credits Used:</span>
+                    <span>{bonusCreditsUser.creditsUsed?.toLocaleString() || 0}</span>
+                  </div>
+                  <div className="flex justify-between text-yellow-300 font-medium">
+                    <span>Bonus Credits (New):</span>
+                    <span>+{bonusCreditsAmount.toLocaleString()}</span>
+                  </div>
+                  <hr className="border-purple-500/30" />
+                  <div className="flex justify-between text-green-300 font-medium">
+                    <span>Total Available Credits:</span>
+                    <span>{((bonusCreditsUser.creditsLimit || 0) + bonusCreditsAmount - (bonusCreditsUser.creditsUsed || 0)).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setBonusCreditsUser(null);
+                setBonusCreditsAmount(0);
+              }}
+              className="border-gray-600 text-gray-300"
+              data-testid="button-cancel-bonus-credits"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmBonusCredits}
+              disabled={
+                bonusCreditsMutation.isPending || 
+                bonusCreditsAmount < 0 || 
+                bonusCreditsAmount > 1000000 ||
+                !Number.isInteger(bonusCreditsAmount) ||
+                !Number.isFinite(bonusCreditsAmount)
+              }
+              className="bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              data-testid="button-confirm-bonus-credits"
+            >
+              {bonusCreditsMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Give Bonus Credits"
               )}
             </Button>
           </div>
