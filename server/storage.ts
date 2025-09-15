@@ -910,6 +910,194 @@ export class MemStorage implements IStorage {
     this.referralsStorage.set(referralId, updatedReferral);
     return true;
   }
+
+  // Affiliate methods implementation
+  async createAffiliate(insertAffiliate: InsertAffiliate): Promise<Affiliate> {
+    // Check for duplicate userId
+    const existingAffiliate = await this.getAffiliate(insertAffiliate.userId);
+    if (existingAffiliate) {
+      throw new Error(`Affiliate already exists for userId: ${insertAffiliate.userId}`);
+    }
+    
+    // Check for duplicate affiliate code (case-insensitive)
+    if (insertAffiliate.affiliateCode) {
+      const existingCodeAffiliate = await this.getAffiliateByCode(insertAffiliate.affiliateCode);
+      if (existingCodeAffiliate) {
+        throw new Error(`Affiliate code '${insertAffiliate.affiliateCode}' is already taken`);
+      }
+    }
+    
+    const id = randomUUID();
+    const affiliate: Affiliate = {
+      id,
+      ...insertAffiliate,
+      totalEarnings: insertAffiliate.totalEarnings || 0,
+      totalPaidOut: insertAffiliate.totalPaidOut || 0,
+      isActive: insertAffiliate.isActive !== undefined ? insertAffiliate.isActive : true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.affiliatesStorage.set(id, affiliate);
+    return affiliate;
+  }
+
+  async getAffiliate(userId: string): Promise<Affiliate | undefined> {
+    for (const affiliate of this.affiliatesStorage.values()) {
+      if (affiliate.userId === userId) {
+        return affiliate;
+      }
+    }
+    return undefined;
+  }
+
+  async getAffiliateByCode(code: string): Promise<Affiliate | undefined> {
+    for (const affiliate of this.affiliatesStorage.values()) {
+      if (affiliate.affiliateCode?.toLowerCase() === code.toLowerCase()) {
+        return affiliate;
+      }
+    }
+    return undefined;
+  }
+
+  async updateAffiliate(affiliateId: string, updates: Partial<Affiliate>): Promise<Affiliate | undefined> {
+    const existing = this.affiliatesStorage.get(affiliateId);
+    if (!existing) return undefined;
+
+    const updatedAffiliate = { 
+      ...existing, 
+      ...updates, 
+      updatedAt: new Date() 
+    };
+    this.affiliatesStorage.set(affiliateId, updatedAffiliate);
+    return updatedAffiliate;
+  }
+
+  async setAffiliateCode(userId: string, code: string): Promise<boolean> {
+    try {
+      const affiliate = await this.getAffiliate(userId);
+      if (!affiliate) {
+        console.warn(`No affiliate found for userId: ${userId}`);
+        return false;
+      }
+      
+      // Check if code is already taken by another affiliate (case-insensitive)
+      const existingAffiliate = await this.getAffiliateByCode(code);
+      if (existingAffiliate && existingAffiliate.id !== affiliate.id) {
+        console.warn(`Affiliate code '${code}' is already taken by another affiliate`);
+        return false;
+      }
+      
+      // Update affiliate's code
+      const result = await this.updateAffiliate(affiliate.id, { affiliateCode: code });
+      return !!result;
+    } catch (error) {
+      console.error("Error setting affiliate code in MemStorage:", error);
+      return false;
+    }
+  }
+
+  async createAffiliateSignup(insertSignup: InsertAffiliateSignup): Promise<AffiliateSignup> {
+    // Check for duplicate signupUserId to prevent duplicate signup bonuses
+    const existingSignup = Array.from(this.affiliateSignupsStorage.values())
+      .find(signup => signup.signupUserId === insertSignup.signupUserId);
+    
+    if (existingSignup) {
+      throw new Error(`Signup with userId ${insertSignup.signupUserId} already exists`);
+    }
+    
+    const id = randomUUID();
+    const signup: AffiliateSignup = {
+      id,
+      ...insertSignup,
+      createdAt: new Date()
+    };
+    this.affiliateSignupsStorage.set(id, signup);
+    return signup;
+  }
+
+  async getAffiliateSignups(affiliateId: string): Promise<AffiliateSignup[]> {
+    const signups: AffiliateSignup[] = [];
+    for (const signup of this.affiliateSignupsStorage.values()) {
+      if (signup.affiliateId === affiliateId) {
+        signups.push(signup);
+      }
+    }
+    // Sort by creation date (newest first)
+    return signups.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async createAffiliateEarning(insertEarning: InsertAffiliateEarning): Promise<AffiliateEarning> {
+    const id = randomUUID();
+    const earning: AffiliateEarning = {
+      id,
+      ...insertEarning,
+      createdAt: new Date()
+    };
+    this.affiliateEarningsStorage.set(id, earning);
+    return earning;
+  }
+
+  async getAffiliateEarnings(affiliateId: string): Promise<AffiliateEarning[]> {
+    const earnings: AffiliateEarning[] = [];
+    for (const earning of this.affiliateEarningsStorage.values()) {
+      if (earning.affiliateId === affiliateId) {
+        earnings.push(earning);
+      }
+    }
+    // Sort by creation date (newest first)
+    return earnings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getAffiliateStats(affiliateId: string): Promise<{ totalSignups: number; totalEarnings: number; pendingBalance: number; totalPaidOut: number }> {
+    const signups = await this.getAffiliateSignups(affiliateId);
+    const earnings = await this.getAffiliateEarnings(affiliateId);
+    const payouts = await this.getAffiliatePayouts(affiliateId);
+    
+    const totalSignups = signups.length;
+    const totalEarnings = earnings.reduce((sum, earning) => sum + earning.amount, 0);
+    const totalPaidOut = payouts
+      .filter(payout => payout.status === 'completed')
+      .reduce((sum, payout) => sum + payout.amount, 0);
+    const pendingBalance = totalEarnings - totalPaidOut;
+    
+    return { totalSignups, totalEarnings, pendingBalance, totalPaidOut };
+  }
+
+  async createAffiliatePayout(insertPayout: InsertAffiliatePayout): Promise<AffiliatePayout> {
+    const id = randomUUID();
+    const payout: AffiliatePayout = {
+      id,
+      ...insertPayout,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.affiliatePayoutsStorage.set(id, payout);
+    return payout;
+  }
+
+  async getAffiliatePayouts(affiliateId: string): Promise<AffiliatePayout[]> {
+    const payouts: AffiliatePayout[] = [];
+    for (const payout of this.affiliatePayoutsStorage.values()) {
+      if (payout.affiliateId === affiliateId) {
+        payouts.push(payout);
+      }
+    }
+    // Sort by creation date (newest first)
+    return payouts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async updateAffiliatePayout(payoutId: string, updates: Partial<AffiliatePayout>): Promise<AffiliatePayout | undefined> {
+    const existing = this.affiliatePayoutsStorage.get(payoutId);
+    if (!existing) return undefined;
+
+    const updatedPayout = { 
+      ...existing, 
+      ...updates, 
+      updatedAt: new Date() 
+    };
+    this.affiliatePayoutsStorage.set(payoutId, updatedPayout);
+    return updatedPayout;
+  }
 }
 
 // Database Storage Implementation
@@ -1875,6 +2063,231 @@ export class DbStorage implements IStorage {
     } catch (error) {
       console.error("Error updating referral:", error);
       return false;
+    }
+  }
+
+  // Affiliate methods implementation
+  async createAffiliate(insertAffiliate: InsertAffiliate): Promise<Affiliate> {
+    try {
+      const result = await this.db
+        .insert(affiliates)
+        .values(insertAffiliate)
+        .returning();
+      return result[0];
+    } catch (error: any) {
+      console.error("Error creating affiliate:", error);
+      
+      // Handle unique constraint violations
+      if (error.code === '23505') {
+        if (error.constraint?.includes('user_id')) {
+          throw new Error(`Affiliate already exists for userId: ${insertAffiliate.userId}`);
+        }
+        if (error.constraint?.includes('affiliate_code')) {
+          throw new Error(`Affiliate code '${insertAffiliate.affiliateCode}' is already taken`);
+        }
+      }
+      
+      // For other database errors, re-throw with context
+      throw new Error(`Failed to create affiliate: ${error.message}`);
+    }
+  }
+
+  async getAffiliate(userId: string): Promise<Affiliate | undefined> {
+    try {
+      const result = await this.db
+        .select()
+        .from(affiliates)
+        .where(eq(affiliates.userId, userId))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error getting affiliate:", error);
+      return undefined;
+    }
+  }
+
+  async getAffiliateByCode(code: string): Promise<Affiliate | undefined> {
+    try {
+      const result = await this.db
+        .select()
+        .from(affiliates)
+        .where(sql`LOWER(${affiliates.affiliateCode}) = LOWER(${code})`)
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error getting affiliate by code:", error);
+      return undefined;
+    }
+  }
+
+  async updateAffiliate(affiliateId: string, updates: Partial<Affiliate>): Promise<Affiliate | undefined> {
+    try {
+      const result = await this.db
+        .update(affiliates)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(affiliates.id, affiliateId))
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error updating affiliate:", error);
+      return undefined;
+    }
+  }
+
+  async setAffiliateCode(userId: string, code: string): Promise<boolean> {
+    try {
+      // Check if code is already taken by another affiliate (case-insensitive)
+      const existingAffiliate = await this.getAffiliateByCode(code);
+      if (existingAffiliate && existingAffiliate.userId !== userId) {
+        console.warn(`Affiliate code '${code}' is already taken by another affiliate`);
+        return false;
+      }
+      
+      // Update affiliate's code
+      const result = await this.db
+        .update(affiliates)
+        .set({ affiliateCode: code, updatedAt: new Date() })
+        .where(eq(affiliates.userId, userId))
+        .returning();
+      
+      if (result.length === 0) {
+        console.warn(`No affiliate found for userId: ${userId}`);
+        return false;
+      }
+      
+      return true;
+    } catch (error: any) {
+      console.error("Error setting affiliate code:", error);
+      
+      // Handle unique constraint violation
+      if (error.code === '23505' && error.constraint?.includes('affiliate_code')) {
+        console.warn(`Affiliate code '${code}' already exists (unique constraint violation)`);
+        return false;
+      }
+      
+      // For other database errors, log and return false
+      return false;
+    }
+  }
+
+  async createAffiliateSignup(insertSignup: InsertAffiliateSignup): Promise<AffiliateSignup> {
+    try {
+      const result = await this.db
+        .insert(affiliateSignups)
+        .values(insertSignup)
+        .returning();
+      return result[0];
+    } catch (error: any) {
+      console.error("Error creating affiliate signup:", error);
+      
+      // Handle unique constraint violation for signupUserId
+      if (error.code === '23505' && error.constraint?.includes('signup_user_id')) {
+        throw new Error(`Signup with userId ${insertSignup.signupUserId} already exists`);
+      }
+      
+      // For other database errors, re-throw with context
+      throw new Error(`Failed to create affiliate signup: ${error.message}`);
+    }
+  }
+
+  async getAffiliateSignups(affiliateId: string): Promise<AffiliateSignup[]> {
+    try {
+      return await this.db
+        .select()
+        .from(affiliateSignups)
+        .where(eq(affiliateSignups.affiliateId, affiliateId))
+        .orderBy(sql`${affiliateSignups.createdAt} DESC`);
+    } catch (error) {
+      console.error("Error getting affiliate signups:", error);
+      return [];
+    }
+  }
+
+  async createAffiliateEarning(insertEarning: InsertAffiliateEarning): Promise<AffiliateEarning> {
+    try {
+      const result = await this.db
+        .insert(affiliateEarnings)
+        .values(insertEarning)
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error creating affiliate earning:", error);
+      throw error;
+    }
+  }
+
+  async getAffiliateEarnings(affiliateId: string): Promise<AffiliateEarning[]> {
+    try {
+      return await this.db
+        .select()
+        .from(affiliateEarnings)
+        .where(eq(affiliateEarnings.affiliateId, affiliateId))
+        .orderBy(sql`${affiliateEarnings.createdAt} DESC`);
+    } catch (error) {
+      console.error("Error getting affiliate earnings:", error);
+      return [];
+    }
+  }
+
+  async getAffiliateStats(affiliateId: string): Promise<{ totalSignups: number; totalEarnings: number; pendingBalance: number; totalPaidOut: number }> {
+    try {
+      const [signups, earnings, payouts] = await Promise.all([
+        this.getAffiliateSignups(affiliateId),
+        this.getAffiliateEarnings(affiliateId),
+        this.getAffiliatePayouts(affiliateId)
+      ]);
+      
+      const totalSignups = signups.length;
+      const totalEarnings = earnings.reduce((sum, earning) => sum + earning.amount, 0);
+      const totalPaidOut = payouts
+        .filter(payout => payout.status === 'completed')
+        .reduce((sum, payout) => sum + payout.amount, 0);
+      const pendingBalance = totalEarnings - totalPaidOut;
+      
+      return { totalSignups, totalEarnings, pendingBalance, totalPaidOut };
+    } catch (error) {
+      console.error("Error getting affiliate stats:", error);
+      return { totalSignups: 0, totalEarnings: 0, pendingBalance: 0, totalPaidOut: 0 };
+    }
+  }
+
+  async createAffiliatePayout(insertPayout: InsertAffiliatePayout): Promise<AffiliatePayout> {
+    try {
+      const result = await this.db
+        .insert(affiliatePayouts)
+        .values(insertPayout)
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error creating affiliate payout:", error);
+      throw error;
+    }
+  }
+
+  async getAffiliatePayouts(affiliateId: string): Promise<AffiliatePayout[]> {
+    try {
+      return await this.db
+        .select()
+        .from(affiliatePayouts)
+        .where(eq(affiliatePayouts.affiliateId, affiliateId))
+        .orderBy(sql`${affiliatePayouts.createdAt} DESC`);
+    } catch (error) {
+      console.error("Error getting affiliate payouts:", error);
+      return [];
+    }
+  }
+
+  async updateAffiliatePayout(payoutId: string, updates: Partial<AffiliatePayout>): Promise<AffiliatePayout | undefined> {
+    try {
+      const result = await this.db
+        .update(affiliatePayouts)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(affiliatePayouts.id, payoutId))
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error updating affiliate payout:", error);
+      return undefined;
     }
   }
 }
