@@ -431,7 +431,7 @@ export default function ProfilePage() {
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Total Credits</span>
                       <span className="text-sm font-medium">
-                        {user?.plan?.credits?.toLocaleString() || "2,500"}
+                        {((user?.creditsUsed || 0) + (user?.creditsRemaining || 0)).toLocaleString() || "2,500"}
                       </span>
                     </div>
                   </div>
@@ -441,14 +441,14 @@ export default function ProfilePage() {
                     <div className="flex justify-between text-sm">
                       <span>Credits Used</span>
                       <span className="font-medium">
-                        {user?.creditsUsed?.toLocaleString() || "0"} / {user?.plan?.credits?.toLocaleString() || "2,500"}
+                        {user?.creditsUsed?.toLocaleString() || "0"} / {((user?.creditsUsed || 0) + (user?.creditsRemaining || 0)).toLocaleString() || "2,500"}
                       </span>
                     </div>
                     <div className="h-3 bg-secondary/30 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-500"
                         style={{ 
-                          width: `${Math.min(100, ((user?.creditsUsed || 0) / (user?.plan?.credits || 2500)) * 100)}%` 
+                          width: `${Math.min(100, ((user?.creditsUsed || 0) / ((user?.creditsUsed || 0) + (user?.creditsRemaining || 0) || 2500)) * 100)}%` 
                         }}
                       />
                     </div>
