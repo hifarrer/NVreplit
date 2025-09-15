@@ -41,11 +41,12 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
 
   const durationOptions = [30, 60, 90, 120];
   const getDurationLabel = (value: number) => {
-    if (value === 30) return "30 sec";
-    if (value === 60) return "1 min";
-    if (value === 90) return "1.5 min";
-    if (value === 120) return "2 min";
-    return `${value} sec`;
+    const credits = (value / 30) * 500;
+    if (value === 30) return "30 sec (500 credits)";
+    if (value === 60) return "1 min (1000 credits)";
+    if (value === 90) return "1.5 min (1500 credits)";
+    if (value === 120) return "2 min (2000 credits)";
+    return `${value} sec (${credits} credits)`;
   };
 
   const generateLyricsMutation = useMutation({
@@ -391,7 +392,7 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
             title={!canGenerate ? "Please enter at least 5 characters in description and add at least one tag" : "Generate your AI song"}
           >
             <i className="fas fa-magic mr-2"></i>
-            Generate Song
+            Generate Song ({(duration[0] / 30) * 500} credits)
           </Button>
         </div>
       </DialogContent>
