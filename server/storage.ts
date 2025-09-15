@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -97,6 +97,16 @@ export interface IStorage {
   deleteComment(commentId: string, userId: string): Promise<boolean>;
   getAllComments(): Promise<VideoComment[]>;
   adminDeleteComment(commentId: string): Promise<boolean>;
+
+  // Referral methods
+  generateReferralCode(userId: string): Promise<string>;
+  setReferralCode(userId: string, code: string): Promise<boolean>;
+  getUserByReferralCode(code: string): Promise<User | undefined>;
+  createReferral(referral: InsertReferral): Promise<Referral>;
+  getUserReferrals(userId: string): Promise<Referral[]>;
+  getReferralStats(userId: string): Promise<{ totalReferrals: number; totalCreditsEarned: number; pendingReferrals: number }>;
+  awardReferralCredits(referralId: string, credits: number): Promise<boolean>;
+  addCreditsToUser(userId: string, credits: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -111,6 +121,7 @@ export class MemStorage implements IStorage {
   private appSettingsStorage: Map<string, { value: string; isSecret: boolean }>;
   private videoLikesStorage: Map<string, VideoLike>;
   private videoCommentsStorage: Map<string, VideoComment>;
+  private referralsStorage: Map<string, Referral>;
 
   constructor() {
     this.users = new Map();
@@ -124,6 +135,7 @@ export class MemStorage implements IStorage {
     this.appSettingsStorage = new Map();
     this.videoLikesStorage = new Map();
     this.videoCommentsStorage = new Map();
+    this.referralsStorage = new Map();
     
     // Initialize default video generation configs
     this.initializeDefaultConfigs();
@@ -756,6 +768,112 @@ export class MemStorage implements IStorage {
     }
     
     this.videoCommentsStorage.delete(commentId);
+    return true;
+  }
+
+  // Referral methods implementation
+  async generateReferralCode(userId: string): Promise<string> {
+    // Generate a unique referral code
+    let code: string;
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    do {
+      // Generate random 8-character code
+      code = Math.random().toString(36).substring(2, 10).toUpperCase();
+      attempts++;
+    } while (await this.getUserByReferralCode(code) && attempts < maxAttempts);
+    
+    if (attempts >= maxAttempts) {
+      throw new Error("Failed to generate unique referral code");
+    }
+    
+    // Update user with the new referral code
+    await this.setReferralCode(userId, code);
+    return code;
+  }
+
+  async setReferralCode(userId: string, code: string): Promise<boolean> {
+    const user = this.users.get(userId);
+    if (!user) return false;
+    
+    // Check if code is already taken by another user
+    const existingUser = await this.getUserByReferralCode(code);
+    if (existingUser && existingUser.id !== userId) {
+      return false;
+    }
+    
+    // Update user's referral code
+    const updatedUser = { ...user, referralCode: code };
+    this.users.set(userId, updatedUser);
+    return true;
+  }
+
+  async getUserByReferralCode(code: string): Promise<User | undefined> {
+    for (const user of this.users.values()) {
+      if (user.referralCode === code) {
+        return user;
+      }
+    }
+    return undefined;
+  }
+
+  async createReferral(referral: InsertReferral): Promise<Referral> {
+    const id = randomUUID();
+    const newReferral: Referral = {
+      id,
+      ...referral,
+      createdAt: new Date(),
+    };
+    this.referralsStorage.set(id, newReferral);
+    return newReferral;
+  }
+
+  async getUserReferrals(userId: string): Promise<Referral[]> {
+    const referrals: Referral[] = [];
+    for (const referral of this.referralsStorage.values()) {
+      if (referral.referrerId === userId) {
+        referrals.push(referral);
+      }
+    }
+    // Sort by creation date (newest first)
+    return referrals.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getReferralStats(userId: string): Promise<{ totalReferrals: number; totalCreditsEarned: number; pendingReferrals: number }> {
+    const referrals = await this.getUserReferrals(userId);
+    const totalReferrals = referrals.length;
+    const totalCreditsEarned = referrals.reduce((sum, ref) => sum + ref.creditsAwarded, 0);
+    const pendingReferrals = referrals.filter(ref => !ref.isRewarded && ref.planUpgradeAt).length;
+    
+    return { totalReferrals, totalCreditsEarned, pendingReferrals };
+  }
+
+  async awardReferralCredits(referralId: string, credits: number): Promise<boolean> {
+    const referral = this.referralsStorage.get(referralId);
+    if (!referral || referral.isRewarded) return false;
+    
+    // Update referral as rewarded
+    const updatedReferral = {
+      ...referral,
+      creditsAwarded: credits,
+      isRewarded: true,
+      rewardedAt: new Date(),
+    };
+    this.referralsStorage.set(referralId, updatedReferral);
+    
+    // Add credits to referrer
+    return await this.addCreditsToUser(referral.referrerId, credits);
+  }
+
+  async addCreditsToUser(userId: string, credits: number): Promise<boolean> {
+    const user = this.users.get(userId);
+    if (!user) return false;
+    
+    // Reduce credits used (effectively adding credits)
+    const newCreditsUsed = Math.max(0, user.creditsUsed - credits);
+    const updatedUser = { ...user, creditsUsed: newCreditsUsed };
+    this.users.set(userId, updatedUser);
     return true;
   }
 }

@@ -32,6 +32,8 @@ export const users = pgTable("users", {
   creditsUsed: integer("credits_used").default(0).notNull(),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
+  referredBy: varchar("referred_by").references(() => users.id), // Who referred this user
+  referralCode: text("referral_code").unique(), // User's personal referral code (auto-generated)
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -155,6 +157,18 @@ export const appSettings = pgTable("app_settings", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Referrals table to track successful referrals and credit rewards
+export const referrals = pgTable("referrals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  referrerId: varchar("referrer_id").references(() => users.id).notNull(), // Who made the referral
+  referredUserId: varchar("referred_user_id").references(() => users.id).notNull(), // Who was referred
+  creditsAwarded: integer("credits_awarded").default(0).notNull(), // Credits given to referrer
+  isRewarded: boolean("is_rewarded").default(false).notNull(), // Whether credits have been awarded
+  rewardedAt: timestamp("rewarded_at"), // When credits were awarded
+  planUpgradeAt: timestamp("plan_upgrade_at"), // When referred user upgraded to paid plan
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -209,6 +223,11 @@ export const insertVideoCommentSchema = createInsertSchema(videoComments).omit({
   updatedAt: true,
 });
 
+export const insertReferralSchema = createInsertSchema(referrals).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -229,3 +248,5 @@ export type InsertVideoLike = z.infer<typeof insertVideoLikeSchema>;
 export type VideoLike = typeof videoLikes.$inferSelect;
 export type InsertVideoComment = z.infer<typeof insertVideoCommentSchema>;
 export type VideoComment = typeof videoComments.$inferSelect;
+export type InsertReferral = z.infer<typeof insertReferralSchema>;
+export type Referral = typeof referrals.$inferSelect;
