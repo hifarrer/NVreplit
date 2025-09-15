@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { AudioPlayer } from "@/components/ui/audio-player";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -97,6 +97,21 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const totalCreditsNeeded = SONG_GENERATION_CREDITS + getVideoCreditCost(duration[0]);
   const userCreditsRemaining = user?.creditsRemaining || 0;
   const hasEnoughCredits = userCreditsRemaining >= totalCreditsNeeded;
+
+  // Validator to check for Google OAuth signup credit issue
+  useEffect(() => {
+    // Check if credits are showing as 0/0 after user data is loaded
+    if (user && user.plan) {
+      const planCredits = user.plan.credits || 0;
+      const remainingCredits = user.creditsRemaining || 0;
+      
+      // If both plan credits and remaining credits are 0, but user has a plan, refresh the page
+      if (planCredits === 0 && remainingCredits === 0) {
+        console.log('Detected 0/0 credits issue - refreshing page to load correct credit data');
+        window.location.reload();
+      }
+    }
+  }, [user]);
 
   // Fetch user's songs for library tab
   const { data: songs = [], isLoading: songsLoading } = useQuery<GeneratedSong[]>({
