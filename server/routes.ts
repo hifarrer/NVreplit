@@ -1078,6 +1078,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // CSV export endpoint for users (name and email only)
+  app.get("/api/admin/users/export", authenticateAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      
+      // Create CSV content with header
+      let csvContent = "Name,Email\n";
+      
+      // Add user data (username as name, email)
+      users.forEach(user => {
+        // Escape commas and quotes in data
+        const name = user.username.replace(/"/g, '""');
+        const email = user.email.replace(/"/g, '""');
+        csvContent += `"${name}","${email}"\n`;
+      });
+      
+      // Set headers for CSV download
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="users-export.csv"');
+      res.send(csvContent);
+    } catch (error) {
+      console.error("Admin export users error:", error);
+      res.status(500).json({ error: "Failed to export users" });
+    }
+  });
+
   app.get("/api/admin/plans", authenticateAdmin, async (req, res) => {
     try {
       const plans = await storage.getAllPlans();

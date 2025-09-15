@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard, Mail, MailCheck } from "lucide-react";
+import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard, Mail, MailCheck, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -43,6 +43,7 @@ export function UserManagement() {
   const [editFormData, setEditFormData] = useState({ username: "", email: "" });
   const [changePlanUser, setChangePlanUser] = useState<UserWithStats | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
+  const [isExporting, setIsExporting] = useState(false);
 
   // Fetch users with auth header
   const { data: users, isLoading } = useQuery<UserWithStats[]>({
@@ -237,6 +238,50 @@ export function UserManagement() {
     });
   };
 
+  // CSV export function
+  const handleExportCSV = async () => {
+    setIsExporting(true);
+    try {
+      const token = localStorage.getItem("adminToken");
+      const response = await fetch("/api/admin/users/export", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to export users");
+      }
+
+      // Get the CSV content
+      const csvData = await response.text();
+
+      // Create a blob and download
+      const blob = new Blob([csvData], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'users-export.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: "User list exported successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to export users",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <Card className="bg-black/30 border-purple-500/20">
@@ -250,13 +295,35 @@ export function UserManagement() {
   return (
     <Card className="bg-black/30 border-purple-500/20">
       <CardHeader>
-        <CardTitle className="text-white flex items-center">
-          <User className="h-5 w-5 mr-2" />
-          User Management
-        </CardTitle>
-        <CardDescription className="text-gray-300">
-          Manage users, view their statistics, and perform administrative actions
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-white flex items-center">
+              <User className="h-5 w-5 mr-2" />
+              User Management
+            </CardTitle>
+            <CardDescription className="text-gray-300">
+              Manage users, view their statistics, and perform administrative actions
+            </CardDescription>
+          </div>
+          <Button
+            onClick={handleExportCSV}
+            disabled={isExporting || !users?.length}
+            className="bg-green-600 hover:bg-green-700 text-white"
+            data-testid="button-export-users"
+          >
+            {isExporting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <Download className="mr-2 h-4 w-4" />
+                Export CSV
+              </>
+            )}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
