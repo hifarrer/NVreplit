@@ -14,7 +14,7 @@ import { useAuth } from "@/hooks/use-auth";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
 interface NavigationHeaderProps {
-  currentPage?: "home" | "songs" | "videos" | "characters" | "plans" | "profile" | "referrals";
+  currentPage?: "home" | "songs" | "videos" | "characters" | "plans" | "profile";
 }
 
 export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
@@ -27,7 +27,6 @@ export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
     { href: "/my-songs", label: "Songs", icon: <Music className="h-4 w-4" />, page: "songs" },
     { href: "/my-videos", label: "Videos", icon: <Video className="h-4 w-4" />, page: "videos" },
     { href: "/characters", label: "Characters", icon: <User className="h-4 w-4" />, page: "characters" },
-    { href: "/referrals", label: "Referrals", icon: <Gift className="h-4 w-4" />, page: "referrals" },
     { href: "/plans", label: "Plans", icon: <i className="fas fa-crown h-4 w-4"></i>, page: "plans" },
   ];
 
@@ -94,6 +93,12 @@ export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
                       <DropdownMenuItem className="cursor-pointer">
                         <User className="h-4 w-4 mr-2" />
                         Profile
+                      </DropdownMenuItem>
+                    </Link>
+                    <Link href="/referrals">
+                      <DropdownMenuItem className="cursor-pointer" data-testid="link-referrals">
+                        <Gift className="h-4 w-4 mr-2" />
+                        Referrals
                       </DropdownMenuItem>
                     </Link>
                     <Link href="/contact">
@@ -172,6 +177,15 @@ export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
                           )}
                         </Avatar>
                         {user.username}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="justify-start w-full"
+                        onClick={() => handleNavClick("/referrals")}
+                        data-testid="link-referrals-mobile"
+                      >
+                        <Gift className="h-4 w-4 mr-3" />
+                        Referrals
                       </Button>
                       <Button
                         variant="ghost"
