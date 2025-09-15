@@ -20,17 +20,28 @@ export default function AuthPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [email, setEmail] = useState('');
   const [isGmailEmail, setIsGmailEmail] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
 
   const handleGoogleLogin = () => {
+    // Preserve referral code during OAuth flow
+    if (referralCode) {
+      localStorage.setItem('pending_referral_code', referralCode);
+    }
     window.location.href = '/api/auth/google';
   };
 
-  // Handle OAuth callback
+  // Handle OAuth callback and capture referral code
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     const userParam = urlParams.get('user');
     const oauthError = urlParams.get('error');
+    const refCode = urlParams.get('ref');
+    
+    // Capture referral code from URL
+    if (refCode) {
+      setReferralCode(refCode);
+    }
 
     if (oauthError) {
       setError('Google login failed. Please try again.');
@@ -43,6 +54,29 @@ export default function AuthPage() {
       try {
         const userData = JSON.parse(decodeURIComponent(userParam));
         setUserAndToken(userData, token);
+        
+        // CRITICAL FIX: Handle referral code after OAuth login
+        const storedReferralCode = localStorage.getItem('pending_referral_code');
+        if (storedReferralCode) {
+          // Process referral code for OAuth user
+          fetch('/api/process-oauth-referral', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ referralCode: storedReferralCode })
+          }).then(response => {
+            if (!response.ok) {
+              console.error('Failed to process OAuth referral code');
+            }
+          }).catch(error => {
+            console.error('Error processing OAuth referral code:', error);
+          }).finally(() => {
+            // Clean up stored referral code
+            localStorage.removeItem('pending_referral_code');
+          });
+        }
         
         // CRITICAL FIX: Refresh user data to get credits/plan info after OAuth
         setTimeout(async () => {
@@ -122,7 +156,7 @@ export default function AuthPage() {
     }
 
     try {
-      const response = await register(username, email, password);
+      const response = await register(username, email, password, referralCode);
       // For non-Gmail accounts, show success message instead of redirecting
       if (response && response.message) {
         setError(''); // Clear any previous errors

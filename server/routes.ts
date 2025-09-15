@@ -5,7 +5,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { storage } from "./storage";
-import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema, insertPlanSchema, type Plan, type InsertPlan } from "@shared/schema";
+import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema, insertPlanSchema, insertReferralSchema, type Plan, type InsertPlan } from "@shared/schema";
 import { generateLyrics, generateScenePrompts, splitLyricsIntoSections } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
@@ -277,6 +277,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "System configuration error. Please contact support." });
       }
       
+      // Check for referral code and validate if provided
+      let referrerId = null;
+      const { referralCode } = req.body;
+      if (referralCode) {
+        const referrer = await storage.getUserByReferralCode(referralCode);
+        if (referrer) {
+          referrerId = referrer.id;
+        }
+      }
+
       // Create user with email verification fields - ALWAYS with Free plan
       const user = await storage.createUser({
         username,
@@ -287,8 +297,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         emailVerificationTokenExpiresAt: tokenExpiresAt,
         avatarUrl: "/public-objects/public/avatars/anonymous.png",
         planId: freePlan.id, // ALWAYS assign free plan
-        creditsUsed: 0
+        creditsUsed: 0,
+        referredBy: referrerId
       });
+      
+      // Create referral record if user was referred
+      if (referrerId) {
+        try {
+          await storage.createReferral({
+            referrerId,
+            referredUserId: user.id,
+            creditsAwarded: 0,
+            isRewarded: false,
+            rewardedAt: null,
+            planUpgradeAt: null
+          });
+          console.log(`Referral record created: ${referrerId} referred ${user.id}`);
+        } catch (referralError) {
+          console.error("Failed to create referral record:", referralError);
+          // Don't fail registration if referral record creation fails
+        }
+      }
       
       // Send email verification instead of logging user in
       try {
@@ -500,6 +529,233 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Resend verification error:", error);
       res.status(500).json({ error: "Failed to resend verification email" });
+    }
+  });
+
+  // Referral endpoints
+  app.get("/api/referrals", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const referrals = await storage.getUserReferrals(userId);
+      const stats = await storage.getReferralStats(userId);
+      
+      res.json({ referrals, stats });
+    } catch (error) {
+      console.error("Get referrals error:", error);
+      res.status(500).json({ error: "Failed to get referrals" });
+    }
+  });
+
+  app.get("/api/referrals/code", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Generate referral code if user doesn't have one
+      let referralCode = user.referralCode;
+      if (!referralCode) {
+        referralCode = await storage.generateReferralCode(userId);
+      }
+      
+      res.json({ referralCode });
+    } catch (error) {
+      console.error("Get referral code error:", error);
+      res.status(500).json({ error: "Failed to get referral code" });
+    }
+  });
+
+  app.post("/api/referrals/code", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const { code } = req.body;
+      
+      if (!code || typeof code !== 'string' || code.length < 3 || code.length > 20) {
+        return res.status(400).json({ error: "Referral code must be between 3 and 20 characters" });
+      }
+      
+      // Check if code contains only alphanumeric characters
+      if (!/^[a-zA-Z0-9]+$/.test(code)) {
+        return res.status(400).json({ error: "Referral code can only contain letters and numbers" });
+      }
+      
+      const success = await storage.setReferralCode(userId, code.toUpperCase());
+      
+      if (!success) {
+        return res.status(400).json({ error: "Referral code is already taken" });
+      }
+      
+      res.json({ referralCode: code.toUpperCase() });
+    } catch (error) {
+      console.error("Set referral code error:", error);
+      res.status(500).json({ error: "Failed to set referral code" });
+    }
+  });
+
+  // Process referral code for OAuth users (secured endpoint)
+  app.post("/api/process-oauth-referral", authenticateToken, async (req, res) => {
+    try {
+      const { referralCode } = req.body;
+      const userId = (req as any).user.userId;
+      
+      if (!referralCode) {
+        return res.status(400).json({ error: "Referral code is required" });
+      }
+      
+      // Get the user to check if they already have a referrer
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      if (user.referredBy) {
+        return res.status(400).json({ error: "User already has a referrer" });
+      }
+      
+      // Find the referrer by referral code
+      const referrer = await storage.getUserByReferralCode(referralCode);
+      if (!referrer) {
+        return res.status(404).json({ error: "Invalid referral code" });
+      }
+      
+      // Prevent self-referral
+      if (referrer.id === userId) {
+        return res.status(400).json({ error: "Cannot refer yourself" });
+      }
+      
+      // Update user with referrer and create referral record
+      await storage.updateUser(userId, { referredBy: referrer.id });
+      await storage.createReferral({
+        referrerId: referrer.id,
+        referredUserId: userId,
+        referralCode: referralCode,
+        status: 'active'
+      });
+      
+      console.log(`OAuth user ${userId} referred by ${referrer.id} with code ${referralCode}`);
+      
+      res.json({ 
+        success: true, 
+        message: "Referral processed successfully",
+        referrerUsername: referrer.username
+      });
+    } catch (error) {
+      console.error("Failed to process OAuth referral:", error);
+      res.status(500).json({ error: "Failed to process referral" });
+    }
+  });
+
+  // Handle Stripe payment success and award referral credits (secured endpoint)
+  app.get("/api/stripe/payment-success/:sessionId", authenticateToken, async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      
+      if (!sessionId) {
+        return res.status(400).json({ error: "Session ID is required" });
+      }
+      
+      // Get Stripe settings from database
+      const stripeSettings = await storage.getAllSettings();
+      const stripeSecretKey = stripeSettings.find(s => s.key === 'stripe_secret_key')?.value;
+      
+      if (!stripeSecretKey) {
+        console.error("Stripe secret key not configured");
+        return res.status(500).json({ error: "Payment system not configured" });
+      }
+      
+      // Import Stripe dynamically to use the database key
+      const Stripe = (await import('stripe')).default;
+      const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
+      
+      // Retrieve the checkout session
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      
+      if (session.payment_status !== 'paid') {
+        return res.status(400).json({ error: "Payment not completed" });
+      }
+      
+      const userId = session.metadata?.userId;
+      const planId = session.metadata?.planId;
+      const authenticatedUserId = (req as any).user.userId;
+      
+      if (!userId || !planId) {
+        return res.status(400).json({ error: "Invalid session metadata" });
+      }
+      
+      // Security check: ensure the authenticated user matches the session user
+      if (userId !== authenticatedUserId) {
+        return res.status(403).json({ error: "Unauthorized access to payment session" });
+      }
+      
+      // Get user and check if they have a referrer
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Update user's plan and subscription details
+      const plan = await storage.getPlanById(planId);
+      if (!plan) {
+        return res.status(400).json({ error: "Invalid plan" });
+      }
+      
+      // Check if this is a paid plan (Basic or higher - not the free plan)
+      const isPaidPlan = plan.monthlyPrice > 0 || plan.yearlyPrice > 0;
+      if (!isPaidPlan) {
+        return res.json({ 
+          success: true, 
+          message: "Payment processed successfully",
+          planUpdated: true,
+          referralCreditsAwarded: false,
+          note: "Free plan - no referral credits awarded"
+        });
+      }
+      
+      await storage.updateUser(userId, {
+        planId: plan.id,
+        stripeSubscriptionId: session.subscription as string,
+      });
+      
+      // Award referral credits if user was referred
+      if (user.referredBy) {
+        try {
+          // Find the referral record
+          const referrals = await storage.getUserReferrals(user.referredBy);
+          const referralRecord = referrals.find(ref => ref.referredUserId === userId && !ref.isRewarded);
+          
+          if (referralRecord) {
+            // Award 2500 credits to the referrer
+            const creditsToAward = 2500;
+            const success = await storage.awardReferralCredits(referralRecord.id, creditsToAward);
+            
+            if (success) {
+              // Update referral record with plan upgrade timestamp
+              await storage.updateReferral(referralRecord.id, {
+                planUpgradeAt: new Date()
+              });
+              
+              console.log(`Awarded ${creditsToAward} credits to referrer ${user.referredBy} for user ${userId} upgrading to paid plan ${plan.name}`);
+            }
+          }
+        } catch (referralError) {
+          console.error("Failed to award referral credits:", referralError);
+          // Don't fail the payment success if referral crediting fails
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        message: "Payment processed successfully",
+        planUpdated: true,
+        referralCreditsAwarded: !!user.referredBy
+      });
+      
+    } catch (error) {
+      console.error("Payment success processing error:", error);
+      res.status(500).json({ error: "Failed to process payment success" });
     }
   });
 

@@ -107,6 +107,7 @@ export interface IStorage {
   getReferralStats(userId: string): Promise<{ totalReferrals: number; totalCreditsEarned: number; pendingReferrals: number }>;
   awardReferralCredits(referralId: string, credits: number): Promise<boolean>;
   addCreditsToUser(userId: string, credits: number): Promise<boolean>;
+  updateReferral(referralId: string, updates: Partial<Referral>): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -874,6 +875,15 @@ export class MemStorage implements IStorage {
     const newCreditsUsed = Math.max(0, user.creditsUsed - credits);
     const updatedUser = { ...user, creditsUsed: newCreditsUsed };
     this.users.set(userId, updatedUser);
+    return true;
+  }
+
+  async updateReferral(referralId: string, updates: Partial<Referral>): Promise<boolean> {
+    const referral = this.referralsStorage.get(referralId);
+    if (!referral) return false;
+    
+    const updatedReferral = { ...referral, ...updates };
+    this.referralsStorage.set(referralId, updatedReferral);
     return true;
   }
 }
@@ -1656,6 +1666,189 @@ export class DbStorage implements IStorage {
       return result.length > 0;
     } catch (error) {
       console.error("Error admin deleting comment:", error);
+      return false;
+    }
+  }
+
+  // Referral methods implementation for DbStorage
+  async generateReferralCode(userId: string): Promise<string> {
+    // Generate a unique referral code
+    let code: string;
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    do {
+      // Generate random 8-character code
+      code = Math.random().toString(36).substring(2, 10).toUpperCase();
+      attempts++;
+      const existingUser = await this.getUserByReferralCode(code);
+      if (!existingUser) break;
+    } while (attempts < maxAttempts);
+    
+    if (attempts >= maxAttempts) {
+      throw new Error("Failed to generate unique referral code");
+    }
+    
+    // Update user with the new referral code
+    const success = await this.setReferralCode(userId, code);
+    if (!success) {
+      throw new Error("Failed to set referral code");
+    }
+    
+    return code;
+  }
+
+  async setReferralCode(userId: string, code: string): Promise<boolean> {
+    try {
+      // Check if code is already taken by another user
+      const existingUser = await this.getUserByReferralCode(code);
+      if (existingUser && existingUser.id !== userId) {
+        return false;
+      }
+      
+      // Update user's referral code
+      const result = await this.db
+        .update(users)
+        .set({ referralCode: code })
+        .where(eq(users.id, userId))
+        .returning();
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error setting referral code:", error);
+      return false;
+    }
+  }
+
+  async getUserByReferralCode(code: string): Promise<User | undefined> {
+    try {
+      const result = await this.db
+        .select()
+        .from(users)
+        .where(eq(users.referralCode, code))
+        .limit(1);
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error getting user by referral code:", error);
+      return undefined;
+    }
+  }
+
+  async createReferral(referral: InsertReferral): Promise<Referral> {
+    try {
+      const result = await this.db
+        .insert(referrals)
+        .values(referral)
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error creating referral:", error);
+      throw new Error("Failed to create referral");
+    }
+  }
+
+  async getUserReferrals(userId: string): Promise<Referral[]> {
+    try {
+      const result = await this.db
+        .select()
+        .from(referrals)
+        .where(eq(referrals.referrerId, userId))
+        .orderBy(sql`${referrals.createdAt} DESC`);
+      
+      return result;
+    } catch (error) {
+      console.error("Error getting user referrals:", error);
+      return [];
+    }
+  }
+
+  async getReferralStats(userId: string): Promise<{ totalReferrals: number; totalCreditsEarned: number; pendingReferrals: number }> {
+    try {
+      const userReferrals = await this.getUserReferrals(userId);
+      const totalReferrals = userReferrals.length;
+      const totalCreditsEarned = userReferrals.reduce((sum, ref) => sum + ref.creditsAwarded, 0);
+      const pendingReferrals = userReferrals.filter(ref => !ref.isRewarded && ref.planUpgradeAt).length;
+      
+      return { totalReferrals, totalCreditsEarned, pendingReferrals };
+    } catch (error) {
+      console.error("Error getting referral stats:", error);
+      return { totalReferrals: 0, totalCreditsEarned: 0, pendingReferrals: 0 };
+    }
+  }
+
+  async awardReferralCredits(referralId: string, credits: number): Promise<boolean> {
+    try {
+      // Get the referral
+      const referralResult = await this.db
+        .select()
+        .from(referrals)
+        .where(eq(referrals.id, referralId))
+        .limit(1);
+      
+      if (referralResult.length === 0 || referralResult[0].isRewarded) {
+        return false;
+      }
+      
+      const referral = referralResult[0];
+      
+      // Update referral as rewarded
+      await this.db
+        .update(referrals)
+        .set({
+          creditsAwarded: credits,
+          isRewarded: true,
+          rewardedAt: new Date(),
+        })
+        .where(eq(referrals.id, referralId));
+      
+      // Add credits to referrer
+      return await this.addCreditsToUser(referral.referrerId, credits);
+    } catch (error) {
+      console.error("Error awarding referral credits:", error);
+      return false;
+    }
+  }
+
+  async addCreditsToUser(userId: string, credits: number): Promise<boolean> {
+    try {
+      // Get current user's credits used
+      const userResult = await this.db
+        .select({ creditsUsed: users.creditsUsed })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      
+      if (userResult.length === 0) return false;
+      
+      // Reduce credits used (effectively adding credits)
+      const newCreditsUsed = Math.max(0, userResult[0].creditsUsed - credits);
+      
+      const result = await this.db
+        .update(users)
+        .set({ creditsUsed: newCreditsUsed })
+        .where(eq(users.id, userId))
+        .returning();
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error adding credits to user:", error);
+      return false;
+    }
+  }
+
+  async updateReferral(referralId: string, updates: Partial<Referral>): Promise<boolean> {
+    try {
+      const result = await this.db
+        .update(referrals)
+        .set(updates)
+        .where(eq(referrals.id, referralId))
+        .returning();
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error updating referral:", error);
       return false;
     }
   }

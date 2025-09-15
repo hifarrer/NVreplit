@@ -9,12 +9,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Home as HomeIcon, Music, Video, User, LogOut, Menu, ChevronDown, HelpCircle } from "lucide-react";
+import { Home as HomeIcon, Music, Video, User, LogOut, Menu, ChevronDown, HelpCircle, Gift } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
 interface NavigationHeaderProps {
-  currentPage?: "home" | "songs" | "videos" | "characters" | "plans" | "profile";
+  currentPage?: "home" | "songs" | "videos" | "characters" | "plans" | "profile" | "referrals";
 }
 
 export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
@@ -27,6 +27,7 @@ export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
     { href: "/my-songs", label: "Songs", icon: <Music className="h-4 w-4" />, page: "songs" },
     { href: "/my-videos", label: "Videos", icon: <Video className="h-4 w-4" />, page: "videos" },
     { href: "/characters", label: "Characters", icon: <User className="h-4 w-4" />, page: "characters" },
+    { href: "/referrals", label: "Referrals", icon: <Gift className="h-4 w-4" />, page: "referrals" },
     { href: "/plans", label: "Plans", icon: <i className="fas fa-crown h-4 w-4"></i>, page: "plans" },
   ];
 
