@@ -23,9 +23,9 @@ export default function AuthPage() {
   const [referralCode, setReferralCode] = useState('');
 
   const handleGoogleLogin = () => {
-    // Preserve referral code during OAuth flow
+    // Preserve affiliate code during OAuth flow
     if (referralCode) {
-      localStorage.setItem('pending_referral_code', referralCode);
+      localStorage.setItem('pending_affiliate_code', referralCode);
     }
     window.location.href = '/api/auth/google';
   };
@@ -36,11 +36,11 @@ export default function AuthPage() {
     const token = urlParams.get('token');
     const userParam = urlParams.get('user');
     const oauthError = urlParams.get('error');
-    const refCode = urlParams.get('ref');
+    const affCode = urlParams.get('aff');
     
-    // Capture referral code from URL
-    if (refCode) {
-      setReferralCode(refCode);
+    // Capture affiliate code from URL
+    if (affCode) {
+      setReferralCode(affCode);
     }
 
     if (oauthError) {
@@ -55,26 +55,26 @@ export default function AuthPage() {
         // Set the token in auth context so user appears logged in
         setTokenOnly(token);
         
-        // CRITICAL FIX: Handle referral code after OAuth login
-        const storedReferralCode = localStorage.getItem('pending_referral_code');
-        if (storedReferralCode) {
-          // Process referral code for OAuth user
-          fetch('/api/process-oauth-referral', {
+        // CRITICAL FIX: Handle affiliate code after OAuth login
+        const storedAffiliateCode = localStorage.getItem('pending_affiliate_code');
+        if (storedAffiliateCode) {
+          // Process affiliate code for OAuth user
+          fetch('/api/process-oauth-affiliate', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ referralCode: storedReferralCode })
+            body: JSON.stringify({ affiliateCode: storedAffiliateCode })
           }).then(response => {
             if (!response.ok) {
-              console.error('Failed to process OAuth referral code');
+              console.error('Failed to process OAuth affiliate code');
             }
           }).catch(error => {
-            console.error('Error processing OAuth referral code:', error);
+            console.error('Error processing OAuth affiliate code:', error);
           }).finally(() => {
-            // Clean up stored referral code
-            localStorage.removeItem('pending_referral_code');
+            // Clean up stored affiliate code
+            localStorage.removeItem('pending_affiliate_code');
           });
         }
         

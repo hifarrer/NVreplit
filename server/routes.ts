@@ -278,13 +278,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "System configuration error. Please contact support." });
       }
       
-      // Check for referral code and validate if provided
-      let referrerId = null;
-      const { referralCode } = req.body;
-      if (referralCode) {
-        const referrer = await storage.getUserByReferralCode(referralCode);
-        if (referrer) {
-          referrerId = referrer.id;
+      // Check for affiliate code and validate if provided
+      let affiliateId = null;
+      let shouldAwardBonus = false;
+      const { affiliateCode } = req.body;
+      if (affiliateCode) {
+        const affiliate = await storage.getAffiliateByCode(affiliateCode.toLowerCase());
+        if (affiliate) {
+          affiliateId = affiliate.id;
+          shouldAwardBonus = true;
         }
       }
 
@@ -299,24 +301,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         avatarUrl: "/public-objects/public/avatars/anonymous.png",
         planId: freePlan.id, // ALWAYS assign free plan
         creditsUsed: 0,
-        referredBy: referrerId
+        bonusCredits: shouldAwardBonus ? 500 : 0
       });
       
-      // Create referral record if user was referred
-      if (referrerId) {
+      // Create affiliate signup record if user used affiliate code
+      if (affiliateId) {
         try {
-          await storage.createReferral({
-            referrerId,
-            referredUserId: user.id,
-            creditsAwarded: 0,
-            isRewarded: false,
-            rewardedAt: null,
-            planUpgradeAt: null
+          await storage.createAffiliateSignup({
+            affiliateId,
+            signupUserId: user.id,
+            bonusCreditsAwarded: 500,
+            isCreditsAwarded: true
           });
-          console.log(`Referral record created: ${referrerId} referred ${user.id}`);
-        } catch (referralError) {
-          console.error("Failed to create referral record:", referralError);
-          // Don't fail registration if referral record creation fails
+          console.log(`Affiliate signup record created: affiliate ${affiliateId} -> user ${user.id} with 500 bonus credits`);
+        } catch (affiliateError) {
+          console.error("Failed to create affiliate signup record:", affiliateError);
+          // Don't fail registration if affiliate record creation fails
         }
       }
       
@@ -808,6 +808,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Request affiliate payout error:", error);
       res.status(500).json({ error: "Failed to request payout" });
+    }
+  });
+
+  // Process affiliate code for OAuth users (secured endpoint) 
+  app.post("/api/process-oauth-affiliate", authenticateToken, async (req, res) => {
+    try {
+      const { affiliateCode } = req.body;
+      const userId = (req as any).user.userId;
+      
+      if (!affiliateCode) {
+        return res.status(400).json({ error: "Affiliate code is required" });
+      }
+      
+      // Get the user to check if they already have been credited
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Check if user already has bonus credits (prevent double-crediting)
+      if (user.bonusCredits && user.bonusCredits > 0) {
+        return res.status(400).json({ error: "User already has affiliate bonus credits" });
+      }
+      
+      // Find the affiliate by code
+      const affiliate = await storage.getAffiliateByCode(affiliateCode.toLowerCase());
+      if (!affiliate) {
+        return res.status(404).json({ error: "Invalid affiliate code" });
+      }
+      
+      // Prevent self-referral
+      if (affiliate.userId === userId) {
+        return res.status(400).json({ error: "Cannot refer yourself" });
+      }
+      
+      // Check if this user has already been tracked as a signup for this affiliate
+      const allSignups = await storage.getAffiliateSignups(affiliate.id);
+      const existingSignup = allSignups.find(signup => signup.signupUserId === userId);
+      if (existingSignup) {
+        return res.status(400).json({ error: "User already counted as affiliate signup" });
+      }
+      
+      // Award 500 bonus credits to the new user
+      await storage.updateUser(userId, { bonusCredits: 500 });
+      
+      // Create affiliate signup record
+      await storage.createAffiliateSignup({
+        affiliateId: affiliate.id,
+        signupUserId: userId,
+        bonusCreditsAwarded: 500
+      });
+      
+      console.log(`OAuth user ${userId} signed up via affiliate ${affiliate.userId} (code: ${affiliateCode}) and awarded 500 bonus credits`);
+      
+      res.json({ 
+        success: true, 
+        message: "Affiliate signup processed successfully! You received 500 bonus credits.",
+        bonusCredits: 500,
+        affiliateUsername: (await storage.getUser(affiliate.userId))?.username
+      });
+    } catch (error) {
+      console.error("Failed to process OAuth affiliate:", error);
+      res.status(500).json({ error: "Failed to process affiliate signup" });
     }
   });
 
