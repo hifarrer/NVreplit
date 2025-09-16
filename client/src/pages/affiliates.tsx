@@ -4,11 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy, DollarSign, Users, Share2, Edit2, Check, X, CreditCard } from "lucide-react";
+import { Copy, DollarSign, Users, Share2, Edit2, Check, X, CreditCard, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { NavigationHeader } from "@/components/navigation-header";
+import { Link } from "wouter";
 
 interface AffiliateSignup {
   id: string;
@@ -16,6 +17,7 @@ interface AffiliateSignup {
   bonusCreditsAwarded: number;
   isCreditsAwarded: boolean;
   createdAt: string;
+  username: string;
 }
 
 interface AffiliateEarning {
@@ -435,13 +437,24 @@ export default function AffiliatesPage() {
                   {signups.slice(0, 5).map((signup) => (
                     <div
                       key={signup.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                       data-testid={`card-signup-${signup.id}`}
                     >
-                      <div>
-                        <p className="font-medium">New Signup</p>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer flex items-center gap-1">
+                            <Link 
+                              href={`/u/${signup.username}`}
+                              className="flex items-center gap-1 hover:underline"
+                              data-testid={`link-user-${signup.signupUserId}`}
+                            >
+                              {signup.username}
+                              <ExternalLink className="h-3 w-3" />
+                            </Link>
+                          </p>
+                        </div>
                         <p className="text-sm text-muted-foreground">
-                          {format(new Date(signup.createdAt), "MMM dd, yyyy")}
+                          Signed up {format(new Date(signup.createdAt), "MMM dd, yyyy")}
                         </p>
                       </div>
                       <div className="text-right">

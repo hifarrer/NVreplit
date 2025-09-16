@@ -676,8 +676,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const payouts = await storage.getAffiliatePayouts(affiliate.id);
       const stats = await storage.getAffiliateStats(affiliate.id);
 
+      // Enrich signups with username data
+      const signupsWithUsernames = await Promise.all(
+        signups.map(async (signup) => {
+          const user = await storage.getUser(signup.signupUserId);
+          return {
+            ...signup,
+            username: user?.username || 'Unknown User'
+          };
+        })
+      );
+
       res.json({
-        signups,
+        signups: signupsWithUsernames,
         earnings,
         payouts,
         stats
