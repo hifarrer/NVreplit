@@ -278,15 +278,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "System configuration error. Please contact support." });
       }
       
-      // Check for affiliate code and validate if provided
+      // Check for affiliate code and validate if provided (support both referralCode and affiliateCode for compatibility)
       let affiliateId = null;
       let shouldAwardBonus = false;
-      const { affiliateCode } = req.body;
-      if (affiliateCode) {
-        const affiliate = await storage.getAffiliateByCode(affiliateCode.toLowerCase());
+      const { referralCode, affiliateCode } = req.body;
+      const codeToCheck = affiliateCode || referralCode; // Try affiliateCode first, then referralCode for backwards compatibility
+      
+      if (codeToCheck) {
+        const affiliate = await storage.getAffiliateByCode(codeToCheck.toLowerCase());
         if (affiliate) {
           affiliateId = affiliate.id;
           shouldAwardBonus = true;
+          console.log(`Direct registration: Found affiliate ${affiliate.id} for code "${codeToCheck}"`);
+        } else {
+          console.log(`Direct registration: No affiliate found for code "${codeToCheck}"`);
         }
       }
 
@@ -313,7 +318,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             bonusCreditsAwarded: 500,
             isCreditsAwarded: true
           });
-          console.log(`Affiliate signup record created: affiliate ${affiliateId} -> user ${user.id} with 500 bonus credits`);
+          console.log(`Direct registration affiliate signup: affiliate ${affiliateId} -> user ${user.id} with 500 bonus credits awarded`);
+          console.log(`Direct registration: User ${user.id} awarded 500 bonus credits via affiliate ${affiliateId}`);
         } catch (affiliateError) {
           console.error("Failed to create affiliate signup record:", affiliateError);
           // Don't fail registration if affiliate record creation fails
@@ -872,6 +878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       console.log(`OAuth user ${userId} signed up via affiliate ${affiliate.userId} (code: ${affiliateCode}) and awarded 500 bonus credits`);
+      console.log(`OAuth affiliate signup: User ${userId} awarded 500 bonus credits`);
       
       res.json({ 
         success: true, 
