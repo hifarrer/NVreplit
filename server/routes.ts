@@ -649,6 +649,168 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Affiliate endpoints
+  app.get("/api/affiliates", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      
+      // Check if user has an affiliate profile
+      const affiliate = await storage.getAffiliate(userId);
+      if (!affiliate) {
+        // Return empty data if user is not an affiliate
+        return res.json({
+          signups: [],
+          earnings: [],
+          payouts: [],
+          stats: {
+            totalSignups: 0,
+            totalEarnings: 0,
+            pendingBalance: 0,
+            totalPaidOut: 0
+          }
+        });
+      }
+
+      const signups = await storage.getAffiliateSignups(affiliate.id);
+      const earnings = await storage.getAffiliateEarnings(affiliate.id);
+      const payouts = await storage.getAffiliatePayouts(affiliate.id);
+      const stats = await storage.getAffiliateStats(affiliate.id);
+
+      res.json({
+        signups,
+        earnings,
+        payouts,
+        stats
+      });
+    } catch (error) {
+      console.error("Get affiliate data error:", error);
+      res.status(500).json({ error: "Failed to get affiliate data" });
+    }
+  });
+
+  app.get("/api/affiliates/profile", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      
+      // Check if user has an affiliate profile
+      let affiliate = await storage.getAffiliate(userId);
+      
+      if (!affiliate) {
+        // Auto-create affiliate profile for new users
+        const user = await storage.getUser(userId);
+        if (!user) {
+          return res.status(404).json({ error: "User not found" });
+        }
+
+        // Generate a unique affiliate code based on username
+        let affiliateCode = user.username.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (affiliateCode.length < 3) {
+          affiliateCode = affiliateCode + Math.random().toString(36).substring(2, 5);
+        }
+        
+        // Ensure uniqueness
+        let counter = 1;
+        let finalCode = affiliateCode;
+        while (await storage.getAffiliateByCode(finalCode)) {
+          finalCode = `${affiliateCode}${counter}`;
+          counter++;
+        }
+
+        affiliate = await storage.createAffiliate({
+          userId: userId,
+          affiliateCode: finalCode,
+          commissionRate: 30,
+          totalEarnings: 0,
+          totalPaidOut: 0,
+          paypalEmail: null,
+          isActive: true
+        });
+      }
+
+      res.json(affiliate);
+    } catch (error) {
+      console.error("Get affiliate profile error:", error);
+      res.status(500).json({ error: "Failed to get affiliate profile" });
+    }
+  });
+
+  app.post("/api/affiliates/code", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const { code } = req.body;
+      
+      if (!code || typeof code !== 'string' || code.length < 3 || code.length > 20) {
+        return res.status(400).json({ error: "Affiliate code must be between 3 and 20 characters" });
+      }
+      
+      // Check if code contains only alphanumeric characters
+      if (!/^[a-zA-Z0-9]+$/.test(code)) {
+        return res.status(400).json({ error: "Affiliate code can only contain letters and numbers" });
+      }
+      
+      const success = await storage.setAffiliateCode(userId, code.toLowerCase());
+      
+      if (!success) {
+        return res.status(400).json({ error: "Affiliate code is already taken" });
+      }
+      
+      res.json({ affiliateCode: code.toLowerCase() });
+    } catch (error) {
+      console.error("Set affiliate code error:", error);
+      res.status(500).json({ error: "Failed to set affiliate code" });
+    }
+  });
+
+  app.post("/api/affiliates/payout", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const { paypalEmail, requestedAmount } = req.body;
+      
+      if (!paypalEmail || typeof paypalEmail !== 'string') {
+        return res.status(400).json({ error: "PayPal email is required" });
+      }
+      
+      if (!requestedAmount || typeof requestedAmount !== 'number' || requestedAmount < 1000) {
+        return res.status(400).json({ error: "Minimum payout amount is $10.00" });
+      }
+      
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(paypalEmail)) {
+        return res.status(400).json({ error: "Invalid email format" });
+      }
+      
+      // Check if user has an affiliate profile
+      const affiliate = await storage.getAffiliate(userId);
+      if (!affiliate) {
+        return res.status(404).json({ error: "Affiliate profile not found" });
+      }
+      
+      // Check if user has sufficient balance
+      const stats = await storage.getAffiliateStats(affiliate.id);
+      if (stats.pendingBalance < requestedAmount) {
+        return res.status(400).json({ error: "Insufficient balance" });
+      }
+      
+      // Create payout request
+      const payout = await storage.createAffiliatePayout({
+        affiliateId: affiliate.id,
+        requestedAmount,
+        paypalEmail,
+        status: 'pending'
+      });
+      
+      res.json({ 
+        success: true, 
+        message: "Payout request submitted successfully",
+        payout
+      });
+    } catch (error) {
+      console.error("Request affiliate payout error:", error);
+      res.status(500).json({ error: "Failed to request payout" });
+    }
+  });
+
   // Handle Stripe payment success and award referral credits (secured endpoint)
   app.get("/api/stripe/payment-success/:sessionId", authenticateToken, async (req, res) => {
     try {
