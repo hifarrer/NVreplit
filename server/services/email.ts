@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import path from 'path';
 import { Transporter } from 'nodemailer';
 
 class EmailService {
@@ -228,7 +229,12 @@ This is an automated notification from neonvideo.ai
     }
 
     try {
-      const verificationUrl = `https://neonvideo.ai/verify-email?token=${userData.verificationToken}`;
+      // Use dynamic domain based on environment - prefer FRONTEND_URL if set
+      const baseUrl = process.env.FRONTEND_URL || 
+        (process.env.NODE_ENV === 'production' 
+          ? 'https://neonvideo.ai' 
+          : `http://localhost:${process.env.PORT || 5000}`);
+      const verificationUrl = `${baseUrl}/verify-email?token=${userData.verificationToken}`;
 
       await this.transporter.sendMail({
         from: `"neonvideo.ai" <${process.env.SMTP_USER}>`,
@@ -237,7 +243,7 @@ This is an automated notification from neonvideo.ai
         attachments: [
           {
             filename: 'neonvideo-logo.png',
-            path: require('path').join(process.cwd(), 'attached_assets', 'neonlogo_1756693683433.png'),
+            path: path.join(process.cwd(), 'attached_assets', 'neonlogo_1756693683433.png'),
             cid: 'neonvideo_logo'
           }
         ],
