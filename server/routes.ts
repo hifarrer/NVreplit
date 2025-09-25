@@ -1245,19 +1245,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes
   app.get("/api/admin/users", authenticateAdmin, async (req, res) => {
     try {
-      // Parse pagination parameters
+      // Parse pagination and filter parameters
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
       const limit = Math.max(1, Math.min(100, parseInt(req.query.limit as string) || 20)); // Default 20 per page, max 100
-      const offset = (page - 1) * limit;
+      const planFilter = req.query.plan as string;
 
       const allUsers = await storage.getAllUsers();
-      const totalCount = allUsers.length;
-      const totalPages = Math.ceil(totalCount / limit);
       
-      // Get paginated users
-      const paginatedUsers = allUsers.slice(offset, offset + limit);
-      
-      const usersWithStats = await Promise.all(paginatedUsers.map(async (user) => {
+      // Get users with stats first
+      const allUsersWithStats = await Promise.all(allUsers.map(async (user) => {
         const projects = await storage.getUserProjects(user.id);
         const songs = await storage.getSongs(user.id);
         const userWithPlan = await storage.getUserWithPlan(user.id);
@@ -1278,9 +1274,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           creditsLimit: userWithPlan?.plan?.credits || 0
         };
       }));
+
+      // Filter by plan if specified
+      const filteredUsers = planFilter ? 
+        allUsersWithStats.filter(user => user.planName === planFilter) : 
+        allUsersWithStats;
+
+      // Apply pagination to filtered results
+      const totalCount = filteredUsers.length;
+      const totalPages = Math.ceil(totalCount / limit);
+      const offset = (page - 1) * limit;
+      const paginatedUsers = filteredUsers.slice(offset, offset + limit);
       
       res.json({
-        users: usersWithStats,
+        users: paginatedUsers,
         pagination: {
           page,
           limit,

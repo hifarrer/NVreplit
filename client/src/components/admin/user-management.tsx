@@ -60,13 +60,21 @@ export function UserManagement() {
   const [bonusCreditsAmount, setBonusCreditsAmount] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
+  const [planFilter, setPlanFilter] = useState<string>("all");
 
   // Fetch users with auth header and pagination
   const { data: usersResponse, isLoading } = useQuery<UsersResponse>({
-    queryKey: ["/api/admin/users", currentPage, pageSize],
+    queryKey: ["/api/admin/users", currentPage, pageSize, planFilter],
     queryFn: async () => {
       const token = localStorage.getItem("adminToken");
-      const res = await fetch(`/api/admin/users?page=${currentPage}&limit=${pageSize}`, {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: pageSize.toString(),
+      });
+      if (planFilter !== "all") {
+        params.append("plan", planFilter);
+      }
+      const res = await fetch(`/api/admin/users?${params}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -78,6 +86,12 @@ export function UserManagement() {
 
   const users = usersResponse?.users || [];
   const pagination = usersResponse?.pagination;
+
+  // Handle plan filter change - reset to page 1
+  const handlePlanFilterChange = (value: string) => {
+    setPlanFilter(value);
+    setCurrentPage(1);
+  };
 
   // Fetch available plans
   const { data: plans } = useQuery<Plan[]>({
@@ -370,24 +384,48 @@ export function UserManagement() {
               Manage users, view their statistics, and perform administrative actions
             </CardDescription>
           </div>
-          <Button
-            onClick={handleExportCSV}
-            disabled={isExporting || !users?.length}
-            className="bg-green-600 hover:bg-green-700 text-white"
-            data-testid="button-export-users"
-          >
-            {isExporting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Exporting...
-              </>
-            ) : (
-              <>
-                <Download className="mr-2 h-4 w-4" />
-                Export CSV
-              </>
-            )}
-          </Button>
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
+              <Label className="text-sm text-gray-300">Filter by Plan:</Label>
+              <Select value={planFilter} onValueChange={handlePlanFilterChange}>
+                <SelectTrigger className="w-36 bg-gray-800/50 border-gray-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-600">
+                  <SelectItem value="all" className="text-white hover:bg-gray-700">
+                    All Plans
+                  </SelectItem>
+                  <SelectItem value="Free" className="text-white hover:bg-gray-700">
+                    Free
+                  </SelectItem>
+                  <SelectItem value="Basic" className="text-white hover:bg-gray-700">
+                    Basic
+                  </SelectItem>
+                  <SelectItem value="Premium" className="text-white hover:bg-gray-700">
+                    Premium
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={handleExportCSV}
+              disabled={isExporting || !users?.length}
+              className="bg-green-600 hover:bg-green-700 text-white"
+              data-testid="button-export-users"
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export CSV
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
