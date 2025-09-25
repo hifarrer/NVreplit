@@ -531,7 +531,7 @@ export default function ProfilePage() {
             </Card>
 
             {/* Subscription Management for Paid Users */}
-            {user?.plan && user?.plan?.name !== "Free" && subscriptionData?.hasSubscription && (
+            {user?.plan && user?.plan?.name !== "Free" && (
               <>
                 <Separator />
                 <Card>
@@ -549,19 +549,19 @@ export default function ProfilePage() {
                       {/* Subscription Status */}
                       <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                         <div className="flex items-center space-x-3">
-                          {subscriptionData.cancelAtPeriodEnd ? (
+                          {subscriptionData?.cancelAtPeriodEnd ? (
                             <XCircle className="h-5 w-5 text-orange-500" />
                           ) : (
                             <CheckCircle className="h-5 w-5 text-green-500" />
                           )}
                           <div>
                             <p className="font-medium">
-                              {subscriptionData.cancelAtPeriodEnd 
+                              {subscriptionData?.cancelAtPeriodEnd 
                                 ? "Subscription will cancel" 
                                 : `${user.plan.name} Plan Active`}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {subscriptionData.currentPeriodEnd 
+                              {subscriptionData?.currentPeriodEnd 
                                 ? `${subscriptionData.cancelAtPeriodEnd ? 'Ends' : 'Renews'} on ${new Date(subscriptionData.currentPeriodEnd).toLocaleDateString()}`
                                 : "Status: Active"
                               }
@@ -571,7 +571,7 @@ export default function ProfilePage() {
                       </div>
 
                       {/* Cancellation Notice */}
-                      {subscriptionData.cancelAtPeriodEnd && (
+                      {subscriptionData?.cancelAtPeriodEnd && (
                         <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
                           <AlertTriangle className="h-4 w-4" />
                           <AlertDescription>
@@ -581,8 +581,8 @@ export default function ProfilePage() {
                         </Alert>
                       )}
 
-                      {/* Cancel Subscription */}
-                      {!subscriptionData.cancelAtPeriodEnd && (
+                      {/* Cancel Subscription - only show if they have an active Stripe subscription */}
+                      {subscriptionData?.hasSubscription && !subscriptionData?.cancelAtPeriodEnd && (
                         <>
                           {!showCancelConfirm ? (
                             <Button
@@ -627,6 +627,17 @@ export default function ProfilePage() {
                             </div>
                           )}
                         </>
+                      )}
+
+                      {/* Notice for manually upgraded users */}
+                      {!subscriptionData?.hasSubscription && (
+                        <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>
+                            Your account was upgraded manually by an administrator. 
+                            To cancel or modify your subscription, please contact support.
+                          </AlertDescription>
+                        </Alert>
                       )}
                     </div>
                   </CardContent>
