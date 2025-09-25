@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star } from "lucide-react";
+import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star, ChevronLeft, ChevronRight } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Project } from "@shared/schema";
@@ -18,19 +18,33 @@ interface VideoWithUser extends Project {
   thumbnailUrl?: string | null;
 }
 
+interface VideosResponse {
+  videos: VideoWithUser[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalCount: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
 export function VideoManagement() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [editingVideo, setEditingVideo] = useState<VideoWithUser | null>(null);
   const [deletingVideo, setDeletingVideo] = useState<VideoWithUser | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20);
 
-  // Fetch all completed videos (projects with finalVideoUrl)
-  const { data: videos = [], isLoading } = useQuery<VideoWithUser[]>({
-    queryKey: ["/api/admin/videos"],
+  // Fetch all completed videos (projects with finalVideoUrl) with pagination
+  const { data: videosResponse, isLoading } = useQuery<VideosResponse>({
+    queryKey: ["/api/admin/videos", currentPage, pageSize],
     queryFn: async () => {
       const token = localStorage.getItem("adminToken");
-      const res = await fetch("/api/admin/videos", {
+      const res = await fetch(`/api/admin/videos?page=${currentPage}&limit=${pageSize}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -39,6 +53,9 @@ export function VideoManagement() {
       return res.json();
     },
   });
+
+  const videos = videosResponse?.videos || [];
+  const pagination = videosResponse?.pagination;
 
   // Update video mutation
   const updateVideoMutation = useMutation({
@@ -339,6 +356,45 @@ export function VideoManagement() {
               </CardContent>
             </Card>
           ))
+        )}
+
+        {/* Pagination Controls */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-600/20 mt-6">
+            <div className="text-sm text-gray-400">
+              Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.totalCount)} of {pagination.totalCount} videos
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(pagination.page - 1)}
+                disabled={!pagination.hasPrev}
+                className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                data-testid="button-prev-page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              
+              <span className="text-sm text-gray-300 px-2">
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(pagination.page + 1)}
+                disabled={!pagination.hasNext}
+                className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                data-testid="button-next-page"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         )}
       </div>
 

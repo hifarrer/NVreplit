@@ -1245,8 +1245,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes
   app.get("/api/admin/users", authenticateAdmin, async (req, res) => {
     try {
-      const users = await storage.getAllUsers();
-      const usersWithStats = await Promise.all(users.map(async (user) => {
+      // Parse pagination parameters
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.max(1, Math.min(100, parseInt(req.query.limit as string) || 20)); // Default 20 per page, max 100
+      const offset = (page - 1) * limit;
+
+      const allUsers = await storage.getAllUsers();
+      const totalCount = allUsers.length;
+      const totalPages = Math.ceil(totalCount / limit);
+      
+      // Get paginated users
+      const paginatedUsers = allUsers.slice(offset, offset + limit);
+      
+      const usersWithStats = await Promise.all(paginatedUsers.map(async (user) => {
         const projects = await storage.getUserProjects(user.id);
         const songs = await storage.getSongs(user.id);
         const userWithPlan = await storage.getUserWithPlan(user.id);
@@ -1267,7 +1278,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           creditsLimit: userWithPlan?.plan?.credits || 0
         };
       }));
-      res.json(usersWithStats);
+      
+      res.json({
+        users: usersWithStats,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      });
     } catch (error) {
       console.error("Admin get users error:", error);
       res.status(500).json({ error: "Failed to get users" });
@@ -1605,13 +1627,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin Video Management Routes
   app.get("/api/admin/videos", authenticateAdmin, async (req, res) => {
     try {
+      // Parse pagination parameters
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.max(1, Math.min(100, parseInt(req.query.limit as string) || 20)); // Default 20 per page, max 100
+      const offset = (page - 1) * limit;
+
       const allProjects = await storage.getAllVideosForAdmin();
       // Filter only completed videos (projects with finalVideoUrl)
       const videos = allProjects.filter(p => p.finalVideoUrl);
+      const totalCount = videos.length;
+      const totalPages = Math.ceil(totalCount / limit);
+      
+      // Get paginated videos
+      const paginatedVideos = videos.slice(offset, offset + limit);
       
       // Add user information and thumbnail to each video
       const videosWithUsers = await Promise.all(
-        videos.map(async (video) => {
+        paginatedVideos.map(async (video) => {
           const user = await storage.getUser(video.userId);
           
           // Get the last scene image if available
@@ -1639,7 +1671,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         })
       );
-      res.json(videosWithUsers);
+      
+      res.json({
+        videos: videosWithUsers,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      });
     } catch (error) {
       console.error("Get all videos error:", error);
       res.status(500).json({ error: "Failed to get videos" });

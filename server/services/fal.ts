@@ -14,7 +14,7 @@ export async function generateCharacterImageWavespeed(
   }
 
   // Enhanced prompt for Wavespeed.ai
-  const enhancedPrompt = `front shot of a ${prompt} in a plain black background`;
+  const enhancedPrompt = `front shot of a ${prompt} `;
 
   console.log(
     "Starting Wavespeed.ai character generation with prompt:",

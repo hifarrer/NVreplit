@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard, Mail, MailCheck, Download, Plus } from "lucide-react";
+import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard, Mail, MailCheck, Download, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -35,6 +35,18 @@ interface Plan {
   yearlyPrice: number;
 }
 
+interface UsersResponse {
+  users: UserWithStats[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalCount: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
 export function UserManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -46,13 +58,15 @@ export function UserManagement() {
   const [isExporting, setIsExporting] = useState(false);
   const [bonusCreditsUser, setBonusCreditsUser] = useState<UserWithStats | null>(null);
   const [bonusCreditsAmount, setBonusCreditsAmount] = useState<number>(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20);
 
-  // Fetch users with auth header
-  const { data: users, isLoading } = useQuery<UserWithStats[]>({
-    queryKey: ["/api/admin/users"],
+  // Fetch users with auth header and pagination
+  const { data: usersResponse, isLoading } = useQuery<UsersResponse>({
+    queryKey: ["/api/admin/users", currentPage, pageSize],
     queryFn: async () => {
       const token = localStorage.getItem("adminToken");
-      const res = await fetch("/api/admin/users", {
+      const res = await fetch(`/api/admin/users?page=${currentPage}&limit=${pageSize}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -61,6 +75,9 @@ export function UserManagement() {
       return res.json();
     },
   });
+
+  const users = usersResponse?.users || [];
+  const pagination = usersResponse?.pagination;
 
   // Fetch available plans
   const { data: plans } = useQuery<Plan[]>({
@@ -514,6 +531,45 @@ export function UserManagement() {
             </div>
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-600/20">
+            <div className="text-sm text-gray-400">
+              Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.totalCount)} of {pagination.totalCount} users
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(pagination.page - 1)}
+                disabled={!pagination.hasPrev}
+                className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                data-testid="button-prev-page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              
+              <span className="text-sm text-gray-300 px-2">
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(pagination.page + 1)}
+                disabled={!pagination.hasNext}
+                className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                data-testid="button-next-page"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
 
       {/* Edit User Dialog */}
