@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut, ExternalLink, CreditCard } from "lucide-react";
+import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut, ExternalLink, CreditCard, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -22,6 +22,7 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   // Get avatar options from API (handles production URLs)
   const { data: avatarData, isLoading: avatarsLoading, error: avatarsError } = useQuery<{ avatarOptions: Array<{ id: number; url: string; localUrl: string }> }>({
@@ -31,6 +32,18 @@ export default function ProfilePage() {
     retryDelay: 500, // Shorter delay
     refetchOnWindowFocus: false, // Don't refetch when window regains focus
     refetchOnMount: false, // Don't refetch on every mount
+  });
+
+  // Get subscription status for paid users
+  const { data: subscriptionData } = useQuery<{
+    hasSubscription: boolean;
+    status?: string;
+    currentPeriodEnd?: string;
+    cancelAtPeriodEnd?: boolean;
+  }>({
+    queryKey: ["/api/stripe/subscription-status"],
+    enabled: !!(user?.plan && user?.plan?.name !== "Free"),
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
   
   const avatarOptions = avatarData?.avatarOptions || [
@@ -126,6 +139,28 @@ export default function ProfilePage() {
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to update password",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const cancelSubscriptionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/stripe/cancel-subscription", {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stripe/subscription-status"] });
+      setShowCancelConfirm(false);
+      toast({
+        title: "Subscription Cancelled",
+        description: data.message || "Your subscription will be cancelled at the end of the current billing period.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to cancel subscription",
         variant: "destructive",
       });
     },
@@ -494,6 +529,110 @@ export default function ProfilePage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Subscription Management for Paid Users */}
+            {user?.plan && user?.plan?.name !== "Free" && subscriptionData?.hasSubscription && (
+              <>
+                <Separator />
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5" />
+                      Subscription Management
+                    </CardTitle>
+                    <CardDescription>
+                      Manage your subscription and billing settings
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {/* Subscription Status */}
+                      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          {subscriptionData.cancelAtPeriodEnd ? (
+                            <XCircle className="h-5 w-5 text-orange-500" />
+                          ) : (
+                            <CheckCircle className="h-5 w-5 text-green-500" />
+                          )}
+                          <div>
+                            <p className="font-medium">
+                              {subscriptionData.cancelAtPeriodEnd 
+                                ? "Subscription will cancel" 
+                                : `${user.plan.name} Plan Active`}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {subscriptionData.currentPeriodEnd 
+                                ? `${subscriptionData.cancelAtPeriodEnd ? 'Ends' : 'Renews'} on ${new Date(subscriptionData.currentPeriodEnd).toLocaleDateString()}`
+                                : "Status: Active"
+                              }
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Cancellation Notice */}
+                      {subscriptionData.cancelAtPeriodEnd && (
+                        <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>
+                            Your subscription is scheduled to cancel at the end of your current billing period. 
+                            You will retain access to your paid plan until then.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      {/* Cancel Subscription */}
+                      {!subscriptionData.cancelAtPeriodEnd && (
+                        <>
+                          {!showCancelConfirm ? (
+                            <Button
+                              variant="outline"
+                              className="w-full border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+                              onClick={() => setShowCancelConfirm(true)}
+                              data-testid="button-cancel-subscription"
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Cancel Subscription
+                            </Button>
+                          ) : (
+                            <div className="space-y-3">
+                              <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertDescription>
+                                  <strong>Are you sure you want to cancel your subscription?</strong>
+                                  <br />
+                                  Your subscription will remain active until the end of your current billing period, 
+                                  after which you'll be downgraded to the free plan.
+                                </AlertDescription>
+                              </Alert>
+                              <div className="flex space-x-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setShowCancelConfirm(false)}
+                                  className="flex-1"
+                                  data-testid="button-cancel-confirm-no"
+                                >
+                                  Keep Subscription
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => cancelSubscriptionMutation.mutate()}
+                                  disabled={cancelSubscriptionMutation.isPending}
+                                  className="flex-1"
+                                  data-testid="button-cancel-confirm-yes"
+                                >
+                                  {cancelSubscriptionMutation.isPending ? "Cancelling..." : "Yes, Cancel"}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
 
             <Separator />
             {/* Username Update */}
