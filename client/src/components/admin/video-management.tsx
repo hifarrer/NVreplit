@@ -288,7 +288,19 @@ export function VideoManagement() {
                       <div className="flex items-center gap-6 text-sm text-gray-400">
                         <div className="flex items-center gap-1">
                           <User className="h-3 w-3" />
-                          <span>{video.username || 'Unknown User'}</span>
+                          {video.username ? (
+                            <a
+                              href={`/u/${video.username}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-purple-400 hover:text-purple-300 hover:underline"
+                              data-testid={`user-link-${video.username}`}
+                            >
+                              {video.username}
+                            </a>
+                          ) : (
+                            <span>Unknown User</span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
