@@ -1672,7 +1672,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             ...video,
-            title: video.title === "My Music Video" ? (video.audioPrompt || video.title) : video.title,
+            title: video.title === "My Music Video" ? (video.audioPrompt ? video.audioPrompt.substring(0, 30) + (video.audioPrompt.length > 30 ? '...' : '') : video.title) : video.title,
             username: user?.username || 'Unknown User',
             thumbnailUrl
           };
@@ -2179,7 +2179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Format the response
       const videoData = {
         id: project.id,
-        title: project.title === "My Music Video" ? (project.audioPrompt || project.title) : project.title,
+        title: project.title === "My Music Video" ? (project.audioPrompt ? project.audioPrompt.substring(0, 30) + (project.audioPrompt.length > 30 ? '...' : '') : project.title) : project.title,
         videoUrl: project.finalVideoUrl,
         thumbnailUrl: project.characterImageUrl || null,
         createdAt: project.createdAt,
@@ -2217,7 +2217,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Format the response
       const publicVideos = videosWithFinal.map(project => ({
         id: project.id,
-        title: project.title === "My Music Video" ? (project.audioPrompt || project.title) : project.title,
+        title: project.title === "My Music Video" ? (project.audioPrompt ? project.audioPrompt.substring(0, 30) + (project.audioPrompt.length > 30 ? '...' : '') : project.title) : project.title,
         videoUrl: project.finalVideoUrl,
         thumbnailUrl: project.characterImageUrl || null,
         createdAt: project.createdAt,
@@ -2281,7 +2281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             id: project.id,
-            title: project.title === "My Music Video" ? (project.audioPrompt || project.title) : project.title,
+            title: project.title === "My Music Video" ? (project.audioPrompt ? project.audioPrompt.substring(0, 30) + (project.audioPrompt.length > 30 ? '...' : '') : project.title) : project.title,
             videoUrl: project.finalVideoUrl,
             thumbnailUrl,
             createdAt: project.createdAt,
