@@ -11,7 +11,7 @@ interface ChartData {
 interface StatsData {
   overview: {
     totalUsers: number;
-    totalProjects: number;
+    totalVideos: number;
     totalSongs: number;
     completedProjects: number;
   };
@@ -94,8 +94,8 @@ export function UsageStatistics() {
             <div className="flex items-center space-x-2">
               <Activity className="h-8 w-8 text-purple-400" />
               <div>
-                <p className="text-sm font-medium text-gray-300">Total Projects</p>
-                <p className="text-2xl font-bold text-white">{stats.overview.totalProjects}</p>
+                <p className="text-sm font-medium text-gray-300">Total Videos Created</p>
+                <p className="text-2xl font-bold text-white">{stats.overview.totalVideos}</p>
               </div>
             </div>
           </CardContent>

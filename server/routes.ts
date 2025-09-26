@@ -1441,7 +1441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Calculate stats
       const totalUsers = users.length;
-      const totalProjects = projects.length;
+      const totalVideos = projects.filter(p => p.finalVideoUrl).length; // Count only completed videos
       const totalSongs = songs.length;
       const completedProjects = projects.filter(p => p.isCompleted).length;
       
@@ -1461,7 +1461,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         overview: {
           totalUsers,
-          totalProjects,
+          totalVideos,
           totalSongs,
           completedProjects
         },
