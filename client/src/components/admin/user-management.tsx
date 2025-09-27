@@ -446,7 +446,15 @@ export function UserManagement() {
                 
                 <div className="space-y-1">
                   <div className="flex items-center space-x-2">
-                    <h3 className="font-medium text-white">{user.username}</h3>
+                    <a
+                      href={`/u/${user.username}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-purple-400 hover:text-purple-300 hover:underline"
+                      data-testid={`user-link-${user.username}`}
+                    >
+                      {user.username}
+                    </a>
                     <Badge variant="outline" className="border-purple-500/30 text-purple-300">
                       {user.email}
                     </Badge>
