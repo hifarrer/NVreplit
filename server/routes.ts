@@ -2262,7 +2262,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create hash-based ordering for stable randomization
       const videosWithHash = completedVideos.map(project => {
         // Create a hash using project ID and seed for stable randomization
-        const crypto = require('crypto');
         const hash = crypto.createHash('md5').update(project.id + seed).digest('hex');
         return { ...project, hash };
       });
