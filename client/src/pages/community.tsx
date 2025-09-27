@@ -525,9 +525,9 @@ export default function CommunityPage() {
                 
                 {/* Video Controls Overlay - Only show for current video */}
                 {isCurrent && (
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
-                    <div className="flex items-center gap-4">
-                      {/* Play/Pause Button */}
+                  <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-300 group">
+                    {/* Play/Pause Button - Center */}
+                    <div className="absolute inset-0 flex items-center justify-center">
                       <Button
                         onClick={handlePlayPauseToggle}
                         variant="ghost"
