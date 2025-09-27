@@ -2237,6 +2237,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get community videos with seeded randomization (no auth required)
+  app.get("/api/community/videos", async (req, res) => {
+    try {
+      const seed = req.query.seed as string || 'default';
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 50); // Max 50 items per request
+      const afterHash = req.query.afterHash as string;
+      const afterId = req.query.afterId as string;
+      const excludeUserId = req.query.excludeUserId as string | undefined;
+
+      // Get all completed projects with final videos from all users
+      const allProjects = await storage.getAllVideosForAdmin();
+      
+      // Filter for completed videos only (not just featured like trending)
+      const completedVideos = allProjects.filter(p => {
+        // Filter out videos from excluded user if specified
+        if (excludeUserId && p.userId === excludeUserId) {
+          return false;
+        }
+        // Only show completed videos with finalVideoUrl (public videos)
+        return p.isCompleted && p.finalVideoUrl;
+      });
+
+      // Create hash-based ordering for stable randomization
+      const videosWithHash = completedVideos.map(project => {
+        // Create a hash using project ID and seed for stable randomization
+        const crypto = require('crypto');
+        const hash = crypto.createHash('md5').update(project.id + seed).digest('hex');
+        return { ...project, hash };
+      });
+
+      // Apply keyset pagination if afterHash and afterId are provided
+      let filteredVideos = videosWithHash;
+      if (afterHash && afterId) {
+        filteredVideos = videosWithHash.filter(video => 
+          video.hash > afterHash || (video.hash === afterHash && video.id > afterId)
+        );
+      }
+
+      // Sort by hash for randomization, then by id for consistent tie-breaking
+      const sortedVideos = filteredVideos
+        .sort((a, b) => {
+          if (a.hash !== b.hash) {
+            return a.hash.localeCompare(b.hash);
+          }
+          return a.id.localeCompare(b.id);
+        })
+        .slice(0, limit);
+
+      // Format the response with user info
+      const communityVideos = await Promise.all(
+        sortedVideos.map(async (project) => {
+          // Get the user info for each video
+          const user = await storage.getUser(project.userId);
+          
+          // Get thumbnail from scene data or character image
+          let thumbnailUrl = null;
+          if (project.sceneData) {
+            try {
+              const scenes = typeof project.sceneData === 'string' 
+                ? JSON.parse(project.sceneData) 
+                : project.sceneData;
+              
+              if (Array.isArray(scenes) && scenes.length > 0) {
+                const lastScene = scenes[scenes.length - 1];
+                thumbnailUrl = lastScene.imageUrl || null;
+              }
+            } catch (e) {
+              // Silently handle parse errors
+            }
+          }
+          
+          // Fallback to character image if no scene thumbnail
+          if (!thumbnailUrl) {
+            thumbnailUrl = project.characterImageUrl || null;
+          }
+          
+          return {
+            id: project.id,
+            title: project.title === "My Music Video" ? (project.audioPrompt ? project.audioPrompt.substring(0, 30) + (project.audioPrompt.length > 30 ? '...' : '') : project.title) : project.title,
+            videoUrl: project.finalVideoUrl,
+            thumbnailUrl,
+            createdAt: project.createdAt,
+            duration: project.audioDuration || 30,
+            hash: project.hash,
+            creator: {
+              id: user?.id || project.userId,
+              username: user?.username || 'Unknown User',
+              avatarUrl: user?.avatarUrl || null
+            }
+          };
+        })
+      );
+
+      // Prepare pagination info
+      const hasMore = sortedVideos.length === limit;
+      const nextAfterHash = hasMore ? sortedVideos[sortedVideos.length - 1].hash : null;
+      const nextAfterId = hasMore ? sortedVideos[sortedVideos.length - 1].id : null;
+      
+      res.json({
+        videos: communityVideos,
+        pagination: {
+          hasMore,
+          nextAfterHash,
+          nextAfterId
+        }
+      });
+    } catch (error) {
+      console.error("Get community videos error:", error);
+      res.status(500).json({ error: "Failed to get community videos" });
+    }
+  });
+
   // Get trending/public videos (no auth required)
   app.get("/api/trending-videos", async (req, res) => {
     try {
