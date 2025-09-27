@@ -16,7 +16,9 @@ import {
   Send,
   Trash2,
   ChevronUp,
-  ChevronDown 
+  ChevronDown,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import { Link } from "wouter";
 import { format, formatDistanceToNow } from "date-fns";
@@ -79,6 +81,7 @@ export default function CommunityPage() {
   const [newComment, setNewComment] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [commentProfanityCheck, setCommentProfanityCheck] = useState<ProfanityCheckResult | null>(null);
+  const [isMuted, setIsMuted] = useState(true);
 
   const feedContainerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement }>({});
@@ -328,6 +331,17 @@ export default function CommunityPage() {
     }
   };
 
+  // Handle mute toggle
+  const handleMuteToggle = () => {
+    setIsMuted(!isMuted);
+    
+    // Update current video element immediately
+    const currentVideoElement = currentVideo ? videoRefs.current[currentVideo.id] : null;
+    if (currentVideoElement) {
+      currentVideoElement.muted = !isMuted;
+    }
+  };
+
   // Auto-play/pause video management
   useEffect(() => {
     const currentVideoElement = currentVideo ? videoRefs.current[currentVideo.id] : null;
@@ -342,12 +356,12 @@ export default function CommunityPage() {
 
     // Play current video
     if (currentVideoElement) {
-      currentVideoElement.muted = true; // Required for autoplay
+      currentVideoElement.muted = isMuted;
       currentVideoElement.play().catch(() => {
         // Handle autoplay failure silently
       });
     }
-  }, [currentIndex, currentVideo]);
+  }, [currentIndex, currentVideo, isMuted]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -465,9 +479,9 @@ export default function CommunityPage() {
                   if (el) videoRefs.current[video.id] = el;
                 }}
                 src={video.videoUrl}
-                className="w-full h-full object-contain"
+                className="max-w-[800px] h-auto max-h-full object-contain mx-auto"
                 loop
-                muted
+                muted={isMuted}
                 playsInline
                 preload={isCurrent ? "auto" : "metadata"}
                 data-testid={`video-element-${video.id}`}
@@ -566,6 +580,16 @@ export default function CommunityPage() {
                         data-testid="button-share-video"
                       >
                         <Share2 className="h-6 w-6" />
+                      </Button>
+
+                      <Button
+                        onClick={handleMuteToggle}
+                        variant="ghost"
+                        size="lg"
+                        className="w-14 h-14 rounded-full bg-white/20 hover:bg-white/30 text-white"
+                        data-testid="button-mute-toggle"
+                      >
+                        {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
                       </Button>
                     </div>
                   </div>
