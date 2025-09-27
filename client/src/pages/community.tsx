@@ -82,6 +82,7 @@ export default function CommunityPage() {
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [commentProfanityCheck, setCommentProfanityCheck] = useState<ProfanityCheckResult | null>(null);
   const [isMuted, setIsMuted] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(true);
 
   const feedContainerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement }>({});
@@ -342,6 +343,31 @@ export default function CommunityPage() {
     }
   };
 
+  // Handle play/pause toggle
+  const handlePlayPauseToggle = () => {
+    const currentVideoElement = currentVideo ? videoRefs.current[currentVideo.id] : null;
+    if (currentVideoElement) {
+      if (isPlaying) {
+        currentVideoElement.pause();
+        setIsPlaying(false);
+      } else {
+        currentVideoElement.play().catch(() => {
+          // Handle play failure silently
+        });
+        setIsPlaying(true);
+      }
+    }
+  };
+
+  // Handle comments button click
+  const handleCommentsClick = () => {
+    // Scroll to comments section
+    const commentsSection = document.querySelector('[data-testid="comments-section"]');
+    if (commentsSection) {
+      commentsSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   // Auto-play/pause video management
   useEffect(() => {
     const currentVideoElement = currentVideo ? videoRefs.current[currentVideo.id] : null;
@@ -354,14 +380,20 @@ export default function CommunityPage() {
       }
     });
 
-    // Play current video
-    if (currentVideoElement) {
+    // Play current video if isPlaying is true
+    if (currentVideoElement && isPlaying) {
       currentVideoElement.muted = isMuted;
       currentVideoElement.play().catch(() => {
         // Handle autoplay failure silently
+        setIsPlaying(false);
       });
     }
-  }, [currentIndex, currentVideo, isMuted]);
+  }, [currentIndex, currentVideo, isMuted, isPlaying]);
+
+  // Reset playing state when changing videos
+  useEffect(() => {
+    setIsPlaying(true);
+  }, [currentIndex]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -561,6 +593,7 @@ export default function CommunityPage() {
                       </Button>
 
                       <Button
+                        onClick={handleCommentsClick}
                         variant="ghost"
                         size="lg"
                         className="w-14 h-14 rounded-full bg-white/20 hover:bg-white/30 text-white"
@@ -591,11 +624,21 @@ export default function CommunityPage() {
                       >
                         {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
                       </Button>
+
+                      <Button
+                        onClick={handlePlayPauseToggle}
+                        variant="ghost"
+                        size="lg"
+                        className="w-14 h-14 rounded-full bg-white/20 hover:bg-white/30 text-white"
+                        data-testid="button-play-pause"
+                      >
+                        {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+                      </Button>
                     </div>
                   </div>
 
                   {/* Comments Section */}
-                  <div className="mt-6 max-h-60 overflow-y-auto">
+                  <div className="mt-6 max-h-60 overflow-y-auto" data-testid="comments-section">
                     {comments.length > 0 && (
                       <div className="space-y-3 mb-4">
                         {comments.slice(0, 3).map((comment) => (
