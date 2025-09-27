@@ -257,7 +257,14 @@ export default function CommunityPage() {
   };
 
   // Handle like toggle
-  const handleLikeToggle = () => {
+  const handleLikeToggle = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
+    
+    // Prevent multiple clicks while mutations are pending
+    if (likeMutation.isPending || unlikeMutation.isPending) {
+      return;
+    }
+    
     if (!isAuthenticated) {
       toast({
         title: "Sign in required",
