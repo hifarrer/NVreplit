@@ -333,7 +333,8 @@ export default function CommunityPage() {
   };
 
   // Handle mute toggle
-  const handleMuteToggle = () => {
+  const handleMuteToggle = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
     setIsMuted(!isMuted);
     
     // Update current video element immediately
@@ -344,7 +345,8 @@ export default function CommunityPage() {
   };
 
   // Handle play/pause toggle
-  const handlePlayPauseToggle = () => {
+  const handlePlayPauseToggle = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
     const currentVideoElement = currentVideo ? videoRefs.current[currentVideo.id] : null;
     if (currentVideoElement) {
       if (isPlaying) {
@@ -360,7 +362,8 @@ export default function CommunityPage() {
   };
 
   // Handle comments button click
-  const handleCommentsClick = () => {
+  const handleCommentsClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
     // Scroll to comments section
     const commentsSection = document.querySelector('[data-testid="comments-section"]');
     if (commentsSection) {
@@ -506,18 +509,51 @@ export default function CommunityPage() {
               data-testid={`community-video-${video.id}`}
             >
               {/* Video Player */}
-              <video
-                ref={(el) => {
-                  if (el) videoRefs.current[video.id] = el;
-                }}
-                src={video.videoUrl}
-                className="max-w-[800px] h-auto max-h-full object-contain mx-auto"
-                loop
-                muted={isMuted}
-                playsInline
-                preload={isCurrent ? "auto" : "metadata"}
-                data-testid={`video-element-${video.id}`}
-              />
+              <div className="relative max-w-[800px] h-auto max-h-full mx-auto">
+                <video
+                  ref={(el) => {
+                    if (el) videoRefs.current[video.id] = el;
+                  }}
+                  src={video.videoUrl}
+                  className="w-full h-auto max-h-full object-contain"
+                  loop
+                  muted={isMuted}
+                  playsInline
+                  preload={isCurrent ? "auto" : "metadata"}
+                  data-testid={`video-element-${video.id}`}
+                />
+                
+                {/* Video Controls Overlay - Only show for current video */}
+                {isCurrent && (
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
+                    <div className="flex items-center gap-4">
+                      {/* Play/Pause Button */}
+                      <Button
+                        onClick={handlePlayPauseToggle}
+                        variant="ghost"
+                        size="lg"
+                        className="w-16 h-16 rounded-full bg-black/60 hover:bg-black/80 text-white"
+                        data-testid="button-play-pause-overlay"
+                      >
+                        {isPlaying ? <Pause className="h-8 w-8" /> : <Play className="h-8 w-8" />}
+                      </Button>
+                    </div>
+                    
+                    {/* Mute Button - Bottom right corner */}
+                    <div className="absolute bottom-4 right-4">
+                      <Button
+                        onClick={handleMuteToggle}
+                        variant="ghost"
+                        size="lg"
+                        className="w-12 h-12 rounded-full bg-black/60 hover:bg-black/80 text-white"
+                        data-testid="button-mute-toggle-overlay"
+                      >
+                        {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Navigation Arrows */}
               {currentIndex > 0 && (
@@ -615,25 +651,6 @@ export default function CommunityPage() {
                         <Share2 className="h-6 w-6" />
                       </Button>
 
-                      <Button
-                        onClick={handleMuteToggle}
-                        variant="ghost"
-                        size="lg"
-                        className="w-14 h-14 rounded-full bg-white/20 hover:bg-white/30 text-white"
-                        data-testid="button-mute-toggle"
-                      >
-                        {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
-                      </Button>
-
-                      <Button
-                        onClick={handlePlayPauseToggle}
-                        variant="ghost"
-                        size="lg"
-                        className="w-14 h-14 rounded-full bg-white/20 hover:bg-white/30 text-white"
-                        data-testid="button-play-pause"
-                      >
-                        {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
-                      </Button>
                     </div>
                   </div>
 
