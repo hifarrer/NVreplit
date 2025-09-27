@@ -319,7 +319,8 @@ export default function CommunityPage() {
   };
 
   // Handle share
-  const handleShare = () => {
+  const handleShare = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
     if (!currentVideo) return;
     
     const shareUrl = `${window.location.origin}/v/${currentVideo.id}`;
@@ -548,7 +549,7 @@ export default function CommunityPage() {
                       </Button>
                     </div>
                     
-                    {/* Mute Button - Bottom right corner */}
+                    {/* Mute Button - Top right corner */}
                     <div className="absolute top-4 right-4 pointer-events-auto">
                       <Button
                         onClick={handleMuteToggle}
@@ -559,6 +560,45 @@ export default function CommunityPage() {
                       >
                         {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
                       </Button>
+                    </div>
+                    
+                    {/* Action Buttons - Bottom center */}
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto">
+                      <div className="flex items-center gap-4">
+                        <Button
+                          onClick={handleLikeToggle}
+                          variant="ghost"
+                          size="sm"
+                          className={`flex items-center gap-2 rounded-full px-4 py-2 ${likeStatus?.liked 
+                            ? 'bg-red-500 hover:bg-red-600 text-white' 
+                            : 'bg-black/60 hover:bg-black/80 text-white'} pointer-events-auto`}
+                          data-testid="button-like-video-overlay"
+                        >
+                          <ThumbsUp className="h-4 w-4" />
+                          <span className="text-sm">{likeStatus?.likesCount || 0}</span>
+                        </Button>
+
+                        <Button
+                          onClick={handleCommentsClick}
+                          variant="ghost"
+                          size="sm"
+                          className="flex items-center gap-2 rounded-full px-4 py-2 bg-black/60 hover:bg-black/80 text-white pointer-events-auto"
+                          data-testid="button-comments-toggle-overlay"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                          <span className="text-sm">{comments.length}</span>
+                        </Button>
+
+                        <Button
+                          onClick={handleShare}
+                          variant="ghost"
+                          size="sm"
+                          className="flex items-center gap-2 rounded-full px-4 py-2 bg-black/60 hover:bg-black/80 text-white pointer-events-auto"
+                          data-testid="button-share-video-overlay"
+                        >
+                          <Share2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -589,8 +629,8 @@ export default function CommunityPage() {
               {isCurrent && (
                 <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
                   <div className="flex items-end justify-between">
-                    {/* Left side - Video info */}
-                    <div className="flex-1 mr-4">
+                    {/* Video info */}
+                    <div className="flex-1">
                       <h2 className="text-xl font-bold text-white mb-2 line-clamp-2">
                         {video.title}
                       </h2>
@@ -614,52 +654,6 @@ export default function CommunityPage() {
                           </p>
                         </div>
                       </div>
-                    </div>
-
-                    {/* Right side - Action buttons */}
-                    <div className="flex flex-col gap-4">
-                      <Button
-                        onClick={handleLikeToggle}
-                        variant="ghost"
-                        size="lg"
-                        className={`w-14 h-14 rounded-full ${
-                          likeStatus?.liked 
-                            ? 'bg-red-500 hover:bg-red-600 text-white' 
-                            : 'bg-white/20 hover:bg-white/30 text-white'
-                        }`}
-                        data-testid="button-like-video"
-                      >
-                        <div className="flex flex-col items-center">
-                          <ThumbsUp className="h-6 w-6" />
-                          <span className="text-xs mt-1">
-                            {likeStatus?.likesCount || 0}
-                          </span>
-                        </div>
-                      </Button>
-
-                      <Button
-                        onClick={handleCommentsClick}
-                        variant="ghost"
-                        size="lg"
-                        className="w-14 h-14 rounded-full bg-white/20 hover:bg-white/30 text-white"
-                        data-testid="button-comments-toggle"
-                      >
-                        <div className="flex flex-col items-center">
-                          <MessageCircle className="h-6 w-6" />
-                          <span className="text-xs mt-1">{comments.length}</span>
-                        </div>
-                      </Button>
-
-                      <Button
-                        onClick={handleShare}
-                        variant="ghost"
-                        size="lg"
-                        className="w-14 h-14 rounded-full bg-white/20 hover:bg-white/30 text-white"
-                        data-testid="button-share-video"
-                      >
-                        <Share2 className="h-6 w-6" />
-                      </Button>
-
                     </div>
                   </div>
 
