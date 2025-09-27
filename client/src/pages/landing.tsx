@@ -90,6 +90,11 @@ export default function LandingPage() {
                 </>
               ) : (
                 <>
+                  <Link href="/community">
+                    <Button variant="ghost" size="sm">
+                      Community
+                    </Button>
+                  </Link>
                   <Link href="/auth">
                     <Button variant="ghost" size="sm">
                       Sign In
