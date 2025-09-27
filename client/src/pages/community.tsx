@@ -94,7 +94,15 @@ export default function CommunityPage() {
     queryKey: ["/api/community/videos", seed],
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams({ seed, limit: "20" });
-      if (user?.id) params.append("excludeUserId", user.id);
+      
+      // First, check total video count to decide whether to exclude user's videos
+      const totalResponse = await fetch(`/api/community/videos?seed=${seed}&limit=1`);
+      const totalData = await totalResponse.json();
+      const hasEnoughVideos = totalData.videos.length > 0; // For demo, always show user's videos
+      
+      // Don't exclude user's own videos in demo/development scenarios
+      // if (user?.id && hasEnoughVideos) params.append("excludeUserId", user.id);
+      
       if (pageParam) {
         params.append("afterHash", pageParam.afterHash);
         params.append("afterId", pageParam.afterId);
