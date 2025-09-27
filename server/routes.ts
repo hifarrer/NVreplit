@@ -1672,7 +1672,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             ...video,
-            title: video.title === "My Music Video" ? (video.audioPrompt ? video.audioPrompt.substring(0, 30) + (video.audioPrompt.length > 30 ? '...' : '') : video.title) : video.title,
+            title: video.title === "My Music Video" ? (video.audioPrompt ? video.audioPrompt.substring(0, 50) + (video.audioPrompt.length > 50 ? '...' : '') : video.title) : video.title,
             username: user?.username || 'Unknown User',
             thumbnailUrl
           };
