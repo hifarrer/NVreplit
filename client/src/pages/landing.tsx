@@ -77,6 +77,11 @@ export default function LandingPage() {
                       My Videos
                     </Button>
                   </Link>
+                  <Link href="/community">
+                    <Button variant="ghost" size="sm">
+                      Community
+                    </Button>
+                  </Link>
                   <Link href="/profile">
                     <Button variant="ghost" size="sm">
                       Profile
