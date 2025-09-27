@@ -24,7 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { checkProfanity, getCategoryMessage, type ProfanityCheckResult } from "@/lib/profanity-filter";
-import NavigationHeader from "@/components/navigation-header";
+import { NavigationHeader } from "@/components/navigation-header";
 
 interface CommunityVideo {
   id: string;

@@ -17,7 +17,7 @@ interface NavigationHeaderProps {
   currentPage?: "home" | "songs" | "videos" | "characters" | "community" | "plans" | "profile";
 }
 
-export default function NavigationHeader({ currentPage }: NavigationHeaderProps) {
+export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
