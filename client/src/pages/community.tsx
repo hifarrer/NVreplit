@@ -95,7 +95,7 @@ export default function CommunityPage() {
     isLoading,
   } = useInfiniteQuery<CommunityResponse>({
     queryKey: ["/api/community/videos", seed],
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam }: { pageParam?: { afterHash: string; afterId: string } }) => {
       const params = new URLSearchParams({ seed, limit: "20" });
       
       // First, check total video count to decide whether to exclude user's videos
@@ -446,7 +446,7 @@ export default function CommunityPage() {
         className="h-[calc(100vh-4rem)] overflow-y-auto snap-y snap-mandatory scroll-smooth"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
-        <style jsx>{`
+        <style>{`
           div::-webkit-scrollbar {
             display: none;
           }
