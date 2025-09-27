@@ -525,16 +525,16 @@ export default function CommunityPage() {
                 
                 {/* Video Controls Overlay - Only show for current video */}
                 {isCurrent && (
-                  <div className={`absolute inset-0 transition-opacity duration-300 group ${
+                  <div className={`absolute inset-0 transition-opacity duration-300 group z-20 pointer-events-none ${
                     !isPlaying ? 'opacity-100' : 'opacity-0 hover:opacity-100'
                   }`}>
                     {/* Play/Pause Button - Center */}
-                    <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
                       <Button
                         onClick={handlePlayPauseToggle}
                         variant="ghost"
                         size="lg"
-                        className="w-16 h-16 rounded-full bg-black/60 hover:bg-black/80 text-white"
+                        className="w-16 h-16 rounded-full bg-black/60 hover:bg-black/80 text-white pointer-events-auto"
                         data-testid="button-play-pause-overlay"
                       >
                         {isPlaying ? <Pause className="h-8 w-8" /> : <Play className="h-8 w-8" />}
@@ -542,12 +542,12 @@ export default function CommunityPage() {
                     </div>
                     
                     {/* Mute Button - Bottom right corner */}
-                    <div className="absolute bottom-4 right-4">
+                    <div className="absolute top-4 right-4 pointer-events-auto">
                       <Button
                         onClick={handleMuteToggle}
                         variant="ghost"
                         size="lg"
-                        className="w-12 h-12 rounded-full bg-black/60 hover:bg-black/80 text-white"
+                        className="w-12 h-12 rounded-full bg-black/60 hover:bg-black/80 text-white pointer-events-auto"
                         data-testid="button-mute-toggle-overlay"
                       >
                         {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
