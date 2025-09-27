@@ -13,6 +13,7 @@ import CharactersPage from "@/pages/characters";
 import ProfilePage from "@/pages/profile";
 import PublicProfilePage from "@/pages/public-profile";
 import VideoPage from "@/pages/video-page";
+import CommunityPage from "@/pages/community";
 import AdminLogin from "@/pages/admin-login";
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminPlans from "@/pages/admin-plans";
@@ -72,6 +73,7 @@ function AppRouter() {
       <Route path="/affiliates" component={() => <ProtectedRoute component={AffiliatesPage} />} />
       <Route path="/u/:username" component={PublicProfilePage} />
       <Route path="/v/:videoId" component={VideoPage} />
+      <Route path="/community" component={CommunityPage} />
       <Route path="/plans" component={PlansPage} />
       <Route path="/payment-success" component={() => <ProtectedRoute component={PaymentSuccessPage} />} />
       <Route path="/privacy" component={PrivacyPage} />
