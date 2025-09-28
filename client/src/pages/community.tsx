@@ -485,7 +485,7 @@ export default function CommunityPage() {
                 
                 {/* Video Controls Overlay - Only show for current video */}
                 {isCurrent && (
-                  <div className="absolute inset-0 transition-opacity duration-300 group z-20 pointer-events-none opacity-0 hover:opacity-100">
+                  <div className="absolute inset-0 transition-opacity duration-300 group z-20 pointer-events-none opacity-70 hover:opacity-100">
                     {/* Bottom Controls - Social Actions Only */}
                     <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center gap-4 bg-black/50 backdrop-blur-sm rounded-full px-6 py-3 pointer-events-auto">
                       {/* Like Button */}
