@@ -35,19 +35,26 @@ function normalizeVideoUrl(videoUrl: string): string {
   // For relative URLs, construct full URL using the current domain
   let baseUrl: string;
   
-  if (process.env.REPLIT_DOMAIN) {
-    baseUrl = `https://${process.env.REPLIT_DOMAIN}`;
+  // Try to get the domain from various sources
+  if (process.env.REPLIT_DEV_DOMAIN) {
+    baseUrl = `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  } else if (process.env.REPLIT_DOMAINS) {
+    baseUrl = `https://${process.env.REPLIT_DOMAINS}`;
+  } else if (process.env.REPL_ID) {
+    // Use Replit's UUID-based domain format
+    baseUrl = `https://${process.env.REPL_ID}-5000.id.replit.app`;
   } else if (process.env.NODE_ENV === 'production') {
     // Production domain for neonvideo.ai
-    baseUrl = 'http://neonvideo.ai';
+    baseUrl = 'https://neonvideo.ai';
   } else {
-    // Development fallback
+    // Development fallback - use localhost (won't work for Mux but helps debug)
     baseUrl = 'http://localhost:5000';
   }
     
   // Remove leading slash if present to avoid double slashes
   const cleanPath = videoUrl.startsWith('/') ? videoUrl.slice(1) : videoUrl;
   
+  console.log(`Normalizing video URL: ${videoUrl} -> ${baseUrl}/${cleanPath}`);
   return `${baseUrl}/${cleanPath}`;
 }
 

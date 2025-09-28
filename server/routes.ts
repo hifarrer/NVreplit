@@ -4679,6 +4679,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create Mux asset for specific project (temporary fix)
+  app.post("/api/projects/:id/create-mux-asset", async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project || !project.finalVideoUrl) {
+        return res.status(404).json({ error: "Project not found or no video available" });
+      }
+
+      await createMuxAssetForVideo(req.params.id, project.finalVideoUrl);
+      res.json({ message: "Mux asset creation queued", projectId: req.params.id });
+    } catch (error) {
+      console.error("Create Mux asset error:", error);
+      res.status(500).json({ error: "Failed to create Mux asset" });
+    }
+  });
+
   // Migrate single video to Mux for testing
   app.post("/api/admin/migrate-single-video-to-mux", authenticateToken, async (req, res) => {
     try {
