@@ -171,7 +171,7 @@ export default function CommunityPage() {
             setLoadedVideoIndices(prev => new Set([...prev, videoIndex]));
           } else {
             // Video is not visible, consider unloading if very far away
-            if (Math.abs(videoIndex - currentIndex) > RENDER_WINDOW * 2) {
+            if (Math.abs(videoIndex - currentIndex) > 10) {
               setLoadedVideoIndices(prev => {
                 const newSet = new Set(prev);
                 newSet.delete(videoIndex);
