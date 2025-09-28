@@ -90,8 +90,8 @@ export default function CommunityPage() {
   const [loadedVideoIndices, setLoadedVideoIndices] = useState<Set<number>>(new Set([0])); // Track which videos are loaded
   
   // Performance optimization: only render videos within a window
-  const RENDER_WINDOW = 2; // Render current +/- 2 videos
-  const PRELOAD_WINDOW = 1; // Preload current +/- 1 video
+  const RENDER_WINDOW = 5; // Render current +/- 5 videos (more permissive for better UX)
+  const PRELOAD_WINDOW = 2; // Preload current +/- 2 videos
 
   // Fetch community videos with infinite query
   const {
@@ -191,8 +191,8 @@ export default function CommunityPage() {
             // Video is visible, ensure it's loaded
             setLoadedVideoIndices(prev => new Set([...prev, videoIndex]));
           } else {
-            // Video is not visible, consider unloading if far away
-            if (Math.abs(videoIndex - currentIndex) > RENDER_WINDOW) {
+            // Video is not visible, consider unloading if very far away
+            if (Math.abs(videoIndex - currentIndex) > RENDER_WINDOW * 2) {
               setLoadedVideoIndices(prev => {
                 const newSet = new Set(prev);
                 newSet.delete(videoIndex);
@@ -681,12 +681,12 @@ export default function CommunityPage() {
           const isCurrent = index === currentIndex;
           const shouldLoad = shouldPreloadVideo(index) || loadedVideoIndices.has(index);
           
-          // Always render placeholder for scroll positioning
+          // Show lightweight placeholder for videos outside render window
           if (!shouldRender) {
             return (
               <div 
                 key={video.id} 
-                className="h-screen snap-center bg-black"
+                className="h-screen snap-center bg-black relative flex items-center justify-center"
                 data-video-index={index}
                 data-testid={`video-placeholder-${video.id}`}
                 ref={(el) => {
@@ -695,9 +695,11 @@ export default function CommunityPage() {
                   }
                 }}
               >
-                {/* Loading skeleton for better UX */}
-                <div className="flex items-center justify-center h-full">
-                  <div className="animate-pulse bg-gray-800 w-full max-w-[800px] aspect-video rounded-lg" />
+                {/* Show basic video info even in placeholder */}
+                <div className="text-center text-white p-4">
+                  <div className="animate-pulse bg-gray-800 w-full max-w-[800px] aspect-video rounded-lg mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">{video.title}</h3>
+                  <p className="text-sm text-gray-400">@{video.creator.username}</p>
                 </div>
               </div>
             );
