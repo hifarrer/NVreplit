@@ -63,6 +63,10 @@ export const projects = pgTable("projects", {
   audioSegments: jsonb("audio_segments"), // Array of split audio URLs
   videoSegments: jsonb("video_segments"), // Array of generated video URLs
   finalVideoUrl: text("final_video_url"),
+  // Mux video streaming integration
+  muxAssetId: text("mux_asset_id"), // Mux asset ID for video streaming
+  muxPlaybackId: text("mux_playback_id"), // Mux playback ID for HLS streaming
+  muxAssetStatus: text("mux_asset_status"), // 'preparing' | 'ready' | 'errored'
   isCompleted: boolean("is_completed").default(false),
   likesCount: integer("likes_count").default(0).notNull(),
   isFeatured: boolean("is_featured").default(false).notNull(), // Admin can feature videos for home page
