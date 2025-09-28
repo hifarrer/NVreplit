@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { Play, Loader2, CheckCircle, AlertTriangle, Video, RefreshCw } from "lucide-react";
+import { Play, Loader2, CheckCircle, AlertTriangle, Video, RefreshCw, RotateCcw, TestTube } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface MuxMigrationStatus {
@@ -68,6 +68,69 @@ export function MuxManagement() {
     },
     onSettled: () => {
       setIsMigrating(false);
+    },
+  });
+
+  // Reset failed migrations mutation
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch("/api/admin/reset-failed-mux-migrations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) throw new Error("Failed to reset failed migrations");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Reset Complete",
+        description: `Successfully reset ${data.resetCount} failed migrations`,
+      });
+      refetch();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Reset Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Single video migration mutation
+  const singleMigrationMutation = useMutation({
+    mutationFn: async () => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch("/api/admin/migrate-single-video-to-mux", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to migrate single video");
+      }
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Test Migration Started",
+        description: `Test migration started for project ${data.projectId}`,
+      });
+      refetch();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Test Migration Failed",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -217,32 +280,85 @@ export function MuxManagement() {
             </Alert>
           )}
 
-          {/* Migration Button */}
-          <div className="flex justify-center">
-            <Button
-              onClick={handleMigration}
-              disabled={!migrationNeeded || isMigrating || migrationMutation.isPending}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-8"
-              size="lg"
-              data-testid="button-start-migration"
-            >
-              {isMigrating || migrationMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Starting Migration...
-                </>
-              ) : migrationNeeded ? (
-                <>
-                  <Play className="mr-2 h-4 w-4" />
-                  Start Migration ({status.videosWithoutMux} videos)
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Migration Complete
-                </>
-              )}
-            </Button>
+          {/* Action Buttons */}
+          <div className="space-y-4">
+            {/* Reset Failed Migrations Button */}
+            {status.videosWithMuxErrored > 0 && (
+              <div className="flex justify-center">
+                <Button
+                  onClick={() => resetMutation.mutate()}
+                  disabled={resetMutation.isPending}
+                  variant="outline"
+                  className="border-red-500/50 text-red-300 hover:bg-red-600/20 px-6"
+                  data-testid="button-reset-failed"
+                >
+                  {resetMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Resetting...
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="mr-2 h-4 w-4" />
+                      Reset Failed Migrations ({status.videosWithMuxErrored})
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* Test Single Video Migration Button */}
+            {status.videosWithoutMux > 0 && (
+              <div className="flex justify-center">
+                <Button
+                  onClick={() => singleMigrationMutation.mutate()}
+                  disabled={singleMigrationMutation.isPending}
+                  variant="outline"
+                  className="border-yellow-500/50 text-yellow-300 hover:bg-yellow-600/20 px-6"
+                  data-testid="button-test-migration"
+                >
+                  {singleMigrationMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Testing...
+                    </>
+                  ) : (
+                    <>
+                      <TestTube className="mr-2 h-4 w-4" />
+                      Test Single Video Migration
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* Main Migration Button */}
+            <div className="flex justify-center">
+              <Button
+                onClick={handleMigration}
+                disabled={!migrationNeeded || isMigrating || migrationMutation.isPending}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-8"
+                size="lg"
+                data-testid="button-start-migration"
+              >
+                {isMigrating || migrationMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Starting Migration...
+                  </>
+                ) : migrationNeeded ? (
+                  <>
+                    <Play className="mr-2 h-4 w-4" />
+                    Start Migration ({status.videosWithoutMux} videos)
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Migration Complete
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* Info */}

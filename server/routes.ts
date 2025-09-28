@@ -4595,6 +4595,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reset failed Mux migrations endpoint
+  app.post("/api/admin/reset-failed-mux-migrations", authenticateToken, async (req, res) => {
+    try {
+      // Check if user is admin
+      const user = (req as any).user;
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      const { resetFailedMuxMigrations } = await import('./services/mux.js');
+      const result = await resetFailedMuxMigrations();
+      
+      res.json({
+        success: true,
+        message: `Successfully reset ${result.resetCount} failed Mux migrations`,
+        resetCount: result.resetCount
+      });
+    } catch (error) {
+      console.error("Reset failed Mux migrations error:", error);
+      res.status(500).json({ error: "Failed to reset failed migrations" });
+    }
+  });
+
+  // Migrate single video to Mux for testing
+  app.post("/api/admin/migrate-single-video-to-mux", authenticateToken, async (req, res) => {
+    try {
+      // Check if user is admin
+      const user = (req as any).user;
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      const { migrateSingleVideoToMux } = await import('./services/mux.js');
+      const result = await migrateSingleVideoToMux();
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          message: `Successfully started migration for project ${result.projectId}`,
+          projectId: result.projectId,
+          videoUrl: result.videoUrl
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: `Migration failed for project ${result.projectId}: ${result.error}`,
+          projectId: result.projectId,
+          videoUrl: result.videoUrl
+        });
+      }
+    } catch (error) {
+      console.error("Migrate single video to Mux error:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

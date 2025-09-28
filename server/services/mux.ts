@@ -1,4 +1,6 @@
 import Mux from '@mux/mux-node';
+import { storage } from '../storage.js';
+import type { Project } from '../../shared/schema.js';
 
 // Initialize Mux client
 const mux = new Mux({
@@ -59,7 +61,7 @@ export async function createMuxAsset(videoUrl: string): Promise<CreateMuxAssetRe
     console.log(`Creating Mux asset with URL: ${fullVideoUrl}`);
     
     const asset = await mux.video.assets.create({
-      input: [{ url: fullVideoUrl }],
+      inputs: [{ url: fullVideoUrl }],
       playback_policy: ['public'],
       encoding_tier: 'baseline', // Good balance of quality and encoding speed
       mp4_support: 'none', // We only need HLS streaming
@@ -152,4 +154,93 @@ export async function deleteMuxAsset(assetId: string): Promise<void> {
  */
 export function isMuxConfigured(): boolean {
   return !!(process.env.MUX_TOKEN_ID && process.env.MUX_TOKEN_SECRET);
+}
+
+/**
+ * Reset Mux migration status for failed videos
+ */
+export async function resetFailedMuxMigrations(): Promise<{ resetCount: number }> {
+  try {
+    const projects = await storage.getAllVideosForAdmin();
+    
+    // Find projects with failed Mux assets
+    const failedProjects = projects.filter((p: Project) => 
+      p.isCompleted && 
+      p.finalVideoUrl && 
+      p.muxAssetStatus === 'errored'
+    );
+    
+    // Reset their Mux fields
+    let resetCount = 0;
+    for (const project of failedProjects) {
+      await storage.updateProject(project.id, {
+        muxAssetId: null,
+        muxPlaybackId: null, 
+        muxAssetStatus: null,
+      });
+      resetCount++;
+    }
+    
+    console.log(`Reset ${resetCount} failed Mux migrations`);
+    return { resetCount };
+  } catch (error) {
+    console.error('Error resetting failed Mux migrations:', error);
+    throw new Error(`Failed to reset migrations: ${error}`);
+  }
+}
+
+/**
+ * Migrate a single video to Mux for testing
+ */
+export async function migrateSingleVideoToMux(): Promise<{ projectId: string; videoUrl: string; success: boolean; error?: string }> {
+  try {
+    const projects = await storage.getAllVideosForAdmin();
+    
+    // Find a completed video without Mux asset
+    const candidateProject = projects.find((p: Project) => 
+      p.isCompleted && 
+      p.finalVideoUrl && 
+      !p.muxAssetId
+    );
+    
+    if (!candidateProject) {
+      throw new Error('No videos available for migration');
+    }
+    
+    console.log(`Testing migration for project ${candidateProject.id}`);
+    
+    try {
+      // Create Mux asset
+      const result = await createMuxAsset(candidateProject.finalVideoUrl);
+      
+      // Update project with Mux info
+      await storage.updateProject(candidateProject.id, {
+        muxAssetId: result.assetId,
+        muxPlaybackId: result.playbackId,
+        muxAssetStatus: result.status,
+      });
+      
+      console.log(`Successfully started Mux migration for project ${candidateProject.id}`);
+      
+      return {
+        projectId: candidateProject.id,
+        videoUrl: candidateProject.finalVideoUrl,
+        success: true,
+      };
+      
+    } catch (muxError) {
+      console.error(`Mux migration failed for project ${candidateProject.id}:`, muxError);
+      
+      return {
+        projectId: candidateProject.id,
+        videoUrl: candidateProject.finalVideoUrl,
+        success: false,
+        error: String(muxError),
+      };
+    }
+    
+  } catch (error) {
+    console.error('Error in single video migration:', error);
+    throw new Error(`Failed to migrate single video: ${error}`);
+  }
 }
