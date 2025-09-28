@@ -2453,7 +2453,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             videoUrl: p.finalVideoUrl,
             thumbnailUrl,
             createdAt: p.createdAt,
-            updatedAt: p.updatedAt
+            updatedAt: p.updatedAt,
+            // Mux streaming data for performance optimization
+            mux: {
+              playbackId: p.muxPlaybackId || null,
+              assetStatus: p.muxAssetStatus || null,
+              hlsUrl: p.muxPlaybackId ? `https://stream.mux.com/${p.muxPlaybackId}.m3u8` : null
+            }
           };
         });
       res.json(completedVideos);

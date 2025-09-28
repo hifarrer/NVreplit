@@ -8,6 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users, Share2, Edit3 } from "lucide-react";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
+import { MuxVideoPlayer } from "@/components/mux-video-player";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -21,6 +22,11 @@ interface CompletedVideo {
   thumbnailUrl?: string | null;
   createdAt: string;
   updatedAt: string;
+  mux?: {
+    playbackId: string | null;
+    assetStatus: string | null;
+    hlsUrl: string | null;
+  };
 }
 
 export default function MyVideosPage() {
@@ -174,9 +180,10 @@ export default function MyVideosPage() {
                       <X className="h-4 w-4" />
                     </Button>
                     <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center relative overflow-hidden group">
-                      <video
+                      <MuxVideoPlayer
                         className="absolute inset-0 w-full h-full object-cover"
-                        src={video.videoUrl}
+                        playbackId={video.mux?.assetStatus === 'ready' ? video.mux.playbackId : null}
+                        fallbackUrl={video.videoUrl}
                         preload="metadata"
                         muted
                         playsInline
@@ -192,10 +199,10 @@ export default function MyVideosPage() {
                           videoEl.pause();
                           videoEl.currentTime = 0;
                         }}
-                        onError={(e) => {
-                          // Hide video element if it fails to load
-                          e.currentTarget.style.display = 'none';
+                        onError={() => {
+                          console.warn(`Failed to load video ${video.id}`);
                         }}
+                        data-testid={`preview-video-${video.id}`}
                       />
                       <div className="absolute inset-0 bg-black/20 pointer-events-none" />
                       <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -324,17 +331,19 @@ export default function MyVideosPage() {
           </DialogHeader>
           <div className="aspect-video bg-black rounded-lg overflow-hidden">
             {selectedVideo && !videoError && (
-              <video
-                src={selectedVideo.videoUrl}
-                controls
-                autoPlay
-                className="w-full h-full"
-                data-testid="video-player"
-                onError={() => {
-                  console.error('Video playback failed:', selectedVideo.videoUrl);
-                  setVideoError(true);
-                }}
-              />
+              <div style={{ '--controls': 'true' } as any}>
+                <MuxVideoPlayer
+                  playbackId={selectedVideo.mux?.assetStatus === 'ready' ? selectedVideo.mux.playbackId : null}
+                  fallbackUrl={selectedVideo.videoUrl}
+                  className="w-full h-full"
+                  autoPlay
+                  data-testid="video-player"
+                  onError={() => {
+                    console.error('Video playback failed:', selectedVideo.videoUrl);
+                    setVideoError(true);
+                  }}
+                />
+              </div>
             )}
             {videoError && (
               <div className="w-full h-full flex flex-col items-center justify-center text-white">
