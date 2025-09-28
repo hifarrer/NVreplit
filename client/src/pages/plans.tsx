@@ -181,7 +181,8 @@ export default function PlansPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 max-w-7xl mx-auto">
+        <div className="flex justify-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-4xl">
           {sortedPlans.map((plan, index) => {
             // Mark the second plan as popular (if there are at least 2 plans)
             const isPopular = index === 1 && sortedPlans.length > 1;
@@ -280,6 +281,7 @@ export default function PlansPage() {
               </Card>
             );
           })}
+          </div>
         </div>
 
         {sortedPlans.length === 0 && (
