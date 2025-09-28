@@ -62,7 +62,7 @@ export default function CommunityPage() {
 
   const isAuthenticated = !!user;
 
-  // Fetch community videos with infinite scrolling
+  // Fetch community videos with infinite scrolling and session seed
   const {
     data,
     isLoading,
@@ -74,9 +74,12 @@ export default function CommunityPage() {
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
       
-      if (pageParam?.afterHash && pageParam?.afterId) {
-        params.set("afterHash", pageParam.afterHash);
+      if (pageParam?.afterId) {
         params.set("afterId", pageParam.afterId);
+      }
+      
+      if (pageParam?.seed) {
+        params.set("seed", pageParam.seed);
       }
       
       const response = await fetch(`/api/community/videos?${params}`);
@@ -86,8 +89,8 @@ export default function CommunityPage() {
     getNextPageParam: (lastPage) => 
       lastPage.pagination.hasMore 
         ? { 
-            afterHash: lastPage.pagination.nextAfterHash, 
-            afterId: lastPage.pagination.nextAfterId 
+            afterId: lastPage.pagination.nextAfterId,
+            seed: lastPage.pagination.seed // Maintain session seed
           }
         : undefined,
     initialPageParam: undefined,

@@ -2238,52 +2238,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get community videos with seeded randomization (no auth required)
+  // Get community videos with alternating newest/random algorithm (no auth required)
   app.get("/api/community/videos", async (req, res) => {
     try {
-      const seed = req.query.seed as string || 'default';
       const limit = Math.min(parseInt(req.query.limit as string) || 20, 50); // Max 50 items per request
-      const afterHash = req.query.afterHash as string;
       const afterId = req.query.afterId as string;
       const excludeUserId = req.query.excludeUserId as string | undefined;
+      const sessionSeed = req.query.seed as string; // Accept seed from frontend for session stability
+
+      // Use session seed if provided, otherwise create time-based seed
+      const currentSeed = sessionSeed || Math.floor(Date.now() / (5 * 60 * 1000)).toString();
 
       // Get all completed projects with final videos from all users
       const allProjects = await storage.getAllVideosForAdmin();
       
-      // Filter for completed videos only (not just featured like trending)
-      const completedVideos = allProjects.filter(p => {
+      // Filter for completed AND PUBLIC videos only (critical security fix)
+      const publicVideos = allProjects.filter(p => {
         // Filter out videos from excluded user if specified
         if (excludeUserId && p.userId === excludeUserId) {
           return false;
         }
-        // Only show completed videos with finalVideoUrl (public videos)
-        return p.isCompleted && p.finalVideoUrl;
+        // Only show completed, public videos with finalVideoUrl
+        return p.isCompleted && p.finalVideoUrl && p.isPublic !== false; // Include if isPublic is true or undefined
       });
 
-      // Create hash-based ordering for stable randomization
-      const videosWithHash = completedVideos.map(project => {
-        // Create a hash using project ID and seed for stable randomization
-        const hash = crypto.createHash('md5').update(project.id + seed).digest('hex');
-        return { ...project, hash };
-      });
+      // Sort all videos by creation date (newest first)
+      const sortedByDate = publicVideos.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
 
-      // Apply keyset pagination if afterHash and afterId are provided
-      let filteredVideos = videosWithHash;
-      if (afterHash && afterId) {
-        filteredVideos = videosWithHash.filter(video => 
-          video.hash > afterHash || (video.hash === afterHash && video.id > afterId)
-        );
+      // Implement alternating newest/random algorithm FIRST, then apply pagination
+      const recentVideos = sortedByDate.slice(0, Math.ceil(sortedByDate.length * 0.3)); // Top 30% recent
+      const olderVideos = sortedByDate.slice(Math.ceil(sortedByDate.length * 0.3)); // Remaining 70% older
+
+      // Shuffle older videos using session seed for stable randomization
+      const shuffleWithSeed = (array: typeof olderVideos, seed: string) => {
+        const shuffled = [...array];
+        let currentIndex = shuffled.length;
+        let temporaryValue, randomIndex;
+        
+        // Convert string seed to number for consistent randomness
+        let seededRandom = seed.split('').reduce((a, b) => {
+          a = ((a << 5) - a) + b.charCodeAt(0);
+          return a & a;
+        }, 0);
+        
+        const random = () => {
+          seededRandom = (seededRandom * 9301 + 49297) % 233280;
+          return Math.abs(seededRandom) / 233280;
+        };
+
+        while (currentIndex !== 0) {
+          randomIndex = Math.floor(random() * currentIndex);
+          currentIndex -= 1;
+          temporaryValue = shuffled[currentIndex];
+          shuffled[currentIndex] = shuffled[randomIndex];
+          shuffled[randomIndex] = temporaryValue;
+        }
+        return shuffled;
+      };
+
+      const shuffledOlderVideos = shuffleWithSeed(olderVideos, currentSeed);
+
+      // Create alternating pattern FIRST: newest[0], random(older), newest[1], random(older), etc.
+      const alternatingVideos: typeof publicVideos = [];
+      const maxItems = recentVideos.length + shuffledOlderVideos.length;
+      
+      let recentIndex = 0;
+      let olderIndex = 0;
+      
+      for (let i = 0; i < maxItems; i++) {
+        if (i % 2 === 0) {
+          // Even positions: use newest videos
+          if (recentIndex < recentVideos.length) {
+            alternatingVideos.push(recentVideos[recentIndex]);
+            recentIndex++;
+          } else if (olderIndex < shuffledOlderVideos.length) {
+            // Fallback to older videos if we run out of recent ones
+            alternatingVideos.push(shuffledOlderVideos[olderIndex]);
+            olderIndex++;
+          }
+        } else {
+          // Odd positions: use random older videos
+          if (olderIndex < shuffledOlderVideos.length) {
+            alternatingVideos.push(shuffledOlderVideos[olderIndex]);
+            olderIndex++;
+          } else if (recentIndex < recentVideos.length) {
+            // Fallback to recent videos if we run out of older ones
+            alternatingVideos.push(recentVideos[recentIndex]);
+            recentIndex++;
+          }
+        }
       }
 
-      // Sort by hash for randomization, then by id for consistent tie-breaking
-      const sortedVideos = filteredVideos
-        .sort((a, b) => {
-          if (a.hash !== b.hash) {
-            return a.hash.localeCompare(b.hash);
-          }
-          return a.id.localeCompare(b.id);
-        })
-        .slice(0, limit);
+      // THEN apply pagination to the alternating order (CRITICAL FIX)
+      let paginatedVideos = alternatingVideos;
+      if (afterId) {
+        const afterIndex = alternatingVideos.findIndex(video => video.id === afterId);
+        if (afterIndex >= 0) {
+          paginatedVideos = alternatingVideos.slice(afterIndex + 1);
+        }
+      }
+
+      const sortedVideos = paginatedVideos.slice(0, limit);
 
       // Format the response with user info
       const communityVideos = await Promise.all(
@@ -2320,7 +2377,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             thumbnailUrl,
             createdAt: project.createdAt,
             duration: project.audioDuration || 30,
-            hash: project.hash,
             // Mux streaming data for performance optimization
             mux: {
               playbackId: project.muxPlaybackId || null,
@@ -2336,17 +2392,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
-      // Prepare pagination info
-      const hasMore = sortedVideos.length === limit;
-      const nextAfterHash = hasMore ? sortedVideos[sortedVideos.length - 1].hash : null;
+      // Prepare pagination info with session seed for stability
+      const hasMore = paginatedVideos.length > limit;
       const nextAfterId = hasMore ? sortedVideos[sortedVideos.length - 1].id : null;
       
       res.json({
         videos: communityVideos,
         pagination: {
           hasMore,
-          nextAfterHash,
-          nextAfterId
+          nextAfterId,
+          seed: currentSeed // Include seed for session stability
         }
       });
     } catch (error) {
