@@ -87,11 +87,6 @@ export default function CommunityPage() {
   const feedContainerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement }>({});
   const intersectionObserverRef = useRef<IntersectionObserver | null>(null);
-  const [loadedVideoIndices, setLoadedVideoIndices] = useState<Set<number>>(new Set([0])); // Track which videos are loaded
-  
-  // Performance optimization: only render videos within a window
-  const RENDER_WINDOW = 5; // Render current +/- 5 videos (more permissive for better UX)
-  const PRELOAD_WINDOW = 2; // Preload current +/- 2 videos
 
   // Fetch community videos with infinite query
   const {
@@ -138,17 +133,6 @@ export default function CommunityPage() {
     [data]
   );
   
-  // Get indices of videos to render for performance
-  const renderIndices = useMemo(() => {
-    const indices = new Set<number>();
-    const start = Math.max(0, currentIndex - RENDER_WINDOW);
-    const end = Math.min(allVideos.length - 1, currentIndex + RENDER_WINDOW);
-    
-    for (let i = start; i <= end; i++) {
-      indices.add(i);
-    }
-    return indices;
-  }, [currentIndex, allVideos.length]);
   
   // Video cleanup function
   const cleanupVideo = useCallback((videoId: string) => {
@@ -161,20 +145,15 @@ export default function CommunityPage() {
     }
   }, []);
   
-  // Cleanup videos outside render window
-  const cleanupOutsideVideos = useCallback(() => {
+  // Cleanup videos that are far from current
+  const cleanupDistantVideos = useCallback(() => {
     Object.keys(videoRefs.current).forEach(videoId => {
       const videoIndex = allVideos.findIndex(v => v.id === videoId);
-      if (videoIndex !== -1 && !renderIndices.has(videoIndex)) {
+      if (videoIndex !== -1 && Math.abs(videoIndex - currentIndex) > 5) {
         cleanupVideo(videoId);
       }
     });
-  }, [allVideos, renderIndices, cleanupVideo]);
-  
-  // Smart video preloading
-  const shouldPreloadVideo = useCallback((index: number) => {
-    return Math.abs(index - currentIndex) <= PRELOAD_WINDOW;
-  }, [currentIndex]);
+  }, [allVideos, currentIndex, cleanupVideo]);
 
   const currentVideo = allVideos[currentIndex];
   
@@ -258,11 +237,11 @@ export default function CommunityPage() {
     
     // Debounce scroll handling
     const timeout = setTimeout(() => {
-      cleanupOutsideVideos();
+      cleanupDistantVideos();
     }, 150);
     
     setScrollTimeout(timeout);
-  }, [scrollTimeout, cleanupOutsideVideos]);
+  }, [scrollTimeout, cleanupDistantVideos]);
   
   // Setup scroll event listener with debouncing
   useEffect(() => {
@@ -397,18 +376,18 @@ export default function CommunityPage() {
       setCurrentIndex(prev => {
         const newIndex = prev - 1;
         // Cleanup videos outside render window after navigation
-        setTimeout(cleanupOutsideVideos, 100);
+        setTimeout(cleanupDistantVideos, 100);
         return newIndex;
       });
     }
-  }, [currentIndex, cleanupOutsideVideos]);
+  }, [currentIndex, cleanupDistantVideos]);
 
   const goToNext = useCallback(() => {
     if (currentIndex < allVideos.length - 1) {
       setCurrentIndex(prev => {
         const newIndex = prev + 1;
         // Cleanup videos outside render window after navigation
-        setTimeout(cleanupOutsideVideos, 100);
+        setTimeout(cleanupDistantVideos, 100);
         return newIndex;
       });
     }
@@ -417,7 +396,7 @@ export default function CommunityPage() {
     if (currentIndex >= allVideos.length - 3 && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  }, [currentIndex, allVideos.length, cleanupOutsideVideos, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [currentIndex, allVideos.length, cleanupDistantVideos, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Scroll to current video
   const scrollToVideo = (index: number) => {
@@ -675,35 +654,11 @@ export default function CommunityPage() {
           }
         `}</style>
         
-        {/* Render optimized video window for performance */}
+        {/* Render all videos with smart loading for performance */}
         {allVideos.map((video, index) => {
-          const shouldRender = renderIndices.has(index);
           const isCurrent = index === currentIndex;
-          const shouldLoad = shouldPreloadVideo(index) || loadedVideoIndices.has(index);
-          
-          // Show lightweight placeholder for videos outside render window
-          if (!shouldRender) {
-            return (
-              <div 
-                key={video.id} 
-                className="h-screen snap-center bg-black relative flex items-center justify-center"
-                data-video-index={index}
-                data-testid={`video-placeholder-${video.id}`}
-                ref={(el) => {
-                  if (el && intersectionObserverRef.current) {
-                    intersectionObserverRef.current.observe(el);
-                  }
-                }}
-              >
-                {/* Show basic video info even in placeholder */}
-                <div className="text-center text-white p-4">
-                  <div className="animate-pulse bg-gray-800 w-full max-w-[800px] aspect-video rounded-lg mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">{video.title}</h3>
-                  <p className="text-sm text-gray-400">@{video.creator.username}</p>
-                </div>
-              </div>
-            );
-          }
+          const isNearCurrent = Math.abs(index - currentIndex) <= 2; // Load current +/- 2 videos
+          const shouldLoad = isNearCurrent;
 
           return (
             <div 
@@ -726,18 +681,18 @@ export default function CommunityPage() {
                       }
                     }
                   }}
-                  src={shouldLoad ? video.videoUrl : undefined}
+                  src={video.videoUrl}
                   className="w-full h-auto max-h-full object-contain"
                   style={{ willChange: 'transform' }} // Hint for hardware acceleration
                   loop
                   muted={isMuted}
                   playsInline
-                  preload={shouldLoad ? (isCurrent ? "auto" : "metadata") : "none"}
+                  preload={isCurrent ? "auto" : (isNearCurrent ? "metadata" : "none")}
                   data-testid={`video-element-${video.id}`}
                   data-video-index={index}
                   onLoadStart={() => {
-                    // Video started loading, ensure it's in loaded set
-                    setLoadedVideoIndices(prev => new Set([...Array.from(prev), index]));
+                    // Video started loading
+                    console.log(`Video ${index} started loading`);
                   }}
                   onError={() => {
                     console.warn(`Failed to load video ${video.id}`);
