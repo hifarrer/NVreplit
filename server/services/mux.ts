@@ -22,12 +22,36 @@ export interface MuxAssetStatus {
 }
 
 /**
+ * Convert relative video URL to full URL for Mux
+ */
+function normalizeVideoUrl(videoUrl: string): string {
+  // If it's already a full URL, return as-is
+  if (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) {
+    return videoUrl;
+  }
+  
+  // For relative URLs, construct full URL using the current domain
+  const baseUrl = process.env.REPLIT_DOMAIN 
+    ? `https://${process.env.REPLIT_DOMAIN}` 
+    : 'http://localhost:5000';
+    
+  // Remove leading slash if present to avoid double slashes
+  const cleanPath = videoUrl.startsWith('/') ? videoUrl.slice(1) : videoUrl;
+  
+  return `${baseUrl}/${cleanPath}`;
+}
+
+/**
  * Create a new Mux asset from a video URL
  */
 export async function createMuxAsset(videoUrl: string): Promise<CreateMuxAssetResponse> {
   try {
+    // Normalize the video URL to ensure it's a full URL
+    const fullVideoUrl = normalizeVideoUrl(videoUrl);
+    console.log(`Creating Mux asset with URL: ${fullVideoUrl}`);
+    
     const asset = await mux.video.assets.create({
-      input: [{ url: videoUrl }],
+      input: [{ url: fullVideoUrl }],
       playback_policy: ['public'],
       encoding_tier: 'baseline', // Good balance of quality and encoding speed
       mp4_support: 'none', // We only need HLS streaming
