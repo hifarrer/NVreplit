@@ -50,6 +50,7 @@ export default function CommunityPage() {
   const [newComment, setNewComment] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [commentProfanityCheck, setCommentProfanityCheck] = useState<{ isClean: boolean; category?: string } | null>(null);
+  const [showComments, setShowComments] = useState(false);
 
   const feedContainerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement }>({});
@@ -333,10 +334,7 @@ export default function CommunityPage() {
   // Handle comments button click
   const handleCommentsClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const commentsSection = document.querySelector('[data-testid="comments-section"]');
-    if (commentsSection) {
-      commentsSection.scrollIntoView({ behavior: 'smooth' });
-    }
+    setShowComments(true);
   };
 
   // Auto-play/pause video management
@@ -363,6 +361,7 @@ export default function CommunityPage() {
   // Reset playing state when changing videos
   useEffect(() => {
     setIsPlaying(true);
+    setShowComments(false); // Close comments when switching videos
   }, [currentIndex]);
 
   // Keyboard navigation
@@ -600,16 +599,14 @@ export default function CommunityPage() {
       </div>
 
       {/* Comments Section */}
-      {currentVideo && (
+      {currentVideo && showComments && (
         <div className="fixed inset-x-0 bottom-0 bg-background border-t max-h-96 overflow-hidden z-40">
           <div className="p-4" data-testid="comments-section">
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">Comments ({comments.length})</h3>
                 <Button
-                  onClick={() => {
-                    document.querySelector('[data-testid="comments-section"]')?.scrollTo({ top: -1000, behavior: 'smooth' });
-                  }}
+                  onClick={() => setShowComments(false)}
                   variant="ghost"
                   size="sm"
                   data-testid="button-close-comments"
