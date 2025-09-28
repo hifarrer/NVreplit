@@ -31,9 +31,17 @@ function normalizeVideoUrl(videoUrl: string): string {
   }
   
   // For relative URLs, construct full URL using the current domain
-  const baseUrl = process.env.REPLIT_DOMAIN 
-    ? `https://${process.env.REPLIT_DOMAIN}` 
-    : 'http://localhost:5000';
+  let baseUrl: string;
+  
+  if (process.env.REPLIT_DOMAIN) {
+    baseUrl = `https://${process.env.REPLIT_DOMAIN}`;
+  } else if (process.env.NODE_ENV === 'production') {
+    // Production domain for neonvideo.ai
+    baseUrl = 'http://neonvideo.ai';
+  } else {
+    // Development fallback
+    baseUrl = 'http://localhost:5000';
+  }
     
   // Remove leading slash if present to avoid double slashes
   const cleanPath = videoUrl.startsWith('/') ? videoUrl.slice(1) : videoUrl;
