@@ -326,6 +326,8 @@ export default function VideoPage() {
                 playbackId={video.mux?.assetStatus === 'ready' ? video.mux.playbackId : null}
                 fallbackUrl={video.videoUrl}
                 className="w-full h-full object-contain"
+                controls
+                autoPlay
                 data-testid="video-player"
                 onLoadStart={() => {
                   console.log('Video started loading');
