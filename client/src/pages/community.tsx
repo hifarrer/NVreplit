@@ -486,23 +486,8 @@ export default function CommunityPage() {
                 
                 {/* Video Controls Overlay - Only show for current video */}
                 {isCurrent && (
-                  <div className={`absolute inset-0 transition-opacity duration-300 group z-20 pointer-events-none ${
-                    !isPlaying ? 'opacity-100' : 'opacity-0 hover:opacity-100'
-                  }`}>
-                    {/* Play/Pause Button - Center */}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
-                      <Button
-                        onClick={handlePlayPauseToggle}
-                        variant="ghost"
-                        size="lg"
-                        className="w-16 h-16 rounded-full bg-black/50 hover:bg-black/70 text-white border-0"
-                        data-testid="button-play-pause"
-                      >
-                        {isPlaying ? <Pause size={24} /> : <Play size={24} />}
-                      </Button>
-                    </div>
-
-                    {/* Bottom Controls - Horizontal Layout */}
+                  <div className="absolute inset-0 transition-opacity duration-300 group z-20 pointer-events-none opacity-0 hover:opacity-100">
+                    {/* Bottom Controls - Social Actions Only */}
                     <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center gap-4 bg-black/50 backdrop-blur-sm rounded-full px-6 py-3 pointer-events-auto">
                       {/* Like Button */}
                       <Button
@@ -542,17 +527,6 @@ export default function CommunityPage() {
                         data-testid="button-share"
                       >
                         <Share2 size={20} />
-                      </Button>
-
-                      {/* Mute Button */}
-                      <Button
-                        onClick={handleMuteToggle}
-                        variant="ghost"
-                        size="sm"
-                        className="text-white hover:bg-white/20 border-0 p-2"
-                        data-testid="button-mute"
-                      >
-                        {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
                       </Button>
                     </div>
                   </div>

@@ -5,12 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
-import { Play, Pause, ArrowLeft, Share2, User, ThumbsUp, MessageCircle, Trash2, Send } from "lucide-react";
+import { ArrowLeft, Share2, User, ThumbsUp, MessageCircle, Trash2, Send } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { checkProfanity, getCategoryMessage, type ProfanityCheckResult } from "@/lib/profanity-filter";
+import { MuxVideoPlayer } from "@/components/mux-video-player";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
 interface VideoData {
@@ -21,6 +22,10 @@ interface VideoData {
   createdAt: string;
   duration: number;
   likesCount: number;
+  mux?: {
+    playbackId: string | null;
+    assetStatus: string | null;
+  };
   creator: {
     id: string;
     username: string;
@@ -50,11 +55,9 @@ export default function VideoPage() {
   const videoId = params.videoId as string;
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isPlaying, setIsPlaying] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [commentProfanityCheck, setCommentProfanityCheck] = useState<ProfanityCheckResult | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   const { user } = useAuth();
   const isAuthenticated = !!user;
 
@@ -171,26 +174,6 @@ export default function VideoPage() {
     }
   });
 
-  useEffect(() => {
-    // Pause video when component unmounts
-    return () => {
-      if (videoRef.current) {
-        videoRef.current.pause();
-      }
-    };
-  }, []);
-
-  const togglePlay = () => {
-    if (!videoRef.current) return;
-
-    if (isPlaying) {
-      videoRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      videoRef.current.play();
-      setIsPlaying(true);
-    }
-  };
 
   const handleLikeToggle = () => {
     if (!isAuthenticated) {
@@ -249,9 +232,6 @@ export default function VideoPage() {
     deleteCommentMutation.mutate(commentId);
   };
 
-  const handleVideoEnded = () => {
-    setIsPlaying(false);
-  };
 
   const handleShare = () => {
     const url = window.location.href;
@@ -342,29 +322,18 @@ export default function VideoPage() {
           {/* Video Player */}
           <Card className="overflow-hidden mb-6">
             <div className="relative aspect-video bg-black">
-              <video
-                ref={videoRef}
-                src={video.videoUrl}
+              <MuxVideoPlayer
+                playbackId={video.mux?.assetStatus === 'ready' ? video.mux.playbackId : null}
+                fallbackUrl={video.videoUrl}
                 className="w-full h-full object-contain"
-                onEnded={handleVideoEnded}
-                playsInline
                 data-testid="video-player"
+                onLoadStart={() => {
+                  console.log('Video started loading');
+                }}
+                onError={() => {
+                  console.warn(`Failed to load video ${video.id}`);
+                }}
               />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="rounded-full h-16 w-16 bg-background/80 hover:bg-background/90"
-                  onClick={togglePlay}
-                  data-testid="button-play-video"
-                >
-                  {isPlaying ? (
-                    <Pause className="h-8 w-8" />
-                  ) : (
-                    <Play className="h-8 w-8 ml-0.5" />
-                  )}
-                </Button>
-              </div>
             </div>
           </Card>
 
