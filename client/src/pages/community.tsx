@@ -504,46 +504,50 @@ export default function CommunityPage() {
                 {/* Video Controls Overlay - Only show for current video */}
                 {isCurrent && (
                   <div className="absolute inset-0 transition-opacity duration-300 group z-20 pointer-events-none opacity-70 hover:opacity-100">
-                    {/* Bottom Controls - Social Actions Only */}
-                    <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center gap-4 bg-black/50 backdrop-blur-sm rounded-full px-6 py-3 pointer-events-auto">
+                    {/* Right Side Controls - Social Actions Only */}
+                    <div className="absolute right-4 bottom-1/2 transform translate-y-1/2 flex flex-col items-center gap-4 pointer-events-auto">
                       {/* Like Button */}
-                      <Button
-                        onClick={handleLikeToggle}
-                        variant="ghost"
-                        size="sm"
-                        className="text-white hover:bg-white/20 border-0 p-2"
-                        data-testid="button-like"
-                      >
-                        <Heart 
-                          size={20} 
-                          className={likeStatus?.liked ? "fill-red-500 text-red-500" : "text-white"} 
-                        />
-                        <span className="ml-1 text-sm">
+                      <div className="flex flex-col items-center">
+                        <Button
+                          onClick={handleLikeToggle}
+                          variant="ghost"
+                          size="sm"
+                          className="text-white hover:bg-black/50 border-0 p-3 rounded-full bg-black/30 backdrop-blur-sm"
+                          data-testid="button-like"
+                        >
+                          <Heart 
+                            size={24} 
+                            className={likeStatus?.liked ? "fill-red-500 text-red-500" : "text-white"} 
+                          />
+                        </Button>
+                        <span className="text-xs text-white font-semibold mt-1">
                           {(video.likesCount || 0) + (likeStatus?.liked && !likeStatus.initialLiked ? 1 : 0)}
                         </span>
-                      </Button>
+                      </div>
 
                       {/* Comments Button */}
-                      <Button
-                        onClick={handleCommentsClick}
-                        variant="ghost"
-                        size="sm"
-                        className="text-white hover:bg-white/20 border-0 p-2"
-                        data-testid="button-comments"
-                      >
-                        <MessageCircle size={20} />
-                        <span className="ml-1 text-sm">{video.commentsCount || 0}</span>
-                      </Button>
+                      <div className="flex flex-col items-center">
+                        <Button
+                          onClick={handleCommentsClick}
+                          variant="ghost"
+                          size="sm"
+                          className="text-white hover:bg-black/50 border-0 p-3 rounded-full bg-black/30 backdrop-blur-sm"
+                          data-testid="button-comments"
+                        >
+                          <MessageCircle size={24} />
+                        </Button>
+                        <span className="text-xs text-white font-semibold mt-1">{video.commentsCount || 0}</span>
+                      </div>
 
                       {/* Share Button */}
                       <Button
                         onClick={handleShare}
                         variant="ghost"
                         size="sm"
-                        className="text-white hover:bg-white/20 border-0 p-2"
+                        className="text-white hover:bg-black/50 border-0 p-3 rounded-full bg-black/30 backdrop-blur-sm"
                         data-testid="button-share"
                       >
-                        <Share2 size={20} />
+                        <Share2 size={24} />
                       </Button>
                     </div>
                   </div>
