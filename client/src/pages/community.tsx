@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -86,6 +86,12 @@ export default function CommunityPage() {
 
   const feedContainerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement }>({});
+  const intersectionObserverRef = useRef<IntersectionObserver | null>(null);
+  const [loadedVideoIndices, setLoadedVideoIndices] = useState<Set<number>>(new Set([0])); // Track which videos are loaded
+  
+  // Performance optimization: only render videos within a window
+  const RENDER_WINDOW = 2; // Render current +/- 2 videos
+  const PRELOAD_WINDOW = 1; // Preload current +/- 1 video
 
   // Fetch community videos with infinite query
   const {
@@ -96,7 +102,7 @@ export default function CommunityPage() {
     isLoading,
   } = useInfiniteQuery<CommunityResponse>({
     queryKey: ["/api/community/videos", seed],
-    queryFn: async ({ pageParam }: { pageParam?: { afterHash: string; afterId: string } }) => {
+    queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams({ seed, limit: "20" });
       
       // First, check total video count to decide whether to exclude user's videos
@@ -131,8 +137,167 @@ export default function CommunityPage() {
     data?.pages.flatMap(page => page.videos) || [], 
     [data]
   );
+  
+  // Get indices of videos to render for performance
+  const renderIndices = useMemo(() => {
+    const indices = new Set<number>();
+    const start = Math.max(0, currentIndex - RENDER_WINDOW);
+    const end = Math.min(allVideos.length - 1, currentIndex + RENDER_WINDOW);
+    
+    for (let i = start; i <= end; i++) {
+      indices.add(i);
+    }
+    return indices;
+  }, [currentIndex, allVideos.length]);
+  
+  // Video cleanup function
+  const cleanupVideo = useCallback((videoId: string) => {
+    const video = videoRefs.current[videoId];
+    if (video) {
+      video.pause();
+      video.removeAttribute('src');
+      video.load(); // This will free up memory
+      delete videoRefs.current[videoId];
+    }
+  }, []);
+  
+  // Cleanup videos outside render window
+  const cleanupOutsideVideos = useCallback(() => {
+    Object.keys(videoRefs.current).forEach(videoId => {
+      const videoIndex = allVideos.findIndex(v => v.id === videoId);
+      if (videoIndex !== -1 && !renderIndices.has(videoIndex)) {
+        cleanupVideo(videoId);
+      }
+    });
+  }, [allVideos, renderIndices, cleanupVideo]);
+  
+  // Smart video preloading
+  const shouldPreloadVideo = useCallback((index: number) => {
+    return Math.abs(index - currentIndex) <= PRELOAD_WINDOW;
+  }, [currentIndex]);
 
   const currentVideo = allVideos[currentIndex];
+  
+  // Setup intersection observer for performance
+  useEffect(() => {
+    if (!feedContainerRef.current) return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          const videoIndex = parseInt(entry.target.getAttribute('data-video-index') || '0');
+          
+          if (entry.isIntersecting) {
+            // Video is visible, ensure it's loaded
+            setLoadedVideoIndices(prev => new Set([...prev, videoIndex]));
+          } else {
+            // Video is not visible, consider unloading if far away
+            if (Math.abs(videoIndex - currentIndex) > RENDER_WINDOW) {
+              setLoadedVideoIndices(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(videoIndex);
+                return newSet;
+              });
+            }
+          }
+        });
+      },
+      {
+        root: feedContainerRef.current,
+        threshold: 0.1,
+        rootMargin: '100px'
+      }
+    );
+    
+    intersectionObserverRef.current = observer;
+    
+    return () => {
+      observer.disconnect();
+      intersectionObserverRef.current = null;
+    };
+  }, [currentIndex]);
+  
+  // Video playback management
+  useEffect(() => {
+    if (!currentVideo) return;
+    
+    const currentVideoElement = videoRefs.current[currentVideo.id];
+    if (currentVideoElement) {
+      // Ensure current video is properly loaded and playing
+      const playVideo = async () => {
+        try {
+          if (isPlaying) {
+            await currentVideoElement.play();
+          } else {
+            currentVideoElement.pause();
+          }
+        } catch (error) {
+          console.warn('Video play/pause failed:', error);
+        }
+      };
+      
+      playVideo();
+    }
+    
+    // Pause all other videos for performance
+    Object.entries(videoRefs.current).forEach(([videoId, videoElement]) => {
+      if (videoId !== currentVideo.id && videoElement) {
+        videoElement.pause();
+      }
+    });
+  }, [currentVideo, isPlaying]);
+  
+  // Debounced scroll handling for performance
+  const [scrollTimeout, setScrollTimeout] = useState<NodeJS.Timeout | null>(null);
+  
+  const handleScroll = useCallback(() => {
+    // Clear existing timeout
+    if (scrollTimeout) {
+      clearTimeout(scrollTimeout);
+    }
+    
+    // Debounce scroll handling
+    const timeout = setTimeout(() => {
+      cleanupOutsideVideos();
+    }, 150);
+    
+    setScrollTimeout(timeout);
+  }, [scrollTimeout, cleanupOutsideVideos]);
+  
+  // Setup scroll event listener with debouncing
+  useEffect(() => {
+    const container = feedContainerRef.current;
+    if (!container) return;
+    
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+      }
+    };
+  }, [handleScroll, scrollTimeout]);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Clean up all video references on unmount
+      Object.keys(videoRefs.current).forEach(videoId => {
+        cleanupVideo(videoId);
+      });
+      
+      // Disconnect intersection observer
+      if (intersectionObserverRef.current) {
+        intersectionObserverRef.current.disconnect();
+      }
+      
+      // Clear any pending timeouts
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+      }
+    };
+  }, [cleanupVideo, scrollTimeout]);
 
   // Get like status for current video
   const { data: likeStatus } = useQuery<LikeStatus>({
@@ -226,23 +391,33 @@ export default function CommunityPage() {
     },
   });
 
-  // Navigation functions
-  const goToPrevious = () => {
+  // Navigation functions with cleanup
+  const goToPrevious = useCallback(() => {
     if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
+      setCurrentIndex(prev => {
+        const newIndex = prev - 1;
+        // Cleanup videos outside render window after navigation
+        setTimeout(cleanupOutsideVideos, 100);
+        return newIndex;
+      });
     }
-  };
+  }, [currentIndex, cleanupOutsideVideos]);
 
-  const goToNext = () => {
+  const goToNext = useCallback(() => {
     if (currentIndex < allVideos.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+      setCurrentIndex(prev => {
+        const newIndex = prev + 1;
+        // Cleanup videos outside render window after navigation
+        setTimeout(cleanupOutsideVideos, 100);
+        return newIndex;
+      });
     }
     
     // Prefetch next page when near the end
     if (currentIndex >= allVideos.length - 3 && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  };
+  }, [currentIndex, allVideos.length, cleanupOutsideVideos, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Scroll to current video
   const scrollToVideo = (index: number) => {
@@ -483,11 +658,16 @@ export default function CommunityPage() {
     <div className="min-h-screen bg-background">
       <NavigationHeader />
       
-      {/* Main Feed Container */}
+      {/* Main Feed Container with hardware acceleration */}
       <div 
         ref={feedContainerRef}
         className="h-[calc(100vh-4rem)] overflow-y-auto snap-y snap-mandatory scroll-smooth"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        style={{ 
+          scrollbarWidth: 'none', 
+          msOverflowStyle: 'none',
+          transform: 'translateZ(0)', // Hardware acceleration
+          willChange: 'scroll-position' // Optimization hint
+        }}
       >
         <style>{`
           div::-webkit-scrollbar {
@@ -495,18 +675,31 @@ export default function CommunityPage() {
           }
         `}</style>
         
-        {/* Render only visible videos (current, previous, next) for performance */}
+        {/* Render optimized video window for performance */}
         {allVideos.map((video, index) => {
-          const isVisible = Math.abs(index - currentIndex) <= 1;
+          const shouldRender = renderIndices.has(index);
           const isCurrent = index === currentIndex;
+          const shouldLoad = shouldPreloadVideo(index) || loadedVideoIndices.has(index);
           
-          if (!isVisible) {
+          // Always render placeholder for scroll positioning
+          if (!shouldRender) {
             return (
               <div 
                 key={video.id} 
-                className="h-screen snap-center"
+                className="h-screen snap-center bg-black"
+                data-video-index={index}
                 data-testid={`video-placeholder-${video.id}`}
-              />
+                ref={(el) => {
+                  if (el && intersectionObserverRef.current) {
+                    intersectionObserverRef.current.observe(el);
+                  }
+                }}
+              >
+                {/* Loading skeleton for better UX */}
+                <div className="flex items-center justify-center h-full">
+                  <div className="animate-pulse bg-gray-800 w-full max-w-[800px] aspect-video rounded-lg" />
+                </div>
+              </div>
             );
           }
 
@@ -516,19 +709,37 @@ export default function CommunityPage() {
               className="h-screen snap-center relative flex items-center justify-center bg-black"
               data-testid={`community-video-${video.id}`}
             >
-              {/* Video Player */}
-              <div className="relative max-w-[800px] h-auto max-h-full mx-auto">
+              {/* Video Player with hardware acceleration */}
+              <div 
+                className="relative max-w-[800px] h-auto max-h-full mx-auto"
+                style={{ transform: 'translateZ(0)' }} // Force hardware acceleration
+              >
                 <video
                   ref={(el) => {
-                    if (el) videoRefs.current[video.id] = el;
+                    if (el) {
+                      videoRefs.current[video.id] = el;
+                      // Observe video element for intersection
+                      if (intersectionObserverRef.current) {
+                        intersectionObserverRef.current.observe(el);
+                      }
+                    }
                   }}
-                  src={video.videoUrl}
+                  src={shouldLoad ? video.videoUrl : undefined}
                   className="w-full h-auto max-h-full object-contain"
+                  style={{ willChange: 'transform' }} // Hint for hardware acceleration
                   loop
                   muted={isMuted}
                   playsInline
-                  preload={isCurrent ? "auto" : "metadata"}
+                  preload={shouldLoad ? (isCurrent ? "auto" : "metadata") : "none"}
                   data-testid={`video-element-${video.id}`}
+                  data-video-index={index}
+                  onLoadStart={() => {
+                    // Video started loading, ensure it's in loaded set
+                    setLoadedVideoIndices(prev => new Set([...Array.from(prev), index]));
+                  }}
+                  onError={() => {
+                    console.warn(`Failed to load video ${video.id}`);
+                  }}
                 />
                 
                 {/* Video Controls Overlay - Only show for current video */}
