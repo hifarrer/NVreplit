@@ -33,7 +33,7 @@ export const users = pgTable("users", {
   bonusCredits: integer("bonus_credits").default(0).notNull(),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
-  referredBy: varchar("referred_by").references(() => users.id), // Who referred this user
+  referredBy: varchar("referred_by"), // Who referred this user - self-reference handled separately
   referralCode: text("referral_code").unique(), // User's personal referral code (auto-generated)
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
