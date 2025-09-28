@@ -1,116 +1,75 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  Play, 
-  Pause, 
-  ChevronLeft, 
-  ChevronRight, 
-  ThumbsUp, 
-  MessageCircle, 
-  User, 
-  Share2, 
-  Send,
-  Trash2,
-  ChevronUp,
-  ChevronDown,
-  Volume2,
-  VolumeX
-} from "lucide-react";
-import { Link } from "wouter";
-import { format, formatDistanceToNow } from "date-fns";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/use-auth";
-import { checkProfanity, getCategoryMessage, type ProfanityCheckResult } from "@/lib/profanity-filter";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "@/hooks/use-toast";
+import { MessageCircle, Heart, Share2, VolumeX, Volume2, Play, Pause, ArrowUp, ArrowDown, Trash2, User } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { NavigationHeader } from "@/components/navigation-header";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { checkProfanity, getCategoryMessage } from "@/lib/profanity-filter";
 
-interface CommunityVideo {
+type CommunityVideo = {
   id: string;
   title: string;
   videoUrl: string;
-  thumbnailUrl: string | null;
-  createdAt: string;
-  duration: number;
-  hash: string;
+  thumbnailUrl?: string;
   creator: {
     id: string;
     username: string;
-    avatarUrl: string | null;
+    avatarUrl?: string;
   };
-}
-
-interface CommunityResponse {
-  videos: CommunityVideo[];
-  pagination: {
-    hasMore: boolean;
-    nextAfterHash: string | null;
-    nextAfterId: string | null;
-  };
-}
-
-interface LikeStatus {
-  liked: boolean;
+  isPublic: boolean;
+  createdAt: string;
   likesCount: number;
-}
+  commentsCount: number;
+};
 
-interface Comment {
+type Comment = {
   id: string;
   content: string;
+  userId: string;
+  username: string;
+  userAvatarUrl?: string;
   createdAt: string;
-  updatedAt: string;
-  user: {
-    id: string;
-    username: string;
-    avatarUrl: string | null;
-  };
-}
+  isOwn?: boolean;
+};
 
 export default function CommunityPage() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
-  const isAuthenticated = !!user;
-  
-  // Generate seed once per session for stable randomization
-  const seed = useMemo(() => Math.random().toString(36).substring(7), []);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [newComment, setNewComment] = useState("");
-  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
-  const [commentProfanityCheck, setCommentProfanityCheck] = useState<ProfanityCheckResult | null>(null);
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [commentProfanityCheck, setCommentProfanityCheck] = useState<{ isClean: boolean; category?: string } | null>(null);
 
   const feedContainerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement }>({});
 
-  // Fetch community videos with infinite query
+  // Fetch current user
+  const { data: user } = useQuery({
+    queryKey: ["/api/me"],
+  });
+
+  const isAuthenticated = !!user;
+
+  // Fetch community videos with infinite scrolling
   const {
     data,
+    isLoading,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isLoading,
-  } = useInfiniteQuery<CommunityResponse>({
-    queryKey: ["/api/community/videos", seed],
+  } = useInfiniteQuery({
+    queryKey: ["/api/community/videos"],
     queryFn: async ({ pageParam }) => {
-      const params = new URLSearchParams({ seed, limit: "20" });
+      const params = new URLSearchParams();
       
-      // First, check total video count to decide whether to exclude user's videos
-      const totalResponse = await fetch(`/api/community/videos?seed=${seed}&limit=1`);
-      const totalData = await totalResponse.json();
-      const hasEnoughVideos = totalData.videos.length > 0; // For demo, always show user's videos
-      
-      // Don't exclude user's own videos in demo/development scenarios
-      // if (user?.id && hasEnoughVideos) params.append("excludeUserId", user.id);
-      
-      if (pageParam) {
-        params.append("afterHash", pageParam.afterHash);
-        params.append("afterId", pageParam.afterId);
+      if (pageParam?.afterHash && pageParam?.afterId) {
+        params.set("afterHash", pageParam.afterHash);
+        params.set("afterId", pageParam.afterId);
       }
       
       const response = await fetch(`/api/community/videos?${params}`);
@@ -132,122 +91,19 @@ export default function CommunityPage() {
     data?.pages.flatMap(page => page.videos) || [], 
     [data]
   );
-  
-  
-  // Video cleanup function
-  const cleanupVideo = useCallback((videoId: string) => {
-    const video = videoRefs.current[videoId];
-    if (video) {
-      video.pause();
-      video.removeAttribute('src');
-      video.load(); // This will free up memory
-      delete videoRefs.current[videoId];
-    }
-  }, []);
-  
-  // Cleanup videos that are far from current
-  const cleanupDistantVideos = useCallback(() => {
-    Object.keys(videoRefs.current).forEach(videoId => {
-      const videoIndex = allVideos.findIndex(v => v.id === videoId);
-      if (videoIndex !== -1 && Math.abs(videoIndex - currentIndex) > 5) {
-        cleanupVideo(videoId);
-      }
-    });
-  }, [allVideos, currentIndex, cleanupVideo]);
 
   const currentVideo = allVideos[currentIndex];
-  
-  
-  // Video playback management
-  useEffect(() => {
-    if (!currentVideo) return;
-    
-    const currentVideoElement = videoRefs.current[currentVideo.id];
-    if (currentVideoElement) {
-      // Ensure current video is properly loaded and playing
-      const playVideo = async () => {
-        try {
-          if (isPlaying) {
-            await currentVideoElement.play();
-          } else {
-            currentVideoElement.pause();
-          }
-        } catch (error) {
-          console.warn('Video play/pause failed:', error);
-        }
-      };
-      
-      playVideo();
-    }
-    
-    // Pause all other videos for performance
-    Object.entries(videoRefs.current).forEach(([videoId, videoElement]) => {
-      if (videoId !== currentVideo.id && videoElement) {
-        videoElement.pause();
-      }
-    });
-  }, [currentVideo, isPlaying]);
-  
-  // Debounced scroll handling for performance
-  const [scrollTimeout, setScrollTimeout] = useState<NodeJS.Timeout | null>(null);
-  
-  const handleScroll = useCallback(() => {
-    // Clear existing timeout
-    if (scrollTimeout) {
-      clearTimeout(scrollTimeout);
-    }
-    
-    // Debounce scroll handling
-    const timeout = setTimeout(() => {
-      cleanupDistantVideos();
-    }, 150);
-    
-    setScrollTimeout(timeout);
-  }, [scrollTimeout, cleanupDistantVideos]);
-  
-  // Setup scroll event listener with debouncing
-  useEffect(() => {
-    const container = feedContainerRef.current;
-    if (!container) return;
-    
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    
-    return () => {
-      container.removeEventListener('scroll', handleScroll);
-      if (scrollTimeout) {
-        clearTimeout(scrollTimeout);
-      }
-    };
-  }, [handleScroll, scrollTimeout]);
-  
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      // Clean up all video references on unmount
-      Object.keys(videoRefs.current).forEach(videoId => {
-        cleanupVideo(videoId);
-      });
-      
-      
-      // Clear any pending timeouts
-      if (scrollTimeout) {
-        clearTimeout(scrollTimeout);
-      }
-    };
-  }, [cleanupVideo, scrollTimeout]);
 
-  // Get like status for current video
-  const { data: likeStatus } = useQuery<LikeStatus>({
+  // Fetch current video's like status
+  const { data: likeStatus } = useQuery({
     queryKey: ["/api/videos", currentVideo?.id, "like"],
-    enabled: isAuthenticated && !!currentVideo,
-    retry: false,
+    enabled: !!currentVideo && isAuthenticated,
   });
 
-  // Get comments for current video only
+  // Fetch current video's comments
   const { data: comments = [] } = useQuery<Comment[]>({
     queryKey: ["/api/videos", currentVideo?.id, "comments"],
     enabled: !!currentVideo,
-    retry: false,
   });
 
   // Like/Unlike mutations
@@ -328,33 +184,23 @@ export default function CommunityPage() {
     },
   });
 
-  // Navigation functions with cleanup
+  // Navigation functions
   const goToPrevious = useCallback(() => {
     if (currentIndex > 0) {
-      setCurrentIndex(prev => {
-        const newIndex = prev - 1;
-        // Cleanup videos outside render window after navigation
-        setTimeout(cleanupDistantVideos, 100);
-        return newIndex;
-      });
+      setCurrentIndex(prev => prev - 1);
     }
-  }, [currentIndex, cleanupDistantVideos]);
+  }, [currentIndex]);
 
   const goToNext = useCallback(() => {
     if (currentIndex < allVideos.length - 1) {
-      setCurrentIndex(prev => {
-        const newIndex = prev + 1;
-        // Cleanup videos outside render window after navigation
-        setTimeout(cleanupDistantVideos, 100);
-        return newIndex;
-      });
+      setCurrentIndex(prev => prev + 1);
     }
     
     // Prefetch next page when near the end
     if (currentIndex >= allVideos.length - 3 && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  }, [currentIndex, allVideos.length, cleanupDistantVideos, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [currentIndex, allVideos.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Scroll to current video
   const scrollToVideo = (index: number) => {
@@ -370,9 +216,8 @@ export default function CommunityPage() {
 
   // Handle like toggle
   const handleLikeToggle = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent event bubbling
+    e.stopPropagation();
     
-    // Prevent multiple clicks while mutations are pending
     if (likeMutation.isPending || unlikeMutation.isPending) {
       return;
     }
@@ -415,7 +260,6 @@ export default function CommunityPage() {
       return;
     }
 
-    // Check for profanity
     const profanityCheck = checkProfanity(trimmedComment);
     if (!profanityCheck.isClean) {
       toast({
@@ -432,7 +276,7 @@ export default function CommunityPage() {
 
   // Handle share
   const handleShare = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent event bubbling
+    e.stopPropagation();
     if (!currentVideo) return;
     
     const shareUrl = `${window.location.origin}/v/${currentVideo.id}`;
@@ -454,10 +298,9 @@ export default function CommunityPage() {
 
   // Handle mute toggle
   const handleMuteToggle = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent event bubbling
+    e.stopPropagation();
     setIsMuted(!isMuted);
     
-    // Update current video element immediately
     const currentVideoElement = currentVideo ? videoRefs.current[currentVideo.id] : null;
     if (currentVideoElement) {
       currentVideoElement.muted = !isMuted;
@@ -466,7 +309,7 @@ export default function CommunityPage() {
 
   // Handle play/pause toggle
   const handlePlayPauseToggle = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent event bubbling
+    e.stopPropagation();
     const currentVideoElement = currentVideo ? videoRefs.current[currentVideo.id] : null;
     if (currentVideoElement) {
       if (isPlaying) {
@@ -483,8 +326,7 @@ export default function CommunityPage() {
 
   // Handle comments button click
   const handleCommentsClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent event bubbling
-    // Scroll to comments section
+    e.stopPropagation();
     const commentsSection = document.querySelector('[data-testid="comments-section"]');
     if (commentsSection) {
       commentsSection.scrollIntoView({ behavior: 'smooth' });
@@ -507,7 +349,6 @@ export default function CommunityPage() {
     if (currentVideoElement && isPlaying) {
       currentVideoElement.muted = isMuted;
       currentVideoElement.play().catch(() => {
-        // Handle autoplay failure silently
         setIsPlaying(false);
       });
     }
@@ -541,7 +382,6 @@ export default function CommunityPage() {
 
     let scrollTimeout: NodeJS.Timeout;
     const handleScroll = () => {
-      setIsUserScrolling(true);
       clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(() => {
         const scrollTop = container.scrollTop;
@@ -551,7 +391,6 @@ export default function CommunityPage() {
         if (newIndex !== currentIndex && newIndex >= 0 && newIndex < allVideos.length) {
           setCurrentIndex(newIndex);
         }
-        setIsUserScrolling(false);
       }, 150);
     };
 
@@ -561,13 +400,6 @@ export default function CommunityPage() {
       clearTimeout(scrollTimeout);
     };
   }, [currentIndex, allVideos.length]);
-
-  // Update scroll position when index changes (but not when user is manually scrolling)
-  useEffect(() => {
-    if (!isUserScrolling) {
-      scrollToVideo(currentIndex);
-    }
-  }, [currentIndex, isUserScrolling]);
 
   if (isLoading) {
     return (
@@ -599,16 +431,11 @@ export default function CommunityPage() {
     <div className="min-h-screen bg-background">
       <NavigationHeader />
       
-      {/* Main Feed Container with hardware acceleration */}
+      {/* Main Feed Container */}
       <div 
         ref={feedContainerRef}
-        className="h-[calc(100vh-4rem)] overflow-y-auto snap-y snap-mandatory scroll-smooth"
-        style={{ 
-          scrollbarWidth: 'none', 
-          msOverflowStyle: 'none',
-          transform: 'translateZ(0)', // Hardware acceleration
-          willChange: 'scroll-position' // Optimization hint
-        }}
+        className="h-[calc(100vh-4rem)] overflow-y-auto snap-y snap-mandatory"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         <style>{`
           div::-webkit-scrollbar {
@@ -616,11 +443,9 @@ export default function CommunityPage() {
           }
         `}</style>
         
-        {/* Render all videos with smart loading for performance */}
+        {/* Render all videos */}
         {allVideos.map((video, index) => {
           const isCurrent = index === currentIndex;
-          const isNearCurrent = Math.abs(index - currentIndex) <= 2; // Load current +/- 2 videos
-          const shouldLoad = isNearCurrent;
 
           return (
             <div 
@@ -628,11 +453,8 @@ export default function CommunityPage() {
               className="h-screen snap-center relative flex items-center justify-center bg-black"
               data-testid={`community-video-${video.id}`}
             >
-              {/* Video Player with hardware acceleration */}
-              <div 
-                className="relative max-w-[800px] h-auto max-h-full mx-auto"
-                style={{ transform: 'translateZ(0)' }} // Force hardware acceleration
-              >
+              {/* Video Player */}
+              <div className="relative max-w-[800px] h-auto max-h-full mx-auto">
                 <video
                   ref={(el) => {
                     if (el) {
@@ -641,15 +463,13 @@ export default function CommunityPage() {
                   }}
                   src={video.videoUrl}
                   className="w-full h-auto max-h-full object-contain"
-                  style={{ willChange: 'transform' }} // Hint for hardware acceleration
                   loop
                   muted={isMuted}
                   playsInline
-                  preload={isCurrent ? "auto" : (isNearCurrent ? "metadata" : "none")}
+                  preload="metadata"
                   data-testid={`video-element-${video.id}`}
                   data-video-index={index}
                   onLoadStart={() => {
-                    // Video started loading
                     console.log(`Video ${index} started loading`);
                   }}
                   onError={() => {
@@ -668,207 +488,128 @@ export default function CommunityPage() {
                         onClick={handlePlayPauseToggle}
                         variant="ghost"
                         size="lg"
-                        className="w-16 h-16 rounded-full bg-black/60 hover:bg-black/80 text-white pointer-events-auto"
-                        data-testid="button-play-pause-overlay"
+                        className="w-16 h-16 rounded-full bg-black/50 hover:bg-black/70 text-white border-0"
+                        data-testid="button-play-pause"
                       >
-                        {isPlaying ? <Pause className="h-8 w-8" /> : <Play className="h-8 w-8" />}
+                        {isPlaying ? <Pause size={24} /> : <Play size={24} />}
                       </Button>
                     </div>
-                    
-                    {/* Mute Button - Top right corner */}
-                    <div className="absolute top-4 right-4 pointer-events-auto">
+
+                    {/* Bottom Controls - Horizontal Layout */}
+                    <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center gap-4 bg-black/50 backdrop-blur-sm rounded-full px-6 py-3 pointer-events-auto">
+                      {/* Like Button */}
+                      <Button
+                        onClick={handleLikeToggle}
+                        variant="ghost"
+                        size="sm"
+                        className="text-white hover:bg-white/20 border-0 p-2"
+                        data-testid="button-like"
+                      >
+                        <Heart 
+                          size={20} 
+                          className={likeStatus?.liked ? "fill-red-500 text-red-500" : "text-white"} 
+                        />
+                        <span className="ml-1 text-sm">
+                          {(video.likesCount || 0) + (likeStatus?.liked && !likeStatus.initialLiked ? 1 : 0)}
+                        </span>
+                      </Button>
+
+                      {/* Comments Button */}
+                      <Button
+                        onClick={handleCommentsClick}
+                        variant="ghost"
+                        size="sm"
+                        className="text-white hover:bg-white/20 border-0 p-2"
+                        data-testid="button-comments"
+                      >
+                        <MessageCircle size={20} />
+                        <span className="ml-1 text-sm">{video.commentsCount || 0}</span>
+                      </Button>
+
+                      {/* Share Button */}
+                      <Button
+                        onClick={handleShare}
+                        variant="ghost"
+                        size="sm"
+                        className="text-white hover:bg-white/20 border-0 p-2"
+                        data-testid="button-share"
+                      >
+                        <Share2 size={20} />
+                      </Button>
+
+                      {/* Mute Button */}
                       <Button
                         onClick={handleMuteToggle}
                         variant="ghost"
-                        size="lg"
-                        className="w-12 h-12 rounded-full bg-black/60 hover:bg-black/80 text-white pointer-events-auto"
-                        data-testid="button-mute-toggle-overlay"
+                        size="sm"
+                        className="text-white hover:bg-white/20 border-0 p-2"
+                        data-testid="button-mute"
                       >
-                        {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
+                        {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
                       </Button>
-                    </div>
-                    
-                    {/* Action Buttons - Bottom center */}
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto">
-                      <div className="flex items-center gap-4">
-                        <Button
-                          onClick={handleLikeToggle}
-                          variant="ghost"
-                          size="sm"
-                          className={`flex items-center gap-2 rounded-full px-4 py-2 ${likeStatus?.liked 
-                            ? 'bg-red-500 hover:bg-red-600 text-white' 
-                            : 'bg-black/60 hover:bg-black/80 text-white'} pointer-events-auto`}
-                          data-testid="button-like-video-overlay"
-                        >
-                          <ThumbsUp className="h-4 w-4" />
-                          <span className="text-sm">{likeStatus?.likesCount || 0}</span>
-                        </Button>
-
-                        <Button
-                          onClick={handleCommentsClick}
-                          variant="ghost"
-                          size="sm"
-                          className="flex items-center gap-2 rounded-full px-4 py-2 bg-black/60 hover:bg-black/80 text-white pointer-events-auto"
-                          data-testid="button-comments-toggle-overlay"
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                          <span className="text-sm">{comments.length}</span>
-                        </Button>
-
-                        <Button
-                          onClick={handleShare}
-                          variant="ghost"
-                          size="sm"
-                          className="flex items-center gap-2 rounded-full px-4 py-2 bg-black/60 hover:bg-black/80 text-white pointer-events-auto"
-                          data-testid="button-share-video-overlay"
-                        >
-                          <Share2 className="h-4 w-4" />
-                        </Button>
-                      </div>
                     </div>
                   </div>
                 )}
+
+                {/* Navigation Arrows - Only show for current video */}
+                {isCurrent && (
+                  <>
+                    {currentIndex > 0 && (
+                      <Button
+                        onClick={goToPrevious}
+                        variant="ghost"
+                        size="sm"
+                        className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full w-12 h-12 z-30"
+                        data-testid="button-previous"
+                      >
+                        <ArrowUp size={20} />
+                      </Button>
+                    )}
+                    
+                    {currentIndex < allVideos.length - 1 && (
+                      <Button
+                        onClick={goToNext}
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full w-12 h-12 z-30"
+                        data-testid="button-next"
+                      >
+                        <ArrowDown size={20} />
+                      </Button>
+                    )}
+                  </>
+                )}
               </div>
 
-              {/* Navigation Arrows */}
-              {currentIndex > 0 && (
-                <Button
-                  onClick={goToPrevious}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 border-0"
-                  data-testid="button-previous-video"
-                >
-                  <ChevronUp className="h-6 w-6 text-white" />
-                </Button>
-              )}
-              
-              {currentIndex < allVideos.length - 1 && (
-                <Button
-                  onClick={goToNext}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 border-0"
-                  data-testid="button-next-video"
-                >
-                  <ChevronDown className="h-6 w-6 text-white" />
-                </Button>
-              )}
-
-              {/* Video Info Overlay - Only show for current video */}
+              {/* Video Info Overlay - Left Side */}
               {isCurrent && (
-                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-                  <div className="flex items-end justify-between">
-                    {/* Video info */}
-                    <div className="flex-1">
-                      <h2 className="text-xl font-bold text-white mb-2 line-clamp-2">
-                        {video.title}
-                      </h2>
-                      
-                      <div className="flex items-center mb-4">
-                        <Avatar className="h-10 w-10 mr-3 border-2 border-white/20">
-                          <AvatarImage src={video.creator.avatarUrl || undefined} />
-                          <AvatarFallback className="bg-primary text-white">
-                            {video.creator.username.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        
-                        <div>
-                          <Link href={`/u/${video.creator.username}`}>
-                            <span className="text-white font-semibold hover:underline cursor-pointer">
-                              @{video.creator.username}
-                            </span>
-                          </Link>
-                          <p className="text-white/80 text-sm">
-                            {formatDistanceToNow(new Date(video.createdAt), { addSuffix: true })}
-                          </p>
+                <div className="absolute left-4 bottom-20 text-white max-w-xs z-20">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      {video.creator.avatarUrl ? (
+                        <img
+                          src={video.creator.avatarUrl}
+                          alt={video.creator.username}
+                          className="w-8 h-8 rounded-full"
+                          data-testid={`img-creator-avatar-${video.id}`}
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                          <User size={16} />
                         </div>
-                      </div>
+                      )}
+                      <span className="font-semibold text-sm" data-testid={`text-creator-${video.id}`}>
+                        @{video.creator.username}
+                      </span>
                     </div>
-                  </div>
-
-                  {/* Comments Section */}
-                  <div className="mt-6 max-h-60 overflow-y-auto" data-testid="comments-section">
-                    {comments.length > 0 && (
-                      <div className="space-y-3 mb-4">
-                        {comments.slice(0, 3).map((comment) => (
-                          <div key={comment.id} className="flex items-start gap-3">
-                            <Avatar className="h-8 w-8 flex-shrink-0">
-                              <AvatarImage src={comment.user.avatarUrl || undefined} />
-                              <AvatarFallback className="bg-primary text-white">
-                                {comment.user.username.charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            
-                            <div className="flex-1 min-w-0">
-                              <div className="bg-white/10 rounded-lg px-3 py-2">
-                                <p className="text-white/90 text-sm font-medium mb-1">
-                                  @{comment.user.username}
-                                </p>
-                                <p className="text-white text-sm">{comment.content}</p>
-                              </div>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-white/60 text-xs">
-                                  {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
-                                </span>
-                                {isAuthenticated && comment.user.id === user?.id && (
-                                  <Button
-                                    onClick={() => deleteCommentMutation.mutate(comment.id)}
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 text-white/60 hover:text-red-400"
-                                    data-testid={`button-delete-comment-${comment.id}`}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Add Comment */}
-                    {isAuthenticated && (
-                      <div className="flex gap-2">
-                        <Avatar className="h-8 w-8 flex-shrink-0">
-                          <AvatarImage src={user?.avatarUrl || undefined} />
-                          <AvatarFallback className="bg-primary text-white">
-                            {(user?.username || 'U').charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        
-                        <div className="flex-1 flex gap-2">
-                          <Textarea
-                            value={newComment}
-                            onChange={(e) => setNewComment(e.target.value)}
-                            placeholder="Add a comment..."
-                            className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/60 resize-none"
-                            rows={1}
-                            disabled={isSubmittingComment}
-                            data-testid="textarea-comment"
-                          />
-                          <Button
-                            onClick={handleCommentSubmit}
-                            disabled={!newComment.trim() || isSubmittingComment}
-                            className="self-end"
-                            data-testid="button-submit-comment"
-                          >
-                            <Send className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {!isAuthenticated && (
-                      <div className="text-center">
-                        <p className="text-white/60 text-sm">
-                          <Link href="/auth">
-                            <span className="text-primary hover:underline cursor-pointer">
-                              Sign in
-                            </span>
-                          </Link>{" "}
-                          to like and comment
-                        </p>
-                      </div>
-                    )}
+                    
+                    <h3 className="font-medium text-sm leading-tight" data-testid={`text-title-${video.id}`}>
+                      {video.title}
+                    </h3>
+                    
+                    <p className="text-xs text-white/70" data-testid={`text-timestamp-${video.id}`}>
+                      {formatDistanceToNow(new Date(video.createdAt), { addSuffix: true })}
+                    </p>
                   </div>
                 </div>
               )}
@@ -876,6 +617,98 @@ export default function CommunityPage() {
           );
         })}
       </div>
+
+      {/* Comments Section */}
+      {currentVideo && (
+        <div className="fixed inset-x-0 bottom-0 bg-background border-t max-h-96 overflow-hidden z-40">
+          <div className="p-4" data-testid="comments-section">
+            <div className="max-w-2xl mx-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Comments ({comments.length})</h3>
+                <Button
+                  onClick={() => {
+                    document.querySelector('[data-testid="comments-section"]')?.scrollTo({ top: -1000, behavior: 'smooth' });
+                  }}
+                  variant="ghost"
+                  size="sm"
+                  data-testid="button-close-comments"
+                >
+                  ✕
+                </Button>
+              </div>
+
+              {/* Add Comment */}
+              {isAuthenticated && (
+                <div className="mb-4">
+                  <div className="flex gap-2">
+                    <Input
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Add a comment..."
+                      className="flex-1"
+                      data-testid="input-comment"
+                    />
+                    <Button
+                      onClick={handleCommentSubmit}
+                      disabled={isSubmittingComment || !newComment.trim()}
+                      data-testid="button-submit-comment"
+                    >
+                      {isSubmittingComment ? "Posting..." : "Post"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Comments List */}
+              <div className="space-y-3 max-h-48 overflow-y-auto">
+                {comments.map((comment) => (
+                  <div key={comment.id} className="flex gap-3" data-testid={`comment-${comment.id}`}>
+                    {comment.userAvatarUrl ? (
+                      <img
+                        src={comment.userAvatarUrl}
+                        alt={comment.username}
+                        className="w-8 h-8 rounded-full flex-shrink-0"
+                        data-testid={`img-commenter-avatar-${comment.id}`}
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                        <User size={16} />
+                      </div>
+                    )}
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm" data-testid={`text-commenter-${comment.id}`}>
+                          {comment.username}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground" data-testid={`text-comment-time-${comment.id}`}>
+                            {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                          </span>
+                          {comment.isOwn && (
+                            <Button
+                              onClick={() => deleteCommentMutation.mutate(comment.id)}
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                              data-testid={`button-delete-comment-${comment.id}`}
+                            >
+                              <Trash2 size={12} />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1" data-testid={`text-comment-content-${comment.id}`}>
+                        {comment.content}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
