@@ -4508,6 +4508,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== MUX MIGRATION ENDPOINTS =====
+  
+  // Admin endpoint to migrate existing videos to Mux
+  app.post("/api/admin/migrate-videos-to-mux", authenticateToken, async (req, res) => {
+    try {
+      // Check if user is admin
+      const user = (req as any).user;
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      // Get all completed videos without Mux assets
+      const allProjects = await storage.getAllVideosForAdmin();
+      const videosToMigrate = allProjects.filter(p => 
+        p.isCompleted && 
+        p.finalVideoUrl && 
+        !p.muxAssetId && 
+        !p.muxPlaybackId
+      );
+
+      console.log(`Found ${videosToMigrate.length} videos to migrate to Mux`);
+
+      // Start migration process for each video
+      const migrationResults = [];
+      for (const project of videosToMigrate) {
+        try {
+          // Create Mux asset for this video (non-blocking)
+          const asyncJob = createMuxAssetForVideo(project.id, project.finalVideoUrl!);
+          
+          migrationResults.push({
+            projectId: project.id,
+            title: project.title,
+            status: 'queued',
+            message: 'Mux asset creation initiated'
+          });
+
+          console.log(`Initiated Mux migration for video ${project.id}`);
+        } catch (error) {
+          console.error(`Failed to initiate migration for video ${project.id}:`, error);
+          migrationResults.push({
+            projectId: project.id,
+            title: project.title,
+            status: 'failed',
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+
+      res.json({
+        message: `Migration initiated for ${videosToMigrate.length} videos`,
+        totalVideos: videosToMigrate.length,
+        results: migrationResults
+      });
+    } catch (error) {
+      console.error("Video migration error:", error);
+      res.status(500).json({ error: "Failed to migrate videos to Mux" });
+    }
+  });
+
+  // Admin endpoint to check Mux migration status
+  app.get("/api/admin/mux-migration-status", authenticateToken, async (req, res) => {
+    try {
+      // Check if user is admin
+      const user = (req as any).user;
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      const allProjects = await storage.getAllVideosForAdmin();
+      const completedVideos = allProjects.filter(p => p.isCompleted && p.finalVideoUrl);
+      
+      const muxStats = {
+        totalCompletedVideos: completedVideos.length,
+        videosWithMuxAssets: completedVideos.filter(p => p.muxAssetId).length,
+        videosWithMuxReady: completedVideos.filter(p => p.muxAssetStatus === 'ready').length,
+        videosWithMuxPreparing: completedVideos.filter(p => p.muxAssetStatus === 'preparing').length,
+        videosWithMuxErrored: completedVideos.filter(p => p.muxAssetStatus === 'errored').length,
+        videosWithoutMux: completedVideos.filter(p => !p.muxAssetId).length,
+      };
+
+      res.json(muxStats);
+    } catch (error) {
+      console.error("Mux migration status error:", error);
+      res.status(500).json({ error: "Failed to get migration status" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

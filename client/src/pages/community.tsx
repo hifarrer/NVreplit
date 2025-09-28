@@ -10,7 +10,7 @@ import { formatDistanceToNow } from "date-fns";
 import { NavigationHeader } from "@/components/navigation-header";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { checkProfanity, getCategoryMessage } from "@/lib/profanity-filter";
-import { IntelligentVideoPlayer } from "@/components/intelligent-video-player";
+import { MuxVideoPlayer } from "@/components/mux-video-player";
 
 type CommunityVideo = {
   id: string;
@@ -459,15 +459,15 @@ export default function CommunityPage() {
               className="h-screen snap-center relative flex items-center justify-center bg-black"
               data-testid={`community-video-${video.id}`}
             >
-              {/* Intelligent Video Player with Mux HLS and fallback */}
+              {/* Mux Video Player with fallback */}
               <div className="relative max-w-[800px] h-auto max-h-full mx-auto">
-                <IntelligentVideoPlayer
+                <MuxVideoPlayer
                   ref={(el) => {
                     if (el) {
                       videoRefs.current[video.id] = el;
                     }
                   }}
-                  hlsUrl={video.mux?.assetStatus === 'ready' ? video.mux.hlsUrl : undefined}
+                  playbackId={video.mux?.assetStatus === 'ready' ? video.mux.playbackId : null}
                   fallbackUrl={video.videoUrl}
                   className="w-full h-auto max-h-full object-contain"
                   loop
