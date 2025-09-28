@@ -16,6 +16,8 @@ interface MuxVideoPlayerProps {
   playsInline?: boolean;
   preload?: 'none' | 'metadata' | 'auto';
   poster?: string;
+  autoPlay?: boolean;
+  controls?: boolean;
   
   // Event handlers
   onLoadStart?: () => void;
@@ -39,6 +41,8 @@ export const MuxVideoPlayer = forwardRef<HTMLVideoElement, MuxVideoPlayerProps>(
     playsInline = true,
     preload = 'metadata',
     poster,
+    autoPlay = false,
+    controls = false,
     onLoadStart,
     onError,
     onCanPlay,
@@ -64,7 +68,8 @@ export const MuxVideoPlayer = forwardRef<HTMLVideoElement, MuxVideoPlayerProps>(
           ref={muxPlayerRef}
           playbackId={playbackId}
           streamType="on-demand"
-          autoPlay={false}
+          autoPlay={autoPlay}
+          controls={controls}
           loop={loop}
           muted={muted}
           playsInline={playsInline}
@@ -95,6 +100,8 @@ export const MuxVideoPlayer = forwardRef<HTMLVideoElement, MuxVideoPlayerProps>(
           playsInline={playsInline}
           preload={preload}
           poster={poster}
+          autoPlay={autoPlay}
+          controls={controls}
           data-testid={dataTestId}
           data-video-index={dataVideoIndex}
           onLoadStart={onLoadStart}

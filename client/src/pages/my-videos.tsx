@@ -331,19 +331,18 @@ export default function MyVideosPage() {
           </DialogHeader>
           <div className="aspect-video bg-black rounded-lg overflow-hidden">
             {selectedVideo && !videoError && (
-              <div style={{ '--controls': 'true' } as any}>
-                <MuxVideoPlayer
-                  playbackId={selectedVideo.mux?.assetStatus === 'ready' ? selectedVideo.mux.playbackId : null}
-                  fallbackUrl={selectedVideo.videoUrl}
-                  className="w-full h-full"
-                  autoPlay
-                  data-testid="video-player"
-                  onError={() => {
-                    console.error('Video playback failed:', selectedVideo.videoUrl);
-                    setVideoError(true);
-                  }}
-                />
-              </div>
+              <MuxVideoPlayer
+                playbackId={selectedVideo.mux?.assetStatus === 'ready' ? selectedVideo.mux.playbackId : null}
+                fallbackUrl={selectedVideo.videoUrl}
+                className="w-full h-full"
+                autoPlay
+                controls
+                data-testid="video-player"
+                onError={() => {
+                  console.error('Video playback failed:', selectedVideo.videoUrl);
+                  setVideoError(true);
+                }}
+              />
             )}
             {videoError && (
               <div className="w-full h-full flex flex-col items-center justify-center text-white">
