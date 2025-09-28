@@ -83,6 +83,7 @@ export default function CommunityPage() {
   const [commentProfanityCheck, setCommentProfanityCheck] = useState<ProfanityCheckResult | null>(null);
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
 
   const feedContainerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement }>({});
@@ -540,6 +541,7 @@ export default function CommunityPage() {
 
     let scrollTimeout: NodeJS.Timeout;
     const handleScroll = () => {
+      setIsUserScrolling(true);
       clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(() => {
         const scrollTop = container.scrollTop;
@@ -549,6 +551,7 @@ export default function CommunityPage() {
         if (newIndex !== currentIndex && newIndex >= 0 && newIndex < allVideos.length) {
           setCurrentIndex(newIndex);
         }
+        setIsUserScrolling(false);
       }, 150);
     };
 
@@ -559,10 +562,12 @@ export default function CommunityPage() {
     };
   }, [currentIndex, allVideos.length]);
 
-  // Update scroll position when index changes
+  // Update scroll position when index changes (but not when user is manually scrolling)
   useEffect(() => {
-    scrollToVideo(currentIndex);
-  }, [currentIndex]);
+    if (!isUserScrolling) {
+      scrollToVideo(currentIndex);
+    }
+  }, [currentIndex, isUserScrolling]);
 
   if (isLoading) {
     return (
