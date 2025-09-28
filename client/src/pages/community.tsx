@@ -194,13 +194,31 @@ export default function CommunityPage() {
   // Navigation functions
   const goToPrevious = useCallback(() => {
     if (currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1);
+      const container = feedContainerRef.current;
+      if (container) {
+        const targetIndex = currentIndex - 1;
+        const videoHeight = window.innerHeight;
+        container.scrollTo({
+          top: targetIndex * videoHeight,
+          behavior: 'smooth'
+        });
+        setCurrentIndex(targetIndex);
+      }
     }
   }, [currentIndex]);
 
   const goToNext = useCallback(() => {
     if (currentIndex < allVideos.length - 1) {
-      setCurrentIndex(prev => prev + 1);
+      const container = feedContainerRef.current;
+      if (container) {
+        const targetIndex = currentIndex + 1;
+        const videoHeight = window.innerHeight;
+        container.scrollTo({
+          top: targetIndex * videoHeight,
+          behavior: 'smooth'
+        });
+        setCurrentIndex(targetIndex);
+      }
     }
     
     // Prefetch next page when near the end
