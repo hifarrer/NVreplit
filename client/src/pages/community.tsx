@@ -362,21 +362,27 @@ export default function CommunityPage() {
   useEffect(() => {
     const currentVideoElement = currentVideo ? videoRefs.current[currentVideo.id] : null;
     
-    // Pause all videos first
-    Object.values(videoRefs.current).forEach(video => {
-      if (video) {
-        video.pause();
-        video.currentTime = 0;
-      }
-    });
-
-    // Play current video if isPlaying is true
-    if (currentVideoElement && isPlaying) {
-      currentVideoElement.muted = isMuted;
-      currentVideoElement.play().catch(() => {
-        setIsPlaying(false);
+    // Small delay to ensure video elements are ready
+    const timer = setTimeout(() => {
+      // Pause all videos first
+      Object.values(videoRefs.current).forEach(video => {
+        if (video) {
+          video.pause();
+          video.currentTime = 0;
+        }
       });
-    }
+
+      // Play current video if isPlaying is true
+      if (currentVideoElement && isPlaying) {
+        currentVideoElement.muted = isMuted;
+        currentVideoElement.play().catch((error) => {
+          console.warn("Video autoplay failed:", error);
+          setIsPlaying(false);
+        });
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [currentIndex, currentVideo, isMuted, isPlaying]);
 
   // Reset playing state when changing videos
@@ -499,6 +505,18 @@ export default function CommunityPage() {
                   onLoadStart={() => {
                     console.log(`Video ${index} started loading`);
                   }}
+                  onCanPlay={() => {
+                    // Auto-start the first video when it's ready to play
+                    if (index === 0 && currentIndex === 0 && isPlaying) {
+                      const videoElement = videoRefs.current[video.id];
+                      if (videoElement) {
+                        videoElement.muted = isMuted;
+                        videoElement.play().catch((error) => {
+                          console.warn("Initial video autoplay failed:", error);
+                        });
+                      }
+                    }
+                  }}
                   onError={() => {
                     console.warn(`Failed to load video ${video.id}`);
                   }}
@@ -507,6 +525,41 @@ export default function CommunityPage() {
                 {/* Video Controls Overlay - Only show for current video */}
                 {isCurrent && (
                   <div className="absolute inset-0 transition-opacity duration-300 group z-20 pointer-events-none opacity-70 hover:opacity-100">
+                    
+                    {/* Center Play/Pause Button */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
+                      <Button
+                        onClick={handlePlayPauseToggle}
+                        variant="ghost"
+                        size="sm"
+                        className="text-white hover:bg-black/50 border-0 p-4 rounded-full bg-black/30 backdrop-blur-sm transition-opacity duration-200 opacity-0 group-hover:opacity-100"
+                        data-testid="button-play-pause"
+                      >
+                        {isPlaying ? (
+                          <Pause size={32} />
+                        ) : (
+                          <Play size={32} />
+                        )}
+                      </Button>
+                    </div>
+                    
+                    {/* Mute Button - Bottom Left */}
+                    <div className="absolute bottom-4 left-4 pointer-events-auto">
+                      <Button
+                        onClick={handleMuteToggle}
+                        variant="ghost"
+                        size="sm"
+                        className="text-white hover:bg-black/50 border-0 p-3 rounded-full bg-black/30 backdrop-blur-sm"
+                        data-testid="button-mute"
+                      >
+                        {isMuted ? (
+                          <VolumeX size={20} />
+                        ) : (
+                          <Volume2 size={20} />
+                        )}
+                      </Button>
+                    </div>
+                    
                     {/* Right Side Controls - Social Actions Only */}
                     <div className="absolute right-4 bottom-1/2 transform translate-y-1/2 flex flex-col items-center gap-4 pointer-events-auto">
                       {/* Like Button */}
