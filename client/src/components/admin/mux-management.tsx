@@ -316,7 +316,7 @@ export function MuxManagement() {
           {/* Action Buttons */}
           <div className="space-y-4">
             {/* Re-process All Videos Button - Always show when videos need Mux processing */}
-            {status.videosWithMuxReady < status.totalCompletedVideos && (
+            {status.totalCompletedVideos > 0 && (
               <div className="flex justify-center">
                 <Button
                   onClick={() => reprocessAllMutation.mutate()}
