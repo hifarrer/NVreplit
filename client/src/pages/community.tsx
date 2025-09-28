@@ -86,7 +86,6 @@ export default function CommunityPage() {
 
   const feedContainerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement }>({});
-  const intersectionObserverRef = useRef<IntersectionObserver | null>(null);
 
   // Fetch community videos with infinite query
   const {
@@ -157,44 +156,6 @@ export default function CommunityPage() {
 
   const currentVideo = allVideos[currentIndex];
   
-  // Setup intersection observer for performance
-  useEffect(() => {
-    if (!feedContainerRef.current) return;
-    
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          const videoIndex = parseInt(entry.target.getAttribute('data-video-index') || '0');
-          
-          if (entry.isIntersecting) {
-            // Video is visible, ensure it's loaded
-            setLoadedVideoIndices(prev => new Set([...prev, videoIndex]));
-          } else {
-            // Video is not visible, consider unloading if very far away
-            if (Math.abs(videoIndex - currentIndex) > 10) {
-              setLoadedVideoIndices(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(videoIndex);
-                return newSet;
-              });
-            }
-          }
-        });
-      },
-      {
-        root: feedContainerRef.current,
-        threshold: 0.1,
-        rootMargin: '100px'
-      }
-    );
-    
-    intersectionObserverRef.current = observer;
-    
-    return () => {
-      observer.disconnect();
-      intersectionObserverRef.current = null;
-    };
-  }, [currentIndex]);
   
   // Video playback management
   useEffect(() => {
@@ -266,10 +227,6 @@ export default function CommunityPage() {
         cleanupVideo(videoId);
       });
       
-      // Disconnect intersection observer
-      if (intersectionObserverRef.current) {
-        intersectionObserverRef.current.disconnect();
-      }
       
       // Clear any pending timeouts
       if (scrollTimeout) {
@@ -675,10 +632,6 @@ export default function CommunityPage() {
                   ref={(el) => {
                     if (el) {
                       videoRefs.current[video.id] = el;
-                      // Observe video element for intersection
-                      if (intersectionObserverRef.current) {
-                        intersectionObserverRef.current.observe(el);
-                      }
                     }
                   }}
                   src={video.videoUrl}
