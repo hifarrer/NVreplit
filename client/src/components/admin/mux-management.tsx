@@ -308,15 +308,15 @@ export function MuxManagement() {
             <Alert className="border-blue-500/50 bg-blue-900/20">
               <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />
               <AlertDescription className="text-blue-200">
-                {status.videosWithMuxPreparing} videos are currently being encoded by Mux.
+                {status.videosWithMuxPreparing} videos are currently being encoded by Mux. If stuck for a long time, use "Re-process All Videos" below.
               </AlertDescription>
             </Alert>
           )}
 
           {/* Action Buttons */}
           <div className="space-y-4">
-            {/* Re-process All Videos Button - Enhanced for any videos that need Mux */}
-            {(status.videosWithoutMux > 0 || status.videosWithMuxErrored > 0) && (
+            {/* Re-process All Videos Button - Always show when videos need Mux processing */}
+            {status.videosWithMuxReady < status.totalCompletedVideos && (
               <div className="flex justify-center">
                 <Button
                   onClick={() => reprocessAllMutation.mutate()}
@@ -333,7 +333,7 @@ export function MuxManagement() {
                   ) : (
                     <>
                       <RefreshCw className="mr-2 h-4 w-4" />
-                      Re-process All Videos ({status.videosWithoutMux + status.videosWithMuxErrored})
+                      Re-process All Videos ({status.videosWithoutMux + status.videosWithMuxErrored + status.videosWithMuxPreparing})
                     </>
                   )}
                 </Button>
