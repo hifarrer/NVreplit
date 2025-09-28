@@ -10,12 +10,18 @@ import { formatDistanceToNow } from "date-fns";
 import { NavigationHeader } from "@/components/navigation-header";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { checkProfanity, getCategoryMessage } from "@/lib/profanity-filter";
+import { IntelligentVideoPlayer } from "@/components/intelligent-video-player";
 
 type CommunityVideo = {
   id: string;
   title: string;
   videoUrl: string;
   thumbnailUrl?: string;
+  mux?: {
+    playbackId: string | null;
+    assetStatus: string | null;
+    hlsUrl: string | null;
+  };
   creator: {
     id: string;
     username: string;
@@ -453,15 +459,16 @@ export default function CommunityPage() {
               className="h-screen snap-center relative flex items-center justify-center bg-black"
               data-testid={`community-video-${video.id}`}
             >
-              {/* Video Player */}
+              {/* Intelligent Video Player with Mux HLS and fallback */}
               <div className="relative max-w-[800px] h-auto max-h-full mx-auto">
-                <video
+                <IntelligentVideoPlayer
                   ref={(el) => {
                     if (el) {
                       videoRefs.current[video.id] = el;
                     }
                   }}
-                  src={video.videoUrl}
+                  hlsUrl={video.mux?.assetStatus === 'ready' ? video.mux.hlsUrl : undefined}
+                  fallbackUrl={video.videoUrl}
                   className="w-full h-auto max-h-full object-contain"
                   loop
                   muted={isMuted}

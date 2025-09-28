@@ -18,6 +18,7 @@ import { splitAudio, mergeVideos, pictureInPicture, getWatermarkUrl } from "./se
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { emailService } from "./services/email";
+import { createMuxAssetForVideo } from "./services/muxJobs";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -2320,6 +2321,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             createdAt: project.createdAt,
             duration: project.audioDuration || 30,
             hash: project.hash,
+            // Mux streaming data for performance optimization
+            mux: {
+              playbackId: project.muxPlaybackId || null,
+              assetStatus: project.muxAssetStatus || null,
+              hlsUrl: project.muxPlaybackId ? `https://stream.mux.com/${project.muxPlaybackId}.m3u8` : null
+            },
             creator: {
               id: user?.id || project.userId,
               username: user?.username || 'Unknown User',
@@ -4126,6 +4133,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Complete video processing in queue
       await videoQueueService.completeVideoGeneration(req.params.id, true);
+
+      // Create Mux asset for improved streaming (non-blocking)
+      try {
+        await createMuxAssetForVideo(req.params.id, savedFinalVideoUrl);
+      } catch (muxError) {
+        console.error("Failed to create Mux asset (non-blocking):", muxError);
+        // Don't fail the video generation if Mux asset creation fails
+      }
 
       // Deduct credits for successful video generation
       const creditDeducted = await storage.deductUserCredits(project.userId, VIDEO_GENERATION_CREDITS);
