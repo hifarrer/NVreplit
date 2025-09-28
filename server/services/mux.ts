@@ -217,17 +217,11 @@ export async function migrateSingleVideoToMux(): Promise<{ projectId: string; vi
     console.log(`Testing migration for project ${candidateProject.id}`);
     
     try {
-      // Create Mux asset
-      const result = await createMuxAsset(candidateProject.finalVideoUrl);
+      // Use the job manager instead of direct asset creation for consistency
+      const { createMuxAssetForVideo } = await import('./muxJobs.js');
+      await createMuxAssetForVideo(candidateProject.id, candidateProject.finalVideoUrl);
       
-      // Update project with Mux info
-      await storage.updateProject(candidateProject.id, {
-        muxAssetId: result.assetId,
-        muxPlaybackId: result.playbackId,
-        muxAssetStatus: result.status,
-      });
-      
-      console.log(`Successfully started Mux migration for project ${candidateProject.id}`);
+      console.log(`Successfully queued Mux migration for project ${candidateProject.id}`);
       
       return {
         projectId: candidateProject.id,
@@ -249,5 +243,69 @@ export async function migrateSingleVideoToMux(): Promise<{ projectId: string; vi
   } catch (error) {
     console.error('Error in single video migration:', error);
     throw new Error(`Failed to migrate single video: ${error}`);
+  }
+}
+
+/**
+ * Re-process all videos that need Mux conversion (including failed ones)
+ */
+export async function reprocessAllMuxVideos(): Promise<{ processedCount: number; results: any[] }> {
+  try {
+    const projects = await storage.getAllVideosForAdmin();
+    
+    // Find videos that need Mux processing (no asset or failed)
+    const videosToProcess = projects.filter((p: Project) => 
+      p.isCompleted && 
+      p.finalVideoUrl && 
+      (!p.muxAssetId || p.muxAssetStatus === 'errored')
+    );
+    
+    console.log(`Found ${videosToProcess.length} videos that need Mux processing`);
+    
+    const results = [];
+    const { createMuxAssetForVideo } = await import('./muxJobs.js');
+    
+    for (const project of videosToProcess) {
+      try {
+        // Reset any existing failed Mux data
+        if (project.muxAssetStatus === 'errored') {
+          await storage.updateProject(project.id, {
+            muxAssetId: null,
+            muxPlaybackId: null,
+            muxAssetStatus: null,
+          });
+        }
+        
+        // Queue for Mux processing
+        await createMuxAssetForVideo(project.id, project.finalVideoUrl);
+        
+        results.push({
+          projectId: project.id,
+          title: project.title,
+          status: 'queued',
+          message: 'Successfully queued for Mux processing'
+        });
+        
+        console.log(`Queued Mux processing for project ${project.id}: ${project.title}`);
+        
+      } catch (error) {
+        console.error(`Failed to queue Mux processing for project ${project.id}:`, error);
+        results.push({
+          projectId: project.id,
+          title: project.title,
+          status: 'failed',
+          error: (error as Error).message
+        });
+      }
+    }
+    
+    return {
+      processedCount: videosToProcess.length,
+      results
+    };
+    
+  } catch (error) {
+    console.error('Error in bulk Mux reprocessing:', error);
+    throw new Error(`Failed to reprocess videos: ${error}`);
   }
 }

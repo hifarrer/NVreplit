@@ -101,6 +101,39 @@ export function MuxManagement() {
     },
   });
 
+  // Re-process all videos mutation
+  const reprocessAllMutation = useMutation({
+    mutationFn: async () => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch("/api/admin/reprocess-all-mux-videos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to re-process videos");
+      }
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Re-processing Started",
+        description: `Re-processing initiated for ${data.processedCount} videos`,
+      });
+      refetch();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Re-processing Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Single video migration mutation
   const singleMigrationMutation = useMutation({
     mutationFn: async () => {
@@ -282,6 +315,31 @@ export function MuxManagement() {
 
           {/* Action Buttons */}
           <div className="space-y-4">
+            {/* Re-process All Videos Button - Enhanced for any videos that need Mux */}
+            {(status.videosWithoutMux > 0 || status.videosWithMuxErrored > 0) && (
+              <div className="flex justify-center">
+                <Button
+                  onClick={() => reprocessAllMutation.mutate()}
+                  disabled={reprocessAllMutation.isPending}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8"
+                  size="lg"
+                  data-testid="button-reprocess-all"
+                >
+                  {reprocessAllMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Re-processing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Re-process All Videos ({status.videosWithoutMux + status.videosWithMuxErrored})
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
             {/* Reset Failed Migrations Button */}
             {status.videosWithMuxErrored > 0 && (
               <div className="flex justify-center">
@@ -332,13 +390,13 @@ export function MuxManagement() {
               </div>
             )}
 
-            {/* Main Migration Button */}
+            {/* Original Migration Button - Now for initial migrations only */}
             <div className="flex justify-center">
               <Button
                 onClick={handleMigration}
                 disabled={!migrationNeeded || isMigrating || migrationMutation.isPending}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-8"
-                size="lg"
+                variant="outline"
+                className="border-purple-500/50 text-purple-300 hover:bg-purple-600/20 px-6"
                 data-testid="button-start-migration"
               >
                 {isMigrating || migrationMutation.isPending ? (
@@ -349,7 +407,7 @@ export function MuxManagement() {
                 ) : migrationNeeded ? (
                   <>
                     <Play className="mr-2 h-4 w-4" />
-                    Start Migration ({status.videosWithoutMux} videos)
+                    Start Initial Migration ({status.videosWithoutMux} videos)
                   </>
                 ) : (
                   <>
@@ -363,13 +421,14 @@ export function MuxManagement() {
 
           {/* Info */}
           <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-700/50">
-            <h4 className="text-sm font-medium text-white mb-2">About Mux Migration</h4>
+            <h4 className="text-sm font-medium text-white mb-2">About Mux Migration & Re-processing</h4>
             <div className="text-xs text-gray-400 space-y-1">
-              <div>• Converts existing videos to HLS streaming for better performance</div>
-              <div>• Provides adaptive bitrate streaming based on viewer's connection</div>
-              <div>• Maintains original video quality while adding streaming optimization</div>
-              <div>• Videos remain available during migration with automatic fallback</div>
-              <div>• Production migration will work better than development (localhost limitations)</div>
+              <div>• <strong>Re-process All Videos:</strong> Handles both new videos and failed conversions</div>
+              <div>• <strong>Initial Migration:</strong> For first-time setup of existing videos</div>
+              <div>• <strong>Reset Failed:</strong> Clears error states to allow retry</div>
+              <div>• <strong>Test Single:</strong> Try converting one video to test configuration</div>
+              <div>• Videos remain available during processing with automatic fallback</div>
+              <div>• HLS streaming provides adaptive bitrate for better performance</div>
             </div>
           </div>
         </CardContent>

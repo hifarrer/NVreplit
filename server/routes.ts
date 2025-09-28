@@ -4679,19 +4679,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create Mux asset for specific project (temporary fix)
-  app.post("/api/projects/:id/create-mux-asset", async (req, res) => {
+
+  // Re-process all videos that need Mux conversion
+  app.post("/api/admin/reprocess-all-mux-videos", authenticateToken, async (req, res) => {
     try {
-      const project = await storage.getProject(req.params.id);
-      if (!project || !project.finalVideoUrl) {
-        return res.status(404).json({ error: "Project not found or no video available" });
+      // Check if user is admin
+      const user = (req as any).user;
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
       }
 
-      await createMuxAssetForVideo(req.params.id, project.finalVideoUrl);
-      res.json({ message: "Mux asset creation queued", projectId: req.params.id });
+      const { reprocessAllMuxVideos } = await import('./services/mux.js');
+      const result = await reprocessAllMuxVideos();
+      
+      res.json({
+        success: true,
+        message: `Re-processing initiated for ${result.processedCount} videos`,
+        processedCount: result.processedCount,
+        results: result.results
+      });
     } catch (error) {
-      console.error("Create Mux asset error:", error);
-      res.status(500).json({ error: "Failed to create Mux asset" });
+      console.error("Re-process all Mux videos error:", error);
+      res.status(500).json({ error: String(error) });
     }
   });
 
