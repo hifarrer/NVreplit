@@ -103,8 +103,15 @@ function authenticateToken(req: any, res: any, next: any) {
 
   jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
     if (err) {
+      console.log('❌ JWT verification failed:', err.message);
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
+    
+    // Debug logging for upload-character endpoint
+    if (req.url.includes('upload-character')) {
+      console.log('✅ JWT verified successfully for upload-character:', { userId: user.userId, username: user.username });
+    }
+    
     req.user = user;
     next();
   });
@@ -4707,6 +4714,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/projects/:id/upload-character", authenticateToken, upload.single('image'), async (req, res) => {
     try {
       const user = (req as any).user;
+      console.log('🔍 Upload handler user check:', { user: user, hasUser: !!user, userId: user?.userId });
       if (!user?.id) {
         return res.status(401).json({ error: "User authentication required" });
       }
