@@ -91,22 +91,34 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
           <p className="text-muted-foreground">Upload an image, generate an AI character, or choose from your saved characters</p>
         </div>
 
-        {/* Character Library Section */}
-        <div className="mb-8">
-          <div className="flex justify-center">
-            <Button
-              variant="outline"
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+          {/* My Character Library */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold flex items-center">
+              <Images className="w-4 h-4 text-primary mr-2" />
+              My Character Library
+            </h4>
+            
+            <div className="bg-muted/30 rounded-lg p-6 sm:p-8 text-center">
+              <Images className="w-12 h-12 text-primary mb-4 mx-auto" />
+              <p className="text-muted-foreground mb-4">Choose from your saved characters</p>
+              <ul className="text-sm text-muted-foreground space-y-1 mb-4">
+                <li>• Access your character library</li>
+                <li>• Browse saved characters</li>
+                <li>• Select and use instantly</li>
+              </ul>
+            </div>
+
+            <Button 
               onClick={() => setShowLibraryModal(true)}
-              className="hover:bg-muted/50"
+              className="w-full floating-button"
               data-testid="button-character-library"
             >
               <Images className="w-4 h-4 mr-2" />
               My Character Library
             </Button>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
           {/* Upload Character Image */}
           <div className="space-y-4">
             <h4 className="text-lg font-semibold flex items-center">
@@ -114,7 +126,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
               Upload Character Image
             </h4>
             
-            <div className="upload-zone rounded-lg p-8 sm:p-12 text-center cursor-pointer" data-testid="character-upload-zone">
+            <div className="upload-zone rounded-lg p-6 sm:p-8 text-center cursor-pointer" data-testid="character-upload-zone">
               <User className="w-12 h-12 text-muted-foreground mb-4 mx-auto" />
               <p className="text-muted-foreground mb-2">Drag and drop your character image</p>
               <p className="text-sm text-muted-foreground">or click to browse</p>
@@ -131,7 +143,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
             </Button>
           </div>
 
-          {/* Generate Character */}
+          {/* Generate AI Character */}
           <div className="space-y-4">
             <h4 className="text-lg font-semibold flex items-center">
               <Sparkles className="w-4 h-4 text-accent mr-2" />
