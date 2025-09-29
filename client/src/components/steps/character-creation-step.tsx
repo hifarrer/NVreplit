@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -7,7 +7,7 @@ import { CharacterLibraryModal } from "@/components/modals/character-library-mod
 import { SaveCharacterModal } from "@/components/modals/save-character-modal";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { RotateCcw, Images, Image, User, Upload, Sparkles, Bot, UserCheck, Bookmark, ArrowLeft, ArrowRight, Music } from "lucide-react";
+import { RotateCcw, Images, Image, User, Upload, Sparkles, Bot, UserCheck, Bookmark, ArrowLeft, ArrowRight, Music, Loader2 } from "lucide-react";
 
 interface CharacterCreationStepProps {
   projectId: string;
@@ -25,14 +25,89 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
   const [currentCharacterUrl, setCurrentCharacterUrl] = useState(characterImageUrl);
   const [currentCharacterPrompt, setCurrentCharacterPrompt] = useState('');
   const [makeCharacterSing, setMakeCharacterSing] = useState(initialMakeCharacterSing ?? true);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleCharacterUpload = () => {
-    // TODO: Implement file upload functionality
-    toast({
-      title: "Feature Coming Soon",
-      description: "Character image upload functionality will be implemented soon.",
-    });
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    await uploadCharacterImage(file);
+  };
+
+  const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files[0];
+    if (!file) return;
+
+    await uploadCharacterImage(file);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
+
+  const uploadCharacterImage = async (file: File) => {
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload JPEG, PNG, or GIF images.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: "Please upload images under 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await apiRequest('POST', `/api/projects/${projectId}/upload-character`, formData);
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setCurrentCharacterUrl(data.imageUrl);
+        setCurrentCharacterPrompt('Uploaded character image');
+        toast({
+          title: "Success",
+          description: "Character image uploaded successfully!",
+        });
+      } else {
+        throw new Error(data.error || 'Upload failed');
+      }
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "Failed to upload character image. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   const handleCharacterGenerated = (result: { imageUrl: string; prompt: string }) => {
@@ -126,20 +201,45 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
               Upload Character Image
             </h4>
             
-            <div className="upload-zone rounded-lg p-6 sm:p-8 text-center cursor-pointer flex-grow mb-4" data-testid="character-upload-zone">
+            <div 
+              className="upload-zone rounded-lg p-6 sm:p-8 text-center cursor-pointer flex-grow mb-4" 
+              onClick={handleCharacterUpload}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              data-testid="character-upload-zone"
+            >
               <User className="w-12 h-12 text-muted-foreground mb-4 mx-auto" />
               <p className="text-muted-foreground mb-2">Drag and drop your character image</p>
               <p className="text-sm text-muted-foreground">or click to browse</p>
               <p className="text-xs text-muted-foreground mt-2">PNG, JPG, GIF (Max 5MB)</p>
             </div>
 
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/gif"
+              onChange={handleFileChange}
+              className="hidden"
+              data-testid="character-file-input"
+            />
+
             <Button 
               onClick={handleCharacterUpload}
+              disabled={isUploading}
               className="w-full floating-button mt-auto"
               data-testid="upload-character-button"
             >
-              <Upload className="w-4 h-4 mr-2" />
-              Upload
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload
+                </>
+              )}
             </Button>
           </div>
 

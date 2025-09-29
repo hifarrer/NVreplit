@@ -11,6 +11,7 @@ import { generateLyrics, generateScenePrompts, splitLyricsIntoSections } from ".
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
+import { nanoid } from "nanoid";
 import { createForcedAlignment, convertElevenLabsAlignmentToASS, storeElevenLabsSubtitleFile } from "./services/elevenlabs";
 import { generateCharacterImage, generateCharacterImages, generateSceneImages, generateSingleSceneImage } from "./services/fal";
 import { generateAllVideoSegments, generateAllVideoSegmentsDynamic } from "./services/wavespeed";
@@ -52,6 +53,17 @@ const audioUpload = multer({
     }
   }
 });
+
+// Configure multer for image uploads (memory storage for object storage)
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  }
+});
+
+// Initialize ObjectStorageService
+const objectStorage = new ObjectStorageService();
 
 const JWT_SECRET = process.env.JWT_SECRET || "music-video-maker-secret-key";
 
@@ -4679,6 +4691,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // Upload character image
+  app.post("/api/projects/:id/upload-character", authenticateToken, upload.single('image'), async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.id) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const { id: projectId } = req.params;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ error: "No image file provided" });
+      }
+
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+      if (!allowedTypes.includes(file.mimetype)) {
+        return res.status(400).json({ error: "Invalid file type. Please upload JPEG, PNG, or GIF images." });
+      }
+
+      // Validate file size (5MB limit)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        return res.status(400).json({ error: "File too large. Please upload images under 5MB." });
+      }
+
+      // Verify project ownership
+      const project = await storage.getProject(projectId);
+      if (!project || project.userId !== user.id) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      // Generate unique filename
+      const fileExtension = file.originalname.split('.').pop() || 'jpg';
+      const filename = `character_${nanoid()}.${fileExtension}`;
+      const imagePath = `characters/${filename}`;
+
+      // Upload to object storage
+      const objectPath = `${objectStorage.getPrivateObjectDir()}/${imagePath}`;
+      const { bucketName, objectName } = objectStorage.parseObjectPath(objectPath);
+      
+      const bucket = objectStorageClient.bucket(bucketName);
+      const fileObj = bucket.file(objectName);
+      
+      await fileObj.save(file.buffer, {
+        metadata: {
+          contentType: file.mimetype,
+        },
+      });
+
+      // Generate permanent path
+      const permanentPath = `/objects/${imagePath}`;
+      
+      // Update project with character image
+      await storage.updateProject(projectId, {
+        characterImageUrl: permanentPath
+      });
+
+      console.log(`Character image uploaded: ${permanentPath}`);
+
+      res.json({
+        imageUrl: permanentPath,
+        message: "Character image uploaded successfully"
+      });
+    } catch (error) {
+      console.error("Character image upload error:", error);
+      res.status(500).json({ error: "Failed to upload character image" });
+    }
+  });
 
   // Re-process all videos that need Mux conversion
   app.post("/api/admin/reprocess-all-mux-videos", authenticateToken, async (req, res) => {
