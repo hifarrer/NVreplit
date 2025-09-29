@@ -15,7 +15,9 @@ export async function apiRequest(
 ): Promise<Response> {
   const headers: Record<string, string> = {};
   
-  if (data) {
+  // Only set Content-Type for JSON data, not for FormData
+  const isFormData = data instanceof FormData;
+  if (data && !isFormData) {
     headers["Content-Type"] = "application/json";
   }
   
@@ -37,7 +39,7 @@ export async function apiRequest(
     const res = await fetch(url, {
       method,
       headers,
-      body: data ? JSON.stringify(data) : undefined,
+      body: data ? (isFormData ? data : JSON.stringify(data)) : undefined,
       credentials: "include",
       signal: controller.signal,
     });
