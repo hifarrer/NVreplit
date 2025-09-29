@@ -93,16 +93,16 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           {/* My Character Library */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-semibold flex items-center">
+          <div className="flex flex-col h-full">
+            <h4 className="text-lg font-semibold flex items-center mb-4">
               <Images className="w-4 h-4 text-primary mr-2" />
               My Character Library
             </h4>
             
-            <div className="bg-muted/30 rounded-lg p-6 sm:p-8 text-center">
+            <div className="bg-muted/30 rounded-lg p-6 sm:p-8 text-center flex-grow mb-4">
               <Images className="w-12 h-12 text-primary mb-4 mx-auto" />
               <p className="text-muted-foreground mb-4">Choose from your saved characters</p>
-              <ul className="text-sm text-muted-foreground space-y-1 mb-4">
+              <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Access your character library</li>
                 <li>• Browse saved characters</li>
                 <li>• Select and use instantly</li>
@@ -111,7 +111,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
 
             <Button 
               onClick={() => setShowLibraryModal(true)}
-              className="w-full floating-button"
+              className="w-full floating-button mt-auto"
               data-testid="button-character-library"
             >
               <Images className="w-4 h-4 mr-2" />
@@ -120,13 +120,13 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
           </div>
 
           {/* Upload Character Image */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-semibold flex items-center">
+          <div className="flex flex-col h-full">
+            <h4 className="text-lg font-semibold flex items-center mb-4">
               <Image className="w-4 h-4 text-primary mr-2" />
               Upload Character Image
             </h4>
             
-            <div className="upload-zone rounded-lg p-6 sm:p-8 text-center cursor-pointer" data-testid="character-upload-zone">
+            <div className="upload-zone rounded-lg p-6 sm:p-8 text-center cursor-pointer flex-grow mb-4" data-testid="character-upload-zone">
               <User className="w-12 h-12 text-muted-foreground mb-4 mx-auto" />
               <p className="text-muted-foreground mb-2">Drag and drop your character image</p>
               <p className="text-sm text-muted-foreground">or click to browse</p>
@@ -135,7 +135,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
 
             <Button 
               onClick={handleCharacterUpload}
-              className="w-full floating-button"
+              className="w-full floating-button mt-auto"
               data-testid="upload-character-button"
             >
               <Upload className="w-4 h-4 mr-2" />
@@ -144,16 +144,16 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
           </div>
 
           {/* Generate AI Character */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-semibold flex items-center">
+          <div className="flex flex-col h-full">
+            <h4 className="text-lg font-semibold flex items-center mb-4">
               <Sparkles className="w-4 h-4 text-accent mr-2" />
               Generate AI Character
             </h4>
             
-            <div className="bg-muted/30 rounded-lg p-6 sm:p-8 text-center">
+            <div className="bg-muted/30 rounded-lg p-6 sm:p-8 text-center flex-grow mb-4">
               <Bot className="w-12 h-12 text-accent mb-4 mx-auto" />
               <p className="text-muted-foreground mb-4">Create a unique character using AI image generation</p>
-              <ul className="text-sm text-muted-foreground space-y-1 mb-4">
+              <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Describe your character's appearance</li>
                 <li>• Specify style and mood</li>
                 <li>• Generate variations until perfect</li>
@@ -162,7 +162,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
 
             <Button 
               onClick={() => setShowCharacterModal(true)}
-              className="w-full floating-button"
+              className="w-full floating-button mt-auto"
               data-testid="generate-character-button"
             >
               <Sparkles className="w-4 h-4 mr-2" />
