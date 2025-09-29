@@ -115,7 +115,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
               data-testid="button-character-library"
             >
               <Images className="w-4 h-4 mr-2" />
-              My Character Library
+              Library
             </Button>
           </div>
 
@@ -139,7 +139,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
               data-testid="upload-character-button"
             >
               <Upload className="w-4 h-4 mr-2" />
-              Upload Character
+              Upload
             </Button>
           </div>
 
@@ -166,7 +166,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
               data-testid="generate-character-button"
             >
               <Sparkles className="w-4 h-4 mr-2" />
-              Generate Character
+              Generate
             </Button>
           </div>
         </div>
