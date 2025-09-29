@@ -83,10 +83,21 @@ const ADMIN_CREDENTIALS = {
 
 // Middleware to verify JWT token
 function authenticateToken(req: any, res: any, next: any) {
+  // Debug logging for upload-character endpoint
+  if (req.url.includes('upload-character')) {
+    console.log('🔒 Upload-character auth debug:', {
+      url: req.url,
+      authHeader: req.headers['authorization'],
+      allHeaders: Object.keys(req.headers),
+      hasAuth: !!req.headers['authorization']
+    });
+  }
+  
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
+    console.log('❌ No token found in request to:', req.url);
     return res.status(401).json({ error: 'Access token required' });
   }
 
