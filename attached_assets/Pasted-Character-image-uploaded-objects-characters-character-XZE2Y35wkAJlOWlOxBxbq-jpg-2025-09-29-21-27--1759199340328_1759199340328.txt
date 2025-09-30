@@ -1,0 +1,89 @@
+Character image uploaded: /objects/characters/character_XZE2Y35wkAJlOWlOxBxbq.jpg
+2025-09-29 21:27:46.96
+1cbcef32
+User
+2:27:46 AM [express] POST /api/projects/e1f0853d-dee2-4bdb-84cd-e5384836a5c0/upload-character 200 in…
+2025-09-29 21:28:04.28
+1cbcef32
+User
+Downloading and storing character image for library...
+2025-09-29 21:28:04.28
+1cbcef32
+User
+Downloading image from: /objects/characters/character_XZE2Y35wkAJlOWlOxBxbq.jpg
+2025-09-29 21:28:04.28
+1cbcef32
+User
+Error downloading and storing image: TypeError: Invalid URL
+2025-09-29 21:28:04.28
+1cbcef32
+User
+at new URL (node:internal/url:806:29)
+2025-09-29 21:28:04.28
+1cbcef32
+User
+at new Request (file:///home/runner/workspace/node_modules/node-fetch/src/request.js:55:16)
+2025-09-29 21:28:04.28
+1cbcef32
+User
+at file:///home/runner/workspace/node_modules/node-fetch/src/index.js:51:19
+2025-09-29 21:28:04.28
+1cbcef32
+User
+at new Promise ()
+2025-09-29 21:28:04.28
+1cbcef32
+User
+at fetch (file:///home/runner/workspace/node_modules/node-fetch/src/index.js:49:9)
+2025-09-29 21:28:04.28
+1cbcef32
+User
+at downloadAndStoreImage (file:///home/runner/workspace/dist/index.js:4911:28)
+2025-09-29 21:28:04.28
+1cbcef32
+User
+at file:///home/runner/workspace/dist/index.js:8605:33
+2025-09-29 21:28:04.28
+1cbcef32
+User
+at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+2025-09-29 21:28:04.28
+1cbcef32
+User
+at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+2025-09-29 21:28:04.28
+1cbcef32
+User
+at file:///home/runner/workspace/dist/index.js:5342:5 {
+2025-09-29 21:28:04.28
+1cbcef32
+User
+code: 'ERR_INVALID_URL',
+2025-09-29 21:28:04.28
+1cbcef32
+User
+input: '/objects/characters/character_XZE2Y35wkAJlOWlOxBxbq.jpg'
+2025-09-29 21:28:04.28
+1cbcef32
+User
+}
+2025-09-29 21:28:04.28
+1cbcef32
+User
+Save character error: Error: Failed to store image: Invalid URL
+2025-09-29 21:28:04.28
+1cbcef32
+User
+at downloadAndStoreImage (file:///home/runner/workspace/dist/index.js:4945:11)
+2025-09-29 21:28:04.28
+1cbcef32
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-09-29 21:28:04.28
+1cbcef32
+User
+at async file:///home/runner/workspace/dist/index.js:8605:27
+2025-09-29 21:28:04.28
+1cbcef32
+User
+2:28:04 AM [express] POST /api/characters 400 in 6ms :: {"error":"Failed to store image: Invalid URL…

@@ -4329,14 +4329,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req as any).user.userId;
       const { imageUrl, ...restData } = req.body;
       
-      // Download and store the image permanently
-      console.log("Downloading and storing character image for library...");
-      const storedImage = await downloadAndStoreImage(imageUrl, "saved-characters");
-      console.log("Image stored successfully:", storedImage.storedUrl);
+      let finalImageUrl = imageUrl;
+      
+      // Only download and re-upload if the image is from an external URL
+      // If it's already in our object storage (/objects/...), use it directly
+      if (!imageUrl.startsWith('/objects/')) {
+        console.log("Downloading and storing external character image for library...");
+        const storedImage = await downloadAndStoreImage(imageUrl, "saved-characters");
+        console.log("Image stored successfully:", storedImage.storedUrl);
+        finalImageUrl = storedImage.storedUrl;
+      } else {
+        console.log("Using existing object storage URL:", imageUrl);
+      }
       
       const characterData = {
         ...restData,
-        imageUrl: storedImage.storedUrl,
+        imageUrl: finalImageUrl,
         userId
       };
       
