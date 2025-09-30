@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { errorMonitoring } from "./services/errorMonitoring";
 
 const app = express();
 
@@ -181,9 +182,21 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
+
+    // Send error notification for server errors (500+)
+    if (status >= 500) {
+      const user = (req as any).user;
+      errorMonitoring.notifyAPIError(err, req.path, req.method, {
+        userId: user?.userId,
+        username: user?.username,
+        statusCode: status,
+        query: req.query,
+        body: req.body
+      }).catch(console.error);
+    }
 
     res.status(status).json({ message });
     throw err;
@@ -210,4 +223,27 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
   });
+
+  // Global error handlers for uncaught exceptions and unhandled rejections
+  process.on('uncaughtException', (error: Error) => {
+    console.error('💥 UNCAUGHT EXCEPTION:', error);
+    errorMonitoring.notifyError({
+      error,
+      severity: 'critical',
+      context: { errorType: 'uncaughtException' }
+    }).catch(console.error);
+  });
+
+  process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+    const error = reason instanceof Error ? reason : new Error(String(reason));
+    console.error('💥 UNHANDLED REJECTION:', error);
+    errorMonitoring.notifyError({
+      error,
+      severity: 'critical',
+      context: { errorType: 'unhandledRejection' }
+    }).catch(console.error);
+  });
+
+  // Log successful initialization
+  console.log('✅ Error monitoring system initialized');
 })();

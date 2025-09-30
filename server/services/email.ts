@@ -315,6 +315,35 @@ The neonvideo.ai Team
       return false;
     }
   }
+
+  // Generic email sending method for error notifications and other purposes
+  async sendEmail(options: {
+    to: string;
+    subject: string;
+    text?: string;
+    html?: string;
+    from?: string;
+  }): Promise<boolean> {
+    if (!this.transporter) {
+      console.error('Email transporter not initialized');
+      return false;
+    }
+
+    try {
+      await this.transporter.sendMail({
+        from: options.from || `"neonvideo.ai" <${process.env.SMTP_USER}>`,
+        to: options.to,
+        subject: options.subject,
+        text: options.text,
+        html: options.html
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Failed to send email:', error);
+      return false;
+    }
+  }
 }
 
 export const emailService = new EmailService();
