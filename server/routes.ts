@@ -83,33 +83,16 @@ const ADMIN_CREDENTIALS = {
 
 // Middleware to verify JWT token
 function authenticateToken(req: any, res: any, next: any) {
-  // Debug logging for upload-character endpoint
-  if (req.url.includes('upload-character')) {
-    console.log('🔒 Upload-character auth debug:', {
-      url: req.url,
-      authHeader: req.headers['authorization'],
-      allHeaders: Object.keys(req.headers),
-      hasAuth: !!req.headers['authorization']
-    });
-  }
-  
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    console.log('❌ No token found in request to:', req.url);
     return res.status(401).json({ error: 'Access token required' });
   }
 
   jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
     if (err) {
-      console.log('❌ JWT verification failed:', err.message);
       return res.status(403).json({ error: 'Invalid or expired token' });
-    }
-    
-    // Debug logging for upload-character endpoint
-    if (req.url.includes('upload-character')) {
-      console.log('✅ JWT verified successfully for upload-character:', { userId: user.userId, username: user.username });
     }
     
     req.user = user;
@@ -4714,8 +4697,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/projects/:id/upload-character", authenticateToken, upload.single('image'), async (req, res) => {
     try {
       const user = (req as any).user;
-      console.log('🔍 Upload handler user check:', { user: user, hasUser: !!user, userId: user?.userId });
-      if (!user?.id) {
+      if (!user?.userId) {
         return res.status(401).json({ error: "User authentication required" });
       }
 
@@ -4740,7 +4722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify project ownership
       const project = await storage.getProject(projectId);
-      if (!project || project.userId !== user.id) {
+      if (!project || project.userId !== user.userId) {
         return res.status(404).json({ error: "Project not found" });
       }
 

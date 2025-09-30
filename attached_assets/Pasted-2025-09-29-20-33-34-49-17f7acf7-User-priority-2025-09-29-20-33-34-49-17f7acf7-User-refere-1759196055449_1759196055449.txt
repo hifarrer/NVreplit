@@ -1,0 +1,160 @@
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'priority',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'referer',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'sec-ch-ua',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'sec-ch-ua-mobile',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'sec-ch-ua-platform',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'sec-fetch-dest',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'sec-fetch-mode',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'sec-fetch-site',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'server-timing',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'traceparent',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'via',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'x-cloud-trace-context',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'x-forwarded-for',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'x-forwarded-host',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'x-forwarded-proto',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'x-replit-user-bio',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'x-replit-user-id',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'x-replit-user-name',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'x-replit-user-profile-image',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'x-replit-user-roles',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'x-replit-user-teams',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+'x-replit-user-url'
+2025-09-29 20:33:34.49
+17f7acf7
+User
+],
+2025-09-29 20:33:34.49
+17f7acf7
+User
+hasAuth: true
+2025-09-29 20:33:34.49
+17f7acf7
+User
+}
+2025-09-29 20:33:34.49
+17f7acf7
+User
+✅ JWT verified successfully for upload-character: {
+2025-09-29 20:33:34.49
+17f7acf7
+User
+userId: 'cd56d92c-a56f-462a-acaf-b072aeb24b72',
+2025-09-29 20:33:34.49
+17f7acf7
+User
+username: 'cyborg33'
+2025-09-29 20:33:34.49
+17f7acf7
+User
+}
+2025-09-29 20:33:34.50
+17f7acf7
+User
+🔍 Upload handler user check: {
+2025-09-29 20:33:34.50
+17f7acf7
+User
+user: {
+2025-09-29 20:33:34.50
+17f7acf7
+User
+userId: 'cd56d92c-a56f-462a-acaf-b072aeb24b72',
+2025-09-29 20:33:34.50
+17f7acf7
+User
+username: 'cyborg33',
+2025-09-29 20:33:34.50
+17f7acf7
+User
+iat: 1759195943,
+2025-09-29 20:33:34.50
+17f7acf7
+User
+exp: 1759282343
+2025-09-29 20:33:34.50
+17f7acf7
+User
+},
+2025-09-29 20:33:34.50
+17f7acf7
+User
+hasUser: true,
+2025-09-29 20:33:34.50
+17f7acf7
+User
+userId: 'cd56d92c-a56f-462a-acaf-b072aeb24b72'
+2025-09-29 20:33:34.50
+17f7acf7
+User
+}
+2025-09-29 20:33:34.50
+17f7acf7
+User
+1:33:34 AM [express] POST /api/projects/baf68e62-ac52-47e0-8384-1b3c5b2db048/upload-character 401 in…
