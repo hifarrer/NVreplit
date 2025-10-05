@@ -582,7 +582,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4 mr-2" />
-                      Generate Lyrics with AI
+                      Generate Lyrics
                     </>
                   )}
                 </Button>
@@ -597,7 +597,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                     const profanityResult = checkProfanity(newLyrics);
                     setProfanityCheck(profanityResult);
                   }}
-                  placeholder="Enter your lyrics here or click 'Generate Lyrics with AI' to create them automatically..."
+                  placeholder="Enter your lyrics here or click 'Generate Lyrics' to create them automatically..."
                   rows={6}
                   className={`resize-none ${profanityCheck?.isClean === false ? 'border-red-500 focus:border-red-500' : ''}`}
                   data-testid="lyrics-textarea"
@@ -943,7 +943,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
             className="floating-button text-lg py-3 px-4 sm:px-8 w-full sm:w-auto"
             data-testid="continue-to-character-button"
           >
-            Continue to Character Creation
+            Continue to Character
           </Button>
         </div>
       </div>
