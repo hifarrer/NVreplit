@@ -662,7 +662,7 @@ export default function CommunityPage() {
                     </div>
                     
                     <h3 className="font-medium text-sm leading-tight" data-testid={`text-title-${video.id}`}>
-                      {video.title}
+                      {video.title.length > 50 ? `${video.title.substring(0, 50)}...` : video.title}
                     </h3>
                     
                     <p className="text-xs text-white/70" data-testid={`text-timestamp-${video.id}`}>
