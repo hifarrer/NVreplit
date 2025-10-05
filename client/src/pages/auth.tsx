@@ -177,16 +177,16 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex" data-testid="auth-page">
-      {/* Left side - Forms */}
-      <div className="flex-1 flex items-center justify-center p-8">
+    <div className="min-h-screen flex flex-col lg:flex-row" data-testid="auth-page">
+      {/* Left side - Forms (appears first/on top on mobile) */}
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8 order-1">
         <div className="w-full max-w-md">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6 sm:mb-8">
             <div className="mb-4">
               <img 
                 src={logoImage} 
                 alt="neonvideo.ai" 
-                className="h-48 mx-auto" 
+                className="h-32 sm:h-48 mx-auto" 
                 data-testid="app-logo"
               />
             </div>
@@ -409,24 +409,24 @@ export default function AuthPage() {
         </div>
       </div>
 
-      {/* Right side - Hero section */}
-      <div className="flex-1 bg-gradient-to-br from-violet-600 via-purple-600 to-pink-600 flex items-center justify-center p-8">
+      {/* Right side - Hero section (appears second/below on mobile) */}
+      <div className="flex-1 bg-gradient-to-br from-violet-600 via-purple-600 to-pink-600 flex items-center justify-center p-4 sm:p-8 order-2">
         <div className="text-center text-white max-w-md">
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             <div className="inline-flex items-center justify-center space-x-2 mb-4">
-              <Music className="h-8 w-8" />
-              <Video className="h-8 w-8" />
-              <Sparkles className="h-8 w-8" />
+              <Music className="h-6 w-6 sm:h-8 sm:w-8" />
+              <Video className="h-6 w-6 sm:h-8 sm:w-8" />
+              <Sparkles className="h-6 w-6 sm:h-8 sm:w-8" />
             </div>
-            <h2 className="text-4xl font-bold mb-4">
+            <h2 className="text-2xl sm:text-4xl font-bold mb-3 sm:mb-4">
               Create Magic with AI
             </h2>
-            <p className="text-lg text-white/90 mb-6">
+            <p className="text-base sm:text-lg text-white/90 mb-4 sm:mb-6">
               Transform your ideas into stunning music videos using cutting-edge AI technology
             </p>
           </div>
 
-          <div className="space-y-4 text-left">
+          <div className="space-y-3 sm:space-y-4 text-left text-sm sm:text-base">
             <div className="flex items-center space-x-3">
               <div className="w-2 h-2 rounded-full bg-white"></div>
               <span>Generate music from text prompts</span>
