@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard, Mail, MailCheck, Download, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard, Mail, MailCheck, Download, Plus, ChevronLeft, ChevronRight, Search, ChevronsRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -61,10 +61,11 @@ export function UserManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
   const [planFilter, setPlanFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // Fetch users with auth header and pagination
+  // Fetch users with auth header, pagination, and search
   const { data: usersResponse, isLoading } = useQuery<UsersResponse>({
-    queryKey: ["/api/admin/users", currentPage, pageSize, planFilter],
+    queryKey: ["/api/admin/users", currentPage, pageSize, planFilter, searchQuery],
     queryFn: async () => {
       const token = localStorage.getItem("adminToken");
       const params = new URLSearchParams({
@@ -73,6 +74,9 @@ export function UserManagement() {
       });
       if (planFilter !== "all") {
         params.append("plan", planFilter);
+      }
+      if (searchQuery.trim()) {
+        params.append("search", searchQuery.trim());
       }
       const res = await fetch(`/api/admin/users?${params}`, {
         headers: {
@@ -90,6 +94,12 @@ export function UserManagement() {
   // Handle plan filter change - reset to page 1
   const handlePlanFilterChange = (value: string) => {
     setPlanFilter(value);
+    setCurrentPage(1);
+  };
+
+  // Handle search - reset to page 1
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
     setCurrentPage(1);
   };
 
@@ -385,6 +395,17 @@ export function UserManagement() {
             </CardDescription>
           </div>
           <div className="flex items-center space-x-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search by email or username..."
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="pl-9 w-64 bg-gray-800/50 border-gray-600 text-white placeholder:text-gray-400"
+                data-testid="input-search-users"
+              />
+            </div>
             <div className="flex items-center space-x-2">
               <Label className="text-sm text-gray-300">Filter by Plan:</Label>
               <Select value={planFilter} onValueChange={handlePlanFilterChange}>
@@ -612,6 +633,18 @@ export function UserManagement() {
               >
                 Next
                 <ChevronRight className="h-4 w-4" />
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(pagination.totalPages)}
+                disabled={!pagination.hasNext}
+                className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                data-testid="button-last-page"
+              >
+                Last
+                <ChevronsRight className="h-4 w-4" />
               </Button>
             </div>
           </div>

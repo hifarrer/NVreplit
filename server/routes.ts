@@ -1259,10 +1259,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes
   app.get("/api/admin/users", authenticateAdmin, async (req, res) => {
     try {
-      // Parse pagination and filter parameters
+      // Parse pagination, filter, and search parameters
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
       const limit = Math.max(1, Math.min(100, parseInt(req.query.limit as string) || 20)); // Default 20 per page, max 100
       const planFilter = req.query.plan as string;
+      const searchQuery = (req.query.search as string || '').toLowerCase().trim();
 
       const allUsers = await storage.getAllUsers();
       
@@ -1290,9 +1291,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
 
       // Filter by plan if specified
-      const filteredUsers = planFilter ? 
+      let filteredUsers = planFilter ? 
         allUsersWithStats.filter(user => user.planName === planFilter) : 
         allUsersWithStats;
+
+      // Filter by search query if specified
+      if (searchQuery) {
+        filteredUsers = filteredUsers.filter(user => 
+          user.username.toLowerCase().includes(searchQuery) || 
+          user.email.toLowerCase().includes(searchQuery)
+        );
+      }
 
       // Apply pagination to filtered results
       const totalCount = filteredUsers.length;
