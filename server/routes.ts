@@ -4869,10 +4869,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const videoTitle = project.title || "Amazing AI Music Video";
     const hashtags = "#ai #aivideo #musicvideo #neonvideo";
     
-    // Get the full video URL
-    const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : "https://neonvideoai.replit.app";
+    // Get the full video URL - always use production domain for social media posts
+    const baseUrl = "https://neonvideo.ai";
     const fullVideoUrl = videoUrl.startsWith('http') ? videoUrl : `${baseUrl}${videoUrl}`;
     
     const content = `${videoTitle}\n\n${hashtags}\n\nWatch: ${fullVideoUrl}`;
