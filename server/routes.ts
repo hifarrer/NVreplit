@@ -4891,7 +4891,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           integration: { id: POSTIZ_CHANNEL_ID },
           value: [
             {
-              content: content
+              content: content,
+              image: []
             }
           ],
           group: `neonvideo-${Date.now()}`
