@@ -384,7 +384,7 @@ export function VideoManagement() {
                     >
                       <Star className={`h-4 w-4 ${video.isFeatured ? 'fill-current' : ''}`} />
                     </Button>
-                    {video.currentStep === 7 && video.finalVideoUrl && (
+                    {video.isCompleted && video.finalVideoUrl && (
                       <Button
                         onClick={() => postToSocialMutation.mutate(video.id)}
                         variant="outline"
