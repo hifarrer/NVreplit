@@ -221,6 +221,19 @@ export const affiliatePayouts = pgTable("affiliate_payouts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Postiz posts table to track which videos have been posted to social media
+export const postizPosts = pgTable("postiz_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").references(() => projects.id).notNull().unique(), // Video that was posted
+  postedFacebook: timestamp("posted_facebook"), // When posted to Facebook
+  postedTiktok: timestamp("posted_tiktok"), // When posted to TikTok
+  postedYoutube: timestamp("posted_youtube"), // When posted to YouTube
+  facebookPostId: text("facebook_post_id"), // Postiz post ID for Facebook
+  tiktokPostId: text("tiktok_post_id"), // Postiz post ID for TikTok
+  youtubePostId: text("youtube_post_id"), // Postiz post ID for YouTube
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -301,6 +314,11 @@ export const insertAffiliatePayoutSchema = createInsertSchema(affiliatePayouts).
   createdAt: true,
 });
 
+export const insertPostizPostSchema = createInsertSchema(postizPosts).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -331,3 +349,5 @@ export type InsertAffiliateEarning = z.infer<typeof insertAffiliateEarningSchema
 export type AffiliateEarning = typeof affiliateEarnings.$inferSelect;
 export type InsertAffiliatePayout = z.infer<typeof insertAffiliatePayoutSchema>;
 export type AffiliatePayout = typeof affiliatePayouts.$inferSelect;
+export type InsertPostizPost = z.infer<typeof insertPostizPostSchema>;
+export type PostizPost = typeof postizPosts.$inferSelect;

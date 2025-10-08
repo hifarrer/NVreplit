@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -123,6 +123,12 @@ export interface IStorage {
   createAffiliatePayout(payout: InsertAffiliatePayout): Promise<AffiliatePayout>;
   getAffiliatePayouts(affiliateId: string): Promise<AffiliatePayout[]>;
   updateAffiliatePayout(payoutId: string, updates: Partial<AffiliatePayout>): Promise<AffiliatePayout | undefined>;
+
+  // Postiz posts methods
+  createPostizPost(post: InsertPostizPost): Promise<PostizPost>;
+  getPostizPostByProjectId(projectId: string): Promise<PostizPost | undefined>;
+  updatePostizPost(projectId: string, updates: Partial<PostizPost>): Promise<PostizPost | undefined>;
+  getAllProjects(): Promise<Project[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -1097,6 +1103,24 @@ export class MemStorage implements IStorage {
     };
     this.affiliatePayoutsStorage.set(payoutId, updatedPayout);
     return updatedPayout;
+  }
+
+  async createPostizPost(insertPost: InsertPostizPost): Promise<PostizPost> {
+    throw new Error("Memory storage not supported for Postiz posts");
+  }
+
+  async getPostizPostByProjectId(projectId: string): Promise<PostizPost | undefined> {
+    return undefined;
+  }
+
+  async updatePostizPost(projectId: string, updates: Partial<PostizPost>): Promise<PostizPost | undefined> {
+    return undefined;
+  }
+
+  async getAllProjects(): Promise<Project[]> {
+    return Array.from(this.projects.values()).sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   }
 }
 
@@ -2288,6 +2312,59 @@ export class DbStorage implements IStorage {
     } catch (error) {
       console.error("Error updating affiliate payout:", error);
       return undefined;
+    }
+  }
+
+  async createPostizPost(insertPost: InsertPostizPost): Promise<PostizPost> {
+    try {
+      const result = await this.db
+        .insert(postizPosts)
+        .values(insertPost)
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error creating postiz post:", error);
+      throw error;
+    }
+  }
+
+  async getPostizPostByProjectId(projectId: string): Promise<PostizPost | undefined> {
+    try {
+      const result = await this.db
+        .select()
+        .from(postizPosts)
+        .where(eq(postizPosts.projectId, projectId))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error getting postiz post:", error);
+      return undefined;
+    }
+  }
+
+  async updatePostizPost(projectId: string, updates: Partial<PostizPost>): Promise<PostizPost | undefined> {
+    try {
+      const result = await this.db
+        .update(postizPosts)
+        .set(updates)
+        .where(eq(postizPosts.projectId, projectId))
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error updating postiz post:", error);
+      return undefined;
+    }
+  }
+
+  async getAllProjects(): Promise<Project[]> {
+    try {
+      return await this.db
+        .select()
+        .from(projects)
+        .orderBy(sql`${projects.createdAt} DESC`);
+    } catch (error) {
+      console.error("Error getting all projects:", error);
+      return [];
     }
   }
 }
