@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star, ChevronLeft, ChevronRight, Share2 } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Project } from "@shared/schema";
@@ -147,6 +147,36 @@ export function VideoManagement() {
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to update featured status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Post to social media mutation
+  const postToSocialMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(`/api/admin/videos/${id}/post-to-social`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to post to social media");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/videos"] });
+      toast({
+        title: "Posted to Facebook",
+        description: "Video has been successfully posted to Facebook via Postiz.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to post to social media",
         variant: "destructive",
       });
     },
@@ -354,6 +384,19 @@ export function VideoManagement() {
                     >
                       <Star className={`h-4 w-4 ${video.isFeatured ? 'fill-current' : ''}`} />
                     </Button>
+                    {video.currentStep === 7 && video.finalVideoUrl && (
+                      <Button
+                        onClick={() => postToSocialMutation.mutate(video.id)}
+                        variant="outline"
+                        size="sm"
+                        className="border-blue-500/30 text-blue-300 hover:bg-blue-600/20"
+                        disabled={postToSocialMutation.isPending}
+                        data-testid={`post-to-social-${video.id}`}
+                        title="Post to Facebook via Postiz"
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       onClick={() => setDeletingVideo(video)}
                       variant="outline"

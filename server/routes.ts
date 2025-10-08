@@ -4838,6 +4838,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to post a video to Postiz
+  async function postVideoToPostiz(projectId: string) {
+    console.log(`[POSTIZ] Starting post for project ${projectId}`);
+    
+    const project = await storage.getProject(projectId);
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    if (!project.isCompleted || !project.finalVideoUrl) {
+      throw new Error("Video must be completed with a final video URL");
+    }
+
+    // Check if already posted
+    const existingPost = await storage.getPostizPostByProjectId(projectId);
+    if (existingPost && existingPost.postedFacebook) {
+      throw new Error("Video has already been posted to Facebook");
+    }
+
+    const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY;
+    const POSTIZ_CHANNEL_ID = "cmgi638zj005ulb0yf9dlmz4g"; // Facebook channel
+
+    if (!POSTIZ_API_KEY) {
+      throw new Error("POSTIZ_API_KEY not configured");
+    }
+
+    // Prepare video URL and content
+    const videoUrl = project.finalVideoUrl;
+    const videoTitle = project.title || "Amazing AI Music Video";
+    const hashtags = "#ai #aivideo #musicvideo #neonvideo";
+    const content = `${videoTitle}\n\n${hashtags}\n\nWatch: ${videoUrl}`;
+
+    console.log(`[POSTIZ] Posting to Facebook: ${videoTitle}`);
+
+    // Create post via Postiz
+    const postBody = {
+      type: "now",
+      date: new Date().toISOString(),
+      shortLink: false,
+      tags: [],
+      posts: [
+        {
+          integration: { id: POSTIZ_CHANNEL_ID },
+          value: [
+            {
+              content: content,
+              image: [
+                {
+                  path: videoUrl
+                }
+              ]
+            }
+          ],
+          group: `neonvideo-${Date.now()}`
+        }
+      ]
+    };
+
+    const postResponse = await fetch("https://api.postiz.com/public/v1/posts", {
+      method: "POST",
+      headers: {
+        "Authorization": POSTIZ_API_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(postBody)
+    });
+
+    const postResponseText = await postResponse.text();
+    console.log(`[POSTIZ] API response status: ${postResponse.status}`);
+
+    if (!postResponse.ok) {
+      throw new Error(`Postiz API error (${postResponse.status}): ${postResponseText}`);
+    }
+
+    const postResult = JSON.parse(postResponseText);
+    const postId = postResult.id || postResult.data?.id || null;
+
+    console.log(`[POSTIZ] Successfully posted. Post ID: ${postId}`);
+
+    // Record the post in database
+    if (existingPost) {
+      await storage.updatePostizPost(projectId, {
+        postedFacebook: new Date(),
+        facebookPostId: postId
+      });
+    } else {
+      await storage.createPostizPost({
+        projectId: projectId,
+        postedFacebook: new Date(),
+        facebookPostId: postId
+      });
+    }
+
+    return { postId, videoTitle, videoUrl };
+  }
+
+  // Admin endpoint to post a specific video to social media
+  app.post("/api/admin/videos/:id/post-to-social", authenticateAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await postVideoToPostiz(id);
+
+      res.json({
+        success: true,
+        message: "Video posted to Facebook successfully",
+        video: {
+          id: id,
+          title: result.videoTitle,
+          url: result.videoUrl
+        },
+        postId: result.postId
+      });
+    } catch (error) {
+      console.error("[POSTIZ] Admin post error:", error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Cron endpoint for auto-posting videos to social media
   app.post("/api/cron/auto-post-to-social", async (req, res) => {
     try {
@@ -4878,90 +4999,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[AUTO-POST] Selected video to post: ${videoToPost.id} - ${videoToPost.title}`);
 
-      // Post to Facebook via Postiz
-      const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY;
-      const POSTIZ_CHANNEL_ID = "cmgi638zj005ulb0yf9dlmz4g"; // Facebook channel
-
-      if (!POSTIZ_API_KEY) {
-        throw new Error("POSTIZ_API_KEY not configured");
-      }
-
-      // Prepare video URL and content
-      const videoUrl = videoToPost.finalVideoUrl;
-      const videoTitle = videoToPost.title || "Amazing AI Music Video";
-      const hashtags = "#ai #aivideo #musicvideo #neonvideo";
-      const content = `${videoTitle}\n\n${hashtags}\n\nWatch: ${videoUrl}`;
-
-      console.log(`[AUTO-POST] Posting to Facebook with content:`, content);
-      console.log(`[AUTO-POST] Video URL:`, videoUrl);
-
-      // Create post via Postiz
-      const postBody = {
-        type: "now",
-        date: new Date().toISOString(),
-        shortLink: false,
-        tags: [],
-        posts: [
-          {
-            integration: { id: POSTIZ_CHANNEL_ID },
-            value: [
-              {
-                content: content,
-                image: [
-                  {
-                    path: videoUrl
-                  }
-                ]
-              }
-            ],
-            group: `neonvideo-${Date.now()}`
-          }
-        ]
-      };
-
-      console.log("[AUTO-POST] Sending request to Postiz API...");
-
-      const postResponse = await fetch("https://api.postiz.com/public/v1/posts", {
-        method: "POST",
-        headers: {
-          "Authorization": POSTIZ_API_KEY,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(postBody)
-      });
-
-      const postResponseText = await postResponse.text();
-      console.log(`[AUTO-POST] Postiz API response status: ${postResponse.status}`);
-      console.log(`[AUTO-POST] Postiz API response:`, postResponseText);
-
-      if (!postResponse.ok) {
-        throw new Error(`Postiz API error (${postResponse.status}): ${postResponseText}`);
-      }
-
-      const postResult = JSON.parse(postResponseText);
-      const postId = postResult.id || postResult.data?.id || null;
-
-      console.log(`[AUTO-POST] Successfully posted to Facebook. Post ID: ${postId}`);
-
-      // Record the post in database
-      const existingRecord = await storage.getPostizPostByProjectId(videoToPost.id);
-      
-      if (existingRecord) {
-        // Update existing record
-        await storage.updatePostizPost(videoToPost.id, {
-          postedFacebook: new Date(),
-          facebookPostId: postId
-        });
-      } else {
-        // Create new record
-        await storage.createPostizPost({
-          projectId: videoToPost.id,
-          postedFacebook: new Date(),
-          facebookPostId: postId
-        });
-      }
-
-      console.log(`[AUTO-POST] Recorded post in database`);
+      // Use the helper function to post
+      const result = await postVideoToPostiz(videoToPost.id);
 
       res.json({
         success: true,
@@ -4969,10 +5008,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         posted: 1,
         video: {
           id: videoToPost.id,
-          title: videoToPost.title,
-          url: videoUrl
+          title: result.videoTitle,
+          url: result.videoUrl
         },
-        postId: postId
+        postId: result.postId
       });
 
     } catch (error) {
