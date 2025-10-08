@@ -4868,11 +4868,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const videoUrl = project.finalVideoUrl;
     const videoTitle = project.title || "Amazing AI Music Video";
     const hashtags = "#ai #aivideo #musicvideo #neonvideo";
-    const content = `${videoTitle}\n\n${hashtags}\n\nWatch: ${videoUrl}`;
+    
+    // Get the full video URL
+    const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : "https://neonvideoai.replit.app";
+    const fullVideoUrl = videoUrl.startsWith('http') ? videoUrl : `${baseUrl}${videoUrl}`;
+    
+    const content = `${videoTitle}\n\n${hashtags}\n\nWatch: ${fullVideoUrl}`;
 
     console.log(`[POSTIZ] Posting to Facebook: ${videoTitle}`);
+    console.log(`[POSTIZ] Full video URL: ${fullVideoUrl}`);
 
-    // Create post via Postiz
+    // Create post via Postiz (text-only post with link)
     const postBody = {
       type: "now",
       date: new Date().toISOString(),
@@ -4883,12 +4891,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           integration: { id: POSTIZ_CHANNEL_ID },
           value: [
             {
-              content: content,
-              image: [
-                {
-                  path: videoUrl
-                }
-              ]
+              content: content
             }
           ],
           group: `neonvideo-${Date.now()}`
