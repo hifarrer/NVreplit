@@ -1,0 +1,336 @@
+
+We are going to create an api endpoint that will be triggered by a cron job on https://cron-job.org/ 
+
+This api will do the following auto post created videos into social media via Postiz API.
+
+Steps:
+1. API endpoint gets the call.
+2. Get 1 final video url (i.e. https://neonvideo.ai/objects/videos/neonvideo_xxxxxx.mp4) from the database (ordered by creation date in DESC order) from the created videos, but only the videos that haven't been posted yet.
+3. Get the Video name and add video_url and hashtags #ai #aivideo #musicvideo #neonvideo. $video_description = $video_title + $video_url '#ai #aivideo #musicvideo #neonvideo'
+4. Post to facebook via postiz:
+Channel id: cmgi638zj005ulb0yf9dlmz4g
+POST https://api.postiz.com/public/v1/posts
+5. We are going to have a new table called postiz_posts where we will store the video id, and a new column for each social network. For example Facebook, TikTok and Youtube for now. For now we are only going to post on facebook.
+Table will look like:
+video_id	Posted_facebook
+12341234	10/08/2025 09:15:00
+
+Also add logging features for easy troubleshooting.
+
+The following is a PHP implementation using Postiz, use it as a guide to create a post via Postiz.
+Even though we are not using PHP, use the logic and implement it for this api endpoint.
+
+# Postiz API Documentation
+
+## Overview
+Postiz is a social media management platform that allows you to post content to various social networks (like X/Twitter) through their API. This documentation covers how to use the Postiz API to upload media files and create posts.
+
+## Authentication
+- **API Key**: Required for all requests
+- **Header Format**: `Authorization: YOUR_API_KEY` (no "Bearer" prefix)
+- **Content-Type**: `application/json` for JSON requests, `multipart/form-data` for file uploads
+
+## Base URLs
+- **Upload Endpoint**: `https://api.postiz.com/public/v1/upload`
+- **Posts Endpoint**: `https://api.postiz.com/public/v1/posts`
+
+## API Endpoints
+
+### 1. Upload Media File
+
+**Endpoint**: `POST https://api.postiz.com/public/v1/upload`
+
+**Purpose**: Upload images or videos to Postiz before creating posts.
+
+**Headers**:
+```
+Authorization: YOUR_API_KEY
+Content-Type: multipart/form-data
+```
+
+**Request Body**:
+- **file**: The media file (image or video)
+- **MIME Types Supported**:
+  - Images: `image/jpeg`, `image/png`, `image/gif`
+  - Videos: `video/mp4`
+
+**Example PHP Implementation**:
+```php
+function upload_file_to_postiz($filePath, $apiKey) {
+    $ch = curl_init('https://api.postiz.com/public/v1/upload');
+    
+    // Detect MIME type
+    $mime = mime_content_type($filePath);
+    $name = basename($filePath);
+    
+    // Set appropriate MIME type based on file extension
+    if (preg_match('/\.mp4$/i', $name)) {
+        $mime = 'video/mp4';
+    } elseif (preg_match('/\.(png|jpg|jpeg|gif)$/i', $name)) {
+        $mime = $mime ?: 'image/jpeg';
+    } else {
+        $mime = $mime ?: 'image/jpeg';
+    }
+    
+    $postFields = ['file' => new CURLFile($filePath, $mime, $name)];
+    
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => ['Authorization: ' . $apiKey],
+        CURLOPT_POSTFIELDS => $postFields,
+        CURLOPT_TIMEOUT => 60,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => false
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+    
+    return [$httpCode, $response, $error];
+}
+```
+
+**Response Format**:
+```json
+{
+    "id": "asset_id_here",
+    "path": "path/to/uploaded/file.jpg"
+}
+```
+
+**Error Handling**:
+- HTTP 200-299: Success
+- Check for `id` and `path` fields in response
+- If upload fails, you can use remote URLs as fallback
+
+### 2. Create Post
+
+**Endpoint**: `POST https://api.postiz.com/public/v1/posts`
+
+**Purpose**: Create a new post with uploaded media.
+
+**Headers**:
+```
+Authorization: YOUR_API_KEY
+Content-Type: application/json
+```
+
+**Request Body Structure**:
+```json
+{
+    "type": "now",
+    "date": "2024-01-15T10:30:00Z",
+    "shortLink": false,
+    "tags": [],
+    "posts": [
+        {
+            "integration": {
+                "id": "YOUR_CHANNEL_ID"
+            },
+            "value": [
+                {
+                    "content": "Your post content here",
+                    "image": [
+                        {
+                            "id": "asset_id_from_upload",
+                            "path": "path/from/upload"
+                        }
+                    ]
+                }
+            ],
+            "group": "unique-group-identifier"
+        }
+    ]
+}
+```
+
+**Field Descriptions**:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Post type, use "now" for immediate posting |
+| `date` | string | Yes | ISO 8601 timestamp (UTC) |
+| `shortLink` | boolean | No | Whether to use short links |
+| `tags` | array | No | Array of tags |
+| `posts` | array | Yes | Array of post objects |
+| `integration.id` | string | Yes | Your Postiz channel ID |
+| `value` | array | Yes | Array of content objects |
+| `content` | string | Yes | The text content of your post |
+| `image` | array | Yes | Array of media objects |
+| `image.id` | string | No | Asset ID from upload (if available) |
+| `image.path` | string | Yes | Asset path from upload OR remote URL |
+| `group` | string | No | Unique identifier for grouping posts |
+
+**Example PHP Implementation**:
+```php
+function create_post_on_postiz($content, $mediaArray, $channelId, $apiKey) {
+    $ch = curl_init('https://api.postiz.com/public/v1/posts');
+    
+    $postBody = [
+        'type' => 'now',
+        'date' => gmdate('Y-m-d\TH:i:s\Z'),
+        'shortLink' => false,
+        'tags' => [],
+        'posts' => [
+            [
+                'integration' => ['id' => $channelId],
+                'value' => [
+                    [
+                        'content' => $content,
+                        'image' => $mediaArray
+                    ]
+                ],
+                'group' => 'my-app-' . date('Ymd-His')
+            ]
+        ]
+    ];
+    
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => [
+            'Authorization: ' . $apiKey,
+            'Content-Type: application/json'
+        ],
+        CURLOPT_POSTFIELDS => json_encode($postBody),
+        CURLOPT_TIMEOUT => 60,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => false
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+    
+    return [$httpCode, $response, $error];
+}
+```
+
+**Response Format**:
+```json
+{
+    "id": "post_id_here",
+    "data": {
+        "id": "post_id_here"
+    }
+}
+```
+
+## Complete Workflow Example
+
+Here's a complete example of how to post a video to Postiz:
+
+```php
+<?php
+// Configuration
+$POSTIZ_API_KEY = 'your_api_key_here';
+$POSTIZ_CHANNEL_ID = 'your_channel_id_here';
+$SITE_BASE_URL = 'https://yourdomain.com';
+
+// Step 1: Upload the video file
+$videoPath = '/path/to/your/video.mp4';
+[$uploadCode, $uploadResponse, $uploadError] = upload_file_to_postiz($videoPath, $POSTIZ_API_KEY);
+
+if ($uploadCode >= 200 && $uploadCode < 300) {
+    $uploadData = json_decode($uploadResponse, true);
+    $assetId = $uploadData['id'] ?? null;
+    $assetPath = $uploadData['path'] ?? null;
+    
+    // Step 2: Create the post
+    $content = "Check out this amazing video! #viral #tech";
+    $mediaArray = [];
+    
+    if ($assetId && $assetPath) {
+        // Use uploaded asset
+        $mediaArray[] = [
+            'id' => $assetId,
+            'path' => $assetPath
+        ];
+    } else {
+        // Fallback to remote URL
+        $mediaArray[] = [
+            'path' => $SITE_BASE_URL . '/path/to/video.mp4'
+        ];
+    }
+    
+    [$postCode, $postResponse, $postError] = create_post_on_postiz(
+        $content, 
+        $mediaArray, 
+        $POSTIZ_CHANNEL_ID, 
+        $POSTIZ_API_KEY
+    );
+    
+    if ($postCode >= 200 && $postCode < 300) {
+        $postData = json_decode($postResponse, true);
+        $postId = $postData['id'] ?? $postData['data']['id'] ?? null;
+        echo "Post created successfully! Post ID: " . $postId;
+    } else {
+        echo "Failed to create post: " . $postResponse;
+    }
+} else {
+    echo "Failed to upload file: " . $uploadResponse;
+}
+?>
+```
+
+## Media Requirements
+
+### Supported File Types
+- **Images**: JPG, JPEG, PNG, GIF
+- **Videos**: MP4
+
+### File Size Limits
+- Check Postiz documentation for current limits
+- The example code shows 2MB limit for audio files, but video limits may be higher
+
+### MIME Type Detection
+The API expects proper MIME types:
+- `image/jpeg` for JPG files
+- `image/png` for PNG files
+- `image/gif` for GIF files
+- `video/mp4` for MP4 files
+
+## Error Handling
+
+### Common HTTP Status Codes
+- **200-299**: Success
+- **400**: Bad Request (invalid data)
+- **401**: Unauthorized (invalid API key)
+- **403**: Forbidden (insufficient permissions)
+- **500**: Internal Server Error
+
+### Fallback Strategy
+If file upload fails, you can use remote URLs:
+```php
+// Fallback to remote URL
+$mediaArray[] = [
+    'path' => 'https://yourdomain.com/path/to/media.mp4'
+];
+```
+
+## Best Practices
+
+1. **Always check HTTP status codes** before processing responses
+2. **Implement fallback mechanisms** for failed uploads
+3. **Use proper MIME type detection** for different file types
+4. **Set appropriate timeouts** (60+ seconds for large files)
+5. **Handle both asset ID and path** in responses
+6. **Use unique group identifiers** to avoid conflicts
+7. **Validate file types and sizes** before uploading
+
+## Configuration Requirements
+
+To use the Postiz API, you need:
+1. **API Key**: Get this from your Postiz dashboard
+2. **Channel ID**: The ID of the social media channel you want to post to
+3. **Base URL**: Your website's base URL for fallback media links
+
+## Rate Limits and Quotas
+
+- Check Postiz documentation for current rate limits
+- Implement appropriate delays between requests if needed
+- Monitor your API usage in the Postiz dashboard
