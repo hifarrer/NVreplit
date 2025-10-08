@@ -4866,16 +4866,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Prepare video URL and content
     const videoUrl = project.finalVideoUrl;
-    const videoTitle = project.title || "Amazing AI Music Video";
     const hashtags = "#ai #aivideo #musicvideo #neonvideo";
     
     // Get the full video URL - always use production domain for social media posts
     const baseUrl = "https://neonvideo.ai";
     const fullVideoUrl = videoUrl.startsWith('http') ? videoUrl : `${baseUrl}${videoUrl}`;
     
-    const content = `${videoTitle}\n\n${hashtags}\n\nWatch: ${fullVideoUrl}`;
+    const content = `Create your own AI Music Videos Now! 🤩\n\n${hashtags}\n\nWatch: ${fullVideoUrl}`;
 
-    console.log(`[POSTIZ] Posting to Facebook: ${videoTitle}`);
+    console.log(`[POSTIZ] Posting to Facebook for project: ${project.title}`);
     console.log(`[POSTIZ] Full video URL: ${fullVideoUrl}`);
 
     // Create post via Postiz (text-only post with link)
