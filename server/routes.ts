@@ -4991,7 +4991,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
 
-    return { postId, videoTitle, videoUrl };
+    return { postId, projectTitle: project.title, videoUrl: project.finalVideoUrl };
   }
 
   // Admin endpoint to post a specific video to social media
@@ -5005,7 +5005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Video posted to Facebook successfully",
         video: {
           id: id,
-          title: result.videoTitle,
+          title: result.projectTitle,
           url: result.videoUrl
         },
         postId: result.postId
