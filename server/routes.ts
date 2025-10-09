@@ -4853,12 +4853,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Check if already posted
     const existingPost = await storage.getPostizPostByProjectId(projectId);
-    if (existingPost && existingPost.postedFacebook) {
-      throw new Error("Video has already been posted to Facebook");
+    if (existingPost && existingPost.postedFacebook && existingPost.postedYoutube) {
+      throw new Error("Video has already been posted to Facebook and YouTube");
     }
 
     const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY;
-    const POSTIZ_CHANNEL_ID = "cmgi638zj005ulb0yf9dlmz4g"; // Facebook channel
+    const FACEBOOK_CHANNEL_ID = "cmgi638zj005ulb0yf9dlmz4g";
+    const YOUTUBE_CHANNEL_ID = "cmgheacv20174lb0yszfbkfrg";
 
     if (!POSTIZ_API_KEY) {
       throw new Error("POSTIZ_API_KEY not configured");
@@ -4886,7 +4887,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     const content = `Create your own AI Music Videos Now! 🤩\n\n${hashtags}`;
 
-    console.log(`[POSTIZ] Posting to Facebook for project: ${project.title}`);
+    console.log(`[POSTIZ] Posting to Facebook and YouTube for project: ${project.title}`);
     console.log(`[POSTIZ] Video URL for upload: ${fullVideoUrl}`);
 
     // Step 1: Download video from object storage
@@ -4929,7 +4930,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const uploadResult = JSON.parse(uploadResponseText);
     console.log(`[POSTIZ] Video uploaded successfully. Response:`, uploadResult);
 
-    // Step 2: Create post with uploaded video
+    // Step 2: Create post with uploaded video for both Facebook and YouTube
+    const groupId = `neonvideo-${Date.now()}`;
     const postBody = {
       type: "now",
       date: new Date().toISOString(),
@@ -4937,7 +4939,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       tags: [],
       posts: [
         {
-          integration: { id: POSTIZ_CHANNEL_ID },
+          integration: { id: FACEBOOK_CHANNEL_ID },
           value: [
             {
               content: content,
@@ -4949,7 +4951,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ]
             }
           ],
-          group: `neonvideo-${Date.now()}`
+          group: groupId
+        },
+        {
+          integration: { id: YOUTUBE_CHANNEL_ID },
+          value: [
+            {
+              content: content,
+              image: [
+                {
+                  id: uploadResult.id,
+                  path: uploadResult.path || uploadResult.url
+                }
+              ]
+            }
+          ],
+          group: groupId
         }
       ]
     };
@@ -4975,19 +4992,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const postResult = JSON.parse(postResponseText);
     const postId = postResult.id || postResult.data?.id || null;
 
-    console.log(`[POSTIZ] Successfully posted. Post ID: ${postId}`);
+    console.log(`[POSTIZ] Successfully posted to Facebook and YouTube. Post ID: ${postId}`);
 
     // Record the post in database
+    const now = new Date();
     if (existingPost) {
       await storage.updatePostizPost(projectId, {
-        postedFacebook: new Date(),
-        facebookPostId: postId
+        postedFacebook: now,
+        postedYoutube: now,
+        facebookPostId: postId,
+        youtubePostId: postId
       });
     } else {
       await storage.createPostizPost({
         projectId: projectId,
-        postedFacebook: new Date(),
-        facebookPostId: postId
+        postedFacebook: now,
+        postedYoutube: now,
+        facebookPostId: postId,
+        youtubePostId: postId
       });
     }
 
@@ -5002,7 +5024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         success: true,
-        message: "Video posted to Facebook successfully",
+        message: "Video posted to Facebook and YouTube successfully",
         video: {
           id: id,
           title: result.projectTitle,
@@ -5033,11 +5055,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[AUTO-POST] Found ${completedVideos.length} completed videos`);
 
-      // Check which ones haven't been posted to Facebook yet
+      // Check which ones haven't been posted to Facebook and YouTube yet
       const unpostedVideos = [];
       for (const video of completedVideos) {
         const postRecord = await storage.getPostizPostByProjectId(video.id);
-        if (!postRecord || !postRecord.postedFacebook) {
+        if (!postRecord || !postRecord.postedFacebook || !postRecord.postedYoutube) {
           unpostedVideos.push(video);
         }
       }
@@ -5064,11 +5086,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         success: true,
-        message: "Video posted to Facebook successfully",
+        message: "Video posted to Facebook and YouTube successfully",
         posted: 1,
         video: {
           id: videoToPost.id,
-          title: result.videoTitle,
+          title: result.projectTitle,
           url: result.videoUrl
         },
         postId: result.postId
