@@ -4872,12 +4872,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const baseUrl = "https://neonvideo.ai";
     const fullVideoUrl = videoUrl.startsWith('http') ? videoUrl : `${baseUrl}${videoUrl}`;
     
-    const content = `Create your own AI Music Videos Now! 🤩\n\n${hashtags}\n\nWatch: ${fullVideoUrl}`;
+    const content = `Create your own AI Music Videos Now! 🤩\n\n${hashtags}`;
 
     console.log(`[POSTIZ] Posting to Facebook for project: ${project.title}`);
     console.log(`[POSTIZ] Full video URL: ${fullVideoUrl}`);
 
-    // Create post via Postiz (text-only post with link)
+    // Step 1: Upload video to Postiz
+    console.log(`[POSTIZ] Uploading video to Postiz...`);
+    const uploadResponse = await fetch("https://api.postiz.com/public/v1/upload", {
+      method: "POST",
+      headers: {
+        "Authorization": POSTIZ_API_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ url: fullVideoUrl })
+    });
+
+    const uploadResponseText = await uploadResponse.text();
+    console.log(`[POSTIZ] Upload response status: ${uploadResponse.status}`);
+    console.log(`[POSTIZ] Upload response:`, uploadResponseText);
+
+    if (!uploadResponse.ok) {
+      throw new Error(`Postiz upload error (${uploadResponse.status}): ${uploadResponseText}`);
+    }
+
+    const uploadResult = JSON.parse(uploadResponseText);
+    const uploadedFileId = uploadResult.id;
+    console.log(`[POSTIZ] Video uploaded successfully. ID: ${uploadedFileId}`);
+
+    // Step 2: Create post with uploaded video
     const postBody = {
       type: "now",
       date: new Date().toISOString(),
@@ -4889,7 +4912,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           value: [
             {
               content: content,
-              image: []
+              image: [
+                {
+                  id: uploadedFileId
+                }
+              ]
             }
           ],
           group: `neonvideo-${Date.now()}`
@@ -4897,6 +4924,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ]
     };
 
+    console.log(`[POSTIZ] Creating post with video...`);
     const postResponse = await fetch("https://api.postiz.com/public/v1/posts", {
       method: "POST",
       headers: {
@@ -4907,7 +4935,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     const postResponseText = await postResponse.text();
-    console.log(`[POSTIZ] API response status: ${postResponse.status}`);
+    console.log(`[POSTIZ] Post response status: ${postResponse.status}`);
+    console.log(`[POSTIZ] Post response:`, postResponseText);
 
     if (!postResponse.ok) {
       throw new Error(`Postiz API error (${postResponse.status}): ${postResponseText}`);
