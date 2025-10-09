@@ -4943,7 +4943,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               content: content,
               image: [
                 {
-                  path: uploadResult.path || uploadResult.url || uploadResult.id
+                  id: uploadResult.id,
+                  path: uploadResult.path || uploadResult.url
                 }
               ]
             }
