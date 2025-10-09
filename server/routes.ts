@@ -4992,8 +4992,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             stitch: true,
             comment: true,
             autoAddMusic: "no",
-            brand_content: false,
-            brand_organic: false
+            brand_content_toggle: false,
+            brand_organic_toggle: false,
+            content_posting_method: "DIRECT_POST"
           },
           group: groupId
         }
