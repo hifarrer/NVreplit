@@ -4889,15 +4889,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log(`[POSTIZ] Posting to Facebook for project: ${project.title}`);
     console.log(`[POSTIZ] Video URL for upload: ${fullVideoUrl}`);
 
-    // Step 1: Upload video to Postiz
+    // Step 1: Download video from object storage
+    console.log(`[POSTIZ] Downloading video from object storage...`);
+    const videoResponse = await fetch(fullVideoUrl);
+    if (!videoResponse.ok) {
+      throw new Error(`Failed to download video: ${videoResponse.status}`);
+    }
+    const videoBuffer = await videoResponse.arrayBuffer();
+    console.log(`[POSTIZ] Downloaded video (${videoBuffer.byteLength} bytes)`);
+
+    // Step 2: Upload video to Postiz as multipart form data
     console.log(`[POSTIZ] Uploading video to Postiz...`);
+    const FormData = (await import('form-data')).default;
+    const formData = new FormData();
+    formData.append('file', Buffer.from(videoBuffer), {
+      filename: `${project.title.replace(/[^a-z0-9]/gi, '_')}.mp4`,
+      contentType: 'video/mp4'
+    });
+
     const uploadResponse = await fetch("https://api.postiz.com/public/v1/upload", {
       method: "POST",
       headers: {
         "Authorization": POSTIZ_API_KEY,
-        "Content-Type": "application/json"
+        ...formData.getHeaders()
       },
-      body: JSON.stringify({ url: fullVideoUrl })
+      body: formData as any
     });
 
     const uploadResponseText = await uploadResponse.text();
