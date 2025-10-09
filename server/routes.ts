@@ -4968,7 +4968,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           ],
           settings: {
-            title: project.title.length > 100 ? project.title.substring(0, 97) + '...' : project.title,
+            title: "Create your own AI Music Video now with NeonVideo.AI",
             type: "public"
           },
           group: groupId
