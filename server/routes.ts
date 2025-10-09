@@ -4992,6 +4992,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     };
 
     console.log(`[POSTIZ] Creating post with video...`);
+    console.log(`[POSTIZ] Post body:`, JSON.stringify(postBody, null, 2));
+    
     const postResponse = await fetch("https://api.postiz.com/public/v1/posts", {
       method: "POST",
       headers: {
