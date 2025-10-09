@@ -4901,13 +4901,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Step 2: Upload video to Postiz as multipart form data
     console.log(`[POSTIZ] Uploading video to Postiz...`);
     const FormData = (await import('form-data')).default;
+    const nodeFetch = (await import('node-fetch')).default;
+    
     const formData = new FormData();
     formData.append('file', Buffer.from(videoBuffer), {
       filename: `${project.title.replace(/[^a-z0-9]/gi, '_')}.mp4`,
       contentType: 'video/mp4'
     });
 
-    const uploadResponse = await fetch("https://api.postiz.com/public/v1/upload", {
+    const uploadResponse = await nodeFetch("https://api.postiz.com/public/v1/upload", {
       method: "POST",
       headers: {
         "Authorization": POSTIZ_API_KEY,
