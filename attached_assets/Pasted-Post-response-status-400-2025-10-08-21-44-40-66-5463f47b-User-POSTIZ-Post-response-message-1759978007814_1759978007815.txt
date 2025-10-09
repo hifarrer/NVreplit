@@ -1,0 +1,21 @@
+Post response status: 400
+2025-10-08 21:44:40.66
+5463f47b
+User
+[POSTIZ] Post response: {"message":["posts.2.settings.privacy_level must be a string","posts.2.settings.privacy_level must be one of the following values: PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR, SELF_ONLY","posts.2.settings.duet must be a boolean value","posts.2.settings.stitch must be a boolean value","posts.2.settings.comment must be a boolean value","posts.2.settings.autoAddMusic must be one of the following values: yes, no","posts.2.settings.brand_content_toggle must be a boolean value","posts.2.settings.brand_organic_toggle must be a boolean value","posts.2.settings.content_posting_method must be a string","posts.2.settings.content_posting_method must be one of the following values: DIRECT_POST, UPLOAD"],"error":"Bad Request","statusCode":400}
+2025-10-08 21:44:40.66
+5463f47b
+User
+[AUTO-POST] Error: Error: Postiz API error (400): {"message":["posts.2.settings.privacy_level must be a string","posts.2.settings.privacy_level must be one of the following values: PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR, SELF_ONLY","posts.2.settings.duet must be a boolean value","posts.2.settings.stitch must be a boolean value","posts.2.settings.comment must be a boolean value","posts.2.settings.autoAddMusic must be one of the following values: yes, no","posts.2.settings.brand_content_toggle must be a boolean value","posts.2.settings.brand_organic_toggle must be a boolean value","posts.2.settings.content_posting_method must be a string","posts.2.settings.content_posting_method must be one of the following values: DIRECT_POST, UPLOAD"],"error":"Bad Request","statusCode":400}
+2025-10-08 21:44:40.66
+5463f47b
+User
+at postVideoToPostiz (file:///home/runner/workspace/dist/index.js:9198:13)
+2025-10-08 21:44:40.66
+5463f47b
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-08 21:44:40.66
+5463f47b
+User
+at async file:///home/runner/workspace/dist/index.js:9275:22

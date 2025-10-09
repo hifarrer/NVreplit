@@ -4986,6 +4986,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ]
             }
           ],
+          settings: {
+            privacy_level: "PUBLIC_TO_EVERYONE",
+            duet: true,
+            stitch: true,
+            comment: true,
+            autoAddMusic: "no",
+            brand_content: false,
+            brand_organic: false
+          },
           group: groupId
         }
       ]
