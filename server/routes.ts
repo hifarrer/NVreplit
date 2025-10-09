@@ -4853,13 +4853,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Check if already posted
     const existingPost = await storage.getPostizPostByProjectId(projectId);
-    if (existingPost && existingPost.postedFacebook && existingPost.postedYoutube) {
-      throw new Error("Video has already been posted to Facebook and YouTube");
+    if (existingPost && existingPost.postedFacebook && existingPost.postedYoutube && existingPost.postedTiktok) {
+      throw new Error("Video has already been posted to Facebook, YouTube, and TikTok");
     }
 
     const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY;
     const FACEBOOK_CHANNEL_ID = "cmgi638zj005ulb0yf9dlmz4g";
     const YOUTUBE_CHANNEL_ID = "cmgheacv20174lb0yszfbkfrg";
+    const TIKTOK_CHANNEL_ID = "cmgi2xrxq0036lb0ykwos7wny";
 
     if (!POSTIZ_API_KEY) {
       throw new Error("POSTIZ_API_KEY not configured");
@@ -4887,7 +4888,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     const content = `Create your own AI Music Videos Now! 🤩\n\n${hashtags}`;
 
-    console.log(`[POSTIZ] Posting to Facebook and YouTube for project: ${project.title}`);
+    console.log(`[POSTIZ] Posting to Facebook, YouTube, and TikTok for project: ${project.title}`);
     console.log(`[POSTIZ] Video URL for upload: ${fullVideoUrl}`);
 
     // Step 1: Download video from object storage
@@ -4971,6 +4972,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             type: "public"
           },
           group: groupId
+        },
+        {
+          integration: { id: TIKTOK_CHANNEL_ID },
+          value: [
+            {
+              content: content,
+              image: [
+                {
+                  id: uploadResult.id,
+                  path: uploadResult.path || uploadResult.url
+                }
+              ]
+            }
+          ],
+          group: groupId
         }
       ]
     };
@@ -4996,7 +5012,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const postResult = JSON.parse(postResponseText);
     const postId = postResult.id || postResult.data?.id || null;
 
-    console.log(`[POSTIZ] Successfully posted to Facebook and YouTube. Post ID: ${postId}`);
+    console.log(`[POSTIZ] Successfully posted to Facebook, YouTube, and TikTok. Post ID: ${postId}`);
 
     // Record the post in database
     const now = new Date();
@@ -5004,16 +5020,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updatePostizPost(projectId, {
         postedFacebook: now,
         postedYoutube: now,
+        postedTiktok: now,
         facebookPostId: postId,
-        youtubePostId: postId
+        youtubePostId: postId,
+        tiktokPostId: postId
       });
     } else {
       await storage.createPostizPost({
         projectId: projectId,
         postedFacebook: now,
         postedYoutube: now,
+        postedTiktok: now,
         facebookPostId: postId,
-        youtubePostId: postId
+        youtubePostId: postId,
+        tiktokPostId: postId
       });
     }
 
@@ -5028,7 +5048,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         success: true,
-        message: "Video posted to Facebook and YouTube successfully",
+        message: "Video posted to Facebook, YouTube, and TikTok successfully",
         video: {
           id: id,
           title: result.projectTitle,
@@ -5059,11 +5079,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[AUTO-POST] Found ${completedVideos.length} completed videos`);
 
-      // Check which ones haven't been posted to Facebook and YouTube yet
+      // Check which ones haven't been posted to Facebook, YouTube, and TikTok yet
       const unpostedVideos = [];
       for (const video of completedVideos) {
         const postRecord = await storage.getPostizPostByProjectId(video.id);
-        if (!postRecord || !postRecord.postedFacebook || !postRecord.postedYoutube) {
+        if (!postRecord || !postRecord.postedFacebook || !postRecord.postedYoutube || !postRecord.postedTiktok) {
           unpostedVideos.push(video);
         }
       }
@@ -5090,7 +5110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         success: true,
-        message: "Video posted to Facebook and YouTube successfully",
+        message: "Video posted to Facebook, YouTube, and TikTok successfully",
         posted: 1,
         video: {
           id: videoToPost.id,
