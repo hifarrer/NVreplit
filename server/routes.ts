@@ -4868,14 +4868,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const videoUrl = project.finalVideoUrl;
     const hashtags = "#ai #aivideo #musicvideo #neonvideo";
     
-    // Get the full video URL - always use production domain for social media posts
-    const baseUrl = "https://neonvideo.ai";
-    const fullVideoUrl = videoUrl.startsWith('http') ? videoUrl : `${baseUrl}${videoUrl}`;
+    // Generate a signed URL for the video file (valid for 1 hour)
+    const { ObjectStorageService } = await import('./objectStorage.js');
+    const objStorage = new ObjectStorageService();
+    let fullVideoUrl: string;
+    
+    try {
+      // Get signed URL from object storage
+      fullVideoUrl = await objStorage.getSignedUrlForPath(videoUrl, 3600);
+      console.log(`[POSTIZ] Generated signed URL for video`);
+    } catch (error) {
+      console.error(`[POSTIZ] Failed to generate signed URL:`, error);
+      // Fallback to direct URL (might not work but better than failing)
+      const baseUrl = "https://neonvideo.ai";
+      fullVideoUrl = videoUrl.startsWith('http') ? videoUrl : `${baseUrl}${videoUrl}`;
+    }
     
     const content = `Create your own AI Music Videos Now! 🤩\n\n${hashtags}`;
 
     console.log(`[POSTIZ] Posting to Facebook for project: ${project.title}`);
-    console.log(`[POSTIZ] Full video URL: ${fullVideoUrl}`);
+    console.log(`[POSTIZ] Video URL for upload: ${fullVideoUrl}`);
 
     // Step 1: Upload video to Postiz
     console.log(`[POSTIZ] Uploading video to Postiz...`);
