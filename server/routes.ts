@@ -4927,8 +4927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     const uploadResult = JSON.parse(uploadResponseText);
-    const uploadedFileId = uploadResult.id;
-    console.log(`[POSTIZ] Video uploaded successfully. ID: ${uploadedFileId}`);
+    console.log(`[POSTIZ] Video uploaded successfully. Response:`, uploadResult);
 
     // Step 2: Create post with uploaded video
     const postBody = {
@@ -4944,7 +4943,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               content: content,
               image: [
                 {
-                  id: uploadedFileId
+                  path: uploadResult.path || uploadResult.url || uploadResult.id
                 }
               ]
             }
