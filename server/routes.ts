@@ -5037,6 +5037,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         youtubePostId: postId,
         tiktokPostId: postId
       });
+      console.log(`[POSTIZ] ✅ Updated post record for project ${projectId} - marked as posted to all platforms at ${now.toISOString()}`);
     } else {
       await storage.createPostizPost({
         projectId: projectId,
@@ -5047,6 +5048,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         youtubePostId: postId,
         tiktokPostId: postId
       });
+      console.log(`[POSTIZ] ✅ Created post record for project ${projectId} - marked as posted to all platforms at ${now.toISOString()}`);
     }
 
     return { postId, projectTitle: project.title, videoUrl: project.finalVideoUrl };
@@ -5056,6 +5058,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/videos/:id/post-to-social", authenticateAdmin, async (req, res) => {
     try {
       const { id } = req.params;
+      
+      // Check if already posted to all platforms
+      const postRecord = await storage.getPostizPostByProjectId(id);
+      if (postRecord && postRecord.postedFacebook && postRecord.postedYoutube && postRecord.postedTiktok) {
+        return res.status(400).json({
+          success: false,
+          error: "This video has already been posted to all platforms",
+          alreadyPosted: true
+        });
+      }
+      
       const result = await postVideoToPostiz(id);
 
       res.json({

@@ -163,21 +163,26 @@ export function VideoManagement() {
         },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to post to social media");
+      if (!res.ok) {
+        const error = new Error(data.error || "Failed to post to social media");
+        (error as any).alreadyPosted = data.alreadyPosted;
+        throw error;
+      }
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/videos"] });
       toast({
-        title: "Posted to Facebook",
-        description: "Video has been successfully posted to Facebook via Postiz.",
+        title: "Posted Successfully",
+        description: "Video has been posted to Facebook, YouTube, and TikTok via Postiz.",
       });
     },
     onError: (error) => {
+      const isAlreadyPosted = error && typeof error === 'object' && 'alreadyPosted' in error && (error as any).alreadyPosted;
       toast({
-        title: "Error",
+        title: isAlreadyPosted ? "Already Posted" : "Error",
         description: error instanceof Error ? error.message : "Failed to post to social media",
-        variant: "destructive",
+        variant: isAlreadyPosted ? "default" : "destructive",
       });
     },
   });
