@@ -5169,10 +5169,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[NEON-SINGLE-PROMPT] Starting video generation for user ${userId}`);
       console.log(`[NEON-SINGLE-PROMPT] Prompt: ${prompt}`);
 
+      // Import OpenAI dynamically to ensure it's available
+      const OpenAI = (await import("openai")).default;
+      const openaiClient = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
       // Step 1: Parse prompt with OpenAI to extract character, song_title, and video_description
       console.log(`[NEON-SINGLE-PROMPT] Step 1: Parsing prompt with OpenAI...`);
       
-      const parseResponse = await openai.chat.completions.create({
+      const parseResponse = await openaiClient.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
