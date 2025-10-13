@@ -22,12 +22,13 @@ export default function NeonSinglePrompt() {
 
   const generateMutation = useMutation({
     mutationFn: async (prompt: string) => {
+      const token = localStorage.getItem("auth_token");
       const response = await fetch("/api/neon-single-prompt", {
         method: "POST",
         body: JSON.stringify({ prompt }),
         headers: { 
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
+          "Authorization": `Bearer ${token}`
         }
       });
       if (!response.ok) {
