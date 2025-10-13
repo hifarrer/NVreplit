@@ -5154,6 +5154,273 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // NeonSinglePrompt: Generate complete music video from a single prompt
+  app.post("/api/neon-single-prompt", authenticateToken, async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      const userId = req.user!.id;
+
+      if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+        return res.status(400).json({ 
+          error: "Please provide a prompt describing your music video" 
+        });
+      }
+
+      console.log(`[NEON-SINGLE-PROMPT] Starting video generation for user ${userId}`);
+      console.log(`[NEON-SINGLE-PROMPT] Prompt: ${prompt}`);
+
+      // Step 1: Parse prompt with OpenAI to extract character, song_title, and video_description
+      console.log(`[NEON-SINGLE-PROMPT] Step 1: Parsing prompt with OpenAI...`);
+      
+      const parseResponse = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are a helpful assistant that extracts structured information from music video prompts. 
+            Extract the following from the user's prompt:
+            - character: A detailed description of the main character (appearance, style, personality)
+            - song_title: The title or theme of the song
+            - video_description: What the music video should be about (scenes, mood, story)
+            
+            If any of these elements are missing or unclear, return them as null and provide a helpful suggestion.
+            Respond ONLY with valid JSON in this format:
+            {
+              "character": "description or null",
+              "song_title": "title or null", 
+              "video_description": "description or null",
+              "missing": ["list of missing elements"],
+              "suggestion": "helpful suggestion if anything is missing"
+            }`
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+
+      const parsed = JSON.parse(parseResponse.choices[0].message.content || "{}");
+      console.log(`[NEON-SINGLE-PROMPT] Parsed prompt:`, parsed);
+
+      // Check if we have all required elements
+      if (parsed.missing && parsed.missing.length > 0) {
+        console.log(`[NEON-SINGLE-PROMPT] Missing elements:`, parsed.missing);
+        return res.status(400).json({
+          error: "Incomplete prompt",
+          missing: parsed.missing,
+          suggestion: parsed.suggestion || "Please provide a more detailed prompt including a character description, song title, and video description.",
+          example: "Create a music video about a cute little cowboy hamster singing a song called 'Cowboy's Life' about adventures in the wild west."
+        });
+      }
+
+      // Step 2: Create a new project
+      console.log(`[NEON-SINGLE-PROMPT] Step 2: Creating project...`);
+      const project = await storage.createProject({
+        userId,
+        title: parsed.song_title,
+        description: parsed.video_description,
+        currentStep: 1
+      });
+      console.log(`[NEON-SINGLE-PROMPT] Created project ${project.id}`);
+
+      // Step 3: Generate lyrics
+      console.log(`[NEON-SINGLE-PROMPT] Step 3: Generating lyrics for "${parsed.song_title}"...`);
+      const lyricsResponse = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are a talented songwriter. Create catchy, creative lyrics for a 30-second song based on the title and description provided. Keep it concise and memorable."
+          },
+          {
+            role: "user",
+            content: `Write lyrics for a 30-second song titled "${parsed.song_title}" about: ${parsed.video_description}`
+          }
+        ]
+      });
+      
+      const lyrics = lyricsResponse.choices[0].message.content || "";
+      await storage.updateProject(project.id, { lyrics });
+      console.log(`[NEON-SINGLE-PROMPT] Generated lyrics (${lyrics.length} chars)`);
+
+      // Step 4: Generate song with ElevenLabs
+      console.log(`[NEON-SINGLE-PROMPT] Step 4: Generating 30-second song with ElevenLabs...`);
+      const songResponse = await fetch("https://api.elevenlabs.io/v1/text-to-sound-effects", {
+        method: "POST",
+        headers: {
+          "xi-api-key": ELEVENLABS_API_KEY,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          text: `${parsed.song_title}. ${lyrics}`,
+          duration_seconds: 30,
+          prompt_influence: 0.5
+        })
+      });
+
+      if (!songResponse.ok) {
+        throw new Error(`ElevenLabs API error: ${songResponse.status}`);
+      }
+
+      const audioBuffer = await songResponse.arrayBuffer();
+      const audioFileName = `audio_${project.id}_${Date.now()}.mp3`;
+      const audioPath = `${PRIVATE_OBJECT_DIR}/${audioFileName}`;
+      
+      await objectStorage.uploadFromBuffer(audioPath, Buffer.from(audioBuffer), {
+        contentType: 'audio/mpeg'
+      });
+
+      const audioUrl = await objectStorage.getSignedUrlForPath(audioPath, 3600 * 24 * 7);
+      await storage.updateProject(project.id, { 
+        audioUrl,
+        currentStep: 2 
+      });
+      console.log(`[NEON-SINGLE-PROMPT] Song generated and uploaded`);
+
+      // Step 5: Generate character image with Fal.ai
+      console.log(`[NEON-SINGLE-PROMPT] Step 5: Generating character image for "${parsed.character}"...`);
+      const characterPrompt = `A professional character portrait: ${parsed.character}. High quality, detailed, vibrant colors, professional lighting.`;
+      
+      const characterResponse = await fetch("https://fal.run/fal-ai/flux/dev/image-to-image", {
+        method: "POST",
+        headers: {
+          "Authorization": `Key ${FAL_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          prompt: characterPrompt,
+          image_size: "square",
+          num_inference_steps: 28,
+          guidance_scale: 3.5,
+          num_images: 1,
+          enable_safety_checker: false
+        })
+      });
+
+      if (!characterResponse.ok) {
+        throw new Error(`Fal.ai API error: ${characterResponse.status}`);
+      }
+
+      const characterData = await characterResponse.json();
+      const characterImageUrl = characterData.images[0].url;
+      
+      await storage.updateProject(project.id, { 
+        characterImageUrl,
+        currentStep: 3
+      });
+      console.log(`[NEON-SINGLE-PROMPT] Character image generated`);
+
+      // Step 6: Generate scene prompts
+      console.log(`[NEON-SINGLE-PROMPT] Step 6: Generating scene prompts...`);
+      const sceneResponse = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `Generate 4 scene descriptions for a music video. Each scene should be visually striking and match the song's theme.
+            Respond with a JSON array of 4 scene descriptions.`
+          },
+          {
+            role: "user",
+            content: `Create 4 scenes for a music video about: ${parsed.video_description}. Character: ${parsed.character}`
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+
+      const scenesData = JSON.parse(sceneResponse.choices[0].message.content || '{"scenes": []}');
+      const scenePrompts = scenesData.scenes || scenesData.scene_descriptions || [];
+      
+      console.log(`[NEON-SINGLE-PROMPT] Generated ${scenePrompts.length} scene prompts`);
+
+      // Step 7: Generate scene images
+      console.log(`[NEON-SINGLE-PROMPT] Step 7: Generating scene images...`);
+      const sceneImages = [];
+      
+      for (let i = 0; i < Math.min(scenePrompts.length, 4); i++) {
+        console.log(`[NEON-SINGLE-PROMPT] Generating scene ${i + 1}/4...`);
+        const sceneImageResponse = await fetch("https://fal.run/fal-ai/flux/dev/image-to-image", {
+          method: "POST",
+          headers: {
+            "Authorization": `Key ${FAL_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            prompt: `${scenePrompts[i]}. Featuring: ${parsed.character}. Cinematic, high quality, vibrant.`,
+            image_size: "landscape_16_9",
+            num_inference_steps: 28,
+            guidance_scale: 3.5,
+            num_images: 1,
+            enable_safety_checker: false
+          })
+        });
+
+        if (sceneImageResponse.ok) {
+          const sceneData = await sceneImageResponse.json();
+          sceneImages.push(sceneData.images[0].url);
+        }
+      }
+
+      await storage.updateProject(project.id, {
+        sceneImages: sceneImages,
+        currentStep: 4
+      });
+      console.log(`[NEON-SINGLE-PROMPT] Generated ${sceneImages.length} scene images`);
+
+      // Step 8: Generate final video
+      console.log(`[NEON-SINGLE-PROMPT] Step 8: Generating final music video...`);
+      
+      // This will trigger the existing video generation pipeline
+      // We'll return the project ID and let the client poll for completion
+      await storage.updateProject(project.id, {
+        currentStep: 5,
+        isCompleted: false
+      });
+
+      // Trigger video generation asynchronously
+      (async () => {
+        try {
+          // Call internal video generation logic
+          const videoGenResponse = await fetch(`http://localhost:5000/api/projects/${project.id}/generate-video`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            }
+          });
+
+          if (videoGenResponse.ok) {
+            console.log(`[NEON-SINGLE-PROMPT] Video generation completed for project ${project.id}`);
+          }
+        } catch (error) {
+          console.error(`[NEON-SINGLE-PROMPT] Video generation failed:`, error);
+        }
+      })();
+
+      console.log(`[NEON-SINGLE-PROMPT] ✅ All steps completed! Project ${project.id} is processing final video.`);
+
+      res.json({
+        success: true,
+        projectId: project.id,
+        message: "Music video generation started! The video is being created in the background.",
+        details: {
+          character: parsed.character,
+          song_title: parsed.song_title,
+          video_description: parsed.video_description,
+          lyrics: lyrics.substring(0, 100) + "...",
+          sceneCount: sceneImages.length
+        }
+      });
+
+    } catch (error) {
+      console.error("[NEON-SINGLE-PROMPT] Error:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to generate music video"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
