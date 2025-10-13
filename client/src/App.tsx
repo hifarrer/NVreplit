@@ -24,6 +24,7 @@ import AffiliatesPage from "@/pages/affiliates";
 import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
 import ContactPage from "@/pages/contact";
+import NeonSinglePrompt from "@/pages/neon-single-prompt";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -79,6 +80,7 @@ function AppRouter() {
       <Route path="/privacy" component={PrivacyPage} />
       <Route path="/terms" component={TermsPage} />
       <Route path="/contact" component={ContactPage} />
+      <Route path="/neon-single-prompt" component={() => <ProtectedRoute component={NeonSinglePrompt} />} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/admin" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />

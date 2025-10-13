@@ -7,7 +7,7 @@ import fs from "fs";
 import { storage } from "./storage";
 import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema, insertPlanSchema, insertReferralSchema, type Plan, type InsertPlan } from "@shared/schema";
 import { z } from "zod";
-import { generateLyrics, generateScenePrompts, splitLyricsIntoSections } from "./services/openai";
+import { generateLyrics, generateScenePrompts, splitLyricsIntoSections, openai } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
@@ -5227,84 +5227,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Step 3: Generate lyrics
       console.log(`[NEON-SINGLE-PROMPT] Step 3: Generating lyrics for "${parsed.song_title}"...`);
-      const lyricsResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: "You are a talented songwriter. Create catchy, creative lyrics for a 30-second song based on the title and description provided. Keep it concise and memorable."
-          },
-          {
-            role: "user",
-            content: `Write lyrics for a 30-second song titled "${parsed.song_title}" about: ${parsed.video_description}`
-          }
-        ]
+      const lyrics = await generateLyrics(`${parsed.song_title}. ${parsed.video_description}`, 30);
+      await storage.updateProject(project.id, { 
+        lyrics,
+        duration: 30,
+        currentStep: 1
       });
-      
-      const lyrics = lyricsResponse.choices[0].message.content || "";
-      await storage.updateProject(project.id, { lyrics });
       console.log(`[NEON-SINGLE-PROMPT] Generated lyrics (${lyrics.length} chars)`);
 
       // Step 4: Generate song with ElevenLabs
       console.log(`[NEON-SINGLE-PROMPT] Step 4: Generating 30-second song with ElevenLabs...`);
-      const songResponse = await fetch("https://api.elevenlabs.io/v1/text-to-sound-effects", {
-        method: "POST",
-        headers: {
-          "xi-api-key": ELEVENLABS_API_KEY,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          text: `${parsed.song_title}. ${lyrics}`,
-          duration_seconds: 30,
-          prompt_influence: 0.5
-        })
-      });
-
-      if (!songResponse.ok) {
-        throw new Error(`ElevenLabs API error: ${songResponse.status}`);
-      }
-
-      const audioBuffer = await songResponse.arrayBuffer();
-      const audioFileName = `audio_${project.id}_${Date.now()}.mp3`;
-      const audioPath = `${PRIVATE_OBJECT_DIR}/${audioFileName}`;
+      const songResult = await generateSongWithElevenLabs(
+        lyrics,
+        `${parsed.song_title}. ${parsed.video_description}`,
+        30
+      );
       
-      await objectStorage.uploadFromBuffer(audioPath, Buffer.from(audioBuffer), {
-        contentType: 'audio/mpeg'
-      });
-
-      const audioUrl = await objectStorage.getSignedUrlForPath(audioPath, 3600 * 24 * 7);
       await storage.updateProject(project.id, { 
-        audioUrl,
+        audioUrl: songResult.audioUrl,
         currentStep: 2 
       });
       console.log(`[NEON-SINGLE-PROMPT] Song generated and uploaded`);
 
       // Step 5: Generate character image with Fal.ai
       console.log(`[NEON-SINGLE-PROMPT] Step 5: Generating character image for "${parsed.character}"...`);
-      const characterPrompt = `A professional character portrait: ${parsed.character}. High quality, detailed, vibrant colors, professional lighting.`;
-      
-      const characterResponse = await fetch("https://fal.run/fal-ai/flux/dev/image-to-image", {
-        method: "POST",
-        headers: {
-          "Authorization": `Key ${FAL_KEY}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          prompt: characterPrompt,
-          image_size: "square",
-          num_inference_steps: 28,
-          guidance_scale: 3.5,
-          num_images: 1,
-          enable_safety_checker: false
-        })
-      });
-
-      if (!characterResponse.ok) {
-        throw new Error(`Fal.ai API error: ${characterResponse.status}`);
-      }
-
-      const characterData = await characterResponse.json();
-      const characterImageUrl = characterData.images[0].url;
+      const characterImageUrl = await generateCharacterImage(parsed.character);
       
       await storage.updateProject(project.id, { 
         characterImageUrl,
@@ -5314,54 +5261,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Step 6: Generate scene prompts
       console.log(`[NEON-SINGLE-PROMPT] Step 6: Generating scene prompts...`);
-      const sceneResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: `Generate 4 scene descriptions for a music video. Each scene should be visually striking and match the song's theme.
-            Respond with a JSON array of 4 scene descriptions.`
-          },
-          {
-            role: "user",
-            content: `Create 4 scenes for a music video about: ${parsed.video_description}. Character: ${parsed.character}`
-          }
-        ],
-        response_format: { type: "json_object" }
-      });
-
-      const scenesData = JSON.parse(sceneResponse.choices[0].message.content || '{"scenes": []}');
-      const scenePrompts = scenesData.scenes || scenesData.scene_descriptions || [];
+      const scenePrompts = await generateScenePrompts(
+        parsed.video_description,
+        4
+      );
       
       console.log(`[NEON-SINGLE-PROMPT] Generated ${scenePrompts.length} scene prompts`);
 
       // Step 7: Generate scene images
       console.log(`[NEON-SINGLE-PROMPT] Step 7: Generating scene images...`);
-      const sceneImages = [];
-      
-      for (let i = 0; i < Math.min(scenePrompts.length, 4); i++) {
-        console.log(`[NEON-SINGLE-PROMPT] Generating scene ${i + 1}/4...`);
-        const sceneImageResponse = await fetch("https://fal.run/fal-ai/flux/dev/image-to-image", {
-          method: "POST",
-          headers: {
-            "Authorization": `Key ${FAL_KEY}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            prompt: `${scenePrompts[i]}. Featuring: ${parsed.character}. Cinematic, high quality, vibrant.`,
-            image_size: "landscape_16_9",
-            num_inference_steps: 28,
-            guidance_scale: 3.5,
-            num_images: 1,
-            enable_safety_checker: false
-          })
-        });
-
-        if (sceneImageResponse.ok) {
-          const sceneData = await sceneImageResponse.json();
-          sceneImages.push(sceneData.images[0].url);
-        }
-      }
+      const sceneImages = await generateSceneImages(
+        scenePrompts,
+        parsed.character
+      );
 
       await storage.updateProject(project.id, {
         sceneImages: sceneImages,
