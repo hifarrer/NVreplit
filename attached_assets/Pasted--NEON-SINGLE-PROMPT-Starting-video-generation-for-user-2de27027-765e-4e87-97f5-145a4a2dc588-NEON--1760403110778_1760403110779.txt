@@ -1,0 +1,33 @@
+[NEON-SINGLE-PROMPT] Starting video generation for user 2de27027-765e-4e87-97f5-145a4a2dc588
+[NEON-SINGLE-PROMPT] Prompt: Make a video featuring a neon-glowing robot dancer performing a song titled 'Electric Dreams' in a futuristic cyberpunk city.
+[NEON-SINGLE-PROMPT] Step 1: Parsing prompt with OpenAI...
+[NEON-SINGLE-PROMPT] Parsed prompt: {
+  character: 'A neon-glowing robot dancer with sleek metallic features and illuminated LED patterns on its body, exuding a cutting-edge, futuristic style.',
+  song_title: 'Electric Dreams',
+  video_description: 'The music video should feature the neon-glowing robot dancer performing dynamic and intricate dance moves under the vibrant city lights of a futuristic cyberpunk city. The scenes include bustling streets with floating vehicles, towering neon-lit skyscrapers, and a crowd of cybernetic onlookers.'
+}
+[NEON-SINGLE-PROMPT] Step 2: Creating project...
+[NEON-SINGLE-PROMPT] Created project fac99e01-97dd-4e2c-8990-fe72734d470a
+[NEON-SINGLE-PROMPT] Step 3: Generating lyrics for "Electric Dreams"...
+[NEON-SINGLE-PROMPT] Generated lyrics (174 chars)
+[NEON-SINGLE-PROMPT] Step 4: Generating 30-second song with ElevenLabs...
+Generating song with ElevenLabs: {
+  prompt: 'Create a song with this style: [Verse 1]\n' +
+    'Neon lights pulse in a digital dream,  \n' +
+    'Robots dance, with rhythm and gleam.\n' +
+    '\n' +
+    '[Chorus]\n' +
+    'In this city where shadows ignite,  \n' +
+    'Electric dreams dance through the night. and these lyrics: Electric Dreams. The music video should feature the neon-glowing robot dancer performing dynamic and intricate dance moves under the vibrant city lights of a futuristic cyberpunk city. The scenes include bustling streets with floating vehicles, towering neon-lit skyscrapers, and a crowd of cybernetic onlookers.',
+  durationMs: 30
+}
+ElevenLabs API error: {"detail":[{"type":"greater_than_equal","loc":["body","music_length_ms"],"msg":"Input should be greater than or equal to 3000","input":30,"ctx":{"ge":3000}}]}
+ElevenLabs song generation error: Error: ElevenLabs API error: 422 - {"detail":[{"type":"greater_than_equal","loc":["body","music_length_ms"],"msg":"Input should be greater than or equal to 3000","input":30,"ctx":{"ge":3000}}]}
+    at generateSongWithElevenLabs (/home/runner/workspace/server/services/elevenlabs.ts:69:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:5246:26)
+[NEON-SINGLE-PROMPT] Error: Error: Failed to generate song with ElevenLabs: ElevenLabs API error: 422 - {"detail":[{"type":"greater_than_equal","loc":["body","music_length_ms"],"msg":"Input should be greater than or equal to 3000","input":30,"ctx":{"ge":3000}}]}
+    at generateSongWithElevenLabs (/home/runner/workspace/server/services/elevenlabs.ts:115:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:5246:26)
+12:49:46 AM [express] POST /api/neon-single-prompt 500 in 3617ms :: {"error":"Failed to generate song…
