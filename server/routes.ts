@@ -5158,7 +5158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/neon-single-prompt", authenticateToken, async (req, res) => {
     try {
       const { prompt } = req.body;
-      const userId = req.user!.id;
+      const userId = req.user!.userId;
 
       if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
         return res.status(400).json({ 
