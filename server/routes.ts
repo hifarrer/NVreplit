@@ -5246,7 +5246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const songResult = await generateSongWithElevenLabs(
         lyrics,
         `${parsed.song_title}. ${parsed.video_description}`,
-        30
+        30000  // 30 seconds in milliseconds
       );
       
       await storage.updateProject(project.id, { 
