@@ -1,0 +1,221 @@
+[NEON-SINGLE-PROMPT] Character image generated
+[NEON-SINGLE-PROMPT] Step 6: Generating scene prompts...
+[NEON-SINGLE-PROMPT] Generated 4 scene prompts
+[NEON-SINGLE-PROMPT] Step 7: Generating scene images...
+Starting parallel scene generation for 4 scenes
+Using character image: A neon-glowing robot dancer with sleek metallic features, brightly illuminated lines across its body, and agile, fluid movements that create vibrant visual trails under the city lights.
+Submitting scene 1: Robot dancer performing dynamic spins in the middle of a neon-lit street. Camera sweeps in a wide arc, capturing the bustling city surroundings in dazzling detail.
+Scene 1 request body: {
+  "enable_base64_output": false,
+  "enable_sync_mode": false,
+  "images": [
+    "A neon-glowing robot dancer with sleek metallic features, brightly illuminated lines across its body, and agile, fluid movements that create vibrant visual trails under the city lights."
+  ],
+  "output_format": "jpeg",
+  "prompt": "Robot dancer performing dynamic spins in the middle of a neon-lit street. Camera sweeps in a wide arc, capturing the bustling city surroundings in dazzling detail.",
+  "aspect_ratio": "16:9"
+}
+Submitting scene 2: Closeup of the robot's glowing eyes as it syncs to the beat, expressing emotions through its facial movements. Camera gently rotates around, focusing on the intricate details of its metallic features.
+Scene 2 request body: {
+  "enable_base64_output": false,
+  "enable_sync_mode": false,
+  "images": [
+    "A neon-glowing robot dancer with sleek metallic features, brightly illuminated lines across its body, and agile, fluid movements that create vibrant visual trails under the city lights."
+  ],
+  "output_format": "jpeg",
+  "prompt": "Closeup of the robot's glowing eyes as it syncs to the beat, expressing emotions through its facial movements. Camera gently rotates around, focusing on the intricate details of its metallic features.",
+  "aspect_ratio": "16:9"
+}
+Submitting scene 3: Robot dancer executing intricate footwork in front of a towering skyscraper. Camera zooms in and out, emphasizing the contrast between the dancer and the grand urban backdrop.
+Scene 3 request body: {
+  "enable_base64_output": false,
+  "enable_sync_mode": false,
+  "images": [
+    "A neon-glowing robot dancer with sleek metallic features, brightly illuminated lines across its body, and agile, fluid movements that create vibrant visual trails under the city lights."
+  ],
+  "output_format": "jpeg",
+  "prompt": "Robot dancer executing intricate footwork in front of a towering skyscraper. Camera zooms in and out, emphasizing the contrast between the dancer and the grand urban backdrop.",
+  "aspect_ratio": "16:9"
+}
+Submitting scene 4: Closeup of the robot's mouth moving in perfect sync with the lyrics, showcasing its expressive face. Camera subtly tilts upward to draw attention to its glowing smile.
+Scene 4 request body: {
+  "enable_base64_output": false,
+  "enable_sync_mode": false,
+  "images": [
+    "A neon-glowing robot dancer with sleek metallic features, brightly illuminated lines across its body, and agile, fluid movements that create vibrant visual trails under the city lights."
+  ],
+  "output_format": "jpeg",
+  "prompt": "Closeup of the robot's mouth moving in perfect sync with the lyrics, showcasing its expressive face. Camera subtly tilts upward to draw attention to its glowing smile.",
+  "aspect_ratio": "16:9"
+}
+Scene 1 submission result: {
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": "81154b60a20f45c98d114e735887deb9",
+    "model": "google/nano-banana/edit",
+    "outputs": [],
+    "urls": {
+      "get": "https://api.wavespeed.ai/api/v3/predictions/81154b60a20f45c98d114e735887deb9/result"
+    },
+    "has_nsfw_contents": [],
+    "status": "created",
+    "created_at": "2025-10-14T01:31:40.573Z",
+    "error": "",
+    "executionTime": 0,
+    "timings": {
+      "inference": 0
+    }
+  }
+}
+Got scene 1 request ID: 81154b60a20f45c98d114e735887deb9
+Scene 3 submission result: {
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": "81f7bdcf730841d0a6d84bd071ab28f7",
+    "model": "google/nano-banana/edit",
+    "outputs": [],
+    "urls": {
+      "get": "https://api.wavespeed.ai/api/v3/predictions/81f7bdcf730841d0a6d84bd071ab28f7/result"
+    },
+    "has_nsfw_contents": [],
+    "status": "created",
+    "created_at": "2025-10-14T01:31:40.614Z",
+    "error": "",
+    "executionTime": 0,
+    "timings": {
+      "inference": 0
+    }
+  }
+}
+Got scene 3 request ID: 81f7bdcf730841d0a6d84bd071ab28f7
+Scene 4 submission result: {
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": "30ee68198e6c4f1d9ff97f5c3331e9ee",
+    "model": "google/nano-banana/edit",
+    "outputs": [],
+    "urls": {
+      "get": "https://api.wavespeed.ai/api/v3/predictions/30ee68198e6c4f1d9ff97f5c3331e9ee/result"
+    },
+    "has_nsfw_contents": [],
+    "status": "created",
+    "created_at": "2025-10-14T01:31:40.614Z",
+    "error": "",
+    "executionTime": 0,
+    "timings": {
+      "inference": 0
+    }
+  }
+}
+Got scene 4 request ID: 30ee68198e6c4f1d9ff97f5c3331e9ee
+Scene 2 submission result: {
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": "ad85cafc6f4342629b8ed7aaeb405426",
+    "model": "google/nano-banana/edit",
+    "outputs": [],
+    "urls": {
+      "get": "https://api.wavespeed.ai/api/v3/predictions/ad85cafc6f4342629b8ed7aaeb405426/result"
+    },
+    "has_nsfw_contents": [],
+    "status": "created",
+    "created_at": "2025-10-14T01:31:40.641Z",
+    "error": "",
+    "executionTime": 0,
+    "timings": {
+      "inference": 0
+    }
+  }
+}
+Got scene 2 request ID: ad85cafc6f4342629b8ed7aaeb405426
+All scene submissions completed, starting parallel polling...
+Scene 4 generation failed: {
+  code: 200,
+  message: 'success',
+  data: {
+    id: '30ee68198e6c4f1d9ff97f5c3331e9ee',
+    model: 'google/nano-banana/edit',
+    outputs: [],
+    urls: {
+      get: 'https://api.wavespeed.ai/api/v3/predictions/30ee68198e6c4f1d9ff97f5c3331e9ee/result'
+    },
+    has_nsfw_contents: [],
+    status: 'failed',
+    created_at: '2025-10-14T01:31:40.613198067Z',
+    error: 'Task failed: Request failed. Please check your input parameters and try again.',
+    executionTime: 0,
+    timings: { inference: 0 }
+  }
+}
+Some scenes failed, implementing retry logic...
+Scene 2 generation failed: {
+  code: 200,
+  message: 'success',
+  data: {
+    id: 'ad85cafc6f4342629b8ed7aaeb405426',
+    model: 'google/nano-banana/edit',
+    outputs: [],
+    urls: {
+      get: 'https://api.wavespeed.ai/api/v3/predictions/ad85cafc6f4342629b8ed7aaeb405426/result'
+    },
+    has_nsfw_contents: [],
+    status: 'failed',
+    created_at: '2025-10-14T01:31:40.640061978Z',
+    error: 'Task failed: Request failed. Please check your input parameters and try again.',
+    executionTime: 0,
+    timings: { inference: 0 }
+  }
+}
+Scene 1 generation failed: {
+  code: 200,
+  message: 'success',
+  data: {
+    id: '81154b60a20f45c98d114e735887deb9',
+    model: 'google/nano-banana/edit',
+    outputs: [],
+    urls: {
+      get: 'https://api.wavespeed.ai/api/v3/predictions/81154b60a20f45c98d114e735887deb9/result'
+    },
+    has_nsfw_contents: [],
+    status: 'failed',
+    created_at: '2025-10-14T01:31:40.572378462Z',
+    error: 'Task failed: Request failed. Please check your input parameters and try again.',
+    executionTime: 0,
+    timings: { inference: 0 }
+  }
+}
+Scene 3 generation failed: {
+  code: 200,
+  message: 'success',
+  data: {
+    id: '81f7bdcf730841d0a6d84bd071ab28f7',
+    model: 'google/nano-banana/edit',
+    outputs: [],
+    urls: {
+      get: 'https://api.wavespeed.ai/api/v3/predictions/81f7bdcf730841d0a6d84bd071ab28f7/result'
+    },
+    has_nsfw_contents: [],
+    status: 'failed',
+    created_at: '2025-10-14T01:31:40.612898654Z',
+    error: 'Task failed: Request failed. Please check your input parameters and try again.',
+    executionTime: 0,
+    timings: { inference: 0 }
+  }
+}
+Scene 1 failed: Scene 1 generation failed: Task failed: Request failed. Please check your input parameters and try again.
+Scene 2 failed: Scene 2 generation failed: Task failed: Request failed. Please check your input parameters and try again.
+Scene 3 failed: Scene 3 generation failed: Task failed: Request failed. Please check your input parameters and try again.
+Scene 4 failed: Scene 4 generation failed: Task failed: Request failed. Please check your input parameters and try again.
+Scene generation error: Error: Failed to generate 4 scene images after retries. Missing scenes: 1, 2, 3, 4
+    at generateSceneImages (/home/runner/workspace/server/services/fal.ts:735:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:5279:27)
+[NEON-SINGLE-PROMPT] Error: Error: Failed to generate scene images: Failed to generate 4 scene images after retries. Missing scenes: 1, 2, 3, 4
+    at generateSceneImages (/home/runner/workspace/server/services/fal.ts:748:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:5279:27)
+1:32:16 AM [express] POST /api/neon-single-prompt 500 in 67722ms :: {"error":"Failed to generate sce…
