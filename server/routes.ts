@@ -5282,6 +5282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       await storage.updateProject(project.id, {
+        scenePrompts: scenePrompts,
         sceneImages: sceneImages,
         currentStep: 4
       });
@@ -5310,6 +5311,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (videoGenResponse.ok) {
             console.log(`[NEON-SINGLE-PROMPT] Video generation completed for project ${project.id}`);
+          } else {
+            const errorData = await videoGenResponse.json();
+            console.error(`[NEON-SINGLE-PROMPT] Video generation failed with status ${videoGenResponse.status}:`, errorData);
           }
         } catch (error) {
           console.error(`[NEON-SINGLE-PROMPT] Video generation failed:`, error);
