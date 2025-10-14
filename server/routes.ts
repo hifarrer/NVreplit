@@ -5278,7 +5278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[NEON-SINGLE-PROMPT] Step 7: Generating scene images...`);
       const sceneImages = await generateSceneImages(
         scenePrompts,
-        parsed.character
+        characterImageUrl
       );
 
       await storage.updateProject(project.id, {

@@ -1,0 +1,220 @@
+[NEON-SINGLE-PROMPT] Character image generated
+[NEON-SINGLE-PROMPT] Step 6: Generating scene prompts...
+[NEON-SINGLE-PROMPT] Generated 4 scene prompts
+[NEON-SINGLE-PROMPT] Step 7: Generating scene images...
+Starting parallel scene generation for 4 scenes
+Using character image: A neon-glowing robot dancer
+Submitting scene 1: Robot dancer performing intricate moves on a vibrant street, with neon lights reflecting off its metallic surface. Camera zooms out to show the bustling cyberpunk city around it.
+Scene 1 request body: {
+  "enable_base64_output": false,
+  "enable_sync_mode": false,
+  "images": [
+    "A neon-glowing robot dancer"
+  ],
+  "output_format": "jpeg",
+  "prompt": "Robot dancer performing intricate moves on a vibrant street, with neon lights reflecting off its metallic surface. Camera zooms out to show the bustling cyberpunk city around it.",
+  "aspect_ratio": "16:9"
+}
+Submitting scene 2: Closeup of the robot's face as it sings a catchy verse. Camera slowly tilts to highlight the glowing eyes in sync with the lyrics.
+Scene 2 request body: {
+  "enable_base64_output": false,
+  "enable_sync_mode": false,
+  "images": [
+    "A neon-glowing robot dancer"
+  ],
+  "output_format": "jpeg",
+  "prompt": "Closeup of the robot's face as it sings a catchy verse. Camera slowly tilts to highlight the glowing eyes in sync with the lyrics.",
+  "aspect_ratio": "16:9"
+}
+Submitting scene 3: Robot spinning and twirling in an open plaza illuminated by swirling neon beams. Camera sweeps around for dynamic angles capturing the energy of the performance.
+Scene 3 request body: {
+  "enable_base64_output": false,
+  "enable_sync_mode": false,
+  "images": [
+    "A neon-glowing robot dancer"
+  ],
+  "output_format": "jpeg",
+  "prompt": "Robot spinning and twirling in an open plaza illuminated by swirling neon beams. Camera sweeps around for dynamic angles capturing the energy of the performance.",
+  "aspect_ratio": "16:9"
+}
+Submitting scene 4: Closeup of the robot's hand mimicking the lyrics, with its face in soft focus, capturing a moment of connection. Camera slightly zooms in to accentuate the emotion in its glowing eyes.
+Scene 4 request body: {
+  "enable_base64_output": false,
+  "enable_sync_mode": false,
+  "images": [
+    "A neon-glowing robot dancer"
+  ],
+  "output_format": "jpeg",
+  "prompt": "Closeup of the robot's hand mimicking the lyrics, with its face in soft focus, capturing a moment of connection. Camera slightly zooms in to accentuate the emotion in its glowing eyes.",
+  "aspect_ratio": "16:9"
+}
+Scene 1 submission result: {
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": "f6b5e48205734297b4c12cd6487cbd4c",
+    "model": "google/nano-banana/edit",
+    "outputs": [],
+    "urls": {
+      "get": "https://api.wavespeed.ai/api/v3/predictions/f6b5e48205734297b4c12cd6487cbd4c/result"
+    },
+    "has_nsfw_contents": [],
+    "status": "created",
+    "created_at": "2025-10-14T01:28:11.169Z",
+    "error": "",
+    "executionTime": 0,
+    "timings": {
+      "inference": 0
+    }
+  }
+}
+Got scene 1 request ID: f6b5e48205734297b4c12cd6487cbd4c
+Scene 2 submission result: {
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": "3472144462a84e59b1774125f79a4397",
+    "model": "google/nano-banana/edit",
+    "outputs": [],
+    "urls": {
+      "get": "https://api.wavespeed.ai/api/v3/predictions/3472144462a84e59b1774125f79a4397/result"
+    },
+    "has_nsfw_contents": [],
+    "status": "created",
+    "created_at": "2025-10-14T01:28:11.169Z",
+    "error": "",
+    "executionTime": 0,
+    "timings": {
+      "inference": 0
+    }
+  }
+}
+Got scene 2 request ID: 3472144462a84e59b1774125f79a4397
+Scene 3 submission result: {
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": "d6fbdfea0fd64ebda5c42c4e72789314",
+    "model": "google/nano-banana/edit",
+    "outputs": [],
+    "urls": {
+      "get": "https://api.wavespeed.ai/api/v3/predictions/d6fbdfea0fd64ebda5c42c4e72789314/result"
+    },
+    "has_nsfw_contents": [],
+    "status": "created",
+    "created_at": "2025-10-14T01:28:11.171Z",
+    "error": "",
+    "executionTime": 0,
+    "timings": {
+      "inference": 0
+    }
+  }
+}
+Got scene 3 request ID: d6fbdfea0fd64ebda5c42c4e72789314
+Scene 4 submission result: {
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": "1ac09075f284404bbc5e1653fe7085bf",
+    "model": "google/nano-banana/edit",
+    "outputs": [],
+    "urls": {
+      "get": "https://api.wavespeed.ai/api/v3/predictions/1ac09075f284404bbc5e1653fe7085bf/result"
+    },
+    "has_nsfw_contents": [],
+    "status": "created",
+    "created_at": "2025-10-14T01:28:11.274Z",
+    "error": "",
+    "executionTime": 0,
+    "timings": {
+      "inference": 0
+    }
+  }
+}
+Got scene 4 request ID: 1ac09075f284404bbc5e1653fe7085bf
+All scene submissions completed, starting parallel polling...
+Scene 2 generation failed: {
+  code: 200,
+  message: 'success',
+  data: {
+    id: '3472144462a84e59b1774125f79a4397',
+    model: 'google/nano-banana/edit',
+    outputs: [],
+    urls: {
+      get: 'https://api.wavespeed.ai/api/v3/predictions/3472144462a84e59b1774125f79a4397/result'
+    },
+    has_nsfw_contents: [],
+    status: 'failed',
+    created_at: '2025-10-14T01:28:11.167914384Z',
+    error: 'Task failed: Request failed. Please check your input parameters and try again.',
+    executionTime: 0,
+    timings: { inference: 0 }
+  }
+}
+Some scenes failed, implementing retry logic...
+Scene 4 generation failed: {
+  code: 200,
+  message: 'success',
+  data: {
+    id: '1ac09075f284404bbc5e1653fe7085bf',
+    model: 'google/nano-banana/edit',
+    outputs: [],
+    urls: {
+      get: 'https://api.wavespeed.ai/api/v3/predictions/1ac09075f284404bbc5e1653fe7085bf/result'
+    },
+    has_nsfw_contents: [],
+    status: 'failed',
+    created_at: '2025-10-14T01:28:11.272771559Z',
+    error: 'Task failed: Request failed. Please check your input parameters and try again.',
+    executionTime: 0,
+    timings: { inference: 0 }
+  }
+}
+Scene 3 generation failed: {
+  code: 200,
+  message: 'success',
+  data: {
+    id: 'd6fbdfea0fd64ebda5c42c4e72789314',
+    model: 'google/nano-banana/edit',
+    outputs: [],
+    urls: {
+      get: 'https://api.wavespeed.ai/api/v3/predictions/d6fbdfea0fd64ebda5c42c4e72789314/result'
+    },
+    has_nsfw_contents: [],
+    status: 'failed',
+    created_at: '2025-10-14T01:28:11.169832113Z',
+    error: 'Task failed: Request failed. Please check your input parameters and try again.',
+    executionTime: 0,
+    timings: { inference: 0 }
+  }
+}
+Scene 1 generation failed: {
+  code: 200,
+  message: 'success',
+  data: {
+    id: 'f6b5e48205734297b4c12cd6487cbd4c',
+    model: 'google/nano-banana/edit',
+    outputs: [],
+    urls: {
+      get: 'https://api.wavespeed.ai/api/v3/predictions/f6b5e48205734297b4c12cd6487cbd4c/result'
+    },
+    has_nsfw_contents: [],
+    status: 'failed',
+    created_at: '2025-10-14T01:28:11.16783348Z',
+    error: 'Task failed: Request failed. Please check your input parameters and try again.',
+    executionTime: 0,
+    timings: { inference: 0 }
+  }
+}
+Scene 1 failed: Scene 1 generation failed: Task failed: Request failed. Please check your input parameters and try again.
+Scene 2 failed: Scene 2 generation failed: Task failed: Request failed. Please check your input parameters and try again.
+Scene 3 failed: Scene 3 generation failed: Task failed: Request failed. Please check your input parameters and try again.
+Scene 4 failed: Scene 4 generation failed: Task failed: Request failed. Please check your input parameters and try again.
+Scene generation error: Error: Failed to generate 4 scene images after retries. Missing scenes: 1, 2, 3, 4
+    at generateSceneImages (/home/runner/workspace/server/services/fal.ts:735:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:5279:27)
+[NEON-SINGLE-PROMPT] Error: Error: Failed to generate scene images: Failed to generate 4 scene images after retries. Missing scenes: 1, 2, 3, 4
+    at generateSceneImages (/home/runner/workspace/server/services/fal.ts:748:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:5279:27)
