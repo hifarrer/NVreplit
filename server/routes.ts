@@ -5251,9 +5251,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await storage.updateProject(project.id, { 
         audioUrl: songResult.audioUrl,
+        audioDuration: 30,  // 30 seconds
         currentStep: 2 
       });
-      console.log(`[NEON-SINGLE-PROMPT] Song generated and uploaded`);
+      console.log(`[NEON-SINGLE-PROMPT] Song generated and uploaded (30 seconds)`);
 
       // Step 5: Generate character image with Fal.ai
       console.log(`[NEON-SINGLE-PROMPT] Step 5: Generating character image for "${parsed.character}"...`);

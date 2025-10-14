@@ -1,0 +1,60 @@
+All scene submissions completed, starting parallel polling...
+Scene 1 generation completed!
+Found scene 1 image URL: https://d1q70pf5vjeyhc.cloudfront.net/predictions/87927ae9326e48099a6ecf8c9154517b/1.jpg
+Scene 4 generation completed!
+Found scene 4 image URL: https://d1q70pf5vjeyhc.cloudfront.net/predictions/364f5ba4ae10496b823151e91a5d9c66/1.jpg
+Scene 2 generation completed!
+Found scene 2 image URL: https://d1q70pf5vjeyhc.cloudfront.net/predictions/31f6d6a054e54193ae0ed08a88761513/1.jpg
+Scene 3 generation completed!
+Found scene 3 image URL: https://d1q70pf5vjeyhc.cloudfront.net/predictions/6ebb73a2a0a041d78d0493ea00e481c5/1.jpg
+All scene images generated successfully (including retries): [
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/87927ae9326e48099a6ecf8c9154517b/1.jpg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/31f6d6a054e54193ae0ed08a88761513/1.jpg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/6ebb73a2a0a041d78d0493ea00e481c5/1.jpg',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/364f5ba4ae10496b823151e91a5d9c66/1.jpg'
+]
+[NEON-SINGLE-PROMPT] Generated 4 scene images
+[NEON-SINGLE-PROMPT] Step 8: Generating final music video...
+[NEON-SINGLE-PROMPT] ✅ All steps completed! Project ad90f4ca-d152-4271-a3b4-223fc87d2f32 is processing final video.
+3:01:44 AM [express] POST /api/neon-single-prompt 200 in 55571ms :: {"success":true,"projectId":"ad9…
+3:01:45 AM [express] GET /api/projects/ad90f4ca-d152-4271-a3b4-223fc87d2f32 200 in 661ms :: {"id":"a…
+Using audio duration: 120 seconds for video generation
+Using video generation config: {
+  id: '1a3f7c8f-0292-4a6a-b252-879ac06cd148',
+  videoDurationSeconds: 120,
+  numberOfAudioParts: 12,
+  numberOfScenesCreated: 12,
+  numberOfVideosRegularApi: 6,
+  numberOfVideosLipsync: 6,
+  createdAt: 2025-09-02T22:20:47.305Z,
+  updatedAt: 2025-09-02T22:20:47.305Z
+}
+=== AUDIO URL DEBUG ===
+Original audio URL: /objects/songs/8d079426-2862-484c-8cbf-1cb27f807abb.mp3
+REPLIT_DEV_DOMAIN: 046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev
+Host: localhost:5000
+Final audio URL for FFMPEG: https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/8d079426-2862-484c-8cbf-1cb27f807abb.mp3?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20251014%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20251014T030146Z&X-Goog-Expires=3599&X-Goog-Signature=91553e4126af83bb9f71aac99580f5a721e8149ae66598b446e994dfa223e6890c51e990529156460cc788d350317ba21e1668e91804fa6c7c19f796161cc3b4225bf32654f9e6523622b6273fd88913a53136b6597899e931c6eb0a21be3ad30da49ed3faf1ed3653318a2be0c5e1c333ae25442c31a94e0d5fb7121662ab4859923609c0b87a858525d1dc0b6dd2e45b20340bbaaba1ac1f1cf9ddc5ebcd20fa2c9989085caa94a6f4c25796896ef312a5feb2cc17a56d74e93a76d8d95e3438fc4b4b27c03f1c98c34b60aaf59906c1ad7e7b71e81edd7f1410d1e464f91df9164a92c065c503e6358792b5e81278947f9633507c210ffb650a6918365351&X-Goog-SignedHeaders=host
+=== END DEBUG ===
+Splitting audio into 12 segments
+Audio splitting error: TypeError: fetch failed
+    at node:internal/deps/undici/undici:13510:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async splitAudio (/home/runner/workspace/server/services/ffmpeg.ts:52:22)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:3967:29) {
+  [cause]: Error: getaddrinfo EAI_AGAIN ffmpegapi.net
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:120:26) {
+    errno: -3001,
+    code: 'EAI_AGAIN',
+    syscall: 'getaddrinfo',
+    hostname: 'ffmpegapi.net'
+  }
+}
+Generate video error: Error: Failed to split audio: fetch failed
+    at splitAudio (/home/runner/workspace/server/services/ffmpeg.ts:78:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:3967:29)
+3:01:54 AM [express] POST /api/projects/ad90f4ca-d152-4271-a3b4-223fc87d2f32/generate-video 500 in 9…
+[NEON-SINGLE-PROMPT] Video generation failed with status 500: {
+  error: 'Failed to split audio: fetch failed',
+  details: 'Check server logs for detailed FFMPEG API requests and responses'
+}
