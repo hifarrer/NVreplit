@@ -5266,11 +5266,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       console.log(`[NEON-SINGLE-PROMPT] Character image generated`);
 
+      // Get the video generation config for 30 seconds to determine number of scenes
+      const videoConfig = await storage.getVideoGenerationConfig(30);
+      if (!videoConfig) {
+        throw new Error('No video generation configuration found for 30 seconds');
+      }
+      const numberOfScenes = videoConfig.numberOfScenesCreated;
+      console.log(`[NEON-SINGLE-PROMPT] Using config for 30s video: ${numberOfScenes} scenes`);
+
       // Step 6: Generate scene prompts
       console.log(`[NEON-SINGLE-PROMPT] Step 6: Generating scene prompts...`);
       const scenePrompts = await generateScenePrompts(
         parsed.video_description,
-        4
+        numberOfScenes
       );
       
       console.log(`[NEON-SINGLE-PROMPT] Generated ${scenePrompts.length} scene prompts`);
