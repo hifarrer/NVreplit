@@ -1,0 +1,37 @@
+[AUTH] Token verified, user: {
+  userId: '2de27027-765e-4e87-97f5-145a4a2dc588',
+  username: 'testuser',
+  iat: 1760397072,
+  exp: 1760483472
+}
+[NEON-SINGLE-PROMPT] Starting video generation for user undefined
+[NEON-SINGLE-PROMPT] Prompt: Make a video featuring a neon-glowing robot dancer performing a song titled 'Electric Dreams' in a futuristic cyberpunk city.
+[NEON-SINGLE-PROMPT] Step 1: Parsing prompt with OpenAI...
+[NEON-SINGLE-PROMPT] Parsed prompt: {
+  character: 'A neon-glowing robot dancer',
+  song_title: 'Electric Dreams',
+  video_description: 'A futuristic cyberpunk city with a robot dancer performing',
+  missing: [],
+  suggestion: ''
+}
+[NEON-SINGLE-PROMPT] Step 2: Creating project...
+[NEON-SINGLE-PROMPT] Error: PostgresError: null value in column "user_id" of relation "projects" violates not-null constraint
+    at ErrorResponse (file:///home/runner/workspace/node_modules/postgres/src/connection.js:794:26)
+    at handle (file:///home/runner/workspace/node_modules/postgres/src/connection.js:480:6)
+    at TLSSocket.data (file:///home/runner/workspace/node_modules/postgres/src/connection.js:315:9)
+    at TLSSocket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23) {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: '23502',
+  detail: 'Failing row contains (a0a744bc-324f-482d-917a-2ae974c06a14, null, Electric Dreams, A futuristic cyberpunk city with a robot dancer performing, 1, null, null, null, null, null, null, null, null, null, null, null, null, null, f, 2025-10-14 00:40:24.230428, 2025-10-14 00:40:24.230428, null, null, null, null, t, null, f, null, null, null, 0, f, null, null, null).',
+  schema_name: 'public',
+  table_name: 'projects',
+  column_name: 'user_id',
+  file: 'execMain.c',
+  line: '2021',
+  routine: 'ExecConstraints'
+}
