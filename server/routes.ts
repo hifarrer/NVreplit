@@ -78,24 +78,42 @@ const videoQueueService = new VideoQueueService();
 
 // Initialize admin credentials in database if they don't exist
 async function initializeAdminCredentials() {
-  const adminUsername = await storage.getSetting('admin_username');
-  const adminPassword = await storage.getSetting('admin_password');
-  
-  if (!adminUsername) {
-    await storage.setSetting('admin_username', 'admin', false);
-  }
-  
-  if (!adminPassword) {
-    // Hash the default password
-    const hashedPassword = await bcrypt.hash('password123', 10);
-    await storage.setSetting('admin_password', hashedPassword, true);
-    console.log('⚠️  Admin credentials initialized with default password. Please change immediately!');
+  try {
+    const adminUsername = await storage.getSetting('admin_username');
+    const adminPassword = await storage.getSetting('admin_password');
+    
+    if (!adminUsername) {
+      await storage.setSetting('admin_username', 'admin', false);
+      console.log('✅ Admin username initialized');
+    }
+    
+    if (!adminPassword) {
+      // Hash the default password
+      const hashedPassword = await bcrypt.hash('password123', 10);
+      await storage.setSetting('admin_password', hashedPassword, true);
+      
+      // Verify the exact password hash was saved correctly
+      const savedPassword = await storage.getSetting('admin_password');
+      if (savedPassword !== hashedPassword) {
+        console.error('❌ Password initialization verification failed - hash mismatch');
+        console.error(`Expected: ${hashedPassword.substring(0, 20)}...`);
+        console.error(`Got: ${savedPassword?.substring(0, 20) || 'null'}...`);
+        throw new Error('Admin password write verification failed - hash mismatch');
+      }
+      
+      console.log('⚠️  Admin credentials initialized with default password (admin/password123)');
+      console.log('⚠️  Please change the admin password immediately via the admin dashboard!');
+    }
+  } catch (error) {
+    console.error('❌ Critical error initializing admin credentials:', error);
+    throw error; // Re-throw to be caught by the outer catch
   }
 }
 
 // Call initialization (async, doesn't block server start)
 initializeAdminCredentials().catch(err => {
-  console.error('Failed to initialize admin credentials:', err);
+  console.error('❌ FATAL: Failed to initialize admin credentials:', err);
+  console.error('❌ Admin login may not work until credentials are manually configured in the database');
 });
 
 // Middleware to verify JWT token or OAuth access token
@@ -1984,14 +2002,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Password must be at least 6 characters" });
       }
       
-      // Hash and save the new password to database
+      // Hash the new password
       const hashedPassword = await bcrypt.hash(newPassword, 10);
-      await storage.setSetting('admin_password', hashedPassword, true);
       
-      res.json({ success: true, message: "Admin password updated successfully" });
+      // Save to database with error handling
+      try {
+        await storage.setSetting('admin_password', hashedPassword, true);
+        
+        // Verify the exact password hash was saved correctly
+        const savedPassword = await storage.getSetting('admin_password');
+        if (savedPassword !== hashedPassword) {
+          console.error("❌ Password verification failed - saved password doesn't match new hash");
+          console.error(`Expected: ${hashedPassword.substring(0, 20)}...`);
+          console.error(`Got: ${savedPassword?.substring(0, 20) || 'null'}...`);
+          throw new Error("Password write verification failed - hash mismatch");
+        }
+        
+        console.log("✅ Admin password updated and verified successfully");
+        res.json({ success: true, message: "Admin password updated successfully" });
+      } catch (storageError) {
+        console.error("❌ Failed to save admin password to database:", storageError);
+        throw new Error("Failed to persist password change to database");
+      }
     } catch (error) {
       console.error("Admin reset password error:", error);
-      res.status(500).json({ error: "Failed to reset password" });
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to reset password" });
     }
   });
   
