@@ -76,11 +76,27 @@ const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || "http://localhost
 // Initialize video queue service
 const videoQueueService = new VideoQueueService();
 
-// Admin credentials (hardcoded for now)
-const ADMIN_CREDENTIALS = {
-  username: "admin",
-  password: "password123"
-};
+// Initialize admin credentials in database if they don't exist
+async function initializeAdminCredentials() {
+  const adminUsername = await storage.getSetting('admin_username');
+  const adminPassword = await storage.getSetting('admin_password');
+  
+  if (!adminUsername) {
+    await storage.setSetting('admin_username', 'admin', false);
+  }
+  
+  if (!adminPassword) {
+    // Hash the default password
+    const hashedPassword = await bcrypt.hash('password123', 10);
+    await storage.setSetting('admin_password', hashedPassword, true);
+    console.log('⚠️  Admin credentials initialized with default password. Please change immediately!');
+  }
+}
+
+// Call initialization (async, doesn't block server start)
+initializeAdminCredentials().catch(err => {
+  console.error('Failed to initialize admin credentials:', err);
+});
 
 // Middleware to verify JWT token or OAuth access token
 function authenticateToken(req: any, res: any, next: any) {
@@ -1682,20 +1698,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Username and password are required" });
       }
       
-      // Check admin credentials
-      if (username !== ADMIN_CREDENTIALS.username || password !== ADMIN_CREDENTIALS.password) {
+      // Get admin credentials from database
+      const adminUsername = await storage.getSetting('admin_username');
+      const adminPasswordHash = await storage.getSetting('admin_password');
+      
+      if (!adminUsername || !adminPasswordHash) {
+        return res.status(500).json({ error: "Admin credentials not configured" });
+      }
+      
+      // Check username
+      if (username !== adminUsername) {
+        return res.status(401).json({ error: "Invalid admin credentials" });
+      }
+      
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, adminPasswordHash);
+      if (!isValidPassword) {
         return res.status(401).json({ error: "Invalid admin credentials" });
       }
       
       // Generate admin JWT token
       const token = jwt.sign(
-        { username: ADMIN_CREDENTIALS.username, isAdmin: true },
+        { username: adminUsername, isAdmin: true },
         JWT_SECRET,
         { expiresIn: '24h' }
       );
       
       res.json({
-        admin: { username: ADMIN_CREDENTIALS.username },
+        admin: { username: adminUsername },
         token
       });
     } catch (error) {
@@ -1954,8 +1984,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Password must be at least 6 characters" });
       }
       
-      // In production, this would update the database
-      ADMIN_CREDENTIALS.password = newPassword;
+      // Hash and save the new password to database
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await storage.setSetting('admin_password', hashedPassword, true);
+      
       res.json({ success: true, message: "Admin password updated successfully" });
     } catch (error) {
       console.error("Admin reset password error:", error);
