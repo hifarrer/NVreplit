@@ -5694,8 +5694,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // CORS preflight for NeonSinglePrompt endpoint
+  app.options("/api/neon-single-prompt", (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.sendStatus(204);
+  });
+
   // NeonSinglePrompt: Generate complete music video from a single prompt
   app.post("/api/neon-single-prompt", authenticateToken, async (req, res) => {
+    // Set CORS headers
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
     try {
       const { prompt } = req.body;
       const userId = req.user!.userId;
