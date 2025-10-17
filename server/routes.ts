@@ -310,11 +310,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // OAuth 2.1 Dynamic Client Registration
+  // Handle CORS preflight for OAuth registration
+  app.options("/oauth/register", (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.sendStatus(204);
+  });
+  
   app.post("/oauth/register", async (req, res) => {
+    // Set CORS headers
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    console.log("📝 OAuth Dynamic Client Registration Request:");
+    console.log("  Headers:", JSON.stringify(req.headers, null, 2));
+    console.log("  Body:", JSON.stringify(req.body, null, 2));
+    
     try {
       const { client_name, redirect_uris, scopes } = req.body;
 
       if (!client_name || !redirect_uris || !Array.isArray(redirect_uris) || redirect_uris.length === 0) {
+        console.log("❌ OAuth registration failed: Missing required parameters");
         return res.status(400).json({ 
           error: "invalid_request",
           error_description: "client_name and redirect_uris (array) are required" 
@@ -350,16 +368,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         scopes: allowedScopes
       });
 
-      res.json({
+      console.log(`✅ OAuth client registered successfully: ${clientId} (${client_name})`);
+      console.log(`   Redirect URIs: ${JSON.stringify(redirect_uris)}`);
+      console.log(`   Scopes: ${JSON.stringify(allowedScopes)}`);
+
+      const response = {
         client_id: clientId,
         client_secret: clientSecret,
         client_name,
         redirect_uris,
         scopes: allowedScopes,
         token_endpoint_auth_method: "none"
-      });
+      };
+      
+      console.log("📤 Sending registration response:", JSON.stringify(response, null, 2));
+      res.status(201).json(response);
     } catch (error) {
-      console.error("OAuth client registration error:", error);
+      console.error("❌ OAuth client registration error:", error);
       res.status(500).json({ error: "server_error", error_description: "Failed to register client" });
     }
   });
