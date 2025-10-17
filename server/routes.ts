@@ -282,7 +282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({
       resource: `${baseUrl}/api/neon-single-prompt`,
       authorization_servers: [`${baseUrl}`],
-      scopes_supported: ["neon:video:create", "neon:video:read"],
+      scopes_supported: ["neonvideo.app", "neon:video:create", "neon:video:read"],
       bearer_methods_supported: ["header"]
     });
   });
@@ -295,7 +295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       token_endpoint: `${baseUrl}/oauth/token`,
       registration_endpoint: `${baseUrl}/oauth/register`,
       jwks_uri: `${baseUrl}/.well-known/jwks.json`,
-      scopes_supported: ["neon:video:create", "neon:video:read"],
+      scopes_supported: ["neonvideo.app", "neon:video:create", "neon:video:read"],
       response_types_supported: ["code"],
       grant_types_supported: ["authorization_code"],
       code_challenge_methods_supported: ["S256"],
@@ -357,8 +357,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { clientId, clientSecret } = generateClientCredentials();
 
       const allowedScopes = scopes && Array.isArray(scopes) 
-        ? scopes.filter((s: string) => ["neon:video:create", "neon:video:read"].includes(s))
-        : ["neon:video:create", "neon:video:read"];
+        ? scopes.filter((s: string) => ["neonvideo.app", "neon:video:create", "neon:video:read"].includes(s))
+        : ["neonvideo.app", "neon:video:create", "neon:video:read"];
 
       await storage.createOauthClient({
         clientId,
