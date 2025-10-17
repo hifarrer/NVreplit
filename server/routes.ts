@@ -493,7 +493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               document.getElementById('content').innerHTML = \`
                 <div class="error">You must be logged in to authorize applications.</div>
                 <div class="buttons">
-                  <button onclick="window.location.href='/login?redirect=' + encodeURIComponent(window.location.href)">Login</button>
+                  <button onclick="window.location.href='/auth?redirect=' + encodeURIComponent(window.location.href)">Login</button>
                 </div>
               \`;
             } else {

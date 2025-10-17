@@ -27,6 +27,14 @@ export default function AuthPage() {
     if (referralCode) {
       localStorage.setItem('pending_affiliate_code', referralCode);
     }
+    
+    // Preserve redirect URL during OAuth flow
+    const urlParams = new URLSearchParams(window.location.search);
+    const redirectUrl = urlParams.get('redirect');
+    if (redirectUrl) {
+      localStorage.setItem('pending_redirect_url', redirectUrl);
+    }
+    
     window.location.href = '/api/auth/google';
   };
 
@@ -80,7 +88,14 @@ export default function AuthPage() {
         
         // CRITICAL FIX: Load full user data with credits/plan BEFORE navigation
         refreshUser(token).then(() => {
-          setLocation('/'); // Navigate only after full user data is loaded
+          // Check for pending redirect URL from OAuth flow
+          const pendingRedirect = localStorage.getItem('pending_redirect_url');
+          if (pendingRedirect) {
+            localStorage.removeItem('pending_redirect_url');
+            window.location.href = pendingRedirect;
+          } else {
+            setLocation('/'); // Navigate only after full user data is loaded
+          }
         }).catch((err) => {
           console.error('Failed to load user data after OAuth:', err);
           setError('Failed to load user data. Please try again.');
@@ -111,7 +126,17 @@ export default function AuthPage() {
 
     try {
       await login(username, password);
-      setLocation('/');
+      
+      // Check for redirect parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectUrl = urlParams.get('redirect');
+      
+      if (redirectUrl) {
+        // Redirect back to the OAuth authorization page or other redirect URL
+        window.location.href = redirectUrl;
+      } else {
+        setLocation('/');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
