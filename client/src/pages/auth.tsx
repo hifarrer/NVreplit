@@ -108,11 +108,29 @@ export default function AuthPage() {
     }
   }, [setLocation, setUserAndToken, setTokenOnly, refreshUser]);
 
-  // Redirect if already logged in
-  if (user) {
-    setLocation('/');
-    return null;
-  }
+  // Handle automatic redirect when user becomes logged in
+  useEffect(() => {
+    if (user) {
+      // Check for redirect parameter in URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectUrl = urlParams.get('redirect');
+      
+      // Also check localStorage for pending redirect (from Google OAuth or other flows)
+      const pendingRedirect = localStorage.getItem('pending_redirect_url');
+      
+      if (redirectUrl) {
+        // Redirect to the specified URL (e.g., OAuth authorization page)
+        window.location.href = redirectUrl;
+      } else if (pendingRedirect) {
+        // Use the pending redirect from localStorage
+        localStorage.removeItem('pending_redirect_url');
+        window.location.href = pendingRedirect;
+      } else {
+        // Default to home page
+        setLocation('/');
+      }
+    }
+  }, [user, setLocation]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -126,17 +144,7 @@ export default function AuthPage() {
 
     try {
       await login(username, password);
-      
-      // Check for redirect parameter
-      const urlParams = new URLSearchParams(window.location.search);
-      const redirectUrl = urlParams.get('redirect');
-      
-      if (redirectUrl) {
-        // Redirect back to the OAuth authorization page or other redirect URL
-        window.location.href = redirectUrl;
-      } else {
-        setLocation('/');
-      }
+      // Redirect is now handled by the useEffect when user state changes
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
