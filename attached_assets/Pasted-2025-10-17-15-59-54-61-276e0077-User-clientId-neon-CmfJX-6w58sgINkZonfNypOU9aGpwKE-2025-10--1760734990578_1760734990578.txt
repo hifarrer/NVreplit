@@ -1,0 +1,152 @@
+2025-10-17 15:59:54.61
+276e0077
+User
+clientId: 'neon_CmfJX-_6w58sgINkZonfNypOU9aGpwKE',
+2025-10-17 15:59:54.61
+276e0077
+User
+userId: 'cd56d92c-a56f-462a-acaf-b072aeb24b72',
+2025-10-17 15:59:54.61
+276e0077
+User
+scopes: [ 'neon:video:create', 'neon:video:read' ],
+2025-10-17 15:59:54.61
+276e0077
+User
+redirectUri: 'https://chatgpt.com/connector_platform_oauth_redirect',
+2025-10-17 15:59:54.61
+276e0077
+User
+expiresAt: 2025-10-17T21:09:47.958Z
+2025-10-17 15:59:54.61
+276e0077
+User
+}
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] Step 4: Verifying client_id...
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] Expected client_id: neon_CmfJX-_6w58sgINkZonfNypOU9aGpwKE
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] Received client_id: neon_CmfJX-_6w58sgINkZonfNypOU9aGpwKE
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] ✅ Client verified
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] Step 5: Verifying redirect_uri...
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] Expected redirect_uri: https://chatgpt.com/connector_platform_oauth_redirect
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] Received redirect_uri: https://chatgpt.com/connector_platform_oauth_redirect
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] ✅ Redirect URI verified
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] Step 6: Checking expiration...
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] Current time: 2025-10-17T20:59:54.619Z
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] Code expires at: 2025-10-17T21:09:47.958Z
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] ✅ Code not expired
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] Step 7: Verifying PKCE...
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] Code verifier length: 43
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] Code challenge: cgkOZqfLtU59Qx3FnFFFwP1xZyEgVfNiAboMZiwT3HY
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] Code challenge method: S256
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] PKCE verification result: true
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] ✅ PKCE verified
+2025-10-17 15:59:54.61
+276e0077
+User
+[OAUTH TOKEN] Step 8: Generating access token...
+2025-10-17 15:59:54.62
+276e0077
+User
+[OAUTH TOKEN] ✅ Access token generated: eyJhbGciOiJSUzI1NiIs...
+2025-10-17 15:59:54.62
+276e0077
+User
+[OAUTH TOKEN] Step 9: Storing access token...
+2025-10-17 15:59:54.69
+276e0077
+User
+[OAUTH TOKEN] ✅ Access token stored
+2025-10-17 15:59:54.69
+276e0077
+User
+[OAUTH TOKEN] Step 10: Deleting used authorization code...
+2025-10-17 15:59:54.76
+276e0077
+User
+[OAUTH TOKEN] ✅ Authorization code deleted
+2025-10-17 15:59:54.76
+276e0077
+User
+[OAUTH TOKEN] ✅ SUCCESS - Responding with token
+2025-10-17 15:59:54.76
+276e0077
+User
+[OAUTH TOKEN] Response: {
+2025-10-17 15:59:54.76
+276e0077
+User
+token_type: 'Bearer',
+2025-10-17 15:59:54.76
+276e0077
+User
+expires_in: 3600,
+2025-10-17 15:59:54.76
+276e0077
+User
+scope: 'neon:video:create neon:video:read',
+2025-10-17 15:59:54.76
+276e0077
+User
+access_token_preview: 'eyJhbGciOiJSUzI1NiIs...'
+2025-10-17 15:59:54.76
+276e0077
+User
+}
+2025-10-17 15:59:54.76
+276e0077
+User
+[OAUTH TOKEN] ========== End Token Exchange ==========
