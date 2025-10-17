@@ -234,6 +234,40 @@ export const postizPosts = pgTable("postiz_posts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// OAuth 2.1 tables for external API access
+export const oauthClients = pgTable("oauth_clients", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: text("client_id").notNull().unique(),
+  clientSecret: text("client_secret").notNull(),
+  clientName: text("client_name").notNull(),
+  redirectUris: jsonb("redirect_uris").notNull().$type<string[]>(),
+  scopes: jsonb("scopes").notNull().$type<string[]>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const oauthAuthorizationCodes = pgTable("oauth_authorization_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  clientId: text("client_id").references(() => oauthClients.clientId).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  redirectUri: text("redirect_uri").notNull(),
+  scopes: jsonb("scopes").notNull().$type<string[]>(),
+  codeChallenge: text("code_challenge").notNull(),
+  codeChallengeMethod: text("code_challenge_method").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const oauthAccessTokens = pgTable("oauth_access_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  token: text("token").notNull().unique(),
+  clientId: text("client_id").references(() => oauthClients.clientId).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  scopes: jsonb("scopes").notNull().$type<string[]>(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -319,6 +353,21 @@ export const insertPostizPostSchema = createInsertSchema(postizPosts).omit({
   createdAt: true,
 });
 
+export const insertOauthClientSchema = createInsertSchema(oauthClients).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertOauthAuthorizationCodeSchema = createInsertSchema(oauthAuthorizationCodes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertOauthAccessTokenSchema = createInsertSchema(oauthAccessTokens).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -351,3 +400,9 @@ export type InsertAffiliatePayout = z.infer<typeof insertAffiliatePayoutSchema>;
 export type AffiliatePayout = typeof affiliatePayouts.$inferSelect;
 export type InsertPostizPost = z.infer<typeof insertPostizPostSchema>;
 export type PostizPost = typeof postizPosts.$inferSelect;
+export type InsertOauthClient = z.infer<typeof insertOauthClientSchema>;
+export type OauthClient = typeof oauthClients.$inferSelect;
+export type InsertOauthAuthorizationCode = z.infer<typeof insertOauthAuthorizationCodeSchema>;
+export type OauthAuthorizationCode = typeof oauthAuthorizationCodes.$inferSelect;
+export type InsertOauthAccessToken = z.infer<typeof insertOauthAccessTokenSchema>;
+export type OauthAccessToken = typeof oauthAccessTokens.$inferSelect;

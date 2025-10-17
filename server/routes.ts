@@ -26,6 +26,7 @@ import crypto from "crypto";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { checkProfanity, getCategoryMessage } from "./profanity-filter";
+import { getJWKS, initializeOAuthKeys } from "./services/oauth";
 
 // Configure multer for audio uploads
 const uploadDir = path.join(process.cwd(), 'public', 'uploads');
@@ -81,7 +82,7 @@ const ADMIN_CREDENTIALS = {
   password: "password123"
 };
 
-// Middleware to verify JWT token
+// Middleware to verify JWT token or OAuth access token
 function authenticateToken(req: any, res: any, next: any) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -90,13 +91,40 @@ function authenticateToken(req: any, res: any, next: any) {
     return res.status(401).json({ error: 'Access token required' });
   }
 
-  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-    if (err) {
+  // Try JWT verification first (for existing users)
+  jwt.verify(token, JWT_SECRET, async (err: any, user: any) => {
+    if (!err) {
+      // Valid JWT token
+      req.user = user;
+      return next();
+    }
+
+    // JWT failed, try OAuth access token
+    try {
+      const oauthToken = await storage.getOauthAccessToken(token);
+      
+      if (!oauthToken) {
+        return res.status(403).json({ error: 'Invalid or expired token' });
+      }
+
+      // Check if token has expired
+      if (new Date() > oauthToken.expiresAt) {
+        await storage.deleteExpiredOauthTokens();
+        return res.status(403).json({ error: 'Token has expired' });
+      }
+
+      // Valid OAuth token - set user from token data
+      req.user = { 
+        userId: oauthToken.userId,
+        clientId: oauthToken.clientId,
+        scopes: oauthToken.scopes,
+        isOAuth: true
+      };
+      next();
+    } catch (oauthError) {
+      console.error('OAuth token verification error:', oauthError);
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
-    
-    req.user = user;
-    next();
   });
 }
 
@@ -210,6 +238,252 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize Passport
   app.use(passport.initialize());
+  
+  // Initialize OAuth keys on startup
+  await initializeOAuthKeys();
+
+  // OAuth 2.1 Well-Known Discovery Endpoints
+  app.get("/.well-known/oauth-protected-resource", (req, res) => {
+    const baseUrl = process.env.FRONTEND_URL || 'https://neonvideo.ai';
+    res.json({
+      resource: `${baseUrl}/api/neon-single-prompt`,
+      authorization_servers: [`${baseUrl}`],
+      scopes_supported: ["neon:video:create", "neon:video:read"],
+      bearer_methods_supported: ["header"]
+    });
+  });
+
+  app.get("/.well-known/openid-configuration", (req, res) => {
+    const baseUrl = process.env.FRONTEND_URL || 'https://neonvideo.ai';
+    res.json({
+      issuer: baseUrl,
+      authorization_endpoint: `${baseUrl}/oauth/authorize`,
+      token_endpoint: `${baseUrl}/oauth/token`,
+      registration_endpoint: `${baseUrl}/oauth/register`,
+      jwks_uri: `${baseUrl}/.well-known/jwks.json`,
+      scopes_supported: ["neon:video:create", "neon:video:read"],
+      response_types_supported: ["code"],
+      grant_types_supported: ["authorization_code"],
+      code_challenge_methods_supported: ["S256"],
+      token_endpoint_auth_methods_supported: ["none"],
+      subject_types_supported: ["public"]
+    });
+  });
+
+  app.get("/.well-known/jwks.json", async (req, res) => {
+    const jwks = await getJWKS();
+    res.json(jwks);
+  });
+
+  // OAuth 2.1 Dynamic Client Registration
+  app.post("/oauth/register", async (req, res) => {
+    try {
+      const { client_name, redirect_uris, scopes } = req.body;
+
+      if (!client_name || !redirect_uris || !Array.isArray(redirect_uris) || redirect_uris.length === 0) {
+        return res.status(400).json({ 
+          error: "invalid_request",
+          error_description: "client_name and redirect_uris (array) are required" 
+        });
+      }
+
+      // Validate redirect URIs (must be HTTPS in production)
+      const baseUrl = process.env.FRONTEND_URL || 'https://neonvideo.ai';
+      const isProduction = baseUrl.startsWith('https://');
+      
+      for (const uri of redirect_uris) {
+        if (isProduction && !uri.startsWith('https://')) {
+          return res.status(400).json({ 
+            error: "invalid_redirect_uri",
+            error_description: "Redirect URIs must use HTTPS in production" 
+          });
+        }
+      }
+
+      // Import generateClientCredentials from oauth service
+      const { generateClientCredentials } = await import("./services/oauth");
+      const { clientId, clientSecret } = generateClientCredentials();
+
+      const allowedScopes = scopes && Array.isArray(scopes) 
+        ? scopes.filter((s: string) => ["neon:video:create", "neon:video:read"].includes(s))
+        : ["neon:video:create", "neon:video:read"];
+
+      await storage.createOauthClient({
+        clientId,
+        clientSecret,
+        clientName: client_name,
+        redirectUris: redirect_uris,
+        scopes: allowedScopes
+      });
+
+      res.json({
+        client_id: clientId,
+        client_secret: clientSecret,
+        client_name,
+        redirect_uris,
+        scopes: allowedScopes,
+        token_endpoint_auth_method: "none"
+      });
+    } catch (error) {
+      console.error("OAuth client registration error:", error);
+      res.status(500).json({ error: "server_error", error_description: "Failed to register client" });
+    }
+  });
+
+  // OAuth 2.1 Authorization Endpoint
+  app.get("/oauth/authorize", authenticateToken, async (req: any, res) => {
+    try {
+      const { client_id, redirect_uri, state, code_challenge, code_challenge_method, scope } = req.query;
+
+      if (!client_id || !redirect_uri || !code_challenge || !code_challenge_method) {
+        return res.status(400).send("Missing required parameters: client_id, redirect_uri, code_challenge, code_challenge_method");
+      }
+
+      if (code_challenge_method !== 'S256') {
+        return res.status(400).send("Only S256 code_challenge_method is supported");
+      }
+
+      // Verify client exists
+      const client = await storage.getOauthClient(client_id as string);
+      if (!client) {
+        return res.status(400).send("Invalid client_id");
+      }
+
+      // Verify redirect_uri is registered
+      if (!client.redirectUris.includes(redirect_uri as string)) {
+        return res.status(400).send("Invalid redirect_uri");
+      }
+
+      const requestedScopes = scope ? (scope as string).split(' ') : client.scopes;
+      const allowedScopes = requestedScopes.filter(s => client.scopes.includes(s));
+
+      // Generate authorization code
+      const { generateAuthorizationCode } = await import("./services/oauth");
+      const authCode = generateAuthorizationCode();
+      
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      await storage.createOauthAuthorizationCode({
+        code: authCode,
+        clientId: client_id as string,
+        userId: req.user.userId,
+        redirectUri: redirect_uri as string,
+        scopes: allowedScopes,
+        codeChallenge: code_challenge as string,
+        codeChallengeMethod: code_challenge_method as string,
+        expiresAt
+      });
+
+      // Redirect back to client with authorization code
+      const redirectUrl = new URL(redirect_uri as string);
+      redirectUrl.searchParams.append('code', authCode);
+      if (state) {
+        redirectUrl.searchParams.append('state', state as string);
+      }
+
+      res.redirect(redirectUrl.toString());
+    } catch (error) {
+      console.error("OAuth authorize error:", error);
+      res.status(500).send("Authorization failed");
+    }
+  });
+
+  // OAuth 2.1 Token Endpoint
+  app.post("/oauth/token", async (req, res) => {
+    try {
+      const { grant_type, code, redirect_uri, client_id, code_verifier } = req.body;
+
+      if (grant_type !== 'authorization_code') {
+        return res.status(400).json({ 
+          error: "unsupported_grant_type",
+          error_description: "Only authorization_code grant type is supported" 
+        });
+      }
+
+      if (!code || !redirect_uri || !client_id || !code_verifier) {
+        return res.status(400).json({ 
+          error: "invalid_request",
+          error_description: "Missing required parameters: code, redirect_uri, client_id, code_verifier" 
+        });
+      }
+
+      // Get authorization code
+      const authCode = await storage.getOauthAuthorizationCode(code);
+      if (!authCode) {
+        return res.status(400).json({ 
+          error: "invalid_grant",
+          error_description: "Invalid or expired authorization code" 
+        });
+      }
+
+      // Verify client_id matches
+      if (authCode.clientId !== client_id) {
+        return res.status(400).json({ 
+          error: "invalid_client",
+          error_description: "Client mismatch" 
+        });
+      }
+
+      // Verify redirect_uri matches
+      if (authCode.redirectUri !== redirect_uri) {
+        return res.status(400).json({ 
+          error: "invalid_grant",
+          error_description: "Redirect URI mismatch" 
+        });
+      }
+
+      // Check if code has expired
+      if (new Date() > authCode.expiresAt) {
+        await storage.deleteOauthAuthorizationCode(code);
+        return res.status(400).json({ 
+          error: "invalid_grant",
+          error_description: "Authorization code has expired" 
+        });
+      }
+
+      // Verify PKCE code_verifier
+      const { verifyPKCE } = await import("./services/oauth");
+      if (!verifyPKCE(code_verifier, authCode.codeChallenge, authCode.codeChallengeMethod)) {
+        return res.status(400).json({ 
+          error: "invalid_grant",
+          error_description: "Invalid code_verifier" 
+        });
+      }
+
+      // Generate access token
+      const { generateOAuthAccessToken } = await import("./services/oauth");
+      const accessToken = await generateOAuthAccessToken(
+        authCode.userId,
+        authCode.clientId,
+        authCode.scopes,
+        3600 // 1 hour
+      );
+
+      const tokenExpiresAt = new Date(Date.now() + 3600 * 1000);
+
+      // Store access token
+      await storage.createOauthAccessToken({
+        token: accessToken,
+        clientId: authCode.clientId,
+        userId: authCode.userId,
+        scopes: authCode.scopes,
+        expiresAt: tokenExpiresAt
+      });
+
+      // Delete used authorization code
+      await storage.deleteOauthAuthorizationCode(code);
+
+      res.json({
+        access_token: accessToken,
+        token_type: "Bearer",
+        expires_in: 3600,
+        scope: authCode.scopes.join(' ')
+      });
+    } catch (error) {
+      console.error("OAuth token error:", error);
+      res.status(500).json({ error: "server_error", error_description: "Failed to issue token" });
+    }
+  });
   
   // Google OAuth routes
   if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {

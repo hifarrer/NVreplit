@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, type OauthClient, type InsertOauthClient, type OauthAuthorizationCode, type InsertOauthAuthorizationCode, type OauthAccessToken, type InsertOauthAccessToken, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts, oauthClients, oauthAuthorizationCodes, oauthAccessTokens } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -129,6 +129,16 @@ export interface IStorage {
   getPostizPostByProjectId(projectId: string): Promise<PostizPost | undefined>;
   updatePostizPost(projectId: string, updates: Partial<PostizPost>): Promise<PostizPost | undefined>;
   getAllProjects(): Promise<Project[]>;
+
+  // OAuth methods
+  createOauthClient(client: InsertOauthClient): Promise<OauthClient>;
+  getOauthClient(clientId: string): Promise<OauthClient | undefined>;
+  createOauthAuthorizationCode(code: InsertOauthAuthorizationCode): Promise<OauthAuthorizationCode>;
+  getOauthAuthorizationCode(code: string): Promise<OauthAuthorizationCode | undefined>;
+  deleteOauthAuthorizationCode(code: string): Promise<boolean>;
+  createOauthAccessToken(token: InsertOauthAccessToken): Promise<OauthAccessToken>;
+  getOauthAccessToken(token: string): Promise<OauthAccessToken | undefined>;
+  deleteExpiredOauthTokens(): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -1121,6 +1131,38 @@ export class MemStorage implements IStorage {
     return Array.from(this.projects.values()).sort((a, b) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
+  }
+
+  async createOauthClient(client: InsertOauthClient): Promise<OauthClient> {
+    throw new Error("OAuth not supported in MemStorage - use DbStorage");
+  }
+
+  async getOauthClient(clientId: string): Promise<OauthClient | undefined> {
+    throw new Error("OAuth not supported in MemStorage - use DbStorage");
+  }
+
+  async createOauthAuthorizationCode(code: InsertOauthAuthorizationCode): Promise<OauthAuthorizationCode> {
+    throw new Error("OAuth not supported in MemStorage - use DbStorage");
+  }
+
+  async getOauthAuthorizationCode(code: string): Promise<OauthAuthorizationCode | undefined> {
+    throw new Error("OAuth not supported in MemStorage - use DbStorage");
+  }
+
+  async deleteOauthAuthorizationCode(code: string): Promise<boolean> {
+    throw new Error("OAuth not supported in MemStorage - use DbStorage");
+  }
+
+  async createOauthAccessToken(token: InsertOauthAccessToken): Promise<OauthAccessToken> {
+    throw new Error("OAuth not supported in MemStorage - use DbStorage");
+  }
+
+  async getOauthAccessToken(token: string): Promise<OauthAccessToken | undefined> {
+    throw new Error("OAuth not supported in MemStorage - use DbStorage");
+  }
+
+  async deleteExpiredOauthTokens(): Promise<void> {
+    throw new Error("OAuth not supported in MemStorage - use DbStorage");
   }
 }
 
@@ -2365,6 +2407,113 @@ export class DbStorage implements IStorage {
     } catch (error) {
       console.error("Error getting all projects:", error);
       return [];
+    }
+  }
+
+  async createOauthClient(client: InsertOauthClient): Promise<OauthClient> {
+    try {
+      const result = await this.db
+        .insert(oauthClients)
+        .values(client)
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error creating OAuth client:", error);
+      throw error;
+    }
+  }
+
+  async getOauthClient(clientId: string): Promise<OauthClient | undefined> {
+    try {
+      const result = await this.db
+        .select()
+        .from(oauthClients)
+        .where(eq(oauthClients.clientId, clientId))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error getting OAuth client:", error);
+      return undefined;
+    }
+  }
+
+  async createOauthAuthorizationCode(code: InsertOauthAuthorizationCode): Promise<OauthAuthorizationCode> {
+    try {
+      const result = await this.db
+        .insert(oauthAuthorizationCodes)
+        .values(code)
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error creating OAuth authorization code:", error);
+      throw error;
+    }
+  }
+
+  async getOauthAuthorizationCode(code: string): Promise<OauthAuthorizationCode | undefined> {
+    try {
+      const result = await this.db
+        .select()
+        .from(oauthAuthorizationCodes)
+        .where(eq(oauthAuthorizationCodes.code, code))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error getting OAuth authorization code:", error);
+      return undefined;
+    }
+  }
+
+  async deleteOauthAuthorizationCode(code: string): Promise<boolean> {
+    try {
+      await this.db
+        .delete(oauthAuthorizationCodes)
+        .where(eq(oauthAuthorizationCodes.code, code));
+      return true;
+    } catch (error) {
+      console.error("Error deleting OAuth authorization code:", error);
+      return false;
+    }
+  }
+
+  async createOauthAccessToken(token: InsertOauthAccessToken): Promise<OauthAccessToken> {
+    try {
+      const result = await this.db
+        .insert(oauthAccessTokens)
+        .values(token)
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error creating OAuth access token:", error);
+      throw error;
+    }
+  }
+
+  async getOauthAccessToken(token: string): Promise<OauthAccessToken | undefined> {
+    try {
+      const result = await this.db
+        .select()
+        .from(oauthAccessTokens)
+        .where(eq(oauthAccessTokens.token, token))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error getting OAuth access token:", error);
+      return undefined;
+    }
+  }
+
+  async deleteExpiredOauthTokens(): Promise<void> {
+    try {
+      await this.db
+        .delete(oauthAccessTokens)
+        .where(sql`${oauthAccessTokens.expiresAt} < NOW()`);
+      
+      await this.db
+        .delete(oauthAuthorizationCodes)
+        .where(sql`${oauthAuthorizationCodes.expiresAt} < NOW()`);
+    } catch (error) {
+      console.error("Error deleting expired OAuth tokens:", error);
     }
   }
 }
