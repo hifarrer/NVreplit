@@ -330,28 +330,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // OAuth 2.1 Authorization Endpoint
-  app.get("/oauth/authorize", authenticateToken, async (req: any, res) => {
+  // OAuth 2.1 Authorization Endpoint (API - requires JWT token)
+  app.post("/oauth/authorize", authenticateToken, async (req: any, res) => {
     try {
-      const { client_id, redirect_uri, state, code_challenge, code_challenge_method, scope } = req.query;
+      const { client_id, redirect_uri, state, code_challenge, code_challenge_method, scope } = req.body;
 
       if (!client_id || !redirect_uri || !code_challenge || !code_challenge_method) {
-        return res.status(400).send("Missing required parameters: client_id, redirect_uri, code_challenge, code_challenge_method");
+        return res.status(400).json({ error: "Missing required parameters: client_id, redirect_uri, code_challenge, code_challenge_method" });
       }
 
       if (code_challenge_method !== 'S256') {
-        return res.status(400).send("Only S256 code_challenge_method is supported");
+        return res.status(400).json({ error: "Only S256 code_challenge_method is supported" });
       }
 
       // Verify client exists
       const client = await storage.getOauthClient(client_id as string);
       if (!client) {
-        return res.status(400).send("Invalid client_id");
+        return res.status(400).json({ error: "Invalid client_id" });
       }
 
       // Verify redirect_uri is registered
       if (!client.redirectUris.includes(redirect_uri as string)) {
-        return res.status(400).send("Invalid redirect_uri");
+        return res.status(400).json({ error: "Invalid redirect_uri" });
       }
 
       const requestedScopes = scope ? (scope as string).split(' ') : client.scopes;
@@ -374,18 +374,192 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expiresAt
       });
 
-      // Redirect back to client with authorization code
+      // Return the authorization code and redirect URL
       const redirectUrl = new URL(redirect_uri as string);
       redirectUrl.searchParams.append('code', authCode);
       if (state) {
         redirectUrl.searchParams.append('state', state as string);
       }
 
-      res.redirect(redirectUrl.toString());
+      res.json({ 
+        redirect_url: redirectUrl.toString(),
+        code: authCode
+      });
     } catch (error) {
       console.error("OAuth authorize error:", error);
+      res.status(500).json({ error: "Authorization failed" });
+    }
+  });
+
+  // OAuth 2.1 Authorization Page (GET - for browser navigation)
+  app.get("/oauth/authorize", async (req: any, res) => {
+    try {
+      const { client_id, redirect_uri, state, code_challenge, code_challenge_method, scope } = req.query;
+
+      if (!client_id || !redirect_uri || !code_challenge || !code_challenge_method) {
+        return res.status(400).send("Missing required parameters: client_id, redirect_uri, code_challenge, code_challenge_method");
+      }
+
+      // Verify client exists
+      const client = await storage.getOauthClient(client_id as string);
+      if (!client) {
+        return res.status(400).send("Invalid client_id");
+      }
+
+      // Serve an HTML page that will handle the authorization with JWT token
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Authorize ${client.clientName}</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              min-height: 100vh;
+              margin: 0;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            }
+            .container {
+              background: white;
+              padding: 2rem;
+              border-radius: 8px;
+              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+              max-width: 400px;
+              width: 100%;
+            }
+            h1 { margin-top: 0; color: #333; font-size: 1.5rem; }
+            .client-info { background: #f3f4f6; padding: 1rem; border-radius: 4px; margin: 1rem 0; }
+            .scopes { list-style: none; padding: 0; }
+            .scopes li { padding: 0.5rem 0; border-bottom: 1px solid #e5e7eb; }
+            .scopes li:last-child { border-bottom: none; }
+            .buttons { display: flex; gap: 1rem; margin-top: 1.5rem; }
+            button { flex: 1; padding: 0.75rem; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }
+            .authorize { background: #667eea; color: white; }
+            .authorize:hover { background: #5568d3; }
+            .deny { background: #e5e7eb; color: #333; }
+            .deny:hover { background: #d1d5db; }
+            .error { color: #dc2626; padding: 1rem; background: #fee2e2; border-radius: 4px; margin: 1rem 0; }
+            .loading { text-align: center; color: #666; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div id="content">
+              <div class="loading">Loading...</div>
+            </div>
+          </div>
+          <script>
+            const token = localStorage.getItem('auth_token');
+            const params = new URLSearchParams(window.location.search);
+            
+            if (!token) {
+              document.getElementById('content').innerHTML = \`
+                <div class="error">You must be logged in to authorize applications.</div>
+                <div class="buttons">
+                  <button onclick="window.location.href='/login?redirect=' + encodeURIComponent(window.location.href)">Login</button>
+                </div>
+              \`;
+            } else {
+              document.getElementById('content').innerHTML = \`
+                <h1>Authorize Application</h1>
+                <div class="client-info">
+                  <strong>${client.clientName}</strong> wants to access your account
+                </div>
+                <div>
+                  <p>This application will be able to:</p>
+                  <ul class="scopes">
+                    ${client.scopes.map(s => `<li>${s}</li>`).join('')}
+                  </ul>
+                </div>
+                <div class="buttons">
+                  <button class="authorize" data-testid="button-authorize" onclick="authorize()">Authorize</button>
+                  <button class="deny" data-testid="button-deny" onclick="deny()">Deny</button>
+                </div>
+              \`;
+            }
+            
+            async function authorize() {
+              try {
+                const response = await fetch('/oauth/authorize', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                  },
+                  body: JSON.stringify({
+                    client_id: params.get('client_id'),
+                    redirect_uri: params.get('redirect_uri'),
+                    state: params.get('state'),
+                    code_challenge: params.get('code_challenge'),
+                    code_challenge_method: params.get('code_challenge_method'),
+                    scope: params.get('scope')
+                  })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                  window.location.href = data.redirect_url;
+                } else {
+                  document.getElementById('content').innerHTML = '<div class="error">Authorization failed: ' + (data.error || 'Unknown error') + '</div>';
+                }
+              } catch (error) {
+                document.getElementById('content').innerHTML = '<div class="error">Authorization failed: ' + error.message + '</div>';
+              }
+            }
+            
+            function deny() {
+              const redirectUri = params.get('redirect_uri');
+              const state = params.get('state');
+              const url = new URL(redirectUri);
+              url.searchParams.append('error', 'access_denied');
+              if (state) url.searchParams.append('state', state);
+              window.location.href = url.toString();
+            }
+          </script>
+        </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error("OAuth authorize page error:", error);
       res.status(500).send("Authorization failed");
     }
+  });
+
+  // OAuth Test Callback Endpoint (for testing only)
+  app.get("/oauth/test/callback", (req, res) => {
+    const { code, state, error } = req.query;
+    
+    if (error) {
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head><title>Authorization Failed</title></head>
+        <body>
+          <h1>Authorization Failed</h1>
+          <p>Error: ${error}</p>
+          <p data-testid="oauth-error">${error}</p>
+        </body>
+        </html>
+      `);
+      return;
+    }
+    
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head><title>Authorization Successful</title></head>
+      <body>
+        <h1>Authorization Successful</h1>
+        <p>Authorization code received successfully.</p>
+        <div data-testid="oauth-code">${code}</div>
+        <div data-testid="oauth-state">${state || ''}</div>
+      </body>
+      </html>
+    `);
   });
 
   // OAuth 2.1 Token Endpoint
