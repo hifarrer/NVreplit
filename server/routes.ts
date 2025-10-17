@@ -623,67 +623,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // OAuth 2.1 Token Endpoint
   app.post("/oauth/token", async (req, res) => {
+    console.log("\n[OAUTH TOKEN] ========== Token Exchange Request ==========");
+    console.log("[OAUTH TOKEN] Request body:", JSON.stringify(req.body, null, 2));
+    console.log("[OAUTH TOKEN] Request headers:", JSON.stringify(req.headers, null, 2));
+    
     try {
       const { grant_type, code, redirect_uri, client_id, code_verifier } = req.body;
 
+      console.log("[OAUTH TOKEN] Step 1: Validating grant_type...");
       if (grant_type !== 'authorization_code') {
+        console.log("[OAUTH TOKEN] ❌ Invalid grant_type:", grant_type);
         return res.status(400).json({ 
           error: "unsupported_grant_type",
           error_description: "Only authorization_code grant type is supported" 
         });
       }
+      console.log("[OAUTH TOKEN] ✅ Grant type valid");
 
-      if (!code || !redirect_uri || !client_id || !code_verifier) {
+      console.log("[OAUTH TOKEN] Step 2: Checking required parameters...");
+      const missingParams = [];
+      if (!code) missingParams.push('code');
+      if (!redirect_uri) missingParams.push('redirect_uri');
+      if (!client_id) missingParams.push('client_id');
+      if (!code_verifier) missingParams.push('code_verifier');
+      
+      if (missingParams.length > 0) {
+        console.log("[OAUTH TOKEN] ❌ Missing parameters:", missingParams);
         return res.status(400).json({ 
           error: "invalid_request",
-          error_description: "Missing required parameters: code, redirect_uri, client_id, code_verifier" 
+          error_description: `Missing required parameters: ${missingParams.join(', ')}` 
         });
       }
+      console.log("[OAUTH TOKEN] ✅ All required parameters present");
 
-      // Get authorization code
+      console.log("[OAUTH TOKEN] Step 3: Looking up authorization code:", code);
       const authCode = await storage.getOauthAuthorizationCode(code);
       if (!authCode) {
+        console.log("[OAUTH TOKEN] ❌ Authorization code not found or expired");
         return res.status(400).json({ 
           error: "invalid_grant",
           error_description: "Invalid or expired authorization code" 
         });
       }
+      console.log("[OAUTH TOKEN] ✅ Authorization code found:", {
+        clientId: authCode.clientId,
+        userId: authCode.userId,
+        scopes: authCode.scopes,
+        redirectUri: authCode.redirectUri,
+        expiresAt: authCode.expiresAt
+      });
 
-      // Verify client_id matches
+      console.log("[OAUTH TOKEN] Step 4: Verifying client_id...");
+      console.log("[OAUTH TOKEN] Expected client_id:", authCode.clientId);
+      console.log("[OAUTH TOKEN] Received client_id:", client_id);
       if (authCode.clientId !== client_id) {
+        console.log("[OAUTH TOKEN] ❌ Client mismatch");
         return res.status(400).json({ 
           error: "invalid_client",
           error_description: "Client mismatch" 
         });
       }
+      console.log("[OAUTH TOKEN] ✅ Client verified");
 
-      // Verify redirect_uri matches
+      console.log("[OAUTH TOKEN] Step 5: Verifying redirect_uri...");
+      console.log("[OAUTH TOKEN] Expected redirect_uri:", authCode.redirectUri);
+      console.log("[OAUTH TOKEN] Received redirect_uri:", redirect_uri);
       if (authCode.redirectUri !== redirect_uri) {
+        console.log("[OAUTH TOKEN] ❌ Redirect URI mismatch");
         return res.status(400).json({ 
           error: "invalid_grant",
           error_description: "Redirect URI mismatch" 
         });
       }
+      console.log("[OAUTH TOKEN] ✅ Redirect URI verified");
 
-      // Check if code has expired
-      if (new Date() > authCode.expiresAt) {
+      console.log("[OAUTH TOKEN] Step 6: Checking expiration...");
+      const now = new Date();
+      console.log("[OAUTH TOKEN] Current time:", now.toISOString());
+      console.log("[OAUTH TOKEN] Code expires at:", authCode.expiresAt.toISOString());
+      if (now > authCode.expiresAt) {
+        console.log("[OAUTH TOKEN] ❌ Authorization code has expired");
         await storage.deleteOauthAuthorizationCode(code);
         return res.status(400).json({ 
           error: "invalid_grant",
           error_description: "Authorization code has expired" 
         });
       }
+      console.log("[OAUTH TOKEN] ✅ Code not expired");
 
-      // Verify PKCE code_verifier
+      console.log("[OAUTH TOKEN] Step 7: Verifying PKCE...");
+      console.log("[OAUTH TOKEN] Code verifier length:", code_verifier.length);
+      console.log("[OAUTH TOKEN] Code challenge:", authCode.codeChallenge);
+      console.log("[OAUTH TOKEN] Code challenge method:", authCode.codeChallengeMethod);
+      
       const { verifyPKCE } = await import("./services/oauth");
-      if (!verifyPKCE(code_verifier, authCode.codeChallenge, authCode.codeChallengeMethod)) {
+      const pkceValid = verifyPKCE(code_verifier, authCode.codeChallenge, authCode.codeChallengeMethod);
+      console.log("[OAUTH TOKEN] PKCE verification result:", pkceValid);
+      
+      if (!pkceValid) {
+        console.log("[OAUTH TOKEN] ❌ PKCE verification failed");
         return res.status(400).json({ 
           error: "invalid_grant",
           error_description: "Invalid code_verifier" 
         });
       }
+      console.log("[OAUTH TOKEN] ✅ PKCE verified");
 
-      // Generate access token
+      console.log("[OAUTH TOKEN] Step 8: Generating access token...");
       const { generateOAuthAccessToken } = await import("./services/oauth");
       const accessToken = await generateOAuthAccessToken(
         authCode.userId,
@@ -691,10 +737,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         authCode.scopes,
         3600 // 1 hour
       );
+      console.log("[OAUTH TOKEN] ✅ Access token generated:", accessToken.substring(0, 20) + "...");
 
       const tokenExpiresAt = new Date(Date.now() + 3600 * 1000);
 
-      // Store access token
+      console.log("[OAUTH TOKEN] Step 9: Storing access token...");
       await storage.createOauthAccessToken({
         token: accessToken,
         clientId: authCode.clientId,
@@ -702,18 +749,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         scopes: authCode.scopes,
         expiresAt: tokenExpiresAt
       });
+      console.log("[OAUTH TOKEN] ✅ Access token stored");
 
-      // Delete used authorization code
+      console.log("[OAUTH TOKEN] Step 10: Deleting used authorization code...");
       await storage.deleteOauthAuthorizationCode(code);
+      console.log("[OAUTH TOKEN] ✅ Authorization code deleted");
 
-      res.json({
+      const responseBody = {
         access_token: accessToken,
         token_type: "Bearer",
         expires_in: 3600,
         scope: authCode.scopes.join(' ')
+      };
+      
+      console.log("[OAUTH TOKEN] ✅ SUCCESS - Responding with token");
+      console.log("[OAUTH TOKEN] Response:", {
+        token_type: responseBody.token_type,
+        expires_in: responseBody.expires_in,
+        scope: responseBody.scope,
+        access_token_preview: accessToken.substring(0, 20) + "..."
       });
+      console.log("[OAUTH TOKEN] ========== End Token Exchange ==========\n");
+      
+      res.json(responseBody);
     } catch (error) {
-      console.error("OAuth token error:", error);
+      console.error("[OAUTH TOKEN] ❌ FATAL ERROR:", error);
+      console.error("[OAUTH TOKEN] Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+      console.log("[OAUTH TOKEN] ========== End Token Exchange (ERROR) ==========\n");
       res.status(500).json({ error: "server_error", error_description: "Failed to issue token" });
     }
   });
