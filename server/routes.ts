@@ -5977,6 +5977,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // CORS preflight for status endpoint
+  app.options("/api/neon-single-prompt/status/:projectId", (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.sendStatus(204);
+  });
+
+  // Get video generation status - for async polling
+  app.get("/api/neon-single-prompt/status/:projectId", authenticateToken, async (req, res) => {
+    // Set CORS headers
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    try {
+      const { projectId } = req.params;
+      
+      if (!projectId) {
+        return res.status(400).json({ 
+          error: "Project ID is required" 
+        });
+      }
+
+      const project = await storage.getProject(projectId);
+      
+      if (!project) {
+        return res.status(404).json({ 
+          error: "Project not found" 
+        });
+      }
+
+      // Determine the current status
+      let status = 'processing';
+      let progress = 0;
+      
+      if (project.isCompleted && project.finalVideoUrl) {
+        status = 'completed';
+        progress = 100;
+      } else if (project.generationStatus === 'failed') {
+        status = 'failed';
+        progress = 0;
+      } else {
+        // Calculate progress based on currentStep (5 total steps)
+        progress = Math.round((project.currentStep / 5) * 100);
+      }
+
+      // Build the response
+      const response: any = {
+        projectId: project.id,
+        status,
+        progress,
+        currentStep: project.currentStep,
+        title: project.title,
+        description: project.description
+      };
+
+      // Include video URL if completed
+      if (status === 'completed' && project.finalVideoUrl) {
+        response.finalVideoUrl = project.finalVideoUrl;
+        
+        // Include Mux streaming URL if available
+        if (project.muxPlaybackId) {
+          response.streamingUrl = `https://stream.mux.com/${project.muxPlaybackId}.m3u8`;
+          response.muxPlaybackId = project.muxPlaybackId;
+          response.muxAssetStatus = project.muxAssetStatus;
+        }
+      }
+
+      // Include queue position if queued
+      if (status === 'processing') {
+        const queuePosition = await videoQueueService.getQueuePosition(projectId);
+        if (queuePosition !== null && queuePosition > 0) {
+          response.queuePosition = queuePosition;
+          response.message = `Video is queued for processing. Position in queue: ${queuePosition}`;
+        } else {
+          response.message = 'Video is being generated...';
+        }
+      }
+
+      // Include error message if failed
+      if (status === 'failed') {
+        response.message = 'Video generation failed. Please try again.';
+      }
+
+      res.json(response);
+
+    } catch (error) {
+      console.error("[NEON-STATUS] Error:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to get project status"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

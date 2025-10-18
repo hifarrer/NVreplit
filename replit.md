@@ -48,3 +48,37 @@ Preferred communication style: Simple, everyday language.
 - **Deployment**: Replit-optimized with development tooling and error overlays
 
 The application follows a step-by-step wizard pattern where each phase depends on the completion of the previous one, with progress tracking and the ability to resume projects at any stage.
+
+## OAuth 2.1 API Endpoints
+
+The application provides OAuth 2.1-compliant API endpoints for external integrations:
+
+### Video Generation API
+- **POST /api/neon-single-prompt**: Generate a complete music video from a single prompt
+  - **Authentication**: Bearer token (OAuth 2.1)
+  - **Required Fields**: 
+    - `prompt` (string): A description containing character and video description
+  - **Optional Fields**: Song title (automatically extracted or generated if not provided)
+  - **Returns**: `projectId` for tracking video generation progress
+  - **CORS**: Enabled with wildcard origin support
+
+### Status Checking API
+- **GET /api/neon-single-prompt/status/:projectId**: Check video generation status asynchronously
+  - **Authentication**: Bearer token (OAuth 2.1)
+  - **Parameters**: `projectId` from the video generation response
+  - **Returns**: 
+    - `status`: 'processing', 'completed', or 'failed'
+    - `progress`: Percentage completion (0-100)
+    - `currentStep`: Current step in the generation process (1-5)
+    - `finalVideoUrl`: Available when status is 'completed'
+    - `streamingUrl`: Mux HLS streaming URL (if available)
+    - `queuePosition`: Position in queue if video is queued
+  - **CORS**: Enabled with wildcard origin support
+
+### OAuth 2.1 Discovery Endpoints
+- **GET /.well-known/openid-configuration**: OpenID Connect discovery metadata
+- **GET /.well-known/oauth-protected-resource**: OAuth protected resource metadata
+- **GET /.well-known/jwks.json**: JSON Web Key Set for token verification
+- **POST /oauth/register**: Dynamic client registration
+- **POST /oauth/authorize**: Authorization endpoint
+- **POST /oauth/token**: Token exchange endpoint
