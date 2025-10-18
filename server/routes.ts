@@ -6036,7 +6036,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Include video URL if completed
       if (status === 'completed' && project.finalVideoUrl) {
-        response.finalVideoUrl = project.finalVideoUrl;
+        // Convert relative URL to absolute URL
+        let videoUrl = project.finalVideoUrl;
+        
+        // If it's a relative path, convert to full URL
+        if (videoUrl.startsWith('/')) {
+          const baseUrl = process.env.FRONTEND_URL || 'https://neonvideo.ai';
+          videoUrl = `${baseUrl}${videoUrl}`;
+        }
+        
+        response.finalVideoUrl = videoUrl;
         
         // Include Mux streaming URL if available
         if (project.muxPlaybackId) {
