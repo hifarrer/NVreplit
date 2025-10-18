@@ -76,33 +76,16 @@ export async function generateSongWithElevenLabs(
       audioBuffer.length,
     );
 
-    // Store the audio in object storage
+    // Store the audio in object storage using the ObjectStorageService
     const songId = randomUUID();
     const fileName = `songs/${songId}.mp3`;
 
-    // Get the private object directory from environment
-    const privateDir = process.env.PRIVATE_OBJECT_DIR;
-    if (!privateDir) {
-      throw new Error("PRIVATE_OBJECT_DIR not configured");
-    }
-
-    // Parse the bucket and path
-    const bucketName = privateDir.split("/")[1];
-    const pathPrefix = privateDir.split("/").slice(2).join("/");
-    const objectPath = pathPrefix ? `${pathPrefix}/${fileName}` : fileName;
-
-    console.log("Storing audio as:", objectPath);
-
-    // Upload to object storage
-    const bucket = objectStorageClient.bucket(bucketName);
-    const file = bucket.file(objectPath);
-    await file.save(audioBuffer, {
-      metadata: {
-        contentType: "audio/mpeg",
-      },
-    });
-
-    const objectUrl = `/objects/${fileName}`;
+    // Import and use the ObjectStorageService to upload the audio
+    const { ObjectStorageService } = await import("../objectStorage");
+    const objectStorageService = new ObjectStorageService();
+    
+    console.log("Uploading audio to object storage:", fileName);
+    const objectUrl = await objectStorageService.uploadAudioBuffer(audioBuffer, fileName);
     console.log("Song stored at:", objectUrl);
 
     return {
