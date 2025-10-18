@@ -1,0 +1,152 @@
+2025-10-18 16:32:56.96
+a16ca75e
+User
+'User-Agent': 'google-api-nodejs-client/9.15.1',
+2025-10-18 16:32:56.96
+a16ca75e
+User
+Accept: 'application/json'
+2025-10-18 16:32:56.96
+a16ca75e
+User
+},
+2025-10-18 16:32:56.96
+a16ca75e
+User
+data: '< - See `errorRedactor` option in `gaxios` for configuration>.',
+2025-10-18 16:32:56.96
+a16ca75e
+User
+responseType: 'json',
+2025-10-18 16:32:56.96
+a16ca75e
+User
+paramsSerializer: [Function: paramsSerializer],
+2025-10-18 16:32:56.96
+a16ca75e
+User
+body: '< - See `errorRedactor` option in `gaxios` for configuration>.',
+2025-10-18 16:32:56.96
+a16ca75e
+User
+validateStatus: [Function: validateStatus],
+2025-10-18 16:32:56.96
+a16ca75e
+User
+errorRedactor: [Function: defaultErrorRedactor]
+2025-10-18 16:32:56.96
+a16ca75e
+User
+},
+2025-10-18 16:32:56.96
+a16ca75e
+User
+response: {
+2025-10-18 16:32:56.96
+a16ca75e
+User
+config: {
+2025-10-18 16:32:56.96
+a16ca75e
+User
+retry: true,
+2025-10-18 16:32:56.96
+a16ca75e
+User
+retryConfig: [Object],
+2025-10-18 16:32:56.96
+a16ca75e
+User
+url: 'http://127.0.0.1:1106/token',
+2025-10-18 16:32:56.96
+a16ca75e
+User
+method: 'POST',
+2025-10-18 16:32:56.96
+a16ca75e
+User
+headers: [Object],
+2025-10-18 16:32:56.96
+a16ca75e
+User
+data: '< - See `errorRedactor` option in `gaxios` for configuration>.',
+2025-10-18 16:32:56.96
+a16ca75e
+User
+responseType: 'json',
+2025-10-18 16:32:56.96
+a16ca75e
+User
+paramsSerializer: [Function: paramsSerializer],
+2025-10-18 16:32:56.96
+a16ca75e
+User
+body: '< - See `errorRedactor` option in `gaxios` for configuration>.',
+2025-10-18 16:32:56.96
+a16ca75e
+User
+validateStatus: [Function: validateStatus],
+2025-10-18 16:32:56.96
+a16ca75e
+User
+errorRedactor: [Function: defaultErrorRedactor]
+2025-10-18 16:32:56.96
+a16ca75e
+User
+},
+2025-10-18 16:32:56.96
+a16ca75e
+User
+data: '',
+2025-10-18 16:32:56.96
+a16ca75e
+User
+headers: { 'content-length': '0', date: 'Sat, 18 Oct 2025 21:32:56 GMT' },
+2025-10-18 16:32:56.96
+a16ca75e
+User
+status: 500,
+2025-10-18 16:32:56.96
+a16ca75e
+User
+statusText: 'Internal Server Error',
+2025-10-18 16:32:56.96
+a16ca75e
+User
+request: { responseURL: 'http://127.0.0.1:1106/token' }
+2025-10-18 16:32:56.96
+a16ca75e
+User
+},
+2025-10-18 16:32:56.96
+a16ca75e
+User
+error: undefined,
+2025-10-18 16:32:56.96
+a16ca75e
+User
+status: 500
+2025-10-18 16:32:56.96
+a16ca75e
+User
+}
+2025-10-18 16:32:56.96
+a16ca75e
+User
+Generate song error: Error: Failed to generate song with ElevenLabs: Error code undefined
+2025-10-18 16:32:56.96
+a16ca75e
+User
+at generateSongWithElevenLabs (file:///home/runner/workspace/dist/index.js:4257:11)
+2025-10-18 16:32:56.96
+a16ca75e
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-10-18 16:32:56.96
+a16ca75e
+User
+at async file:///home/runner/workspace/dist/index.js:8551:30
+2025-10-18 16:32:57.02
+a16ca75e
+User
+9:32:57 PM [express] POST /api/projects/4f5880bb-2df4-4afb-8c88-5c96e29bdfbe/generate-song 500 in 16…
