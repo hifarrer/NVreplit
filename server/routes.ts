@@ -5800,17 +5800,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             role: "system",
             content: `You are a helpful assistant that extracts structured information from music video prompts. 
             Extract the following from the user's prompt:
-            - character: A detailed description of the main character (appearance, style, personality)
-            - song_title: The title or theme of the song
-            - video_description: What the music video should be about (scenes, mood, story)
+            - character: A detailed description of the main character (appearance, style, personality) - REQUIRED
+            - video_description: What the music video should be about (scenes, mood, story) - REQUIRED
+            - song_title: The title or theme of the song - OPTIONAL (can be null if not specified)
             
-            If any of these elements are missing or unclear, return them as null and provide a helpful suggestion.
+            Only mark character and video_description as missing if they are truly unclear or absent.
+            Song title is optional and should not be marked as missing.
             Respond ONLY with valid JSON in this format:
             {
               "character": "description or null",
               "song_title": "title or null", 
               "video_description": "description or null",
-              "missing": ["list of missing elements"],
+              "missing": ["list of REQUIRED missing elements only"],
               "suggestion": "helpful suggestion if anything is missing"
             }`
           },
@@ -5825,14 +5826,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const parsed = JSON.parse(parseResponse.choices[0].message.content || "{}");
       console.log(`[NEON-SINGLE-PROMPT] Parsed prompt:`, parsed);
 
-      // Check if we have all required elements
-      if (parsed.missing && parsed.missing.length > 0) {
-        console.log(`[NEON-SINGLE-PROMPT] Missing elements:`, parsed.missing);
+      // Filter out song_title from missing elements since it's optional
+      const requiredMissing = parsed.missing?.filter((item: string) => item !== 'song_title') || [];
+
+      // Check if we have all required elements (character and video_description only)
+      if (requiredMissing.length > 0) {
+        console.log(`[NEON-SINGLE-PROMPT] Missing required elements:`, requiredMissing);
         return res.status(400).json({
           error: "Incomplete prompt",
-          missing: parsed.missing,
-          suggestion: parsed.suggestion || "Please provide a more detailed prompt including a character description, song title, and video description.",
-          example: "Create a music video about a cute little cowboy hamster singing a song called 'Cowboy's Life' about adventures in the wild west."
+          missing: requiredMissing,
+          suggestion: parsed.suggestion || "Please provide a character description and video description.",
+          example: "Create a music video about a cute little cowboy hamster in the wild west."
         });
       }
 
@@ -5840,15 +5844,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[NEON-SINGLE-PROMPT] Step 2: Creating project...`);
       const project = await storage.createProject({
         userId,
-        title: parsed.song_title,
+        title: parsed.song_title || parsed.video_description.substring(0, 50),
         description: parsed.video_description,
         currentStep: 1
       });
       console.log(`[NEON-SINGLE-PROMPT] Created project ${project.id}`);
 
       // Step 3: Generate lyrics
-      console.log(`[NEON-SINGLE-PROMPT] Step 3: Generating lyrics for "${parsed.song_title}"...`);
-      const lyrics = await generateLyrics(`${parsed.song_title}. ${parsed.video_description}`, 30);
+      const lyricsPrompt = parsed.song_title 
+        ? `${parsed.song_title}. ${parsed.video_description}`
+        : parsed.video_description;
+      console.log(`[NEON-SINGLE-PROMPT] Step 3: Generating lyrics...`);
+      const lyrics = await generateLyrics(lyricsPrompt, 30);
       await storage.updateProject(project.id, { 
         lyrics,
         duration: 30,
@@ -5858,9 +5865,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Step 4: Generate song with ElevenLabs
       console.log(`[NEON-SINGLE-PROMPT] Step 4: Generating 30-second song with ElevenLabs...`);
+      const songTags = parsed.song_title 
+        ? `${parsed.song_title}. ${parsed.video_description}`
+        : parsed.video_description;
       const songResult = await generateSongWithElevenLabs(
         lyrics,
-        `${parsed.song_title}. ${parsed.video_description}`,
+        songTags,
         30000  // 30 seconds in milliseconds
       );
       
