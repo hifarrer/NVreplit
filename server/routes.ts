@@ -2619,6 +2619,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+  // Serve sitemap.xml
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      const path = await import("path");
+      const fs = await import("fs");
+      const sitemapPath = path.join(process.cwd(), "public", "sitemap.xml");
+      
+      if (fs.existsSync(sitemapPath)) {
+        res.setHeader('Content-Type', 'application/xml');
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+        res.sendFile(sitemapPath);
+      } else {
+        res.status(404).send('Sitemap not found');
+      }
+    } catch (error) {
+      console.error('Error serving sitemap:', error);
+      res.status(500).send('Error serving sitemap');
+    }
+  });
+
   // Serve public objects (like avatars)
   app.get("/public-objects/:filePath(*)", async (req, res) => {
     try {
