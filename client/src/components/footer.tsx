@@ -9,6 +9,9 @@ export function Footer() {
             © 2025 Neonvideo.ai. All rights reserved.
           </div>
           <nav className="flex items-center gap-4 sm:gap-6">
+            <Link href="/blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog">
+              Blog
+            </Link>
             <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Privacy Policy
             </Link>
