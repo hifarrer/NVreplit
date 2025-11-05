@@ -129,6 +129,21 @@ function authenticateToken(req: any, res: any, next: any) {
   jwt.verify(token, JWT_SECRET, async (err: any, user: any) => {
     if (!err) {
       // Valid JWT token
+      // Check if user is banned
+      try {
+        const userRecord = await storage.getUser(user.userId);
+        if (userRecord) {
+          const isBanned = await storage.isEmailBanned(userRecord.email);
+          if (isBanned) {
+            return res.status(403).json({ 
+              error: 'This account has been suspended, please reach out to support@neonvideo.ai if you think this is a mistake' 
+            });
+          }
+        }
+      } catch (banCheckError) {
+        console.error('Error checking ban status:', banCheckError);
+      }
+      
       req.user = user;
       return next();
     }
@@ -145,6 +160,21 @@ function authenticateToken(req: any, res: any, next: any) {
       if (new Date() > oauthToken.expiresAt) {
         await storage.deleteExpiredOauthTokens();
         return res.status(403).json({ error: 'Token has expired' });
+      }
+
+      // Check if user is banned
+      try {
+        const userRecord = await storage.getUser(oauthToken.userId);
+        if (userRecord) {
+          const isBanned = await storage.isEmailBanned(userRecord.email);
+          if (isBanned) {
+            return res.status(403).json({ 
+              error: 'This account has been suspended, please reach out to support@neonvideo.ai if you think this is a mistake' 
+            });
+          }
+        }
+      } catch (banCheckError) {
+        console.error('Error checking ban status:', banCheckError);
       }
 
       // Valid OAuth token - set user from token data
@@ -825,6 +855,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/register", async (req, res) => {
     try {
       const { username, email, password } = insertUserSchema.parse(req.body);
+      
+      // Check if email is banned
+      const isBanned = await storage.isEmailBanned(email);
+      if (isBanned) {
+        return res.status(403).json({ 
+          error: "This account has been suspended, please reach out to support@neonvideo.ai if you think this is a mistake" 
+        });
+      }
       
       // Check for Gmail emails and reject them
       const emailDomain = email.toLowerCase().split('@')[1];

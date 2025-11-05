@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, type OauthClient, type InsertOauthClient, type OauthAuthorizationCode, type InsertOauthAuthorizationCode, type OauthAccessToken, type InsertOauthAccessToken, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts, oauthClients, oauthAuthorizationCodes, oauthAccessTokens } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, type OauthClient, type InsertOauthClient, type OauthAuthorizationCode, type InsertOauthAuthorizationCode, type OauthAccessToken, type InsertOauthAccessToken, type BannedUser, type InsertBannedUser, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts, oauthClients, oauthAuthorizationCodes, oauthAccessTokens, bannedUsers } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -139,6 +139,12 @@ export interface IStorage {
   createOauthAccessToken(token: InsertOauthAccessToken): Promise<OauthAccessToken>;
   getOauthAccessToken(token: string): Promise<OauthAccessToken | undefined>;
   deleteExpiredOauthTokens(): Promise<void>;
+
+  // Banned user methods
+  isEmailBanned(email: string): Promise<boolean>;
+  banUser(email: string, bannedBy: string, reason?: string): Promise<void>;
+  unbanUser(email: string): Promise<void>;
+  getAllBannedUsers(): Promise<BannedUser[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -158,6 +164,7 @@ export class MemStorage implements IStorage {
   private affiliateSignupsStorage: Map<string, AffiliateSignup>;
   private affiliateEarningsStorage: Map<string, AffiliateEarning>;
   private affiliatePayoutsStorage: Map<string, AffiliatePayout>;
+  private bannedUsersStorage: Map<string, BannedUser>;
 
   constructor() {
     this.users = new Map();
@@ -176,6 +183,7 @@ export class MemStorage implements IStorage {
     this.affiliateSignupsStorage = new Map();
     this.affiliateEarningsStorage = new Map();
     this.affiliatePayoutsStorage = new Map();
+    this.bannedUsersStorage = new Map();
     
     // Initialize default video generation configs
     this.initializeDefaultConfigs();
@@ -1163,6 +1171,36 @@ export class MemStorage implements IStorage {
 
   async deleteExpiredOauthTokens(): Promise<void> {
     throw new Error("OAuth not supported in MemStorage - use DbStorage");
+  }
+
+  // Banned user methods
+  async isEmailBanned(email: string): Promise<boolean> {
+    for (const bannedUser of this.bannedUsersStorage.values()) {
+      if (bannedUser.email.toLowerCase() === email.toLowerCase()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async banUser(email: string, bannedBy: string, reason?: string): Promise<void> {
+    const id = randomUUID();
+    const now = new Date();
+    this.bannedUsersStorage.set(email.toLowerCase(), {
+      id,
+      email: email.toLowerCase(),
+      reason: reason || null,
+      bannedBy,
+      createdAt: now
+    });
+  }
+
+  async unbanUser(email: string): Promise<void> {
+    this.bannedUsersStorage.delete(email.toLowerCase());
+  }
+
+  async getAllBannedUsers(): Promise<BannedUser[]> {
+    return Array.from(this.bannedUsersStorage.values());
   }
 }
 
@@ -2514,6 +2552,59 @@ export class DbStorage implements IStorage {
         .where(sql`${oauthAuthorizationCodes.expiresAt} < NOW()`);
     } catch (error) {
       console.error("Error deleting expired OAuth tokens:", error);
+    }
+  }
+
+  // Banned user methods
+  async isEmailBanned(email: string): Promise<boolean> {
+    try {
+      const result = await this.db
+        .select()
+        .from(bannedUsers)
+        .where(eq(bannedUsers.email, email.toLowerCase()))
+        .limit(1);
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error checking if email is banned:", error);
+      return false;
+    }
+  }
+
+  async banUser(email: string, bannedBy: string, reason?: string): Promise<void> {
+    try {
+      await this.db
+        .insert(bannedUsers)
+        .values({
+          email: email.toLowerCase(),
+          bannedBy,
+          reason: reason || null
+        });
+    } catch (error) {
+      console.error("Error banning user:", error);
+      throw error;
+    }
+  }
+
+  async unbanUser(email: string): Promise<void> {
+    try {
+      await this.db
+        .delete(bannedUsers)
+        .where(eq(bannedUsers.email, email.toLowerCase()));
+    } catch (error) {
+      console.error("Error unbanning user:", error);
+      throw error;
+    }
+  }
+
+  async getAllBannedUsers(): Promise<BannedUser[]> {
+    try {
+      const result = await this.db
+        .select()
+        .from(bannedUsers);
+      return result;
+    } catch (error) {
+      console.error("Error getting banned users:", error);
+      return [];
     }
   }
 }
