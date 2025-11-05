@@ -28,9 +28,11 @@ export interface Project {
   audioPrompt?: string;
   audioTags?: string;
   audioLyrics?: string;
+  audioDuration?: number;
   characterImageUrl?: string;
   characterType?: 'uploaded' | 'generated';
   characterPrompt?: string;
+  makeCharacterSing?: boolean;
   scenePrompts?: string[];
   sceneImages?: string[];
   audioSegments?: AudioSegment[];
