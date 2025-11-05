@@ -4369,6 +4369,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Character image URL is required" });
       }
 
+      // Get current scene arrays from project
+      const scenePrompts = (project.scenePrompts as string[]) || [];
+      const sceneImages = (project.sceneImages as string[]) || [];
+
+      if (sceneIndex < 0 || sceneIndex >= scenePrompts.length) {
+        return res.status(400).json({ error: "Invalid scene index" });
+      }
+
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "scene_regeneration",
@@ -4380,12 +4388,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate a single scene image with the custom prompt
       const imageUrl = await generateSingleSceneImage(prompt, project.characterImageUrl);
 
+      // Update the arrays with new values
+      scenePrompts[sceneIndex] = prompt;
+      sceneImages[sceneIndex] = imageUrl;
+
+      // Save updated arrays to database
+      await storage.updateProject(req.params.id, {
+        scenePrompts: scenePrompts,
+        sceneImages: sceneImages
+      });
+
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "scene_regeneration",
         message: `Scene ${sceneIndex + 1} regenerated successfully`,
         status: "completed",
-        metadata: { sceneIndex, newImageUrl: imageUrl }
+        metadata: { sceneIndex, newImageUrl: imageUrl, newPrompt: prompt }
       });
 
       res.json({ 
@@ -4402,6 +4420,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { error: (error as Error).message }
       });
       res.status(500).json({ error: "Failed to regenerate scene" });
+    }
+  });
+
+  // Update scene prompts (for edited prompts without regeneration)
+  app.post("/api/projects/:id/update-scenes", async (req, res) => {
+    try {
+      const { scenes } = req.body;
+      
+      if (!scenes || !Array.isArray(scenes)) {
+        return res.status(400).json({ error: "Scenes array is required" });
+      }
+
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(400).json({ error: "Project not found" });
+      }
+
+      // Extract prompts and images from the scenes array
+      const scenePrompts = scenes.map((scene: any) => scene.prompt);
+      const sceneImages = scenes.map((scene: any) => scene.imageUrl);
+
+      // Update the project with the new scene data
+      await storage.updateProject(req.params.id, {
+        scenePrompts: scenePrompts,
+        sceneImages: sceneImages
+      });
+
+      console.log(`Updated scene data for project ${req.params.id}`);
+      res.json({ 
+        message: "Scenes updated successfully",
+        scenePrompts,
+        sceneImages
+      });
+    } catch (error) {
+      console.error("Update scenes error:", error);
+      res.status(500).json({ error: "Failed to update scenes" });
     }
   });
 

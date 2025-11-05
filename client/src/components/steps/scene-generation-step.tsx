@@ -114,6 +114,37 @@ export function SceneGenerationStep({ projectId, scenes = [], onNext, onBack, on
     );
   };
 
+  const saveScenesMutation = useMutation({
+    mutationFn: async (scenes: SceneData[]) => {
+      const response = await apiRequest("POST", `/api/projects/${projectId}/update-scenes`, {
+        scenes
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      console.log("Scenes saved successfully before video generation");
+    },
+    onError: (error) => {
+      console.error("Failed to save scenes:", error);
+      toast({
+        title: "Warning",
+        description: "Failed to save scene changes. Proceeding with video generation anyway.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleProceedToVideo = async () => {
+    // Save all scene changes before proceeding to video generation
+    try {
+      await saveScenesMutation.mutateAsync(generatedScenes);
+    } catch (error) {
+      console.error("Error saving scenes:", error);
+    }
+    // Proceed to next step regardless of save result
+    onNext();
+  };
+
   return (
     <div className="max-w-6xl mx-auto mb-12 bg-card rounded-lg p-2 sm:p-4" data-testid="scene-generation-step">
       <div className="bg-background border border-border rounded-lg p-4 sm:p-6 md:p-8">
@@ -216,13 +247,13 @@ export function SceneGenerationStep({ projectId, scenes = [], onNext, onBack, on
             Back to Character
           </Button>
           <Button
-            onClick={onNext}
-            disabled={generatedScenes.length === 0}
+            onClick={handleProceedToVideo}
+            disabled={generatedScenes.length === 0 || saveScenesMutation.isPending}
             className="floating-button py-3 px-8"
             data-testid="proceed-to-video-generation-button"
           >
             <i className="fas fa-video mr-2"></i>
-            Generate Music Video
+            {saveScenesMutation.isPending ? "Saving..." : "Generate Music Video"}
           </Button>
         </div>
       </div>
