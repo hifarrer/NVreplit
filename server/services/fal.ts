@@ -585,6 +585,7 @@ export async function generateSceneImages(
     // Wait for all results and sort by original index
     let results: { index: number; imageUrl: string }[] = [];
     let failedIndices: number[] = [];
+    let failureReasons: Map<number, string> = new Map();
 
     try {
       results = await Promise.all(resultPromises);
@@ -602,7 +603,9 @@ export async function generateSceneImages(
           results.push(result.value);
         } else {
           failedIndices.push(i);
-          console.log(`Scene ${i + 1} failed:`, result.reason.message);
+          const errorMessage = result.reason.message || "Unknown error";
+          failureReasons.set(i, errorMessage);
+          console.log(`Scene ${i + 1} failed:`, errorMessage);
         }
       }
 
@@ -616,25 +619,39 @@ export async function generateSceneImages(
       );
 
       for (const failedIndex of failedIndices) {
-        // Choose a fallback prompt based on the failed index
-        let fallbackPromptIndex: number;
-        if (failedIndex === 0 && results.find((r) => r.index === 1)) {
-          fallbackPromptIndex = 1;
-        } else if (failedIndex === 1 && results.find((r) => r.index === 0)) {
-          fallbackPromptIndex = 0;
-        } else if (failedIndex === 2 && results.find((r) => r.index === 1)) {
-          fallbackPromptIndex = 1;
-        } else if (failedIndex === 3 && results.find((r) => r.index === 2)) {
-          fallbackPromptIndex = 2;
+        const failureReason = failureReasons.get(failedIndex) || "";
+        const isSensitiveContent = failureReason.toLowerCase().includes("sensitive") || 
+                                    failureReason.toLowerCase().includes("flagged");
+        
+        let fallbackPrompt: string;
+        
+        if (isSensitiveContent) {
+          // For sensitive content errors, use a very safe, generic prompt
+          fallbackPrompt = "Character in a simple, clean environment. Neutral expression. Camera steady.";
+          console.log(
+            `Scene ${failedIndex + 1} was flagged for sensitive content. Retrying with safe, generic prompt: ${fallbackPrompt}`,
+          );
         } else {
-          // Use the first successful result's index
-          fallbackPromptIndex = results[0].index;
-        }
+          // For other errors, choose a fallback prompt based on the failed index
+          let fallbackPromptIndex: number;
+          if (failedIndex === 0 && results.find((r) => r.index === 1)) {
+            fallbackPromptIndex = 1;
+          } else if (failedIndex === 1 && results.find((r) => r.index === 0)) {
+            fallbackPromptIndex = 0;
+          } else if (failedIndex === 2 && results.find((r) => r.index === 1)) {
+            fallbackPromptIndex = 1;
+          } else if (failedIndex === 3 && results.find((r) => r.index === 2)) {
+            fallbackPromptIndex = 2;
+          } else {
+            // Use the first successful result's index
+            fallbackPromptIndex = results[0].index;
+          }
 
-        const fallbackPrompt = prompts[fallbackPromptIndex];
-        console.log(
-          `Retrying scene ${failedIndex + 1} with fallback prompt from scene ${fallbackPromptIndex + 1}: ${fallbackPrompt}`,
-        );
+          fallbackPrompt = prompts[fallbackPromptIndex];
+          console.log(
+            `Retrying scene ${failedIndex + 1} with fallback prompt from scene ${fallbackPromptIndex + 1}: ${fallbackPrompt}`,
+          );
+        }
 
         try {
           // Submit retry request
@@ -727,14 +744,25 @@ export async function generateSceneImages(
     const expectedScenes = prompts.length;
     if (results.length < expectedScenes) {
       const missingIndices = [];
+      const sensitiveContentFailures = [];
+      
       for (let i = 0; i < expectedScenes; i++) {
         if (!results.find((r) => r.index === i)) {
           missingIndices.push(i + 1);
+          const reason = failureReasons.get(i) || "";
+          if (reason.toLowerCase().includes("sensitive") || reason.toLowerCase().includes("flagged")) {
+            sensitiveContentFailures.push(i + 1);
+          }
         }
       }
-      throw new Error(
-        `Failed to generate ${missingIndices.length} scene images after retries. Missing scenes: ${missingIndices.join(", ")}`,
-      );
+      
+      let errorMessage = `Failed to generate ${missingIndices.length} scene images after retries. Missing scenes: ${missingIndices.join(", ")}`;
+      
+      if (sensitiveContentFailures.length > 0) {
+        errorMessage += `. Scene(s) ${sensitiveContentFailures.join(", ")} were flagged for sensitive content. This is usually due to the character image. Try using a different character image or simpler scene descriptions.`;
+      }
+      
+      throw new Error(errorMessage);
     }
 
     const imageUrls = results.map((result) => result.imageUrl);
