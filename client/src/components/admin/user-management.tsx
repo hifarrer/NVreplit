@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard, Mail, MailCheck, Download, Plus, ChevronLeft, ChevronRight, Search, ChevronsRight } from "lucide-react";
+import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard, Mail, MailCheck, Download, Plus, ChevronLeft, ChevronRight, Search, ChevronsRight, Ban, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -25,6 +25,14 @@ interface UserWithStats {
   planId: string;
   creditsUsed: number;
   creditsLimit: number;
+}
+
+interface BannedUser {
+  id: string;
+  email: string;
+  reason: string | null;
+  bannedBy: string;
+  createdAt: string;
 }
 
 interface Plan {
@@ -88,8 +96,13 @@ export function UserManagement() {
     },
   });
 
-  const users = usersResponse?.users || [];
+  const allUsers = usersResponse?.users || [];
   const pagination = usersResponse?.pagination;
+
+  // Filter users based on banned status if "banned" filter is selected
+  const users = planFilter === "banned" 
+    ? allUsers.filter(user => isUserBanned(user.email))
+    : allUsers;
 
   // Handle plan filter change - reset to page 1
   const handlePlanFilterChange = (value: string) => {
@@ -279,6 +292,88 @@ export function UserManagement() {
     },
   });
 
+  // Fetch banned users
+  const { data: bannedUsers = [] } = useQuery<BannedUser[]>({
+    queryKey: ["/api/admin/banned-users"],
+    queryFn: async () => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch("/api/admin/banned-users", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) throw new Error("Failed to fetch banned users");
+      return res.json();
+    },
+  });
+
+  // Ban user mutation
+  const banUserMutation = useMutation({
+    mutationFn: async ({ userId, reason }: { userId: string; reason?: string }) => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(`/api/admin/users/${userId}/ban`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ reason }),
+      });
+      if (!res.ok) throw new Error("Failed to ban user");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/banned-users"] });
+      toast({
+        title: "User Banned",
+        description: "User has been banned successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to ban user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Unban user mutation
+  const unbanUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(`/api/admin/users/${userId}/unban`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) throw new Error("Failed to unban user");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/banned-users"] });
+      toast({
+        title: "User Unbanned",
+        description: "User has been unbanned successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to unban user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Helper function to check if a user is banned
+  const isUserBanned = (email: string) => {
+    return bannedUsers.some((bannedUser) => bannedUser.email.toLowerCase() === email.toLowerCase());
+  };
+
   const handleEdit = (user: UserWithStats) => {
     setEditingUser(user);
     setEditFormData({ username: user.username, email: user.email });
@@ -425,6 +520,9 @@ export function UserManagement() {
                   <SelectItem value="Premium" className="text-white hover:bg-gray-700">
                     Premium
                   </SelectItem>
+                  <SelectItem value="banned" className="text-red-400 hover:bg-gray-700">
+                    Banned Users
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -499,6 +597,15 @@ export function UserManagement() {
                         </>
                       )}
                     </Badge>
+                    {isUserBanned(user.email) && (
+                      <Badge 
+                        variant="outline" 
+                        className="border-red-500/30 text-red-400 bg-red-500/10"
+                      >
+                        <Ban className="h-3 w-3 mr-1" />
+                        BANNED
+                      </Badge>
+                    )}
                   </div>
                   
                   <div className="flex items-center space-x-4 text-sm text-gray-400">
@@ -568,6 +675,31 @@ export function UserManagement() {
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
+                {isUserBanned(user.email) ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => unbanUserMutation.mutate(user.id)}
+                    className="border-green-500/30 text-green-400 hover:bg-green-600/20"
+                    disabled={unbanUserMutation.isPending}
+                    data-testid={`button-unban-user-${user.id}`}
+                    title="Unban User"
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => banUserMutation.mutate({ userId: user.id })}
+                    className="border-red-500/30 text-red-400 hover:bg-red-600/20"
+                    disabled={banUserMutation.isPending}
+                    data-testid={`button-ban-user-${user.id}`}
+                    title="Ban User"
+                  >
+                    <Ban className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
