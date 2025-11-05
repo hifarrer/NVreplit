@@ -2504,6 +2504,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin ban user
+  app.post("/api/admin/users/:userId/ban", authenticateAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { reason } = req.body;
+      const adminUser = (req as any).user;
+      
+      // Get user to be banned
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Ban the user
+      await storage.banUser(user.email, adminUser.userId, reason);
+      
+      res.json({ success: true, message: "User banned successfully" });
+    } catch (error) {
+      console.error("Admin ban user error:", error);
+      res.status(500).json({ error: "Failed to ban user" });
+    }
+  });
+
+  // Admin unban user
+  app.post("/api/admin/users/:userId/unban", authenticateAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Get user to be unbanned
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Unban the user
+      await storage.unbanUser(user.email);
+      
+      res.json({ success: true, message: "User unbanned successfully" });
+    } catch (error) {
+      console.error("Admin unban user error:", error);
+      res.status(500).json({ error: "Failed to unban user" });
+    }
+  });
+
+  // Admin get all banned users
+  app.get("/api/admin/banned-users", authenticateAdmin, async (req, res) => {
+    try {
+      const bannedUsers = await storage.getAllBannedUsers();
+      res.json(bannedUsers);
+    } catch (error) {
+      console.error("Admin get banned users error:", error);
+      res.status(500).json({ error: "Failed to get banned users" });
+    }
+  });
+
   // Update password
   app.patch("/api/user/password", authenticateToken, async (req, res) => {
     try {
