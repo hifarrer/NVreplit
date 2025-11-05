@@ -229,7 +229,7 @@ export async function generateAllVideoSegmentsDynamic(
     timestampedWords = parseAssSubtitles(subtitleData.assContent);
     console.log(`Parsed ${timestampedWords.length} timestamped words from subtitles for smart lyrics detection`);
   } else {
-    console.log("No subtitle data available - will use seedance model by default when lipsync would be used");
+    console.log("No subtitle data available - will use default lipsync pattern (lyrics assumed to exist)");
   }
   
   // Calculate segment durations (assuming equal length segments)
@@ -252,9 +252,10 @@ export async function generateAllVideoSegmentsDynamic(
         const segmentEnd = (i + 1) * segmentDuration;
         
         // Check if this segment has lyrics
+        // If we have subtitle data, check if segment has lyrics; otherwise assume lyrics exist
         const hasLyrics = timestampedWords.length > 0 
           ? segmentHasLyrics(segmentStart, segmentEnd, timestampedWords)
-          : false; // Default to false if no subtitle data available
+          : true; // Default to true (assume lyrics) if no subtitle data available
         
         if (i === 0) {
           // First segment: always seedance (no lipsync)
@@ -303,9 +304,10 @@ export async function generateAllVideoSegmentsDynamic(
         const segmentEnd = (i + 1) * segmentDuration;
         
         // Check if this segment has lyrics
+        // If we have subtitle data, check if segment has lyrics; otherwise assume lyrics exist
         const hasLyrics = timestampedWords.length > 0 
           ? segmentHasLyrics(segmentStart, segmentEnd, timestampedWords)
-          : false; // Default to false if no subtitle data available
+          : true; // Default to true (assume lyrics) if no subtitle data available
 
         // Smart model selection based on lyrics presence and pattern
         if (i % 2 === 0) {

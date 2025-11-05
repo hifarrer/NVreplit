@@ -4676,13 +4676,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("Loading subtitle file for smart lyrics detection:", project.subtitleFileUrl);
           
           // Read the subtitle file content from object storage
-          const { objectStorageClient } = await import("./objectStorage");
+          const { ObjectStorageService, objectStorageClient } = await import("./objectStorage");
+          const objectStorageService = new ObjectStorageService();
           
-          if (project.subtitleFileUrl.startsWith('/objects/')) {
-            // Parse the object path
-            const objectPath = project.subtitleFileUrl.replace('/objects/', '');
-            const privateObjectDir = process.env.PRIVATE_OBJECT_DIR || "";
-            const fullPath = `${privateObjectDir}/${objectPath}`;
+          if (project.subtitleFileUrl.startsWith('/objects/') || project.subtitleFileUrl.startsWith('/public-objects/')) {
+            let fullPath: string;
+            
+            if (project.subtitleFileUrl.startsWith('/public-objects/')) {
+              // Public object path (ElevenLabs subtitles)
+              const objectPath = project.subtitleFileUrl.replace('/public-objects/', '');
+              const publicPaths = objectStorageService.getPublicObjectSearchPaths();
+              fullPath = `${publicPaths[0]}/${objectPath}`;
+              console.log("Loading public subtitle file from:", fullPath);
+            } else {
+              // Private object path (KIE subtitles)
+              const objectPath = project.subtitleFileUrl.replace('/objects/', '');
+              const privateObjectDir = process.env.PRIVATE_OBJECT_DIR || "";
+              fullPath = `${privateObjectDir}/${objectPath}`;
+              console.log("Loading private subtitle file from:", fullPath);
+            }
             
             // Parse bucket and object name
             const pathParts = fullPath.split('/');
@@ -4701,14 +4713,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 totalDuration: audioDuration
               };
               console.log("Successfully loaded subtitle file for smart lyrics detection");
+              console.log("Subtitle file length:", content.length, "bytes");
             } else {
               console.log("Subtitle file not found in object storage");
             }
+          } else {
+            console.log("Unrecognized subtitle file URL format:", project.subtitleFileUrl);
           }
         } catch (error) {
           console.error("Error loading subtitle file for smart detection:", error);
           // Continue without subtitle data - will use default pattern
         }
+      } else {
+        console.log("No subtitle file URL found in project - will use default lipsync pattern");
       }
 
       const { videoUrls: allVideoUrls, segmentPairs } = await generateAllVideoSegmentsDynamic(
