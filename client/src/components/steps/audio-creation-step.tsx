@@ -39,7 +39,7 @@ interface GeneratedSong {
   updatedAt: string;
 }
 
-const suggestedTags = ["pop", "electronic", "rock", "upbeat", "techno", "hip-hop", "country", "reggae", "synthwave", "kpop", "female singer", "male singer"];
+const suggestedTags = ["pop", "electronic", "rock", "upbeat", "hip-hop", "country", "reggae", "synthwave", "kpop", "female singer", "male singer"];
 
 const durationOptions = [30, 60, 90, 120];
 const getDurationLabel = (value: number) => {
