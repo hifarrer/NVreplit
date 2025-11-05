@@ -617,9 +617,9 @@ export default function ProfilePage() {
 
                       {/* Cancellation Notice */}
                       {subscriptionData?.cancelAtPeriodEnd && (
-                        <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
-                          <AlertTriangle className="h-4 w-4" />
-                          <AlertDescription>
+                        <Alert className="border-orange-200 bg-orange-50 text-orange-900 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-100">
+                          <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                          <AlertDescription className="text-orange-900 dark:text-orange-100">
                             Your subscription is scheduled to cancel at the end of your current billing period. 
                             You will retain access to your paid plan until then.
                           </AlertDescription>
@@ -641,9 +641,9 @@ export default function ProfilePage() {
                             </Button>
                           ) : (
                             <div className="space-y-3">
-                              <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
-                                <AlertTriangle className="h-4 w-4" />
-                                <AlertDescription>
+                              <Alert className="border-red-200 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-100">
+                                <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                                <AlertDescription className="text-red-900 dark:text-red-100">
                                   <strong>Are you sure you want to cancel your subscription?</strong>
                                   <br />
                                   Your subscription will remain active until the end of your current billing period, 
@@ -676,9 +676,9 @@ export default function ProfilePage() {
 
                       {/* Notice for manually upgraded users */}
                       {!subscriptionData?.hasSubscription && (
-                        <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
-                          <AlertTriangle className="h-4 w-4" />
-                          <AlertDescription>
+                        <Alert className="border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100">
+                          <AlertTriangle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <AlertDescription className="text-blue-900 dark:text-blue-100">
                             Your account was upgraded manually by an administrator. 
                             To cancel or modify your subscription, please contact support.
                           </AlertDescription>
@@ -803,9 +803,9 @@ export default function ProfilePage() {
               <CardContent className="space-y-4">
                 {!showDeleteConfirm ? (
                   <>
-                    <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>
+                    <Alert className="border-red-200 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-100">
+                      <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                      <AlertDescription className="text-red-900 dark:text-red-100">
                         <strong>Warning:</strong> This action cannot be undone. Deleting your account will:
                         <ul className="list-disc list-inside mt-2 space-y-1">
                           <li>Permanently delete your profile</li>
@@ -826,9 +826,9 @@ export default function ProfilePage() {
                   </>
                 ) : (
                   <div className="space-y-3">
-                    <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>
+                    <Alert className="border-red-200 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-100">
+                      <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                      <AlertDescription className="text-red-900 dark:text-red-100">
                         <strong>Are you absolutely sure?</strong>
                         <br />
                         All of your videos will become inaccessible and your account will be permanently deleted. 
@@ -837,7 +837,7 @@ export default function ProfilePage() {
                           <>
                             <br /><br />
                             <strong>Note:</strong> You have an active subscription. Please downgrade to the Free plan 
-                            from the <Link href="/plans" className="underline">Plans page</Link> before deleting your account.
+                            from the <Link href="/plans" className="underline text-red-800 dark:text-red-200">Plans page</Link> before deleting your account.
                           </>
                         )}
                       </AlertDescription>
