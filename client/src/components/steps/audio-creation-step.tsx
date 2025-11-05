@@ -74,7 +74,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const [descriptionProfanityCheck, setDescriptionProfanityCheck] = useState<ProfanityCheckResult | null>(null);
   
   // Song selection state
-  const [generatedSongs, setGeneratedSongs] = useState<Array<{audioUrl: string; duration: number; title: string; id: string}>>([]);
+  const [generatedSongs, setGeneratedSongs] = useState<GeneratedSong[]>([]);
   const [showSongSelection, setShowSongSelection] = useState(false);
   const [selectedGeneratedSongIndex, setSelectedGeneratedSongIndex] = useState<number>(0);
   
@@ -241,7 +241,12 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
       const selectedSong = generatedSongs[songIndex];
       const response = await apiRequest("POST", `/api/projects/${projectId}/select-song`, {
         audioUrl: selectedSong.audioUrl,
-        duration: selectedSong.duration
+        audioTags: selectedSong.audioTags,
+        audioLyrics: selectedSong.audioLyrics,
+        duration: selectedSong.duration,
+        subtitleFileUrl: selectedSong.subtitleFileUrl,
+        kieTaskId: selectedSong.kieTaskId,
+        kieAudioId: selectedSong.kieAudioId
       });
       return response.json();
     },
@@ -985,7 +990,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                       <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4" />
-                          {Math.round(song.duration)}s
+                          {Math.round(song.duration || 0)}s
                         </div>
                       </div>
                       <audio
