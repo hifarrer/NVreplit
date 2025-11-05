@@ -142,6 +142,7 @@ export default function Home() {
         {currentStep === 3 && (
           <SceneGenerationStep
             projectId={projectId}
+            audioDuration={project?.audioDuration}
             scenes={project?.scenePrompts?.map((prompt, index) => ({
               prompt,
               imageUrl: project.sceneImages?.[index] || ""
