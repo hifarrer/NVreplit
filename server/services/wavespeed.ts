@@ -52,13 +52,21 @@ export function segmentHasLyrics(
   timestampedWords: TimestampedWord[]
 ): boolean {
   // Check if any word overlaps with this segment
+  let wordCount = 0;
   for (const word of timestampedWords) {
     // Word overlaps if it starts before segment ends AND ends after segment starts
     if (word.start < segmentEndTime && word.end > segmentStartTime) {
-      return true;
+      wordCount++;
     }
   }
-  return false;
+  
+  if (wordCount > 0) {
+    console.log(`Segment ${segmentStartTime.toFixed(1)}s-${segmentEndTime.toFixed(1)}s contains ${wordCount} word(s)`);
+  } else {
+    console.log(`Segment ${segmentStartTime.toFixed(1)}s-${segmentEndTime.toFixed(1)}s has NO lyrics`);
+  }
+  
+  return wordCount > 0;
 }
 
 export async function generateVideoSegment(
@@ -219,7 +227,9 @@ export async function generateAllVideoSegmentsDynamic(
   let timestampedWords: TimestampedWord[] = [];
   if (subtitleData?.assContent) {
     timestampedWords = parseAssSubtitles(subtitleData.assContent);
-    console.log(`Parsed ${timestampedWords.length} timestamped words from subtitles`);
+    console.log(`Parsed ${timestampedWords.length} timestamped words from subtitles for smart lyrics detection`);
+  } else {
+    console.log("No subtitle data available - will use seedance model by default when lipsync would be used");
   }
   
   // Calculate segment durations (assuming equal length segments)
@@ -244,7 +254,7 @@ export async function generateAllVideoSegmentsDynamic(
         // Check if this segment has lyrics
         const hasLyrics = timestampedWords.length > 0 
           ? segmentHasLyrics(segmentStart, segmentEnd, timestampedWords)
-          : true; // Default to true if no subtitle data
+          : false; // Default to false if no subtitle data available
         
         if (i === 0) {
           // First segment: always seedance (no lipsync)
@@ -295,7 +305,7 @@ export async function generateAllVideoSegmentsDynamic(
         // Check if this segment has lyrics
         const hasLyrics = timestampedWords.length > 0 
           ? segmentHasLyrics(segmentStart, segmentEnd, timestampedWords)
-          : true; // Default to true if no subtitle data
+          : false; // Default to false if no subtitle data available
 
         // Smart model selection based on lyrics presence and pattern
         if (i % 2 === 0) {
