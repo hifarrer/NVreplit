@@ -310,43 +310,53 @@ export async function generateAllVideoSegmentsDynamic(
           : true; // Default to true (assume lyrics) if no subtitle data available
 
         // Smart model selection based on lyrics presence and pattern
+        console.log(`\n=== SEGMENT ${i + 1} (${segmentStart.toFixed(1)}s-${segmentEnd.toFixed(1)}s) ===`);
+        console.log(`  - Index: ${i} (${i % 2 === 0 ? 'EVEN' : 'ODD'})`);
+        console.log(`  - Has lyrics: ${hasLyrics}`);
+        console.log(`  - Current counts: seedance=${seedanceCount}/${config.numberOfVideosRegularApi}, lipsync=${infinitetalkCount}/${config.numberOfVideosLipsync}`);
+        
         if (i % 2 === 0) {
           // Even indices: Prefer seedance for wider shots
           if (seedanceCount < config.numberOfVideosRegularApi) {
             model = "seedance";
             seedanceCount++;
+            console.log(`  → Using SEEDANCE (even index, slots available)`);
           } else if (hasLyrics && infinitetalkCount < config.numberOfVideosLipsync) {
             model = "infinitetalk";
             infinitetalkCount++;
-            console.log(`Segment ${i + 1}: Has lyrics (${segmentStart}s-${segmentEnd}s), using infinitetalk`);
+            console.log(`  → Using INFINITETALK (has lyrics, all seedance slots filled)`);
           } else {
             model = "seedance";
             seedanceCount++;
+            console.log(`  → Using SEEDANCE (fallback)`);
           }
         } else {
           // Odd indices: Prefer infinitetalk if lyrics are present
           if (hasLyrics && infinitetalkCount < config.numberOfVideosLipsync) {
             model = "infinitetalk";
             infinitetalkCount++;
-            console.log(`Segment ${i + 1}: Has lyrics (${segmentStart}s-${segmentEnd}s), using infinitetalk`);
+            console.log(`  → Using INFINITETALK (odd index + has lyrics)`);
           } else if (seedanceCount < config.numberOfVideosRegularApi) {
             model = "seedance";
             seedanceCount++;
             if (!hasLyrics) {
-              console.log(`Segment ${i + 1}: No lyrics detected (${segmentStart}s-${segmentEnd}s), using seedance`);
+              console.log(`  → Using SEEDANCE (odd index but NO LYRICS)`);
+            } else {
+              console.log(`  → Using SEEDANCE (odd index, all lipsync slots filled)`);
             }
           } else {
             // Fallback to infinitetalk even without lyrics if we need more
             model = "infinitetalk";
             infinitetalkCount++;
+            console.log(`  → Using INFINITETALK (fallback, all slots filled)`);
           }
         }
 
-        console.log(`Generating video segment ${i + 1} using ${model} model`);
         videoTypes.push(model);
 
         if (model === "infinitetalk") {
           // Infinitetalk requires audio for lipsync
+          console.log(`  → Audio URL: ${audioSegments[i].substring(0, 50)}...`);
           videoPromises.push(
             generateVideoSegment(
               audioSegments[i],
@@ -357,6 +367,7 @@ export async function generateAllVideoSegmentsDynamic(
           );
         } else {
           // Seedance doesn't use audio
+          console.log(`  → No audio (seedance doesn't require it)`);
           videoPromises.push(
             generateVideoSegment("", imageUrls[i], prompts[i], "seedance"),
           );
