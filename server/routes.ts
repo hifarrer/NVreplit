@@ -2602,6 +2602,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete account (actually bans the user)
+  app.post("/api/user/delete-account", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      
+      // Get current user
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Check if user has an active subscription (not Free plan)
+      const userPlan = await storage.getPlanById(user.planId);
+      if (userPlan && userPlan.name !== "Free") {
+        return res.status(400).json({ 
+          error: "Please downgrade to the Free plan before deleting your account",
+          hasActiveSubscription: true
+        });
+      }
+      
+      // Instead of deleting, ban the user with reason "Deleted" and bannedBy "User"
+      await storage.banUser(user.email, "User", "Deleted");
+      
+      res.json({ 
+        success: true, 
+        message: "Account deleted successfully. You will be logged out shortly." 
+      });
+    } catch (error) {
+      console.error("Delete account error:", error);
+      res.status(500).json({ error: "Failed to delete account" });
+    }
+  });
+
   // Get video generation configurations
   app.get("/api/video-generation-configs", async (req, res) => {
     try {
