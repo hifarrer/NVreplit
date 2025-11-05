@@ -6,8 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut, ExternalLink, CreditCard, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
-import { Link } from "wouter";
+import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut, ExternalLink, CreditCard, AlertTriangle, CheckCircle, XCircle, Trash2 } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -17,12 +17,14 @@ import logoImage from "@assets/neonlogo_1756693857051.png";
 export default function ProfilePage() {
   const { user, logout, refreshUser } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [username, setUsername] = useState(user?.username || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Get avatar options from API (handles production URLs)
   const { data: avatarData, isLoading: avatarsLoading, error: avatarsError } = useQuery<{ avatarOptions: Array<{ id: number; url: string; localUrl: string }> }>({
@@ -163,6 +165,49 @@ export default function ProfilePage() {
         description: error instanceof Error ? error.message : "Failed to cancel subscription",
         variant: "destructive",
       });
+    },
+  });
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/user/delete-account", {});
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Account Deleted",
+        description: "Your account has been deleted. You will be logged out shortly.",
+      });
+      // Log out after a short delay
+      setTimeout(() => {
+        logout();
+        setLocation("/");
+      }, 2000);
+    },
+    onError: (error: any) => {
+      setShowDeleteConfirm(false);
+      if (error.hasActiveSubscription) {
+        toast({
+          title: "Active Subscription",
+          description: "Please downgrade to the Free plan from the Plans page before deleting your account.",
+          variant: "destructive",
+          action: (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLocation("/plans")}
+            >
+              Go to Plans
+            </Button>
+          ) as any,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to delete account",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -739,6 +784,85 @@ export default function ProfilePage() {
                     {updatePasswordMutation.isPending ? "Updating..." : "Update Password"}
                   </Button>
                 </form>
+              </CardContent>
+            </Card>
+
+            <Separator />
+
+            {/* Delete Account */}
+            <Card className="border-red-200 dark:border-red-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                  <Trash2 className="h-5 w-5" />
+                  Delete Account
+                </CardTitle>
+                <CardDescription>
+                  Permanently delete your account and all associated data
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!showDeleteConfirm ? (
+                  <>
+                    <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>Warning:</strong> This action cannot be undone. Deleting your account will:
+                        <ul className="list-disc list-inside mt-2 space-y-1">
+                          <li>Permanently delete your profile</li>
+                          <li>Make all your generated videos inaccessible</li>
+                          <li>Remove all your account data</li>
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+                    <Button
+                      variant="destructive"
+                      className="w-full"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      data-testid="button-delete-account"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete My Account
+                    </Button>
+                  </>
+                ) : (
+                  <div className="space-y-3">
+                    <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>Are you absolutely sure?</strong>
+                        <br />
+                        All of your videos will become inaccessible and your account will be permanently deleted. 
+                        This action cannot be undone.
+                        {user?.plan?.name !== "Free" && (
+                          <>
+                            <br /><br />
+                            <strong>Note:</strong> You have an active subscription. Please downgrade to the Free plan 
+                            from the <Link href="/plans" className="underline">Plans page</Link> before deleting your account.
+                          </>
+                        )}
+                      </AlertDescription>
+                    </Alert>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="flex-1"
+                        data-testid="button-delete-cancel"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() => deleteAccountMutation.mutate()}
+                        disabled={deleteAccountMutation.isPending}
+                        className="flex-1"
+                        data-testid="button-delete-confirm"
+                      >
+                        {deleteAccountMutation.isPending ? "Deleting..." : "Yes, Delete My Account"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
