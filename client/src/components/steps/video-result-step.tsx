@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { VideoPlayer } from "@/components/ui/video-player";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { RotateCcw, Clock, Film, Download, Share2, Plus, List, ChevronUp, ChevronDown } from "lucide-react";
+import { RotateCcw, Download, Share2, Plus, List, ChevronUp, ChevronDown } from "lucide-react";
 
 interface VideoResultStepProps {
   projectId: string;
@@ -82,27 +82,6 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResul
             title="Your AI Music Video"
             poster={videoUrl.replace('.mp4', '-poster.jpg')}
           />
-        </div>
-
-        {/* Video Details */}
-        <div className="bg-muted/20 rounded-lg p-6 mb-8">
-          <div className="grid md:grid-cols-3 gap-6 text-center">
-            <div>
-              <Clock className="w-8 h-8 text-primary mx-auto mb-2" />
-              <h5 className="font-semibold">Duration</h5>
-              <p className="text-muted-foreground" data-testid="video-duration">2:00 minutes</p>
-            </div>
-            <div>
-              <Film className="w-8 h-8 text-accent mx-auto mb-2" />
-              <h5 className="font-semibold">Resolution</h5>
-              <p className="text-muted-foreground" data-testid="video-resolution">864 x 448</p>
-            </div>
-            <div>
-              <Download className="w-8 h-8 text-primary mx-auto mb-2" />
-              <h5 className="font-semibold">File Size</h5>
-              <p className="text-muted-foreground" data-testid="video-size">~45 MB</p>
-            </div>
-          </div>
         </div>
 
         {/* Action Buttons */}
