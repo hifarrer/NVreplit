@@ -29,13 +29,18 @@ Preferred communication style: Simple, everyday language.
 ## Data Storage
 - **Database**: PostgreSQL using Neon Database as the serverless provider
 - **ORM**: Drizzle ORM with migrations support
-- **Schema**: Three main tables - users, projects, and generation_logs
+- **Schema**: Main tables include users, projects, generation_logs, banned_users, and more
 - **Session Management**: PostgreSQL-based session storage using connect-pg-simple
 
 ## Authentication and Authorization
 - **Session-based**: Uses Express sessions with PostgreSQL storage
 - **User Management**: Username/email and password authentication
 - **Project Ownership**: Projects are tied to user IDs for access control
+- **User Banning**: Email-based banning system to prevent account misuse
+  - Banned users cannot log in or register new accounts
+  - Admin dashboard provides ban/unban controls with optional reason
+  - Banned status is checked on authentication and registration
+  - "Banned Users" filter available in admin user management panel
 
 ## External Dependencies
 
