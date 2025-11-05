@@ -38,6 +38,14 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const bannedUsers = pgTable("banned_users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull().unique(),
+  reason: text("reason"), // Optional reason for ban
+  bannedBy: varchar("banned_by").references(() => users.id), // Admin who banned the user
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const projects = pgTable("projects", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id).notNull(),
@@ -368,8 +376,15 @@ export const insertOauthAccessTokenSchema = createInsertSchema(oauthAccessTokens
   createdAt: true,
 });
 
+export const insertBannedUserSchema = createInsertSchema(bannedUsers).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type InsertBannedUser = z.infer<typeof insertBannedUserSchema>;
+export type BannedUser = typeof bannedUsers.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type Project = typeof projects.$inferSelect;
 export type InsertGenerationLog = z.infer<typeof insertGenerationLogSchema>;
