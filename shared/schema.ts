@@ -42,7 +42,7 @@ export const bannedUsers = pgTable("banned_users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull().unique(),
   reason: text("reason"), // Optional reason for ban
-  bannedBy: varchar("banned_by").references(() => users.id), // Admin who banned the user
+  bannedBy: text("banned_by"), // Admin username or system that banned the user
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
