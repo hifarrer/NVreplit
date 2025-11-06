@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -70,10 +70,20 @@ export function UserManagement() {
   const [pageSize] = useState(20);
   const [planFilter, setPlanFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>("");
+
+  // Debounce search query - only update after user stops typing for 500ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Fetch users with auth header, pagination, and search
   const { data: usersResponse, isLoading } = useQuery<UsersResponse>({
-    queryKey: ["/api/admin/users", currentPage, pageSize, planFilter, searchQuery],
+    queryKey: ["/api/admin/users", currentPage, pageSize, planFilter, debouncedSearchQuery],
     queryFn: async () => {
       const token = localStorage.getItem("adminToken");
       const params = new URLSearchParams({
@@ -83,8 +93,8 @@ export function UserManagement() {
       if (planFilter !== "all") {
         params.append("plan", planFilter);
       }
-      if (searchQuery.trim()) {
-        params.append("search", searchQuery.trim());
+      if (debouncedSearchQuery.trim()) {
+        params.append("search", debouncedSearchQuery.trim());
       }
       const res = await fetch(`/api/admin/users?${params}`, {
         headers: {

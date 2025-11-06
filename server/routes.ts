@@ -1886,10 +1886,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const planFilter = req.query.plan as string;
       const searchQuery = (req.query.search as string || '').toLowerCase().trim();
 
+      // Get all users (lightweight, just basic user data)
       const allUsers = await storage.getAllUsers();
       
-      // Get users with stats first
-      const allUsersWithStats = await Promise.all(allUsers.map(async (user) => {
+      // For plan filtering, we need to get user plans first (but not all stats)
+      // This is still more efficient than getting all stats for all users
+      let usersWithPlans: Array<{ user: any; planName: string }> = [];
+      
+      if (planFilter && planFilter !== "all") {
+        // Only get plans when filtering by plan
+        usersWithPlans = await Promise.all(allUsers.map(async (user) => {
+          const userWithPlan = await storage.getUserWithPlan(user.id);
+          return {
+            user,
+            planName: userWithPlan?.plan?.name || "Free"
+          };
+        }));
+      }
+      
+      // Filter users first (before getting expensive stats)
+      let filteredUsers = allUsers;
+      
+      // Filter by plan if specified
+      if (planFilter && planFilter !== "all") {
+        filteredUsers = usersWithPlans
+          .filter(u => u.planName === planFilter)
+          .map(u => u.user);
+      }
+
+      // Filter by search query if specified
+      if (searchQuery) {
+        filteredUsers = filteredUsers.filter(user => 
+          user.username.toLowerCase().includes(searchQuery) || 
+          user.email.toLowerCase().includes(searchQuery)
+        );
+      }
+
+      // Calculate pagination BEFORE getting stats
+      const totalCount = filteredUsers.length;
+      const totalPages = Math.ceil(totalCount / limit);
+      const offset = (page - 1) * limit;
+      const usersToFetch = filteredUsers.slice(offset, offset + limit);
+      
+      // NOW get stats, but ONLY for the paginated subset
+      const paginatedUsersWithStats = await Promise.all(usersToFetch.map(async (user) => {
         const projects = await storage.getUserProjects(user.id);
         const songs = await storage.getSongs(user.id);
         const userWithPlan = await storage.getUserWithPlan(user.id);
@@ -1910,28 +1950,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           creditsLimit: userWithPlan?.plan?.credits || 0
         };
       }));
-
-      // Filter by plan if specified
-      let filteredUsers = planFilter ? 
-        allUsersWithStats.filter(user => user.planName === planFilter) : 
-        allUsersWithStats;
-
-      // Filter by search query if specified
-      if (searchQuery) {
-        filteredUsers = filteredUsers.filter(user => 
-          user.username.toLowerCase().includes(searchQuery) || 
-          user.email.toLowerCase().includes(searchQuery)
-        );
-      }
-
-      // Apply pagination to filtered results
-      const totalCount = filteredUsers.length;
-      const totalPages = Math.ceil(totalCount / limit);
-      const offset = (page - 1) * limit;
-      const paginatedUsers = filteredUsers.slice(offset, offset + limit);
       
       res.json({
-        users: paginatedUsers,
+        users: paginatedUsersWithStats,
         pagination: {
           page,
           limit,
