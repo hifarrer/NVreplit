@@ -2517,8 +2517,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
       
-      // Ban the user
-      await storage.banUser(user.email, adminUser.userId, reason);
+      // Ban the user - use username from JWT token
+      const bannedBy = adminUser?.username || "Admin";
+      await storage.banUser(user.email, bannedBy, reason);
       
       res.json({ success: true, message: "User banned successfully" });
     } catch (error) {
