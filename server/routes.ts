@@ -5412,6 +5412,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create checkout session for one-time credit purchase
+  app.post("/api/stripe/create-credit-checkout-session", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Check if user has a paid plan (Basic or Premium)
+      if (!user.planId || user.plan?.name === 'Free') {
+        return res.status(403).json({ error: "Only paid subscribers can purchase additional credits" });
+      }
+      
+      // Get Stripe settings from database
+      const stripeSettings = await storage.getAllSettings();
+      const stripeSecretKey = stripeSettings.find(s => s.key === 'stripe_secret_key')?.value;
+      
+      if (!stripeSecretKey) {
+        console.error("Stripe secret key not configured");
+        return res.status(500).json({ error: "Payment system not configured. Please contact support." });
+      }
+      
+      const Stripe = (await import('stripe')).default;
+      const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
+      
+      // Get or create Stripe customer
+      let stripeCustomerId = user.stripeCustomerId;
+      if (!stripeCustomerId) {
+        const customer = await stripe.customers.create({
+          email: user.email || undefined,
+          metadata: { userId }
+        });
+        stripeCustomerId = customer.id;
+        await storage.updateUser(userId, { stripeCustomerId });
+      }
+      
+      // Create checkout session for one-time payment
+      // Price: $9 for 5000 credits
+      const session = await stripe.checkout.sessions.create({
+        customer: stripeCustomerId,
+        line_items: [{
+          price: 'price_1SQfnqQxrAsbY9f0PatqnzYy', // Stripe price ID for credit purchase
+          quantity: 1,
+        }],
+        mode: 'payment', // One-time payment
+        success_url: `${req.headers.origin}/profile?credit_purchase=success`,
+        cancel_url: `${req.headers.origin}/profile?credit_purchase=cancelled`,
+        metadata: {
+          userId,
+          type: 'credit_purchase',
+          creditsToAdd: '5000'
+        },
+      });
+      
+      res.json({ sessionUrl: session.url });
+    } catch (error) {
+      console.error("Create credit checkout session error:", error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to create checkout session" });
+    }
+  });
+
+  // Stripe webhook handler for payment events
+  app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+      // Get Stripe settings from database
+      const stripeSettings = await storage.getAllSettings();
+      const stripeSecretKey = stripeSettings.find(s => s.key === 'stripe_secret_key')?.value;
+      const webhookSecret = stripeSettings.find(s => s.key === 'stripe_webhook_secret')?.value;
+      
+      if (!stripeSecretKey || !webhookSecret) {
+        console.error("Stripe not configured");
+        return res.status(500).json({ error: "Payment system not configured" });
+      }
+      
+      const Stripe = (await import('stripe')).default;
+      const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
+      
+      const sig = req.headers['stripe-signature'];
+      if (!sig) {
+        return res.status(400).json({ error: "Missing stripe signature" });
+      }
+      
+      let event;
+      try {
+        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      } catch (err) {
+        console.error("Webhook signature verification failed:", err);
+        return res.status(400).json({ error: `Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}` });
+      }
+      
+      // Handle checkout.session.completed event
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object as any;
+        
+        // Check if this is a credit purchase
+        if (session.metadata?.type === 'credit_purchase') {
+          const userId = session.metadata.userId;
+          const creditsToAdd = parseInt(session.metadata.creditsToAdd || '5000');
+          
+          if (userId && session.payment_status === 'paid') {
+            // Add credits to user
+            const user = await storage.getUser(userId);
+            if (user) {
+              const newCredits = (user.credits || 0) + creditsToAdd;
+              await storage.updateUser(userId, { credits: newCredits });
+              console.log(`Added ${creditsToAdd} credits to user ${userId}. New balance: ${newCredits}`);
+            }
+          }
+        }
+      }
+      
+      res.json({ received: true });
+    } catch (error) {
+      console.error("Webhook handler error:", error);
+      res.status(500).json({ error: "Webhook handler failed" });
+    }
+  });
+
   // Contact form submission endpoint
   app.post("/api/contact", async (req, res) => {
     try {
