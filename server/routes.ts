@@ -2106,9 +2106,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Calculate stats
       const totalUsers = users.length;
-      const totalVideos = projects.filter(p => p.finalVideoUrl).length; // Count only completed videos
       const totalSongs = songs.length;
       const completedProjects = projects.filter(p => p.isCompleted).length;
+      
+      // Calculate monthly revenue - get all users with their plans
+      const usersWithPlans = await Promise.all(users.map(async (user) => {
+        const userWithPlan = await storage.getUserWithPlan(user.id);
+        return {
+          userId: user.id,
+          planId: userWithPlan?.planId,
+          planName: userWithPlan?.plan?.name || "Free",
+          monthlyPrice: userWithPlan?.plan?.monthlyPrice || 0
+        };
+      }));
+      
+      // Sum up monthly revenue from all users with paid plans
+      const monthlyRevenue = usersWithPlans.reduce((total, user) => {
+        return total + (user.monthlyPrice / 100); // Convert cents to dollars
+      }, 0);
       
       // Group by creation date for charts
       const userSignupsByDay = users.reduce((acc: any, user) => {
@@ -2126,7 +2141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         overview: {
           totalUsers,
-          totalVideos,
+          monthlyRevenue,
           totalSongs,
           completedProjects
         },

@@ -11,7 +11,7 @@ interface ChartData {
 interface StatsData {
   overview: {
     totalUsers: number;
-    totalVideos: number;
+    monthlyRevenue: number;
     totalSongs: number;
     completedProjects: number;
   };
@@ -68,15 +68,10 @@ export function UsageStatistics() {
     projects: item.count
   }));
 
-  // Calculate completion rate
-  const completionRate = stats.overview.totalProjects > 0 
-    ? ((stats.overview.completedProjects / stats.overview.totalProjects) * 100).toFixed(1)
-    : "0";
-
   return (
     <div className="space-y-6">
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card className="bg-black/30 border-purple-500/20">
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
@@ -92,10 +87,12 @@ export function UsageStatistics() {
         <Card className="bg-black/30 border-purple-500/20">
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <Activity className="h-8 w-8 text-purple-400" />
+              <Activity className="h-8 w-8 text-green-400" />
               <div>
-                <p className="text-sm font-medium text-gray-300">Total Videos Created</p>
-                <p className="text-2xl font-bold text-white">{stats.overview.totalVideos}</p>
+                <p className="text-sm font-medium text-gray-300">Monthly Revenue</p>
+                <p className="text-2xl font-bold text-white">
+                  ${stats.overview.monthlyRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -106,8 +103,8 @@ export function UsageStatistics() {
             <div className="flex items-center space-x-2">
               <TrendingUp className="h-8 w-8 text-purple-400" />
               <div>
-                <p className="text-sm font-medium text-gray-300">Completion Rate</p>
-                <p className="text-2xl font-bold text-white">{completionRate}%</p>
+                <p className="text-sm font-medium text-gray-300">Completed Projects</p>
+                <p className="text-2xl font-bold text-white">{stats.overview.completedProjects}</p>
               </div>
             </div>
           </CardContent>
@@ -223,21 +220,8 @@ export function UsageStatistics() {
           <div className="space-y-4">
             <div className="flex justify-between items-center p-4 bg-gray-800/30 rounded-lg">
               <div>
-                <div className="font-medium text-white">Average Projects per User</div>
-                <div className="text-sm text-gray-400">Based on current user base</div>
-              </div>
-              <div className="text-2xl font-bold text-purple-400">
-                {stats.overview.totalUsers > 0 
-                  ? (stats.overview.totalProjects / stats.overview.totalUsers).toFixed(1)
-                  : "0"
-                }
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center p-4 bg-gray-800/30 rounded-lg">
-              <div>
                 <div className="font-medium text-white">Average Songs per User</div>
-                <div className="text-sm text-gray-400">Music generation activity</div>
+                <div className="text-sm text-gray-400">Based on current user base</div>
               </div>
               <div className="text-2xl font-bold text-purple-400">
                 {stats.overview.totalUsers > 0 
@@ -249,11 +233,11 @@ export function UsageStatistics() {
 
             <div className="flex justify-between items-center p-4 bg-gray-800/30 rounded-lg">
               <div>
-                <div className="font-medium text-white">Project Completion Rate</div>
-                <div className="text-sm text-gray-400">Percentage of finished projects</div>
+                <div className="font-medium text-white">Completed Projects</div>
+                <div className="text-sm text-gray-400">Total finished videos</div>
               </div>
               <div className="text-2xl font-bold text-green-400">
-                {completionRate}%
+                {stats.overview.completedProjects}
               </div>
             </div>
           </div>

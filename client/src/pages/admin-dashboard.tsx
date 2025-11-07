@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Users, Activity, Settings, LogOut, Shield, Music, Video, CreditCard, MessageCircle, Play } from "lucide-react";
+import { Users, Activity, Settings, LogOut, Shield, Music, Video, CreditCard, MessageCircle, Play, DollarSign } from "lucide-react";
 import { UserManagement } from "../components/admin/user-management";
 import { SiteSettings } from "../components/admin/site-settings";
 import { UsageStatistics } from "../components/admin/usage-statistics";
@@ -21,7 +21,7 @@ interface AdminUser {
 
 interface StatsOverview {
   totalUsers: number;
-  totalProjects: number;
+  monthlyRevenue: number;
   totalSongs: number;
   completedProjects: number;
 }
@@ -128,11 +128,13 @@ export default function AdminDashboard() {
 
             <Card className="bg-black/30 border-purple-500/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-300">Total Projects</CardTitle>
-                <Video className="h-4 w-4 text-purple-400" />
+                <CardTitle className="text-sm font-medium text-gray-300">Monthly Revenue</CardTitle>
+                <DollarSign className="h-4 w-4 text-green-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-white">{stats.overview.totalProjects}</div>
+                <div className="text-2xl font-bold text-white">
+                  ${stats.overview.monthlyRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
               </CardContent>
             </Card>
 
