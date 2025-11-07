@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut, ExternalLink, CreditCard, AlertTriangle, CheckCircle, XCircle, Trash2 } from "lucide-react";
+import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut, ExternalLink, CreditCard, AlertTriangle, CheckCircle, XCircle, Trash2, Coins } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -167,6 +167,52 @@ export default function ProfilePage() {
       });
     },
   });
+
+  // Buy credits mutation
+  const buyCreditsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/stripe/create-credit-checkout-session", {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Redirect to Stripe checkout
+      if (data.sessionUrl) {
+        window.location.href = data.sessionUrl;
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to initiate credit purchase",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle credit purchase success/cancel from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const creditPurchaseStatus = params.get('credit_purchase');
+    
+    if (creditPurchaseStatus === 'success') {
+      toast({
+        title: "Credits Added!",
+        description: "5,000 credits have been added to your account.",
+      });
+      // Refresh user data to show updated credits
+      refreshUser();
+      // Clean up URL
+      window.history.replaceState({}, '', '/profile');
+    } else if (creditPurchaseStatus === 'cancelled') {
+      toast({
+        title: "Purchase Cancelled",
+        description: "Your credit purchase was cancelled.",
+        variant: "destructive",
+      });
+      // Clean up URL
+      window.history.replaceState({}, '', '/profile');
+    }
+  }, [toast, refreshUser]);
 
   const deleteAccountMutation = useMutation({
     mutationFn: async () => {
@@ -684,6 +730,73 @@ export default function ProfilePage() {
                           </AlertDescription>
                         </Alert>
                       )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Buy Additional Credits - Only for Paid Subscribers */}
+                <Separator />
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Coins className="h-5 w-5" />
+                      Buy Additional Credits
+                    </CardTitle>
+                    <CardDescription>
+                      Purchase credits to create more AI music videos
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {/* Credit Package */}
+                      <div className="border border-primary/20 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-lg p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="text-2xl font-bold">5,000 Credits</h3>
+                            <p className="text-sm text-muted-foreground">One-time purchase</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-3xl font-bold text-primary">$9</p>
+                            <p className="text-xs text-muted-foreground">No subscription</p>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2 text-sm text-muted-foreground mb-4">
+                          <p className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            Create up to 5 songs (500 credits each)
+                          </p>
+                          <p className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            Generate 5 short videos (1,000 credits each)
+                          </p>
+                          <p className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            Or 2-3 long videos (2,000 credits each)
+                          </p>
+                        </div>
+
+                        <Button 
+                          className="w-full" 
+                          size="lg"
+                          onClick={() => buyCreditsMutation.mutate()}
+                          disabled={buyCreditsMutation.isPending}
+                          data-testid="button-buy-credits"
+                        >
+                          {buyCreditsMutation.isPending ? (
+                            "Processing..."
+                          ) : (
+                            <>
+                              <CreditCard className="h-4 w-4 mr-2" />
+                              Purchase 5,000 Credits - $9
+                            </>
+                          )}
+                        </Button>
+                      </div>
+
+                      <p className="text-xs text-center text-muted-foreground">
+                        Credits are added instantly to your account after payment
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
