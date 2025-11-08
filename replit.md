@@ -4,6 +4,14 @@ This is an AI-powered music video maker application that guides users through a 
 
 The workflow consists of six main steps: creating/uploading music, creating/uploading character images, generating scene prompts and images, splitting audio into segments, generating video segments, and merging them into a final music video.
 
+## Credit System
+
+The platform uses a credit-based system for AI generation services. Users on paid plans (Basic, Premium) can purchase additional credits as needed:
+- **One-time Credit Purchase**: $9 for 5,000 credits
+- **Available to**: Paid subscribers only (Basic and Premium plans)
+- **Access Points**: Profile page and Plans page
+- **Features**: Instant delivery via Stripe webhook, secure checkout, automatic credit addition
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.

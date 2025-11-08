@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Loader2, Sparkles, Copy, CheckCircle2 } from "lucide-react";
+import { Check, Loader2, Sparkles, Copy, CheckCircle2, Coins, CreditCard } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Plan } from "@shared/schema";
@@ -9,7 +9,7 @@ import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 
@@ -21,7 +21,7 @@ declare global {
 }
 
 export default function PlansPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -121,6 +121,52 @@ export default function PlansPage() {
       setSelectedPlanId(null);
     }
   });
+
+  // Buy credits mutation
+  const buyCreditsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/stripe/create-credit-checkout-session", {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Redirect to Stripe checkout
+      if (data.sessionUrl) {
+        window.location.href = data.sessionUrl;
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to initiate credit purchase",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle credit purchase success/cancel from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const creditPurchaseStatus = params.get('credit_purchase');
+    
+    if (creditPurchaseStatus === 'success') {
+      toast({
+        title: "Credits Added!",
+        description: "5,000 credits have been added to your account.",
+      });
+      // Refresh user data to show updated credits
+      refreshUser();
+      // Clean up URL
+      window.history.replaceState({}, '', '/plans');
+    } else if (creditPurchaseStatus === 'cancelled') {
+      toast({
+        title: "Purchase Cancelled",
+        description: "Your credit purchase was cancelled.",
+        variant: "destructive",
+      });
+      // Clean up URL
+      window.history.replaceState({}, '', '/plans');
+    }
+  }, [toast, refreshUser]);
 
   const handleSelectPlan = (plan: Plan, billingPeriod: 'monthly' | 'yearly' = 'monthly') => {
     if (!user) {
@@ -387,6 +433,88 @@ export default function PlansPage() {
             </div>
           </div>
         </div>
+
+        {/* Buy Additional Credits - Only for Paid Subscribers */}
+        {user && user.plan && user.plan.name !== "Free" && (
+          <div className="mt-16">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold gradient-text mb-2">Need More Credits?</h2>
+              <p className="text-lg text-muted-foreground">
+                Purchase additional credits anytime to keep creating
+              </p>
+            </div>
+            
+            <div className="max-w-2xl mx-auto">
+              <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-secondary/5 shadow-xl">
+                <CardHeader className="text-center pb-4">
+                  <CardTitle className="flex items-center justify-center gap-2 text-2xl">
+                    <Coins className="h-6 w-6 text-primary" />
+                    Credit Booster Pack
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    One-time purchase for existing subscribers
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="bg-background/50 rounded-lg p-6 border border-primary/10">
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h3 className="text-3xl font-bold">5,000 Credits</h3>
+                        <p className="text-sm text-muted-foreground">Instant delivery</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-4xl font-bold text-primary">$9</p>
+                        <p className="text-xs text-muted-foreground">One-time payment</p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                      <div className="flex flex-col items-center p-3 bg-primary/5 rounded-lg">
+                        <Check className="h-5 w-5 text-green-500 mb-2" />
+                        <p className="text-sm font-medium">5 AI Songs</p>
+                        <p className="text-xs text-muted-foreground">500 credits each</p>
+                      </div>
+                      <div className="flex flex-col items-center p-3 bg-primary/5 rounded-lg">
+                        <Check className="h-5 w-5 text-green-500 mb-2" />
+                        <p className="text-sm font-medium">5 Short Videos</p>
+                        <p className="text-xs text-muted-foreground">1,000 credits each</p>
+                      </div>
+                      <div className="flex flex-col items-center p-3 bg-primary/5 rounded-lg">
+                        <Check className="h-5 w-5 text-green-500 mb-2" />
+                        <p className="text-sm font-medium">2-3 Long Videos</p>
+                        <p className="text-xs text-muted-foreground">2,000 credits each</p>
+                      </div>
+                    </div>
+
+                    <Button 
+                      className="w-full" 
+                      size="lg"
+                      onClick={() => buyCreditsMutation.mutate()}
+                      disabled={buyCreditsMutation.isPending}
+                      data-testid="button-buy-credits-plans"
+                    >
+                      {buyCreditsMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="h-5 w-5 mr-2" />
+                          Buy 5,000 Credits for $9
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  <p className="text-xs text-center text-muted-foreground">
+                    ✨ Credits are added instantly to your account after payment
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
 
         <div className="mt-12 text-center text-sm text-muted-foreground">
           <p>Questions about our plans? <a href="/contact" className="text-primary hover:underline">Contact us</a></p>
