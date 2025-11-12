@@ -429,6 +429,18 @@ export function VideoManagement() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setCurrentPage(1)}
+                disabled={!pagination.hasPrev}
+                className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                data-testid="button-first-page"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+                First
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setCurrentPage(pagination.page - 1)}
                 disabled={!pagination.hasPrev}
                 className="border-gray-600 text-gray-300 hover:bg-gray-800"
@@ -452,6 +464,18 @@ export function VideoManagement() {
               >
                 Next
                 <ChevronRight className="h-4 w-4" />
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(pagination.totalPages)}
+                disabled={!pagination.hasNext}
+                className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                data-testid="button-last-page"
+              >
+                Last
+                <ChevronsRight className="h-4 w-4" />
               </Button>
             </div>
           </div>
