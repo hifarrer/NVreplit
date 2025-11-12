@@ -197,7 +197,8 @@ export function VideoManagement() {
     
     const matchesStatus = statusFilter === "all" || 
       (statusFilter === "completed" && video.currentStep === 7) ||
-      (statusFilter === "in-progress" && video.currentStep < 7);
+      (statusFilter === "in-progress" && video.currentStep < 7) ||
+      (statusFilter === "featured" && video.isFeatured);
     
     return matchesSearch && matchesStatus;
   });
@@ -254,6 +255,7 @@ export function VideoManagement() {
                 <SelectItem value="all">All Videos</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="featured">Featured</SelectItem>
               </SelectContent>
             </Select>
           </div>
