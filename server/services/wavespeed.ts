@@ -89,7 +89,6 @@ export async function generateVideoSegment(
             audio: audioUrl,
             image: imageUrl,
             prompt: prompt,
-            resolution: "480p",
             seed: -1,
           }
         : {
@@ -102,7 +101,7 @@ export async function generateVideoSegment(
 
     const endpoint =
       model === "infinitetalk"
-        ? "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk"
+        ? "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk-fast"
         : "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1-pro-i2v-480p";
 
     console.log(
