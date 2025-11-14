@@ -1,0 +1,113 @@
+currentStep: 1,
+2025-11-14 16:54:04.13
+80c4399a
+User
+userId: '0fae9e14-fed9-44dd-9fe9-0d1b0fa997f2'
+2025-11-14 16:54:04.14
+80c4399a
+User
+Validated data: {
+2025-11-14 16:54:04.14
+80c4399a
+User
+}
+2025-11-14 16:54:04.14
+80c4399a
+User
+title: 'My Music Video',
+2025-11-14 16:54:04.14
+80c4399a
+User
+description: 'AI-generated music video project',
+2025-11-14 16:54:04.14
+80c4399a
+User
+currentStep: 1
+2025-11-14 16:54:04.14
+80c4399a
+User
+userId: '0fae9e14-fed9-44dd-9fe9-0d1b0fa997f2',
+2025-11-14 16:54:04.22
+80c4399a
+User
+10:54:04 PM [express] POST /api/projects 200 in 3000ms :: {"id":"4c05f043-24d0-46bb-95ca-f9669518eae5…
+2025-11-14 16:54:05.20
+80c4399a
+User
+10:54:05 PM [express] GET /api/projects/4c05f043-24d0-46bb-95ca-f9669518eae5 200 in 231ms :: {"id":"4…
+2025-11-14 16:54:05.20
+80c4399a
+User
+10:54:05 PM [express] GET /api/projects/4c05f043-24d0-46bb-95ca-f9669518eae5 200 in 231ms :: {"id":"4…
+2025-11-14 16:54:11.65
+80c4399a
+User
+10:54:11 PM [express] GET /api/trending-videos 304 in 2875ms :: [{"id":"feb49db8-665c-4d7d-ac41-4ef2c…
+2025-11-14 16:56:21.29
+80c4399a
+User
+Webhook error: PostgresError: syntax error at or near "where"
+2025-11-14 16:56:21.29
+80c4399a
+User
+}
+2025-11-14 16:56:21.29
+80c4399a
+User
+at handle (file:///home/runner/workspace/node_modules/postgres/src/connection.js:480:6)
+2025-11-14 16:56:21.29
+80c4399a
+User
+severity_local: 'ERROR',
+2025-11-14 16:56:21.29
+80c4399a
+User
+severity: 'ERROR',
+2025-11-14 16:56:21.29
+80c4399a
+User
+code: '42601',
+2025-11-14 16:56:21.29
+80c4399a
+User
+at ErrorResponse (file:///home/runner/workspace/node_modules/postgres/src/connection.js:794:26)
+2025-11-14 16:56:21.29
+80c4399a
+User
+position: '21',
+2025-11-14 16:56:21.29
+80c4399a
+User
+at TLSSocket.data (file:///home/runner/workspace/node_modules/postgres/src/connection.js:315:9)
+2025-11-14 16:56:21.29
+80c4399a
+User
+at addChunk (node:internal/streams/readable:561:12)
+2025-11-14 16:56:21.29
+80c4399a
+User
+at TLSSocket.emit (node:events:524:28)
+2025-11-14 16:56:21.29
+80c4399a
+User
+at Readable.push (node:internal/streams/readable:392:5)
+2025-11-14 16:56:21.29
+80c4399a
+User
+at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23) {
+2025-11-14 16:56:21.29
+80c4399a
+User
+at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+2025-11-14 16:56:21.29
+80c4399a
+User
+line: '1244',
+2025-11-14 16:56:21.29
+80c4399a
+User
+file: 'scan.l',
+2025-11-14 16:56:21.29
+80c4399a
+User
+routine: 'scanner_yyerror'
