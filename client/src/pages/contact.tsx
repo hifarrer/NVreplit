@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import ReCAPTCHA from "react-google-recaptcha";
 import {
   Card,
   CardContent,
@@ -26,6 +27,8 @@ import logoImage from "@assets/neonlogo_1756693683433.png";
 export default function ContactPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -41,6 +44,10 @@ export default function ContactPage() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleCaptchaChange = (token: string | null) => {
+    setCaptchaToken(token);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,6 +67,15 @@ export default function ContactPage() {
       return;
     }
 
+    if (!captchaToken) {
+      toast({
+        title: "Captcha Required",
+        description: "Please complete the captcha verification.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -68,7 +84,10 @@ export default function ContactPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          captchaToken,
+        }),
       });
 
       if (!response.ok) {
@@ -87,12 +106,24 @@ export default function ContactPage() {
         subject: "",
         message: "",
       });
+      
+      // Reset captcha
+      setCaptchaToken(null);
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset();
+      }
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to send message. Please try again later.",
         variant: "destructive",
       });
+      
+      // Reset captcha on error
+      setCaptchaToken(null);
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset();
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -295,10 +326,19 @@ export default function ContactPage() {
                       />
                     </div>
 
+                    <div className="flex justify-center">
+                      <ReCAPTCHA
+                        ref={recaptchaRef}
+                        sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || ""}
+                        onChange={handleCaptchaChange}
+                        data-testid="contact-recaptcha"
+                      />
+                    </div>
+
                     <Button
                       type="submit"
                       size="lg"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || !captchaToken}
                       className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                       data-testid="contact-submit-button"
                     >

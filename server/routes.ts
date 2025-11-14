@@ -5535,11 +5535,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Contact form submission endpoint
   app.post("/api/contact", async (req, res) => {
     try {
-      const { name, email, subject, message } = req.body;
+      const { name, email, subject, message, captchaToken } = req.body;
       
       // Validate required fields
       if (!name || !email || !subject || !message) {
         return res.status(400).json({ error: "All fields are required" });
+      }
+      
+      // Validate captcha token
+      if (!captchaToken) {
+        return res.status(400).json({ error: "Captcha verification is required" });
+      }
+      
+      // Verify captcha with Google
+      const recaptchaSecret = process.env.RECAPTCHA_SECRET_KEY;
+      if (!recaptchaSecret) {
+        console.error("RECAPTCHA_SECRET_KEY not configured");
+        return res.status(500).json({ error: "Captcha verification service not configured" });
+      }
+      
+      try {
+        const verifyUrl = `https://www.google.com/recaptcha/api/siteverify`;
+        const verifyResponse = await fetch(verifyUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: `secret=${recaptchaSecret}&response=${captchaToken}`,
+        });
+        
+        const verifyData = await verifyResponse.json();
+        
+        if (!verifyData.success) {
+          console.warn("Captcha verification failed:", verifyData['error-codes']);
+          return res.status(400).json({ error: "Captcha verification failed. Please try again." });
+        }
+      } catch (captchaError) {
+        console.error("Error verifying captcha:", captchaError);
+        return res.status(500).json({ error: "Failed to verify captcha" });
       }
       
       // Log the contact form submission
