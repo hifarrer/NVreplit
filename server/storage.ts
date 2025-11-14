@@ -2,7 +2,7 @@ import { type User, type InsertUser, type Project, type InsertProject, type Gene
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { eq, asc, sql, and, inArray } from "drizzle-orm";
+import { eq, asc, sql, and, inArray, ilike } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -1381,7 +1381,7 @@ export class DbStorage implements IStorage {
   async getFreePlan(): Promise<Plan | undefined> {
     const result = await this.db.select()
       .from(plans)
-      .where(sql`LOWER(${plans.name}) = 'free' AND ${plans.isActive} = true`)
+      .where(and(ilike(plans.name, 'free'), eq(plans.isActive, true)))
       .limit(1);
     return result[0];
   }
