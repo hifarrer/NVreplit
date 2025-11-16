@@ -329,22 +329,40 @@ export class ObjectStorageService {
 
   async getSignedUrlForPath(objectPath: string, ttlSec: number = 3600): Promise<string> {
     // Convert internal path like "/objects/videos/pip_segment_1.mp4" to signed URL
+    console.log(`[ObjectStorage] getSignedUrlForPath called with: ${objectPath}`);
+    
     if (!objectPath.startsWith("/objects/")) {
-      throw new Error("Invalid object path for signed URL generation");
+      const error = `Invalid object path for signed URL generation: ${objectPath} (must start with /objects/)`;
+      console.error(`[ObjectStorage] ${error}`);
+      throw new Error(error);
     }
     
-    // Extract the file path after /objects/
-    const filePath = objectPath.substring("/objects/".length);
-    const fullObjectPath = `${this.getPrivateObjectDir()}/${filePath}`;
-    
-    const { bucketName, objectName } = this.parseObjectPath(fullObjectPath);
-    
-    return this.signObjectURL({
-      bucketName,
-      objectName,
-      method: "GET",
-      ttlSec
-    });
+    try {
+      // Extract the file path after /objects/
+      const filePath = objectPath.substring("/objects/".length);
+      const privateDir = this.getPrivateObjectDir();
+      const fullObjectPath = `${privateDir}/${filePath}`;
+      
+      console.log(`[ObjectStorage] Private dir: ${privateDir}`);
+      console.log(`[ObjectStorage] Full object path: ${fullObjectPath}`);
+      
+      const { bucketName, objectName } = this.parseObjectPath(fullObjectPath);
+      
+      console.log(`[ObjectStorage] Bucket: ${bucketName}, Object: ${objectName}`);
+      
+      const signedUrl = await this.signObjectURL({
+        bucketName,
+        objectName,
+        method: "GET",
+        ttlSec
+      });
+      
+      console.log(`[ObjectStorage] Successfully generated signed URL (${signedUrl.substring(0, 100)}...)`);
+      return signedUrl;
+    } catch (error) {
+      console.error(`[ObjectStorage] Failed to generate signed URL for ${objectPath}:`, error);
+      throw error;
+    }
   }
 
   async getSignedUrlForPublicObject(publicObjectPath: string, ttlSec: number = 3600): Promise<string> {

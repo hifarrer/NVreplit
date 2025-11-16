@@ -3,6 +3,65 @@ const FAL_KEY =
   "b479bcce-ae9a-439a-a9d6-3bf0ab5cf8f0:d9afcc34d42d7e0f0dc04607a81c60a0";
 const KIE_API_TOKEN = "f27547e627af203de39b3345de70c32b";
 
+/**
+ * Helper function to ensure character image URLs are always converted to signed URLs
+ * before being sent to external APIs like Wavespeed.
+ * 
+ * This function:
+ * 1. Detects if the URL is an internal object storage path
+ * 2. Converts it to a Google Cloud Storage signed URL
+ * 3. Validates that the result is a proper HTTP/HTTPS URL
+ * 4. Throws detailed errors if conversion fails
+ * 
+ * @param characterImageUrl - The character image URL (may be relative path or full URL)
+ * @param ttlSec - Time-to-live for the signed URL in seconds (default: 86400 = 24 hours)
+ * @returns A validated HTTP/HTTPS URL ready to be used with external APIs
+ */
+async function ensurePublicImageUrl(characterImageUrl: string, ttlSec: number = 86400): Promise<string> {
+  console.log(`[ensurePublicImageUrl] Input URL: ${characterImageUrl}`);
+  
+  // If it's already a full HTTP/HTTPS URL, validate and return it
+  if (characterImageUrl.startsWith("http://") || characterImageUrl.startsWith("https://")) {
+    console.log(`[ensurePublicImageUrl] Already a public URL, returning as-is`);
+    return characterImageUrl;
+  }
+  
+  // If it's an internal path, convert it to a signed URL
+  if (characterImageUrl.startsWith("/objects/") || characterImageUrl.startsWith("/")) {
+    console.log(`[ensurePublicImageUrl] Detected internal path, converting to signed URL...`);
+    
+    try {
+      const { ObjectStorageService } = await import("../objectStorage");
+      const objectStorageService = new ObjectStorageService();
+      const signedUrl = await objectStorageService.getSignedUrlForPath(
+        characterImageUrl,
+        ttlSec,
+      );
+      
+      console.log(`[ensurePublicImageUrl] Successfully converted to signed URL`);
+      
+      // Final validation
+      if (!signedUrl.startsWith("http://") && !signedUrl.startsWith("https://")) {
+        throw new Error(
+          `Signed URL generation returned invalid URL format: ${signedUrl}`
+        );
+      }
+      
+      return signedUrl;
+    } catch (error) {
+      console.error(`[ensurePublicImageUrl] Conversion failed:`, error);
+      throw new Error(
+        `Failed to convert internal path to signed URL: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+  
+  // If we get here, the URL format is unrecognized
+  const errorMsg = `Invalid image URL format: ${characterImageUrl}. Expected HTTP/HTTPS URL or internal path starting with /objects/`;
+  console.error(`[ensurePublicImageUrl] ${errorMsg}`);
+  throw new Error(errorMsg);
+}
+
 // New Wavespeed.ai character generation function
 export async function generateCharacterImageWavespeed(
   prompt: string,
@@ -305,22 +364,11 @@ export async function generateSingleSceneImage(
   }
 
   console.log(`Starting single scene generation with prompt: ${prompt}`);
-  console.log(`Using character image: ${characterImageUrl}`);
+  console.log(`Input character image URL: ${characterImageUrl}`);
 
-  // Convert internal object storage URL to publicly accessible signed URL
-  let publicCharacterImageUrl = characterImageUrl;
-  if (characterImageUrl.startsWith("/objects/")) {
-    console.log(
-      "Converting internal object URL to signed URL for single scene...",
-    );
-    const { ObjectStorageService } = await import("../objectStorage");
-    const objectStorageService = new ObjectStorageService();
-    publicCharacterImageUrl = await objectStorageService.getSignedUrlForPath(
-      characterImageUrl,
-      86400,
-    ); // 24 hour TTL
-    console.log(`Converted to signed URL: ${publicCharacterImageUrl}`);
-  }
+  // Ensure we have a valid public HTTP/HTTPS URL for Wavespeed API
+  const publicCharacterImageUrl = await ensurePublicImageUrl(characterImageUrl, 86400);
+  console.log(`✓ Using validated character image URL for Wavespeed API`);
 
   try {
     const requestBody = {
@@ -443,20 +491,11 @@ export async function generateSceneImages(
   console.log(
     `Starting parallel scene generation for ${prompts.length} scenes`,
   );
-  console.log(`Using character image: ${characterImageUrl}`);
+  console.log(`Input character image URL: ${characterImageUrl}`);
 
-  // Convert internal object storage URL to publicly accessible signed URL
-  let publicCharacterImageUrl = characterImageUrl;
-  if (characterImageUrl.startsWith("/objects/")) {
-    console.log("Converting internal object URL to signed URL...");
-    const { ObjectStorageService } = await import("../objectStorage");
-    const objectStorageService = new ObjectStorageService();
-    publicCharacterImageUrl = await objectStorageService.getSignedUrlForPath(
-      characterImageUrl,
-      86400,
-    ); // 24 hour TTL
-    console.log(`Converted to signed URL: ${publicCharacterImageUrl}`);
-  }
+  // Ensure we have a valid public HTTP/HTTPS URL for Wavespeed API
+  const publicCharacterImageUrl = await ensurePublicImageUrl(characterImageUrl, 86400);
+  console.log(`✓ Using validated character image URL for ${prompts.length} scenes`);
 
   try {
     // Submit all scene generation requests in parallel
