@@ -26,7 +26,15 @@ Some video scenes were failing to generate with the Wavespeed API because they w
 ```
 
 ## Root Cause
-While the code had logic to convert internal paths to signed URLs, it lacked:
+**The primary bug was in the retry/fallback logic for sensitive content.**
+
+When a scene failed with "Content flagged as potentially sensitive" error:
+1. The system would retry with a safer, generic prompt ✅
+2. **BUT** the retry request used `characterImageUrl` (original input) instead of `publicCharacterImageUrl` (validated signed URL) ❌
+3. This meant retry requests were sending relative paths like `/objects/characters/...` to Wavespeed
+4. Wavespeed API would fail because it couldn't access the relative path
+
+Additionally, the code lacked:
 1. **Robust error handling** - Conversion failures were silently ignored
 2. **Validation** - No checks to ensure the final URL was valid before sending to Wavespeed
 3. **Comprehensive logging** - Difficult to debug when conversions failed
@@ -132,10 +140,25 @@ You'll now see detailed logs like:
    - Added `ensurePublicImageUrl()` helper function
    - Updated `generateSingleSceneImage()`
    - Updated `generateSceneImages()`
+   - **CRITICAL FIX**: Updated retry logic (line 703) to use `publicCharacterImageUrl` instead of `characterImageUrl`
 
 2. `server/objectStorage.ts`
    - Enhanced `getSignedUrlForPath()` with comprehensive logging
    - Added detailed error messages
+
+## The Critical Fix
+
+**Line 703 in server/services/fal.ts:**
+
+```typescript
+// BEFORE (BUG):
+images: [characterImageUrl],  // ❌ Uses original input, could be /objects/...
+
+// AFTER (FIXED):
+images: [publicCharacterImageUrl],  // ✅ Uses validated signed URL
+```
+
+This one-line change ensures that retry requests for sensitive content also use properly signed URLs.
 
 ## Testing Recommendations
 

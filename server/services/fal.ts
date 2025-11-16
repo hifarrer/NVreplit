@@ -693,15 +693,19 @@ export async function generateSceneImages(
         }
 
         try {
-          // Submit retry request
+          // Submit retry request with the VALIDATED signed URL
           const retryRequestBody = {
             enable_base64_output: false,
             enable_sync_mode: false,
-            images: [characterImageUrl],
+            images: [publicCharacterImageUrl],  // ✓ FIX: Use the validated signed URL, not the original input!
             output_format: "jpeg",
             prompt: fallbackPrompt,
             aspect_ratio: "16:9",
           };
+
+          console.log(
+            `Retry request for scene ${failedIndex + 1} using validated signed URL`,
+          );
 
           const retryResponse = await fetch(
             "https://api.wavespeed.ai/api/v3/google/nano-banana/edit",
