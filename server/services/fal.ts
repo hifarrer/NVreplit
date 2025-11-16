@@ -62,6 +62,199 @@ async function ensurePublicImageUrl(characterImageUrl: string, ttlSec: number = 
   throw new Error(errorMsg);
 }
 
+/**
+ * Model configurations for scene generation
+ */
+type WavespeedModel = {
+  name: string;
+  endpoint: string;
+  buildRequestBody: (imageUrl: string, prompt: string) => any;
+};
+
+const WAVESPEED_MODELS: { primary: WavespeedModel; fallback: WavespeedModel } = {
+  primary: {
+    name: "google/nano-banana/edit",
+    endpoint: "https://api.wavespeed.ai/api/v3/google/nano-banana/edit",
+    buildRequestBody: (imageUrl: string, prompt: string) => ({
+      enable_base64_output: false,
+      enable_sync_mode: false,
+      images: [imageUrl],
+      output_format: "jpeg",
+      prompt: prompt,
+      aspect_ratio: "16:9",
+    }),
+  },
+  fallback: {
+    name: "alibaba/wan-2.5/image-edit",
+    endpoint: "https://api.wavespeed.ai/api/v3/alibaba/wan-2.5/image-edit",
+    buildRequestBody: (imageUrl: string, prompt: string) => ({
+      images: [imageUrl],
+      prompt: prompt,
+      seed: -1,
+    }),
+  },
+};
+
+/**
+ * Helper function to submit and poll a scene generation request to Wavespeed
+ * Supports both primary and fallback models
+ */
+async function submitAndPollSceneGeneration(
+  model: WavespeedModel,
+  imageUrl: string,
+  prompt: string,
+  sceneLabel: string = "scene",
+): Promise<string> {
+  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
+
+  const requestBody = model.buildRequestBody(imageUrl, prompt);
+
+  console.log(
+    `[${model.name}] Submitting ${sceneLabel} generation with prompt: "${prompt.substring(0, 50)}..."`,
+  );
+  console.log(
+    `[${model.name}] Request body:`,
+    JSON.stringify(requestBody, null, 2),
+  );
+
+  // Submit generation request
+  const response = await fetch(model.endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[${model.name}] ${sceneLabel} submission failed:`, errorText);
+    throw new Error(
+      `${model.name} submission failed: ${response.status} - ${errorText}`,
+    );
+  }
+
+  const result = await response.json();
+  console.log(
+    `[${model.name}] ${sceneLabel} submission result:`,
+    JSON.stringify(result, null, 2),
+  );
+
+  const requestId = result.data?.id;
+  if (!requestId) {
+    throw new Error(`No request ID received from ${model.name} for ${sceneLabel}`);
+  }
+
+  console.log(`[${model.name}] Got ${sceneLabel} request ID: ${requestId}`);
+
+  // Poll for results
+  let attempts = 0;
+  const maxAttempts = 180; // 15 minutes with 3-second intervals
+
+  while (attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, 3000)); // Wait 3 seconds
+
+    const statusResponse = await fetch(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      {
+        headers: {
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+      },
+    );
+
+    if (!statusResponse.ok) {
+      const errorText = await statusResponse.text();
+      console.error(`[${model.name}] ${sceneLabel} status check failed:`, errorText);
+      throw new Error(
+        `Status check failed for ${sceneLabel}: ${statusResponse.status} - ${errorText}`,
+      );
+    }
+
+    const statusResult = await statusResponse.json();
+
+    if (statusResult.data?.status === "completed") {
+      console.log(`[${model.name}] ${sceneLabel} generation completed!`);
+
+      if (statusResult.data.outputs && statusResult.data.outputs.length > 0) {
+        const imageUrl = statusResult.data.outputs[0];
+        console.log(`[${model.name}] Found ${sceneLabel} image URL: ${imageUrl}`);
+        return imageUrl;
+      } else {
+        console.error(
+          `[${model.name}] No outputs found in ${sceneLabel} results:`,
+          statusResult,
+        );
+        throw new Error(`No outputs in ${sceneLabel} results from ${model.name}`);
+      }
+    } else if (statusResult.data?.status === "failed") {
+      const errorMsg = statusResult.data?.error || "Unknown error";
+      console.error(`[${model.name}] ${sceneLabel} generation failed:`, statusResult);
+      throw new Error(`${sceneLabel} generation failed with ${model.name}: ${errorMsg}`);
+    }
+
+    attempts++;
+  }
+
+  throw new Error(
+    `${sceneLabel} generation with ${model.name} timed out after ${maxAttempts} attempts`,
+  );
+}
+
+/**
+ * Generate a single scene image with automatic fallback to alibaba model if google model fails
+ */
+async function generateSceneWithFallback(
+  imageUrl: string,
+  prompt: string,
+  sceneLabel: string = "scene",
+): Promise<{ imageUrl: string; modelUsed: string }> {
+  // Try primary model first
+  try {
+    const resultUrl = await submitAndPollSceneGeneration(
+      WAVESPEED_MODELS.primary,
+      imageUrl,
+      prompt,
+      sceneLabel,
+    );
+    return { imageUrl: resultUrl, modelUsed: WAVESPEED_MODELS.primary.name };
+  } catch (primaryError) {
+    console.warn(
+      `[Fallback] Primary model ${WAVESPEED_MODELS.primary.name} failed for ${sceneLabel}:`,
+      primaryError instanceof Error ? primaryError.message : primaryError,
+    );
+    console.log(
+      `[Fallback] Attempting fallback to ${WAVESPEED_MODELS.fallback.name}...`,
+    );
+
+    // Try fallback model
+    try {
+      const resultUrl = await submitAndPollSceneGeneration(
+        WAVESPEED_MODELS.fallback,
+        imageUrl,
+        prompt,
+        sceneLabel,
+      );
+      console.log(
+        `[Fallback] Successfully generated ${sceneLabel} using fallback model ${WAVESPEED_MODELS.fallback.name}`,
+      );
+      return { imageUrl: resultUrl, modelUsed: WAVESPEED_MODELS.fallback.name };
+    } catch (fallbackError) {
+      // Both models failed
+      const errorMsg =
+        `Both models failed for ${sceneLabel}.\n` +
+        `Primary (${WAVESPEED_MODELS.primary.name}): ${primaryError instanceof Error ? primaryError.message : primaryError}\n` +
+        `Fallback (${WAVESPEED_MODELS.fallback.name}): ${fallbackError instanceof Error ? fallbackError.message : fallbackError}`;
+      console.error(`[Fallback] ${errorMsg}`);
+      throw new Error(errorMsg);
+    }
+  }
+}
+
 // New Wavespeed.ai character generation function
 export async function generateCharacterImageWavespeed(
   prompt: string,
@@ -358,11 +551,6 @@ export async function generateSingleSceneImage(
   prompt: string,
   characterImageUrl: string,
 ): Promise<string> {
-  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
-  if (!WAVESPEED_API_KEY) {
-    throw new Error("WAVESPEED_API_KEY environment variable is required");
-  }
-
   console.log(`Starting single scene generation with prompt: ${prompt}`);
   console.log(`Input character image URL: ${characterImageUrl}`);
 
@@ -370,124 +558,21 @@ export async function generateSingleSceneImage(
   const publicCharacterImageUrl = await ensurePublicImageUrl(characterImageUrl, 86400);
   console.log(`✓ Using validated character image URL for Wavespeed API`);
 
-  try {
-    const requestBody = {
-      enable_base64_output: false,
-      enable_sync_mode: false,
-      images: [publicCharacterImageUrl],
-      output_format: "jpeg",
-      prompt: prompt,
-      aspect_ratio: "16:9",
-    };
+  // Use the fallback system (tries google/nano-banana/edit first, falls back to alibaba/wan-2.5/image-edit if it fails)
+  const result = await generateSceneWithFallback(
+    publicCharacterImageUrl,
+    prompt,
+    "single scene",
+  );
 
-    console.log(
-      `Single scene request body:`,
-      JSON.stringify(requestBody, null, 2),
-    );
-
-    const response = await fetch(
-      "https://api.wavespeed.ai/api/v3/google/nano-banana/edit",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      },
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Single scene submission failed:`, errorText);
-      throw new Error(
-        `Scene submission failed: ${response.status} - ${errorText}`,
-      );
-    }
-
-    const result = await response.json();
-    console.log(
-      `Single scene submission result:`,
-      JSON.stringify(result, null, 2),
-    );
-
-    const requestId = result.data?.id;
-    if (!requestId) {
-      throw new Error(`No request ID received for single scene`);
-    }
-
-    console.log(`Got single scene request ID: ${requestId}`);
-
-    // Poll for result
-    let attempts = 0;
-    const maxAttempts = 180; // 15 minutes with 3-second intervals
-
-    while (attempts < maxAttempts) {
-      await new Promise((resolve) => setTimeout(resolve, 3000)); // Wait 3 seconds
-
-      const statusResponse = await fetch(
-        `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
-        {
-          headers: {
-            Authorization: `Bearer ${WAVESPEED_API_KEY}`,
-          },
-        },
-      );
-
-      if (!statusResponse.ok) {
-        const errorText = await statusResponse.text();
-        console.error(`Single scene status check failed:`, errorText);
-        throw new Error(
-          `Status check failed for single scene: ${statusResponse.status} - ${errorText}`,
-        );
-      }
-
-      const statusResult = await statusResponse.json();
-
-      if (statusResult.data?.status === "completed") {
-        console.log(`Single scene generation completed!`);
-
-        if (statusResult.data.outputs && statusResult.data.outputs.length > 0) {
-          const imageUrl = statusResult.data.outputs[0];
-          console.log(`Found single scene image URL: ${imageUrl}`);
-          return imageUrl;
-        } else {
-          console.error(
-            `No outputs found in single scene results:`,
-            statusResult,
-          );
-          throw new Error(`No outputs in single scene results`);
-        }
-      } else if (statusResult.data?.status === "failed") {
-        console.error(`Single scene generation failed:`, statusResult);
-        throw new Error(
-          `Single scene generation failed: ${statusResult.data?.error || "Unknown error"}`,
-        );
-      }
-
-      attempts++;
-    }
-
-    throw new Error(
-      `Single scene generation timed out after ${maxAttempts} attempts`,
-    );
-  } catch (error) {
-    console.error("Single scene generation error:", error);
-    throw new Error(
-      `Failed to generate single scene image: ${error instanceof Error ? error.message : "Unknown error"}`,
-    );
-  }
+  console.log(`Single scene generated successfully using model: ${result.modelUsed}`);
+  return result.imageUrl;
 }
 
 export async function generateSceneImages(
   prompts: string[],
   characterImageUrl: string,
 ): Promise<string[]> {
-  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
-  if (!WAVESPEED_API_KEY) {
-    throw new Error("WAVESPEED_API_KEY environment variable is required");
-  }
-
   console.log(
     `Starting parallel scene generation for ${prompts.length} scenes`,
   );
@@ -497,327 +582,58 @@ export async function generateSceneImages(
   const publicCharacterImageUrl = await ensurePublicImageUrl(characterImageUrl, 86400);
   console.log(`✓ Using validated character image URL for ${prompts.length} scenes`);
 
-  try {
-    // Submit all scene generation requests in parallel
-    const submissionPromises = prompts.map(async (prompt, index) => {
-      console.log(`Submitting scene ${index + 1}: ${prompt}`);
+  // Generate all scenes in parallel using the fallback system
+  // Each scene will automatically try google/nano-banana/edit first, then alibaba/wan-2.5/image-edit if it fails
+  const sceneGenerationPromises = prompts.map((prompt, index) =>
+    generateSceneWithFallback(
+      publicCharacterImageUrl,
+      prompt,
+      `scene ${index + 1}`,
+    ),
+  );
 
-      const requestBody = {
-        enable_base64_output: false,
-        enable_sync_mode: false,
-        images: [publicCharacterImageUrl],
-        output_format: "jpeg",
-        prompt: prompt,
-        aspect_ratio: "16:9",
-      };
+  console.log(
+    `Submitting ${prompts.length} scene generation requests in parallel with automatic fallback...`,
+  );
 
+  // Wait for all scenes to complete (with automatic retries/fallback built-in)
+  const results = await Promise.allSettled(sceneGenerationPromises);
+
+  // Process results
+  const successfulScenes: string[] = [];
+  const failedScenes: { index: number; reason: string }[] = [];
+
+  results.forEach((result, index) => {
+    if (result.status === "fulfilled") {
+      successfulScenes.push(result.value.imageUrl);
       console.log(
-        `Scene ${index + 1} request body:`,
-        JSON.stringify(requestBody, null, 2),
+        `✓ Scene ${index + 1} generated successfully using ${result.value.modelUsed}`,
       );
-
-      const response = await fetch(
-        "https://api.wavespeed.ai/api/v3/google/nano-banana/edit",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${WAVESPEED_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        },
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Scene ${index + 1} submission failed:`, errorText);
-        throw new Error(
-          `Scene submission failed: ${response.status} - ${errorText}`,
-        );
-      }
-
-      const result = await response.json();
-      console.log(
-        `Scene ${index + 1} submission result:`,
-        JSON.stringify(result, null, 2),
-      );
-
-      const requestId = result.data?.id;
-      if (!requestId) {
-        throw new Error(`No request ID received for scene ${index + 1}`);
-      }
-
-      console.log(`Got scene ${index + 1} request ID: ${requestId}`);
-      return { requestId, index, prompt };
-    });
-
-    // Wait for all submissions to complete
-    const submissions = await Promise.all(submissionPromises);
-    console.log(
-      "All scene submissions completed, starting parallel polling...",
-    );
-
-    // Poll for results in parallel
-    const resultPromises = submissions.map(
-      async ({ requestId, index, prompt }) => {
-        let attempts = 0;
-        const maxAttempts = 180; // 15 minutes with 3-second intervals
-
-        while (attempts < maxAttempts) {
-          await new Promise((resolve) => setTimeout(resolve, 3000)); // Wait 3 seconds
-
-          const statusResponse = await fetch(
-            `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
-            {
-              headers: {
-                Authorization: `Bearer ${WAVESPEED_API_KEY}`,
-              },
-            },
-          );
-
-          if (!statusResponse.ok) {
-            const errorText = await statusResponse.text();
-            console.error(`Scene ${index + 1} status check failed:`, errorText);
-            throw new Error(
-              `Status check failed for scene ${index + 1}: ${statusResponse.status} - ${errorText}`,
-            );
-          }
-
-          const statusResult = await statusResponse.json();
-
-          if (statusResult.data?.status === "completed") {
-            console.log(`Scene ${index + 1} generation completed!`);
-
-            if (
-              statusResult.data.outputs &&
-              statusResult.data.outputs.length > 0
-            ) {
-              const imageUrl = statusResult.data.outputs[0];
-              console.log(`Found scene ${index + 1} image URL: ${imageUrl}`);
-              return { index, imageUrl };
-            } else {
-              console.error(
-                `No outputs found in scene ${index + 1} results:`,
-                statusResult,
-              );
-              throw new Error(`No outputs in scene ${index + 1} results`);
-            }
-          } else if (statusResult.data?.status === "failed") {
-            console.error(
-              `Scene ${index + 1} generation failed:`,
-              statusResult,
-            );
-            throw new Error(
-              `Scene ${index + 1} generation failed: ${statusResult.data?.error || "Unknown error"}`,
-            );
-          }
-
-          attempts++;
-        }
-
-        throw new Error(
-          `Scene ${index + 1} generation timed out after ${maxAttempts} attempts`,
-        );
-      },
-    );
-
-    // Wait for all results and sort by original index
-    let results: { index: number; imageUrl: string }[] = [];
-    let failedIndices: number[] = [];
-    let failureReasons: Map<number, string> = new Map();
-
-    try {
-      results = await Promise.all(resultPromises);
-      results.sort((a, b) => a.index - b.index);
-    } catch (error) {
-      // If any scene failed, we need to handle it gracefully
-      console.log("Some scenes failed, implementing retry logic...");
-
-      // Process each promise individually to identify failures
-      const individualResults = await Promise.allSettled(resultPromises);
-
-      for (let i = 0; i < individualResults.length; i++) {
-        const result = individualResults[i];
-        if (result.status === "fulfilled") {
-          results.push(result.value);
-        } else {
-          failedIndices.push(i);
-          const errorMessage = result.reason.message || "Unknown error";
-          failureReasons.set(i, errorMessage);
-          console.log(`Scene ${i + 1} failed:`, errorMessage);
-        }
-      }
-
-      results.sort((a, b) => a.index - b.index);
+    } else {
+      failedScenes.push({
+        index: index + 1,
+        reason: result.reason instanceof Error ? result.reason.message : String(result.reason),
+      });
+      console.error(`✗ Scene ${index + 1} failed:`, result.reason);
     }
+  });
 
-    // Retry failed scenes using successful prompts
-    if (failedIndices.length > 0 && results.length > 0) {
-      console.log(
-        `Retrying ${failedIndices.length} failed scenes using successful prompts...`,
-      );
+  // If any scenes failed, throw an error with details
+  if (failedScenes.length > 0) {
+    const failedIndices = failedScenes.map((f) => f.index).join(", ");
+    const failureDetails = failedScenes
+      .map((f) => `Scene ${f.index}: ${f.reason}`)
+      .join("\n");
 
-      for (const failedIndex of failedIndices) {
-        const failureReason = failureReasons.get(failedIndex) || "";
-        const isSensitiveContent = failureReason.toLowerCase().includes("sensitive") || 
-                                    failureReason.toLowerCase().includes("flagged");
-        
-        let fallbackPrompt: string;
-        
-        if (isSensitiveContent) {
-          // For sensitive content errors, use a very safe, generic prompt
-          fallbackPrompt = "Character in a simple, clean environment. Neutral expression. Camera steady.";
-          console.log(
-            `Scene ${failedIndex + 1} was flagged for sensitive content. Retrying with safe, generic prompt: ${fallbackPrompt}`,
-          );
-        } else {
-          // For other errors, choose a fallback prompt based on the failed index
-          let fallbackPromptIndex: number;
-          if (failedIndex === 0 && results.find((r) => r.index === 1)) {
-            fallbackPromptIndex = 1;
-          } else if (failedIndex === 1 && results.find((r) => r.index === 0)) {
-            fallbackPromptIndex = 0;
-          } else if (failedIndex === 2 && results.find((r) => r.index === 1)) {
-            fallbackPromptIndex = 1;
-          } else if (failedIndex === 3 && results.find((r) => r.index === 2)) {
-            fallbackPromptIndex = 2;
-          } else {
-            // Use the first successful result's index
-            fallbackPromptIndex = results[0].index;
-          }
-
-          fallbackPrompt = prompts[fallbackPromptIndex];
-          console.log(
-            `Retrying scene ${failedIndex + 1} with fallback prompt from scene ${fallbackPromptIndex + 1}: ${fallbackPrompt}`,
-          );
-        }
-
-        try {
-          // Submit retry request with the VALIDATED signed URL
-          const retryRequestBody = {
-            enable_base64_output: false,
-            enable_sync_mode: false,
-            images: [publicCharacterImageUrl],  // ✓ FIX: Use the validated signed URL, not the original input!
-            output_format: "jpeg",
-            prompt: fallbackPrompt,
-            aspect_ratio: "16:9",
-          };
-
-          console.log(
-            `Retry request for scene ${failedIndex + 1} using validated signed URL`,
-          );
-
-          const retryResponse = await fetch(
-            "https://api.wavespeed.ai/api/v3/google/nano-banana/edit",
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${WAVESPEED_API_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(retryRequestBody),
-            },
-          );
-
-          if (retryResponse.ok) {
-            const retrySubmission = await retryResponse.json();
-            const retryRequestId = retrySubmission.data.id;
-            console.log(
-              `Retry for scene ${failedIndex + 1} submitted with ID: ${retryRequestId}`,
-            );
-
-            // Poll for retry result using the same logic
-            const maxAttempts = 20;
-            let attempts = 0;
-
-            while (attempts < maxAttempts) {
-              await new Promise((resolve) => setTimeout(resolve, 3000));
-
-              const statusResponse = await fetch(
-                `https://api.wavespeed.ai/api/v3/predictions/${retryRequestId}/result`,
-                {
-                  headers: {
-                    Authorization: `Bearer ${WAVESPEED_API_KEY}`,
-                  },
-                },
-              );
-
-              if (statusResponse.ok) {
-                const statusResult = await statusResponse.json();
-
-                if (statusResult.data?.status === "completed") {
-                  if (
-                    statusResult.data.outputs &&
-                    statusResult.data.outputs.length > 0
-                  ) {
-                    const retryImageUrl = statusResult.data.outputs[0];
-                    console.log(
-                      `Retry for scene ${failedIndex + 1} succeeded: ${retryImageUrl}`,
-                    );
-                    results.push({
-                      index: failedIndex,
-                      imageUrl: retryImageUrl,
-                    });
-                    break;
-                  }
-                } else if (statusResult.data?.status === "failed") {
-                  console.log(
-                    `Retry for scene ${failedIndex + 1} also failed:`,
-                    statusResult.data,
-                  );
-                  break;
-                }
-              }
-
-              attempts++;
-            }
-          }
-        } catch (retryError) {
-          console.error(
-            `Retry failed for scene ${failedIndex + 1}:`,
-            retryError,
-          );
-        }
-      }
-
-      results.sort((a, b) => a.index - b.index);
-    }
-
-    // Check if we have all expected images based on the number of prompts
-    const expectedScenes = prompts.length;
-    if (results.length < expectedScenes) {
-      const missingIndices = [];
-      const sensitiveContentFailures = [];
-      
-      for (let i = 0; i < expectedScenes; i++) {
-        if (!results.find((r) => r.index === i)) {
-          missingIndices.push(i + 1);
-          const reason = failureReasons.get(i) || "";
-          if (reason.toLowerCase().includes("sensitive") || reason.toLowerCase().includes("flagged")) {
-            sensitiveContentFailures.push(i + 1);
-          }
-        }
-      }
-      
-      let errorMessage = `Failed to generate ${missingIndices.length} scene images after retries. Missing scenes: ${missingIndices.join(", ")}`;
-      
-      if (sensitiveContentFailures.length > 0) {
-        errorMessage += `. Scene(s) ${sensitiveContentFailures.join(", ")} were flagged for sensitive content. This is usually due to the character image. Try using a different character image or simpler scene descriptions.`;
-      }
-      
-      throw new Error(errorMessage);
-    }
-
-    const imageUrls = results.map((result) => result.imageUrl);
-    console.log(
-      "All scene images generated successfully (including retries):",
-      imageUrls,
-    );
-    return imageUrls;
-  } catch (error) {
-    console.error("Scene generation error:", error);
     throw new Error(
-      `Failed to generate scene images: ${error instanceof Error ? error.message : "Unknown error"}`,
+      `Failed to generate ${failedScenes.length} scene(s) after trying both models.\n` +
+        `Failed scenes: ${failedIndices}\n\n` +
+        `Details:\n${failureDetails}`,
     );
   }
+
+  console.log(
+    `✓ All ${prompts.length} scenes generated successfully (with automatic fallback support)`,
+  );
+  return successfulScenes;
 }

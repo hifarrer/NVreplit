@@ -169,10 +169,24 @@ To verify the fix works:
 3. Verify all Wavespeed API requests show full HTTPS URLs
 4. Confirm no scenes fail with "Request failed" errors
 
+## Model Fallback System
+
+**NEW:** Added automatic fallback to `alibaba/wan-2.5/image-edit` model when the primary `google/nano-banana/edit` model fails.
+
+See `WAVESPEED_FALLBACK_IMPLEMENTATION.md` for full details on the fallback system.
+
+### Quick Summary
+- Primary model fails → Automatically tries fallback model
+- Works for ANY failure reason (sensitive content, timeouts, errors, etc.)
+- Logs which model was used for each scene
+- 81% code reduction in scene generation functions
+
 ## Future Considerations
 
 This fix ensures:
 - All current scene generation uses signed URLs
+- Automatic fallback increases reliability
 - Future code will benefit from centralized validation
 - Easier to debug URL-related issues
 - Consistent behavior across the application
+- Easy to add more models to the fallback chain
