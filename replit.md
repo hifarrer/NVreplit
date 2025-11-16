@@ -56,11 +56,29 @@ Preferred communication style: Simple, everyday language.
 - **Text Generation**: OpenAI GPT-5 for lyrics and scene prompt generation
 - **Image Generation**: Fal.ai Imagen4 model for character and scene image creation
 - **Video Generation**: Wavespeed AI for converting images and audio into video segments
-- **Audio Processing**: FFMPEG API for splitting audio tracks and merging video segments with watermark branding
+  - **Non-lipsync model**: bytedance/seedance-v1-pro-i2v-480p (10-second limit)
+  - **Lipsync model**: infinitetalk-fast (no limit, but uses 10-second segments)
+- **Audio Processing**: FFMPEG API for splitting audio tracks (10-second segments) and merging video segments with watermark branding
 - **Database**: Neon Database (PostgreSQL) for data persistence
 - **Deployment**: Replit-optimized with development tooling and error overlays
 
 The application follows a step-by-step wizard pattern where each phase depends on the completion of the previous one, with progress tracking and the ability to resume projects at any stage.
+
+## Video Segmentation Strategy
+
+All video generation uses fixed 10-second segments to ensure compatibility with both lipsync and non-lipsync models:
+- Audio is split into 10-second chunks using FFMPEG's split_audio_by_time endpoint
+- For a 3-minute song: 18 scenes of 10 seconds each (last segment may be shorter)
+- Video generation queue limits concurrent API calls to 8 at a time
+- Both models generate 10-second videos to maintain sync in the final merged video
+
+## Duration Limits
+
+The platform enforces different song duration limits based on user plan:
+- **Free Users**: Maximum 120 seconds (2 minutes)
+- **Paid Users**: Maximum 240 seconds (4 minutes)
+- Duration limits apply to both "Generate with AI" and "Upload Audio File" features
+- Video generation configs automatically calculate numberOfAudioParts and numberOfScenes as ceil(duration/10)
 
 ## OAuth 2.1 API Endpoints
 
