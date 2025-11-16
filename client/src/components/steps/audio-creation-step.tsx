@@ -41,16 +41,31 @@ interface GeneratedSong {
 
 const suggestedTags = ["pop", "electronic", "rock", "upbeat", "hip-hop", "country", "reggae", "synthwave", "kpop", "female singer", "male singer"];
 
-const durationOptions = [30, 60, 90, 120];
-const getDurationLabel = (value: number) => {
-  if (value === 30) return "30 sec";
-  if (value === 60) return "1 min";
-  if (value === 90) return "1.5 min";
-  if (value === 120) return "2 min";
-  return `${value} sec`;
-};
-
 export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: AudioCreationStepProps) {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // Check if user is paid (has a plan with monthly price > 0)
+  const isPaidUser = user?.plan && user.plan.monthlyPrice > 0;
+  
+  // Duration options based on user plan
+  const durationOptions = isPaidUser 
+    ? [30, 60, 90, 120, 150, 180, 210, 240]
+    : [30, 60, 90, 120];
+  
+  const maxDuration = isPaidUser ? 240 : 120;
+  
+  const getDurationLabel = (value: number) => {
+    if (value === 30) return "30 sec";
+    if (value === 60) return "1 min";
+    if (value === 90) return "1.5 min";
+    if (value === 120) return "2 min";
+    if (value === 150) return "2.5 min";
+    if (value === 180) return "3 min";
+    if (value === 210) return "3.5 min";
+    if (value === 240) return "4 min";
+    return `${value} sec`;
+  };
   const [currentAudioUrl, setCurrentAudioUrl] = useState(audioUrl);
   const [activeTab, setActiveTab] = useState("generate");
   
@@ -82,9 +97,6 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
   const [librarySongTitle, setLibrarySongTitle] = useState(""); // Custom title for library song
-  
-  const { toast } = useToast();
-  const { user } = useAuth();
   
   // Calculate credit costs based on duration
   const SONG_GENERATION_CREDITS = 500;
@@ -494,14 +506,14 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                   <Slider
                     value={duration}
                     onValueChange={setDuration}
-                    max={120}
+                    max={maxDuration}
                     min={30}
                     step={30}
                     className="w-full"
                     data-testid="duration-slider"
                   />
                 </div>
-                <div className="flex justify-between text-xs text-muted-foreground px-1">
+                <div className="flex justify-between text-xs text-muted-foreground px-1 flex-wrap gap-1">
                   {durationOptions.map(option => (
                     <span 
                       key={option}
@@ -511,7 +523,12 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                     </span>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">Current: {getDurationLabel(duration[0])}</p>
+                <p className="text-xs text-muted-foreground">
+                  Current: {getDurationLabel(duration[0])}
+                  {!isPaidUser && (
+                    <span className="ml-2 text-orange-500">• Upgrade to paid plan for up to 4 min songs</span>
+                  )}
+                </p>
               </div>
             </div>
 
@@ -755,14 +772,14 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                   <Slider
                     value={uploadDuration}
                     onValueChange={setUploadDuration}
-                    max={120}
+                    max={maxDuration}
                     min={30}
                     step={30}
                     className="w-full"
                     data-testid="upload-duration-slider"
                   />
                 </div>
-                <div className="flex justify-between text-xs text-muted-foreground px-1">
+                <div className="flex justify-between text-xs text-muted-foreground px-1 flex-wrap gap-1">
                   {durationOptions.map(option => (
                     <span 
                       key={option}
@@ -772,8 +789,15 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                     </span>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">Audio will be trimmed to: {getDurationLabel(uploadDuration[0])}</p>
-                <p className="text-xs text-muted-foreground">Maximum duration: 2 minutes</p>
+                <p className="text-xs text-muted-foreground">
+                  Audio will be trimmed to: {getDurationLabel(uploadDuration[0])}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Maximum duration: {maxDuration / 60} minutes
+                  {!isPaidUser && (
+                    <span className="ml-2 text-orange-500">• Upgrade to paid plan for up to 4 min songs</span>
+                  )}
+                </p>
               </div>
             </div>
             

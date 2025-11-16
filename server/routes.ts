@@ -3673,15 +3673,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No audio file provided" });
       }
 
+      // Get the project to find the user
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      // Get user with plan to check if they're paid
+      const userWithPlan = await storage.getUserWithPlan(project.userId);
+      const isPaidUser = userWithPlan?.plan && userWithPlan.plan.monthlyPrice > 0;
+      
       // Get duration from request (default to 60 seconds if not provided)
       const requestedDuration = parseInt(req.body.duration) || 60;
-      // Cap at 120 seconds (2 minutes) maximum
-      const targetDuration = Math.min(requestedDuration, 120);
+      
+      // Cap duration based on user plan: Free users max 120s (2 min), Paid users max 240s (4 min)
+      const maxDuration = isPaidUser ? 240 : 120;
+      const targetDuration = Math.min(requestedDuration, maxDuration);
       
       // Get song title from request (optional)
       const songTitle = req.body.songTitle || "";
 
-      console.log(`Uploading audio with target duration: ${targetDuration} seconds`);
+      console.log(`Uploading audio with target duration: ${targetDuration} seconds (user plan: ${isPaidUser ? 'paid' : 'free'}, max: ${maxDuration}s)`);
 
       // First, store the uploaded audio to object storage to get a public URL
       const objectStorageService = new ObjectStorageService();
@@ -3979,6 +3991,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const project = await storage.getProject(req.params.id);
       if (!project) {
         return res.status(404).json({ error: "Project not found" });
+      }
+      
+      // Get user with plan to validate duration limit
+      const userWithPlan = await storage.getUserWithPlan(project.userId);
+      const isPaidUser = userWithPlan?.plan && userWithPlan.plan.monthlyPrice > 0;
+      
+      // Validate duration based on user plan: Free users max 120s (2 min), Paid users max 240s (4 min)
+      const maxDuration = isPaidUser ? 240 : 120;
+      if (duration > maxDuration) {
+        return res.status(400).json({ 
+          error: `Duration exceeds maximum allowed for your plan. ${isPaidUser ? 'Paid users' : 'Free users'} can generate songs up to ${maxDuration} seconds (${maxDuration / 60} minutes).`,
+          maxDuration,
+          isPaidUser
+        });
       }
       
       // Check if user has enough credits for song generation (500 credits)

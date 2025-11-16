@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { Subtitles, Tags } from "lucide-react";
 
 interface SongGeneratorModalProps {
@@ -31,6 +32,17 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
   const [progress, setProgress] = useState(0);
   const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Check if user is paid (has a plan with monthly price > 0)
+  const isPaidUser = user?.plan && user.plan.monthlyPrice > 0;
+  
+  // Duration options based on user plan
+  const durationOptions = isPaidUser 
+    ? [30, 60, 90, 120, 150, 180, 210, 240]
+    : [30, 60, 90, 120];
+  
+  const maxDuration = isPaidUser ? 240 : 120;
 
   // Reset duration to 60 seconds when modal opens
   useEffect(() => {
@@ -39,13 +51,16 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
     }
   }, [isOpen]);
 
-  const durationOptions = [30, 60, 90, 120];
   const getDurationLabel = (value: number) => {
     const credits = (value / 30) * 500;
     if (value === 30) return "30 sec (500 credits)";
     if (value === 60) return "1 min (1000 credits)";
     if (value === 90) return "1.5 min (1500 credits)";
     if (value === 120) return "2 min (2000 credits)";
+    if (value === 150) return "2.5 min (2500 credits)";
+    if (value === 180) return "3 min (3000 credits)";
+    if (value === 210) return "3.5 min (3500 credits)";
+    if (value === 240) return "4 min (4000 credits)";
     return `${value} sec (${credits} credits)`;
   };
 
@@ -190,7 +205,7 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
                 <Slider
                   value={duration}
                   onValueChange={setDuration}
-                  max={120}
+                  max={maxDuration}
                   min={30}
                   step={30}
                   defaultValue={[60]}
@@ -199,7 +214,7 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
                   key={`duration-slider-${isOpen}`}
                 />
               </div>
-              <div className="flex justify-between text-xs text-muted-foreground px-1">
+              <div className="flex justify-between text-xs text-muted-foreground px-1 flex-wrap gap-1">
                 {durationOptions.map(option => (
                   <span 
                     key={option}
@@ -209,7 +224,12 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
                   </span>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">Current: {getDurationLabel(duration[0])}</p>
+              <p className="text-xs text-muted-foreground">
+                Current: {getDurationLabel(duration[0])}
+                {!isPaidUser && (
+                  <span className="ml-2 text-orange-500">• Upgrade to paid plan for up to 4 min songs</span>
+                )}
+              </p>
             </div>
           </div>
 

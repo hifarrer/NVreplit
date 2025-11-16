@@ -70,8 +70,9 @@ STRUCTURE FOR 90 SECONDS: ONLY 2 verses + 2 choruses + 1 bridge (NO extra verses
 2 lines
 
 `
-        : `
-STRUCTURE FOR 120 SECONDS: ONLY 2 verses + 2 choruses 
+        : duration === 120
+          ? `
+STRUCTURE FOR 120 SECONDS: ONLY 2 verses + 2 choruses + 1 bridge
 [Verse 1]
 4 lines
 
@@ -85,12 +86,111 @@ STRUCTURE FOR 120 SECONDS: ONLY 2 verses + 2 choruses
 2 lines
 
 `
+          : duration === 150
+            ? `
+STRUCTURE FOR 150 SECONDS: ONLY 3 verses + 3 choruses (NO bridge)
+[Verse 1]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 2]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 3]
+4 lines
+
+[Chorus]
+2 lines
+
+`
+            : duration === 180
+              ? `
+STRUCTURE FOR 180 SECONDS: ONLY 3 verses + 3 choruses + 1 bridge
+[Verse 1]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 2]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 3]
+4 lines
+
+[Bridge]
+2 lines
+
+`
+              : duration === 210
+                ? `
+STRUCTURE FOR 210 SECONDS: ONLY 4 verses + 4 choruses (NO bridge)
+[Verse 1]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 2]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 3]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 4]
+4 lines
+
+[Chorus]
+2 lines
+
+`
+                : `
+STRUCTURE FOR 240 SECONDS: ONLY 4 verses + 4 choruses + 1 bridge
+[Verse 1]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 2]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 3]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 4]
+4 lines
+
+[Bridge]
+2 lines
+
+`
 }
 
 Do NOT add extra sections. Follow the exact structure above.`,
         },
       ],
-      max_completion_tokens: 1000,
+      max_completion_tokens: 3000, // Increased to support longer songs up to 240 seconds
     });
 
     const rawLyrics = response.choices[0].message.content || "";
@@ -176,8 +276,9 @@ STRUCTURE FOR 90 SECONDS: ONLY 2 verses + 2 choruses + 1 bridge (NO extra verses
 2 lines
 
 `
-        : `
-STRUCTURE FOR 120 SECONDS: ONLY 2 verses + 2 choruses 
+        : duration === 120
+          ? `
+STRUCTURE FOR 120 SECONDS: ONLY 2 verses + 2 choruses + 1 bridge
 [Verse 1]
 4 lines
 
@@ -186,6 +287,105 @@ STRUCTURE FOR 120 SECONDS: ONLY 2 verses + 2 choruses
 
 [Verse 2]
 2 lines
+
+[Bridge]
+2 lines
+
+`
+          : duration === 150
+            ? `
+STRUCTURE FOR 150 SECONDS: ONLY 3 verses + 3 choruses (NO bridge)
+[Verse 1]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 2]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 3]
+4 lines
+
+[Chorus]
+2 lines
+
+`
+            : duration === 180
+              ? `
+STRUCTURE FOR 180 SECONDS: ONLY 3 verses + 3 choruses + 1 bridge
+[Verse 1]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 2]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 3]
+4 lines
+
+[Bridge]
+2 lines
+
+`
+              : duration === 210
+                ? `
+STRUCTURE FOR 210 SECONDS: ONLY 4 verses + 4 choruses (NO bridge)
+[Verse 1]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 2]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 3]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 4]
+4 lines
+
+[Chorus]
+2 lines
+
+`
+                : `
+STRUCTURE FOR 240 SECONDS: ONLY 4 verses + 4 choruses + 1 bridge
+[Verse 1]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 2]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 3]
+4 lines
+
+[Chorus]
+2 lines
+
+[Verse 4]
+4 lines
 
 [Bridge]
 2 lines
@@ -214,7 +414,7 @@ IMPORTANT: Return ONLY a valid JSON object with exactly these two fields:
           content: userPrompt,
         },
       ],
-      max_completion_tokens: 2000, // Increased from 1000 to avoid hitting limit
+      max_completion_tokens: 3000, // Increased to support longer songs up to 240 seconds
       response_format: { type: "json_object" },
     });
 
@@ -297,9 +497,17 @@ function trimLyricsByDuration(lyrics: string, duration: number): string {
     targetStructure = ["[Verse 1]", "[Chorus]", "[Verse 2]", "[Chorus]"];
   } else if (duration === 90) {
     targetStructure = ["[Verse 1]", "[Chorus]", "[Verse 2]", "[Bridge]"];
-  } else {
-    // 120 seconds
+  } else if (duration === 120) {
     targetStructure = ["[Verse 1]", "[Chorus]", "[Verse 2]", "[Bridge]"];
+  } else if (duration === 150) {
+    targetStructure = ["[Verse 1]", "[Chorus]", "[Verse 2]", "[Chorus]", "[Verse 3]", "[Chorus]"];
+  } else if (duration === 180) {
+    targetStructure = ["[Verse 1]", "[Chorus]", "[Verse 2]", "[Chorus]", "[Verse 3]", "[Bridge]"];
+  } else if (duration === 210) {
+    targetStructure = ["[Verse 1]", "[Chorus]", "[Verse 2]", "[Chorus]", "[Verse 3]", "[Chorus]", "[Verse 4]", "[Chorus]"];
+  } else {
+    // 240 seconds
+    targetStructure = ["[Verse 1]", "[Chorus]", "[Verse 2]", "[Chorus]", "[Verse 3]", "[Chorus]", "[Verse 4]", "[Bridge]"];
   }
 
   // Extract and organize sections according to target structure
