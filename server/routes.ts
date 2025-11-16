@@ -4829,7 +4829,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Host:", req.get('host'));
       console.log("Final audio URL for FFMPEG:", audioUrl);
       console.log("=== END DEBUG ===");
-      const audioSegments = await splitAudio(audioUrl, config.numberOfAudioParts);
+      // Split audio into 10-second segments by passing totalDurationSeconds
+      const audioSegments = await splitAudio(audioUrl, config.numberOfAudioParts, audioDuration);
       console.log("Audio segments result:", JSON.stringify(audioSegments, null, 2));
       
       const audioUrls = audioSegments.map(segment => segment.download_url);

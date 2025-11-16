@@ -46,10 +46,18 @@ export async function trimAudio(audioUrl: string, desiredLength: number): Promis
   }
 }
 
-export async function splitAudio(audioUrl: string, parts: number = 4): Promise<{ part: string; download_url: string }[]> {
+export async function splitAudio(audioUrl: string, parts: number = 4, totalDurationSeconds?: number): Promise<{ part: string; download_url: string }[]> {
   try {
-    console.log(`Splitting audio into ${parts} segments`);
-    const response = await fetch("https://ffmpegapi.net/api/split_audio", {
+    // Split audio into fixed 10-second segments for consistent video generation
+    // This ensures both lipsync (infinitetalk-fast) and non-lipsync (bytedance/seedance) models
+    // work with 10-second segments as required by the non-lipsync model's limit
+    const segmentDuration = 10; // 10 seconds per segment
+    const calculatedParts = totalDurationSeconds ? Math.ceil(totalDurationSeconds / segmentDuration) : parts;
+    
+    console.log(`Splitting audio into ${calculatedParts} segments of ${segmentDuration} seconds each (total duration: ${totalDurationSeconds || 'unknown'}s)`);
+    
+    // Use split_audio_by_time endpoint to ensure fixed 10-second intervals
+    const response = await fetch("https://ffmpegapi.net/api/split_audio_by_time", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -57,7 +65,7 @@ export async function splitAudio(audioUrl: string, parts: number = 4): Promise<{
       },
       body: JSON.stringify({
         audio_url: audioUrl,
-        parts: parts,
+        segment_duration: segmentDuration, // Fixed 10-second segments
       }),
     });
 

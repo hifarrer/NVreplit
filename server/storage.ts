@@ -190,6 +190,8 @@ export class MemStorage implements IStorage {
   }
 
   private initializeDefaultConfigs() {
+    // All configs now use 10-second segments for both lipsync and non-lipsync models
+    // numberOfAudioParts and numberOfScenesCreated = ceil(duration / 10)
     const defaultConfigs = [
       { id: '1', videoDurationSeconds: 30, numberOfAudioParts: 3, numberOfScenesCreated: 3, numberOfVideosRegularApi: 2, numberOfVideosLipsync: 1 },
       { id: '2', videoDurationSeconds: 60, numberOfAudioParts: 6, numberOfScenesCreated: 6, numberOfVideosRegularApi: 3, numberOfVideosLipsync: 3 },
