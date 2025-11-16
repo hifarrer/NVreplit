@@ -3746,13 +3746,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update project with audio URL
-      const project = await storage.updateProject(req.params.id, { 
+      const updatedProject = await storage.updateProject(req.params.id, { 
         audioUrl: finalAudioUrl,
         audioType: 'uploaded',
         audioDuration: actualDuration
       });
       
-      if (!project) {
+      if (!updatedProject) {
         return res.status(404).json({ error: "Project not found" });
       }
 
