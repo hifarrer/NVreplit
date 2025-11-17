@@ -4472,42 +4472,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Project audioDuration:", project.audioDuration);
       console.log("Final audioDuration used:", audioDuration);
       
-      // Get the video generation configuration for dynamic scene count
-      const config = await storage.getVideoGenerationConfig(audioDuration);
-      if (!config) {
-        throw new Error(`No video generation configuration found for duration ${audioDuration} seconds`);
-      }
+      // Calculate number of scenes dynamically based on 10-second segments
+      const numberOfScenes = Math.ceil(audioDuration / 10);
+      const numberOfAudioParts = Math.ceil(audioDuration / 10);
       
-      console.log("Using configuration for scene generation:", config);
-      console.log("Number of scenes to generate:", config.numberOfScenesCreated);
+      console.log("Dynamically calculated scene count:", numberOfScenes);
+      console.log("Number of audio parts:", numberOfAudioParts);
       
-      // Split lyrics into sections based on configuration
+      // Split lyrics into sections based on calculated parts
       let lyricsSections: string[] | undefined;
       if (project.audioLyrics) {
-        lyricsSections = splitLyricsIntoSections(project.audioLyrics, config.numberOfAudioParts);
-        console.log(`Split lyrics into ${config.numberOfAudioParts} sections:`, lyricsSections.map(s => s.substring(0, 50) + "..."));
+        lyricsSections = splitLyricsIntoSections(project.audioLyrics, numberOfAudioParts);
+        console.log(`Split lyrics into ${numberOfAudioParts} sections:`, lyricsSections.map(s => s.substring(0, 50) + "..."));
       }
 
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "scene_generation",
-        message: `Generating ${config.numberOfScenesCreated} scene prompts`,
+        message: `Generating ${numberOfScenes} scene prompts`,
         status: "started",
         metadata: { 
           combinedPrompt, 
           hasSections: !!lyricsSections,
-          numberOfScenes: config.numberOfScenesCreated
+          numberOfScenes
         }
       });
 
-      const scenePrompts = await generateScenePrompts(combinedPrompt, config.numberOfScenesCreated, lyricsSections);
+      const scenePrompts = await generateScenePrompts(combinedPrompt, numberOfScenes, lyricsSections);
       
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "scene_generation",
-        message: `Generating ${config.numberOfScenesCreated} scene images`,
+        message: `Generating ${numberOfScenes} scene images`,
         status: "progress",
-        metadata: { scenePrompts, numberOfScenes: config.numberOfScenesCreated }
+        metadata: { scenePrompts, numberOfScenes }
       });
 
       const sceneImages = await generateSceneImages(scenePrompts, project.characterImageUrl);
