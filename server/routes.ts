@@ -4657,15 +4657,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Calculate credits needed for video generation based on duration
+      // New pricing: 1250 credits for every 30 seconds
       const audioDuration = project.audioDuration || 120; // Default to 2 minutes
-      let VIDEO_GENERATION_CREDITS = 0;
-      if (audioDuration <= 30) {
-        VIDEO_GENERATION_CREDITS = 1000; // 30 seconds or less = 1000 credits
-      } else if (audioDuration <= 60) {
-        VIDEO_GENERATION_CREDITS = 2000; // 1 minute = 2000 credits
-      } else {
-        VIDEO_GENERATION_CREDITS = 2000; // 2+ minutes = 2000 credits (capped)
-      }
+      const VIDEO_GENERATION_CREDITS = Math.ceil(audioDuration / 30) * 1250;
       
       // Check if user has enough credits for video generation
       const canAfford = await storage.canUserAffordCredits(project.userId, VIDEO_GENERATION_CREDITS);

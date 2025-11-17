@@ -52,14 +52,18 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
   }, [isOpen]);
 
   const getDurationLabel = (value: number) => {
-    const credits = (value / 30) * 500;
-    if (value === 30) return "30 sec (500 credits)";
-    if (value === 60) return "1 min (1000 credits)";
-    if (value === 90) return "1.5 min (1500 credits)";
-    if (value === 120) return "2 min (2000 credits)";
-    if (value === 150) return "2.5 min (2500 credits)";
-    if (value === 180) return "3 min (3000 credits)";
-    return `${value} sec (${credits} credits)`;
+    // Song generation is always 500 credits, video generation is 1250 per 30 seconds
+    const songCredits = 500;
+    const videoCredits = Math.ceil(value / 30) * 1250;
+    const totalCredits = songCredits + videoCredits;
+    
+    if (value === 30) return `30 sec (${totalCredits} credits)`;
+    if (value === 60) return `1 min (${totalCredits} credits)`;
+    if (value === 90) return `1.5 min (${totalCredits} credits)`;
+    if (value === 120) return `2 min (${totalCredits} credits)`;
+    if (value === 150) return `2.5 min (${totalCredits} credits)`;
+    if (value === 180) return `3 min (${totalCredits} credits)`;
+    return `${value} sec (${totalCredits} credits)`;
   };
 
   const generateLyricsMutation = useMutation({
