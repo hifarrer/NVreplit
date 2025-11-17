@@ -15,14 +15,16 @@ import { useLocation } from "wouter";
 
 export default function Home() {
   const { user } = useAuth();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
   const [projectId, setProjectId] = useState<string>("");
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [currentEditSession, setCurrentEditSession] = useState<string | null>(null);
   
-  // Extract edit parameter from URL
+  // Extract edit parameter and session timestamp from URL
   const urlParams = new URLSearchParams(location.split('?')[1]);
   const editProjectId = urlParams.get('edit');
+  const editSessionId = urlParams.get('t'); // Timestamp from edit button
+  const isEditMode = !!editProjectId;
 
   // Don't load current project on Create page - always start fresh
   // const { data: currentProject } = useQuery<Project>({
@@ -57,9 +59,10 @@ export default function Home() {
     }
     
     // If edit mode with a project ID, load that project
-    if (editProjectId && !projectId) {
-      setProjectId(editProjectId);
-      setIsEditMode(true);
+    if (editProjectId) {
+      if (projectId !== editProjectId) {
+        setProjectId(editProjectId);
+      }
       return;
     }
     
@@ -67,19 +70,34 @@ export default function Home() {
     if (!projectId && !editProjectId) {
       createProjectMutation.mutate();
     }
-  }, [user, editProjectId]); // Depend on user and editProjectId
+  }, [user, editProjectId]); // Only depend on edit project ID, not timestamp
 
+  // Handle edit session changes - jump to step 3 when a new edit session starts
   useEffect(() => {
-    if (project) {
-      // In edit mode, always start at Scene Generation (step 3)
-      // so users can edit scenes and regenerate
-      if (isEditMode && project.scenePrompts && project.scenePrompts.length > 0) {
+    if (project && isEditMode && editSessionId && editSessionId !== currentEditSession) {
+      // New edit session detected - jump to Scene Generation
+      if (project.scenePrompts && project.scenePrompts.length > 0) {
         setCurrentStep(3);
-      } else {
-        setCurrentStep(project.currentStep);
+        setCurrentEditSession(editSessionId);
+        // Update backend to step 3 so sync effect doesn't overwrite
+        handleStepChange(3);
       }
+    } else if (!isEditMode) {
+      // Clear edit session when leaving edit mode
+      setCurrentEditSession(null);
     }
-  }, [project, isEditMode]);
+  }, [project, isEditMode, editSessionId, currentEditSession]);
+
+  // Sync current step with project's step (except during edit session initialization)
+  useEffect(() => {
+    if (project && !isEditMode) {
+      // Normal mode: always sync with project step
+      setCurrentStep(project.currentStep);
+    } else if (project && isEditMode && editSessionId === currentEditSession) {
+      // Edit mode: only sync after edit session is initialized
+      setCurrentStep(project.currentStep);
+    }
+  }, [project?.currentStep, isEditMode, editSessionId, currentEditSession]);
 
   const handleStepChange = async (step: number) => {
     setCurrentStep(step);
@@ -100,6 +118,9 @@ export default function Home() {
     // Force create a completely new project and reset all state
     setCurrentStep(1);
     setProjectId(""); // Clear current project ID
+    setCurrentEditSession(null); // Clear edit session
+    // Clear the edit query param from URL
+    setLocation('/');
     createProjectMutation.mutate(); // Create a new project
   };
 
