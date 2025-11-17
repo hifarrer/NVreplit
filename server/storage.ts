@@ -199,8 +199,6 @@ export class MemStorage implements IStorage {
       { id: '4', videoDurationSeconds: 120, numberOfAudioParts: 12, numberOfScenesCreated: 12, numberOfVideosRegularApi: 6, numberOfVideosLipsync: 6 },
       { id: '5', videoDurationSeconds: 150, numberOfAudioParts: 15, numberOfScenesCreated: 15, numberOfVideosRegularApi: 8, numberOfVideosLipsync: 7 },
       { id: '6', videoDurationSeconds: 180, numberOfAudioParts: 18, numberOfScenesCreated: 18, numberOfVideosRegularApi: 9, numberOfVideosLipsync: 9 },
-      { id: '7', videoDurationSeconds: 210, numberOfAudioParts: 21, numberOfScenesCreated: 21, numberOfVideosRegularApi: 11, numberOfVideosLipsync: 10 },
-      { id: '8', videoDurationSeconds: 240, numberOfAudioParts: 24, numberOfScenesCreated: 24, numberOfVideosRegularApi: 12, numberOfVideosLipsync: 12 },
     ];
     
     defaultConfigs.forEach(config => {
