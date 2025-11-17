@@ -25,6 +25,9 @@ export default function Home() {
   const editProjectId = urlParams.get('edit');
   const editSessionId = urlParams.get('t'); // Timestamp from edit button
   const isEditMode = !!editProjectId;
+  
+  console.log('Location:', location);
+  console.log('Edit params:', { editProjectId, editSessionId, isEditMode });
 
   // Don't load current project on Create page - always start fresh
   // const { data: currentProject } = useQuery<Project>({
