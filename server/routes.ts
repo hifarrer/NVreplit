@@ -4007,8 +4007,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Check if user has enough credits for song generation (500 credits)
-      const SONG_GENERATION_CREDITS = 500;
+      // Check if user has enough credits for song generation (250 credits)
+      const SONG_GENERATION_CREDITS = 250;
       const canAfford = await storage.canUserAffordCredits(project.userId, SONG_GENERATION_CREDITS);
       if (!canAfford) {
         const creditsRemaining = await storage.getUserCreditsRemaining(project.userId);
@@ -4657,9 +4657,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Calculate credits needed for video generation based on duration
-      // New pricing: 1250 credits for every 30 seconds
+      // New pricing: 1000 credits for every 30 seconds
       const audioDuration = project.audioDuration || 120; // Default to 2 minutes
-      const VIDEO_GENERATION_CREDITS = Math.ceil(audioDuration / 30) * 1250;
+      const VIDEO_GENERATION_CREDITS = Math.ceil(audioDuration / 30) * 1000;
       
       // Check if user has enough credits for video generation
       const canAfford = await storage.canUserAffordCredits(project.userId, VIDEO_GENERATION_CREDITS);

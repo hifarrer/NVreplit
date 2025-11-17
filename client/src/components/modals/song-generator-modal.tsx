@@ -52,9 +52,9 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
   }, [isOpen]);
 
   const getDurationLabel = (value: number) => {
-    // Song generation is always 500 credits, video generation is 1250 per 30 seconds
-    const songCredits = 500;
-    const videoCredits = Math.ceil(value / 30) * 1250;
+    // Song generation is always 250 credits, video generation is 1000 per 30 seconds
+    const songCredits = 250;
+    const videoCredits = Math.ceil(value / 30) * 1000;
     const totalCredits = songCredits + videoCredits;
     
     if (value === 30) return `30 sec (${totalCredits} credits)`;
