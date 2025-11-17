@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { VideoPlayer } from "@/components/ui/video-player";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
 import { RotateCcw, Download, Share2, Plus, Edit } from "lucide-react";
 
 interface VideoResultStepProps {
@@ -12,13 +11,11 @@ interface VideoResultStepProps {
 
 export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResultStepProps) {
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
 
   const handleEdit = () => {
-    // Add timestamp to force re-initialization of edit mode
-    const url = `/create?edit=${projectId}&t=${Date.now()}`;
-    console.log('Navigating to edit mode:', url);
-    setLocation(url);
+    // Force full page reload to ensure edit mode initializes properly
+    // Using window.location.href instead of setLocation because we're already on /create
+    window.location.href = `/create?edit=${projectId}&t=${Date.now()}`;
   };
 
   const downloadVideo = () => {
