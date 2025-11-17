@@ -4793,10 +4793,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { step: 1, total: 4, numberOfSegments: numberOfAudioParts }
       });
 
-      // Convert audio URL to externally accessible URL for FFMPEG API
-      // Serve files through our server instead of using signed URLs
+      // Convert audio URL to externally accessible signed URL for FFMPEG API
       let audioUrl = project.audioUrl;
-      if (audioUrl.startsWith('/')) {
+      if (audioUrl.startsWith('/objects/')) {
+        // Generate signed URL for object storage files
+        const objectStorageService = new ObjectStorageService();
+        audioUrl = await objectStorageService.getSignedUrlForPath(audioUrl, 3600); // 1 hour TTL
+      } else if (audioUrl.startsWith('/')) {
         // Use the actual Replit dev domain from environment for local files
         const replitDevDomain = process.env.REPLIT_DEV_DOMAIN;
         
