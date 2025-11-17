@@ -6329,13 +6329,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       console.log(`[NEON-SINGLE-PROMPT] Character image generated`);
 
-      // Get the video generation config for 30 seconds to determine number of scenes
-      const videoConfig = await storage.getVideoGenerationConfig(30);
-      if (!videoConfig) {
-        throw new Error('No video generation configuration found for 30 seconds');
-      }
-      const numberOfScenes = videoConfig.numberOfScenesCreated;
-      console.log(`[NEON-SINGLE-PROMPT] Using config for 30s video: ${numberOfScenes} scenes`);
+      // Calculate number of scenes dynamically for 30-second video
+      const numberOfScenes = Math.ceil(30 / 10); // 3 scenes for 30 seconds
+      console.log(`[NEON-SINGLE-PROMPT] Dynamically calculated ${numberOfScenes} scenes for 30s video`);
 
       // Step 6: Generate scene prompts
       console.log(`[NEON-SINGLE-PROMPT] Step 6: Generating scene prompts...`);
