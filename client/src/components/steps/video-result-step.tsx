@@ -16,7 +16,9 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResul
 
   const handleEdit = () => {
     // Add timestamp to force re-initialization of edit mode
-    setLocation(`/create?edit=${projectId}&t=${Date.now()}`);
+    const url = `/create?edit=${projectId}&t=${Date.now()}`;
+    console.log('Navigating to edit mode:', url);
+    setLocation(url);
   };
 
   const downloadVideo = () => {
