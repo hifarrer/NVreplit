@@ -12,6 +12,19 @@ The platform uses a credit-based system for AI generation services. Users on pai
 - **Access Points**: Profile page and Plans page
 - **Features**: Instant delivery via Stripe webhook, secure checkout, automatic credit addition
 
+### Credit Pricing
+- **Song Generation**: 500 credits (fixed)
+- **Video Generation**: 1250 credits per 30 seconds
+  - Formula: `Math.ceil(duration / 30) * 1250`
+  - Examples:
+    - 30s video: 1,250 credits
+    - 60s video: 2,500 credits
+    - 90s video: 3,750 credits
+    - 120s video: 5,000 credits
+    - 150s video: 6,250 credits
+    - 180s video: 7,500 credits
+- **Total Cost**: Song generation (500) + Video generation (based on duration)
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
