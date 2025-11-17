@@ -51,6 +51,21 @@ export default function Home() {
     enabled: !!projectId,
   });
 
+  const handleStepChange = async (step: number) => {
+    setCurrentStep(step);
+    // Update the project in the database to persist the step change
+    if (projectId) {
+      try {
+        await apiRequest("PATCH", `/api/projects/${projectId}`, {
+          currentStep: step
+        });
+        refetchProject();
+      } catch (error) {
+        console.error("Failed to update project step:", error);
+      }
+    }
+  };
+
   // Initialize project logic: create new project or load existing one in edit mode
   useEffect(() => {
     // Only proceed if user is authenticated
@@ -58,8 +73,11 @@ export default function Home() {
       return;
     }
     
+    console.log('Init effect:', { editProjectId, projectId, isEditMode });
+    
     // If edit mode with a project ID, load that project
     if (editProjectId) {
+      console.log('Loading existing project in edit mode:', editProjectId);
       if (projectId !== editProjectId) {
         setProjectId(editProjectId);
       }
@@ -68,6 +86,7 @@ export default function Home() {
     
     // Otherwise, create a new project when the Create page loads
     if (!projectId && !editProjectId) {
+      console.log('Creating new project');
       createProjectMutation.mutate();
     }
   }, [user, editProjectId]); // Only depend on edit project ID, not timestamp
@@ -103,21 +122,6 @@ export default function Home() {
       setCurrentStep(project.currentStep);
     }
   }, [project?.currentStep, isEditMode, editSessionId, currentEditSession, currentStep]);
-
-  const handleStepChange = async (step: number) => {
-    setCurrentStep(step);
-    // Update the project in the database to persist the step change
-    if (projectId) {
-      try {
-        await apiRequest("PATCH", `/api/projects/${projectId}`, {
-          currentStep: step
-        });
-        refetchProject();
-      } catch (error) {
-        console.error("Failed to update project step:", error);
-      }
-    }
-  };
 
   const resetProject = () => {
     // Force create a completely new project and reset all state
