@@ -4776,21 +4776,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Using audio duration: ${audioDuration} seconds for video generation`);
       
-      // Get the video generation configuration
-      const config = await storage.getVideoGenerationConfig(audioDuration);
-      if (!config) {
-        throw new Error(`No video generation configuration found for duration ${audioDuration} seconds`);
-      }
+      // Calculate video generation parameters dynamically based on 10-second segments
+      const numberOfAudioParts = Math.ceil(audioDuration / 10);
+      const numberOfScenes = Math.ceil(audioDuration / 10);
       
-      console.log("Using video generation config:", config);
+      // Split roughly 50/50 between regular and lipsync videos
+      const numberOfVideosLipsync = Math.floor(numberOfScenes / 2);
+      const numberOfVideosRegularApi = numberOfScenes - numberOfVideosLipsync;
       
-      // Step 1: Split audio based on configuration
+      console.log("Dynamically calculated video generation parameters:");
+      console.log("- Number of audio parts:", numberOfAudioParts);
+      console.log("- Number of scenes:", numberOfScenes);
+      console.log("- Regular videos:", numberOfVideosRegularApi);
+      console.log("- Lipsync videos:", numberOfVideosLipsync);
+      
+      // Step 1: Split audio based on calculation
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "video_generation",
-        message: `Splitting audio into ${config.numberOfAudioParts} segments`,
+        message: `Splitting audio into ${numberOfAudioParts} segments`,
         status: "progress",
-        metadata: { step: 1, total: 4, numberOfSegments: config.numberOfAudioParts }
+        metadata: { step: 1, total: 4, numberOfSegments: numberOfAudioParts }
       });
 
       // Convert audio URL to externally accessible signed URL for FFMPEG API
@@ -4828,7 +4834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Final audio URL for FFMPEG:", audioUrl);
       console.log("=== END DEBUG ===");
       // Split audio into 10-second segments by passing totalDurationSeconds
-      const audioSegments = await splitAudio(audioUrl, config.numberOfAudioParts, audioDuration);
+      const audioSegments = await splitAudio(audioUrl, numberOfAudioParts, audioDuration);
       console.log("Audio segments result:", JSON.stringify(audioSegments, null, 2));
       
       const audioUrls = audioSegments.map(segment => segment.download_url);
@@ -4838,11 +4844,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audioSegments: audioSegments
       });
 
-      // Step 2: Generate video segments dynamically based on configuration
+      // Step 2: Generate video segments dynamically based on calculation
       const makeCharacterSing = project.makeCharacterSing || true;
       const videoGenerationMessage = makeCharacterSing 
-        ? `Generating ${config.numberOfVideosRegularApi} regular videos (seedance) and ${config.numberOfVideosLipsync} lipsync videos (multitalk)`
-        : `Generating ${config.numberOfVideosRegularApi} regular videos (seedance only)`;
+        ? `Generating ${numberOfVideosRegularApi} regular videos (seedance) and ${numberOfVideosLipsync} lipsync videos (multitalk)`
+        : `Generating ${numberOfVideosRegularApi} regular videos (seedance only)`;
       
       await storage.addGenerationLog({
         projectId: req.params.id,
@@ -4852,8 +4858,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { 
           step: 2, 
           total: 5,
-          regularVideos: config.numberOfVideosRegularApi,
-          lipsyncVideos: makeCharacterSing ? config.numberOfVideosLipsync : 0
+          regularVideos: numberOfVideosRegularApi,
+          lipsyncVideos: makeCharacterSing ? numberOfVideosLipsync : 0
         }
       });
 
@@ -4921,8 +4927,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         project.sceneImages as string[],
         project.scenePrompts as string[],
         {
-          numberOfVideosRegularApi: config.numberOfVideosRegularApi,
-          numberOfVideosLipsync: config.numberOfVideosLipsync,
+          numberOfVideosRegularApi,
+          numberOfVideosLipsync,
           makeCharacterSing: makeCharacterSing
         },
         subtitleData
