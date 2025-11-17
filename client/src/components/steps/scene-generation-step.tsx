@@ -360,9 +360,6 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
               <span className="text-muted-foreground">
                 {calculateRegenerationCost().toLocaleString()} credits
               </span>
-              <span className="text-xs text-muted-foreground">
-                (Video generation: {Math.ceil(audioDuration / 30)} × 30s segments)
-              </span>
             </div>
           </div>
         )}
