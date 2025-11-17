@@ -76,7 +76,7 @@ All video generation uses fixed 10-second segments to ensure compatibility with 
 
 The platform enforces different song duration limits based on user plan:
 - **Free Users**: Maximum 120 seconds (2 minutes)
-- **Paid Users**: Maximum 240 seconds (4 minutes)
+- **Paid Users**: Maximum 180 seconds (3 minutes)
 - Duration limits apply to both "Generate with AI" and "Upload Audio File" features
 - Video generation configs automatically calculate numberOfAudioParts and numberOfScenes as ceil(duration/10)
 
