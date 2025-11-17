@@ -21,10 +21,12 @@ export default function Home() {
   const [currentEditSession, setCurrentEditSession] = useState<string | null>(null);
   
   // Extract edit parameter and session timestamp from URL
+  console.log('Current location:', location);
   const urlParams = new URLSearchParams(location.split('?')[1]);
   const editProjectId = urlParams.get('edit');
   const editSessionId = urlParams.get('t'); // Timestamp from edit button
   const isEditMode = !!editProjectId;
+  console.log('URL params:', { editProjectId, editSessionId, isEditMode });
 
   // Don't load current project on Create page - always start fresh
   // const { data: currentProject } = useQuery<Project>({
