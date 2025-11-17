@@ -1,0 +1,37 @@
+2:15:13 AM [express] GET /api/projects/4afea743-d4e8-4ce2-90ae-969641ab07f1 200 in 381ms :: {"id":"4…
+Using audio duration: 180 seconds for video generation
+Dynamically calculated video generation parameters:
+- Number of audio parts: 18
+- Number of scenes: 18
+- Regular videos: 9
+- Lipsync videos: 9
+[ObjectStorage] getSignedUrlForPath called with: /objects/songs/1a05faf9-5c87-47f8-b8f9-7b6fb67b62a9.mp3
+[ObjectStorage] Private dir: /replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private
+[ObjectStorage] Full object path: /replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/1a05faf9-5c87-47f8-b8f9-7b6fb67b62a9.mp3
+[ObjectStorage] Bucket: replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73, Object: .private/songs/1a05faf9-5c87-47f8-b8f9-7b6fb67b62a9.mp3
+[ObjectStorage] Successfully generated signed URL (https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/1...)
+=== AUDIO URL DEBUG ===
+Original audio URL: /objects/songs/1a05faf9-5c87-47f8-b8f9-7b6fb67b62a9.mp3
+REPLIT_DEV_DOMAIN: 046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev
+Host: 046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev
+Final audio URL for FFMPEG: https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/1a05faf9-5c87-47f8-b8f9-7b6fb67b62a9.mp3?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20251117%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20251117T021513Z&X-Goog-Expires=3599&X-Goog-Signature=8cb6961c980928468ef8e78a13793e4db871fc1dae85b823abf00d6c4a69294df1bf09e769a72bd28b8d55e7fe5487de65c29da367e93cf225275fcdd1096b1752d8c796e21f40eb4b43f27ef4e6b328886faf7ab5dbee802dc14195f8aca97393ebb60de5223963d865d6c50ac32c23b539a5533f7534838fc7f76651de61dff72919747f35dd9fb54ac6a0215a251005b5c45ac4e7958e44890bdbf23899db39d9551891d65a189d3bd4a6c1917fd9bd142ce731d69711405885a4a9fc1148766744df80fb2c15cf3953fbb2383bbb8b4740077393471dba63d35d46e1834c0c964cf242da5beb99c305c75f811f5be0bee6a96be44d54f37660d192183d16&X-Goog-SignedHeaders=host
+=== END DEBUG ===
+Splitting audio into 18 segments of 10 seconds each (total duration: 180s)
+Audio splitting error: Error: FFMPEG API error: 404 - <!doctype html>
+<html lang=en>
+<title>404 Not Found</title>
+<h1>Not Found</h1>
+<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>
+
+    at splitAudio (/home/runner/workspace/server/services/ffmpeg.ts:74:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:4831:29)
+Generate video error: Error: Failed to split audio: FFMPEG API error: 404 - <!doctype html>
+<html lang=en>
+<title>404 Not Found</title>
+<h1>Not Found</h1>
+<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>
+
+    at splitAudio (/home/runner/workspace/server/services/ffmpeg.ts:86:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:4831:29)
