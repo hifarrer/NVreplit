@@ -1,9 +1,7 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { VideoPlayer } from "@/components/ui/video-player";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
-import { RotateCcw, Download, Share2, Plus, List, ChevronUp, ChevronDown } from "lucide-react";
+import { RotateCcw, Download, Share2, Plus } from "lucide-react";
 
 interface VideoResultStepProps {
   projectId: string;
@@ -12,13 +10,7 @@ interface VideoResultStepProps {
 }
 
 export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResultStepProps) {
-  const [showLogs, setShowLogs] = useState(false);
   const { toast } = useToast();
-
-  const { data: logs = [] } = useQuery<any[]>({
-    queryKey: ["/api/projects", projectId, "logs"],
-    enabled: showLogs,
-  });
 
   const downloadVideo = () => {
     // Create a temporary link to download the video
@@ -49,10 +41,6 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResul
         description: "Share link copied to clipboard!",
       });
     }
-  };
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString();
   };
 
   return (
@@ -110,44 +98,6 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResul
             <Plus className="w-4 h-4 mr-2" />
             Create New Video
           </Button>
-        </div>
-
-        {/* Generation Log */}
-        <div>
-          <details className="bg-muted/20 rounded-lg" open={showLogs}>
-            <summary 
-              className="p-4 cursor-pointer font-semibold flex items-center"
-              onClick={() => setShowLogs(!showLogs)}
-              data-testid="generation-log-toggle"
-            >
-              <List className="w-4 h-4 text-accent mr-2" />
-              View Generation Log
-              {showLogs ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
-            </summary>
-            <div className="p-4 pt-0">
-              <div className="space-y-2 text-sm font-mono" data-testid="generation-log-content">
-                {logs.map((log: any, index: number) => (
-                  <div key={index} className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      [{formatTime(log.createdAt)}]
-                    </span>
-                    <span className={
-                      log.status === 'completed' ? 'text-green-400' :
-                      log.status === 'error' ? 'text-red-400' :
-                      'text-foreground'
-                    }>
-                      {log.message}
-                    </span>
-                  </div>
-                ))}
-                {logs.length === 0 && (
-                  <div className="text-muted-foreground text-center py-4">
-                    No logs available
-                  </div>
-                )}
-              </div>
-            </div>
-          </details>
         </div>
       </div>
     </div>
