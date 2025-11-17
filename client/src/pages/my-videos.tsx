@@ -280,7 +280,7 @@ export default function MyVideosPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="flex-1"
+                          className="flex-1 text-xs px-2"
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedVideo(video);
@@ -293,7 +293,7 @@ export default function MyVideosPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="flex-1"
+                          className="flex-1 text-xs px-2"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleEditVideo(video.id);
@@ -306,7 +306,7 @@ export default function MyVideosPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="flex-1"
+                          className="flex-1 text-xs px-2"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDownload(video.videoUrl, video.title);
@@ -319,7 +319,7 @@ export default function MyVideosPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="flex-1"
+                          className="flex-1 text-xs px-2"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleShareVideo(video.id, video.title);
