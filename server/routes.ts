@@ -2941,6 +2941,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate a single scene image without updating any project (for edit mode)
+  app.post("/api/generate-single-scene", authenticateToken, async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      
+      if (!prompt) {
+        return res.status(400).json({ error: "Prompt is required" });
+      }
+
+      console.log(`Generating single scene with prompt: ${prompt}`);
+      
+      // Generate scene image using the same method as regular scene generation
+      const imageUrl = await generateSingleSceneImage(prompt);
+      
+      res.json({ imageUrl });
+    } catch (error) {
+      console.error("Generate single scene error:", error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: "Failed to generate scene", message });
+    }
+  });
+
   // Clone/regenerate a completed project for editing
   app.post("/api/projects/:id/clone", authenticateToken, async (req, res) => {
     try {

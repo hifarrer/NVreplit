@@ -102,6 +102,16 @@ export function SceneGenerationStep({ projectId, audioDuration, scenes = [], isE
 
   const regenerateSceneMutation = useMutation({
     mutationFn: async ({ sceneIndex, prompt }: { sceneIndex: number; prompt: string }) => {
+      // In edit mode, generate scene locally without saving to original project
+      if (isEditMode) {
+        // Call a standalone scene generation endpoint that doesn't update the project
+        const response = await apiRequest("POST", `/api/generate-single-scene`, {
+          prompt
+        });
+        return response.json();
+      }
+      
+      // Normal mode: use the regular regenerate-scene endpoint that updates the project
       const response = await apiRequest("POST", `/api/projects/${projectId}/regenerate-scene`, {
         sceneIndex,
         prompt
@@ -120,7 +130,9 @@ export function SceneGenerationStep({ projectId, audioDuration, scenes = [], isE
       setRegeneratingScenes(prev => prev.filter(i => i !== sceneIndex));
       toast({
         title: "Success",
-        description: `Scene ${sceneIndex + 1} regenerated successfully!`,
+        description: isEditMode 
+          ? `Scene ${sceneIndex + 1} regenerated! Changes will be saved when you click 'Re-generate Music Video'.`
+          : `Scene ${sceneIndex + 1} regenerated successfully!`,
       });
     },
     onError: (error, variables) => {
@@ -135,16 +147,6 @@ export function SceneGenerationStep({ projectId, audioDuration, scenes = [], isE
   });
 
   const regenerateScene = (index: number, prompt: string) => {
-    // In edit mode, prevent any scene regeneration that would modify the original project
-    if (isEditMode) {
-      toast({
-        title: "Action Disabled",
-        description: "Scene regeneration is disabled in edit mode. Please edit the prompt text and click 'Re-generate Music Video' to create a new video.",
-        variant: "default",
-      });
-      return;
-    }
-    
     setRegeneratingScenes(prev => [...prev, index]);
     regenerateSceneMutation.mutate({ sceneIndex: index, prompt });
   };
@@ -313,10 +315,9 @@ export function SceneGenerationStep({ projectId, audioDuration, scenes = [], isE
                         variant="outline"
                         size="sm"
                         onClick={() => regenerateScene(index, scene.prompt)}
-                        disabled={regeneratingScenes.includes(index) || isEditMode}
+                        disabled={regeneratingScenes.includes(index)}
                         className="flex items-center gap-2"
                         data-testid={`regenerate-scene-${index + 1}`}
-                        title={isEditMode ? "Scene regeneration disabled in edit mode. Click 'Re-generate Music Video' to create new video with edited scenes." : ""}
                       >
                         <RefreshCw className={`w-4 h-4 ${regeneratingScenes.includes(index) ? 'animate-spin' : ''}`} />
                         {regeneratingScenes.includes(index) ? 'Regenerating...' : 'Regenerate'}
