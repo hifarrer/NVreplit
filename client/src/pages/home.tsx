@@ -20,13 +20,15 @@ export default function Home() {
   const [projectId, setProjectId] = useState<string>("");
   const [currentEditSession, setCurrentEditSession] = useState<string | null>(null);
   
-  // Extract edit parameter and session timestamp from URL
-  const urlParams = new URLSearchParams(location.split('?')[1]);
+  // Extract edit parameter and session timestamp from URL using window.location.search
+  // This is needed because wouter's location doesn't include query params
+  const urlParams = new URLSearchParams(window.location.search);
   const editProjectId = urlParams.get('edit');
   const editSessionId = urlParams.get('t'); // Timestamp from edit button
   const isEditMode = !!editProjectId;
   
-  console.log('Location:', location);
+  console.log('Full URL:', window.location.href);
+  console.log('Search params:', window.location.search);
   console.log('Edit params:', { editProjectId, editSessionId, isEditMode });
 
   // Don't load current project on Create page - always start fresh
