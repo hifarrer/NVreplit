@@ -228,7 +228,7 @@ export async function generateAllVideoSegmentsDynamic(
     timestampedWords = parseAssSubtitles(subtitleData.assContent);
     console.log(`Parsed ${timestampedWords.length} timestamped words from subtitles for smart lyrics detection`);
   } else {
-    console.log("No subtitle data available - will use default lipsync pattern (lyrics assumed to exist)");
+    console.log("No subtitle data available - will not use lipsync for segments without detected lyrics");
   }
   
   // Calculate segment durations (assuming equal length segments)
@@ -251,10 +251,10 @@ export async function generateAllVideoSegmentsDynamic(
         const segmentEnd = (i + 1) * segmentDuration;
         
         // Check if this segment has lyrics
-        // If we have subtitle data, check if segment has lyrics; otherwise assume lyrics exist
+        // If we have subtitle data, check if segment has lyrics; otherwise assume NO lyrics
         const hasLyrics = timestampedWords.length > 0 
           ? segmentHasLyrics(segmentStart, segmentEnd, timestampedWords)
-          : true; // Default to true (assume lyrics) if no subtitle data available
+          : false; // Default to false (don't use lipsync) if no subtitle data available
         
         if (i === 0) {
           // First segment: always seedance (no lipsync)
@@ -303,10 +303,10 @@ export async function generateAllVideoSegmentsDynamic(
         const segmentEnd = (i + 1) * segmentDuration;
         
         // Check if this segment has lyrics
-        // If we have subtitle data, check if segment has lyrics; otherwise assume lyrics exist
+        // If we have subtitle data, check if segment has lyrics; otherwise assume NO lyrics
         const hasLyrics = timestampedWords.length > 0 
           ? segmentHasLyrics(segmentStart, segmentEnd, timestampedWords)
-          : true; // Default to true (assume lyrics) if no subtitle data available
+          : false; // Default to false (don't use lipsync) if no subtitle data available
 
         // Smart model selection based on lyrics presence and pattern
         console.log(`\n=== SEGMENT ${i + 1} (${segmentStart.toFixed(1)}s-${segmentEnd.toFixed(1)}s) ===`);
