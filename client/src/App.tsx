@@ -69,6 +69,7 @@ function AppRouter() {
   return (
     <Switch>
       <Route path="/" component={user ? () => <ProtectedRoute component={Home} /> : LandingPage} />
+      <Route path="/create" component={() => <ProtectedRoute component={Home} />} />
       <Route path="/my-songs" component={() => <ProtectedRoute component={MySongsPage} />} />
       <Route path="/my-videos" component={() => <ProtectedRoute component={MyVideosPage} />} />
       <Route path="/characters" component={() => <ProtectedRoute component={CharactersPage} />} />

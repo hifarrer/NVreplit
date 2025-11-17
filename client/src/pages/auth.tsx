@@ -126,8 +126,8 @@ export default function AuthPage() {
         localStorage.removeItem('pending_redirect_url');
         window.location.href = pendingRedirect;
       } else {
-        // Default to home page
-        setLocation('/');
+        // Default to create page
+        setLocation('/create');
       }
     }
   }, [user, setLocation]);

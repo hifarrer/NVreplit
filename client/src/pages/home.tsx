@@ -21,12 +21,10 @@ export default function Home() {
   const [currentEditSession, setCurrentEditSession] = useState<string | null>(null);
   
   // Extract edit parameter and session timestamp from URL
-  console.log('Current location:', location);
   const urlParams = new URLSearchParams(location.split('?')[1]);
   const editProjectId = urlParams.get('edit');
   const editSessionId = urlParams.get('t'); // Timestamp from edit button
   const isEditMode = !!editProjectId;
-  console.log('URL params:', { editProjectId, editSessionId, isEditMode });
 
   // Don't load current project on Create page - always start fresh
   // const { data: currentProject } = useQuery<Project>({
@@ -75,11 +73,8 @@ export default function Home() {
       return;
     }
     
-    console.log('Init effect:', { editProjectId, projectId, isEditMode });
-    
     // If edit mode with a project ID, load that project
     if (editProjectId) {
-      console.log('Loading existing project in edit mode:', editProjectId);
       if (projectId !== editProjectId) {
         setProjectId(editProjectId);
       }
@@ -88,7 +83,6 @@ export default function Home() {
     
     // Otherwise, create a new project when the Create page loads
     if (!projectId && !editProjectId) {
-      console.log('Creating new project');
       createProjectMutation.mutate();
     }
   }, [user, editProjectId]); // Only depend on edit project ID, not timestamp
@@ -131,7 +125,7 @@ export default function Home() {
     setProjectId(""); // Clear current project ID
     setCurrentEditSession(null); // Clear edit session
     // Clear the edit query param from URL
-    setLocation('/');
+    setLocation('/create');
     createProjectMutation.mutate(); // Create a new project
   };
 

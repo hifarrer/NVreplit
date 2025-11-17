@@ -47,7 +47,7 @@ export default function MyVideosPage() {
 
   const handleEditVideo = (videoId: string) => {
     // Add timestamp to force re-initialization of edit mode
-    setLocation(`/?edit=${videoId}&t=${Date.now()}`);
+    setLocation(`/create?edit=${videoId}&t=${Date.now()}`);
   };
 
   const handleDownload = (videoUrl: string, title: string) => {

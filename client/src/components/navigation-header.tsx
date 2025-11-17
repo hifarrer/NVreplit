@@ -23,7 +23,7 @@ export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
-    { href: "/", label: "Create", icon: <HomeIcon className="h-4 w-4" />, page: "home" },
+    { href: "/create", label: "Create", icon: <HomeIcon className="h-4 w-4" />, page: "home" },
     { href: "/my-songs", label: "Songs", icon: <Music className="h-4 w-4" />, page: "songs" },
     { href: "/my-videos", label: "Videos", icon: <Video className="h-4 w-4" />, page: "videos" },
     { href: "/characters", label: "Characters", icon: <User className="h-4 w-4" />, page: "characters" },
@@ -42,7 +42,7 @@ export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
         <div className="flex items-center justify-between">
           {/* Logo and Desktop Navigation */}
           <div className="flex items-center space-x-4">
-            <Link href="/">
+            <Link href={user ? "/create" : "/"}>
               <img 
                 src={logoImage} 
                 alt="neonvideo.ai" 
