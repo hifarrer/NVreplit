@@ -11,11 +11,18 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Project } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
+import { useLocation } from "wouter";
 
 export default function Home() {
   const { user } = useAuth();
+  const [location] = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
   const [projectId, setProjectId] = useState<string>("");
+  const [isEditMode, setIsEditMode] = useState(false);
+  
+  // Extract edit parameter from URL
+  const urlParams = new URLSearchParams(location.split('?')[1]);
+  const editProjectId = urlParams.get('edit');
 
   // Don't load current project on Create page - always start fresh
   // const { data: currentProject } = useQuery<Project>({
@@ -42,24 +49,37 @@ export default function Home() {
     enabled: !!projectId,
   });
 
-  // Initialize project logic: always create a new project when page loads
+  // Initialize project logic: create new project or load existing one in edit mode
   useEffect(() => {
     // Only proceed if user is authenticated
     if (!user) {
       return;
     }
     
-    // Always create a new project when the Create page loads
-    if (!projectId) {
+    // If edit mode with a project ID, load that project
+    if (editProjectId && !projectId) {
+      setProjectId(editProjectId);
+      setIsEditMode(true);
+      return;
+    }
+    
+    // Otherwise, create a new project when the Create page loads
+    if (!projectId && !editProjectId) {
       createProjectMutation.mutate();
     }
-  }, [user]); // Only depend on user, not currentProject
+  }, [user, editProjectId]); // Depend on user and editProjectId
 
   useEffect(() => {
     if (project) {
-      setCurrentStep(project.currentStep);
+      // In edit mode, always start at Scene Generation (step 3)
+      // so users can edit scenes and regenerate
+      if (isEditMode && project.scenePrompts && project.scenePrompts.length > 0) {
+        setCurrentStep(3);
+      } else {
+        setCurrentStep(project.currentStep);
+      }
     }
-  }, [project]);
+  }, [project, isEditMode]);
 
   const handleStepChange = async (step: number) => {
     setCurrentStep(step);
