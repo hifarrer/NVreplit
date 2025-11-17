@@ -2944,16 +2944,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate a single scene image without updating any project (for edit mode)
   app.post("/api/generate-single-scene", authenticateToken, async (req, res) => {
     try {
-      const { prompt } = req.body;
+      const { prompt, characterImageUrl } = req.body;
       
       if (!prompt) {
         return res.status(400).json({ error: "Prompt is required" });
+      }
+      
+      if (!characterImageUrl) {
+        return res.status(400).json({ error: "Character image URL is required" });
       }
 
       console.log(`Generating single scene with prompt: ${prompt}`);
       
       // Generate scene image using the same method as regular scene generation
-      const imageUrl = await generateSingleSceneImage(prompt);
+      const imageUrl = await generateSingleSceneImage(prompt, characterImageUrl);
       
       res.json({ imageUrl });
     } catch (error) {

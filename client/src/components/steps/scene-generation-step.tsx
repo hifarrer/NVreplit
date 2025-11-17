@@ -17,6 +17,7 @@ import { RotateCcw, RefreshCw, Mic } from "lucide-react";
 interface SceneGenerationStepProps {
   projectId: string;
   audioDuration?: number;
+  characterImageUrl?: string;
   scenes?: SceneData[];
   isEditMode?: boolean;
   onNext: () => void;
@@ -24,7 +25,7 @@ interface SceneGenerationStepProps {
   onReset: () => void;
 }
 
-export function SceneGenerationStep({ projectId, audioDuration, scenes = [], isEditMode = false, onNext, onBack, onReset }: SceneGenerationStepProps) {
+export function SceneGenerationStep({ projectId, audioDuration, characterImageUrl, scenes = [], isEditMode = false, onNext, onBack, onReset }: SceneGenerationStepProps) {
   // Defensively copy scenes array to avoid mutating the original project data
   const [generatedScenes, setGeneratedScenes] = useState<SceneData[]>(() => 
     scenes.map(scene => ({ ...scene }))
@@ -106,7 +107,8 @@ export function SceneGenerationStep({ projectId, audioDuration, scenes = [], isE
       if (isEditMode) {
         // Call a standalone scene generation endpoint that doesn't update the project
         const response = await apiRequest("POST", `/api/generate-single-scene`, {
-          prompt
+          prompt,
+          characterImageUrl
         });
         return response.json();
       }
