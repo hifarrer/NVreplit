@@ -10,7 +10,7 @@ import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { MuxVideoPlayer } from "@/components/mux-video-player";
 import { format } from "date-fns";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +32,7 @@ interface CompletedVideo {
 export default function MyVideosPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [selectedVideo, setSelectedVideo] = useState<CompletedVideo | null>(null);
   const [videoError, setVideoError] = useState<boolean>(false);
   const [videoToDelete, setVideoToDelete] = useState<CompletedVideo | null>(null);
@@ -43,6 +44,10 @@ export default function MyVideosPage() {
   const { data: videos = [], isLoading, refetch } = useQuery<CompletedVideo[]>({
     queryKey: ["/api/my-videos"],
   });
+
+  const handleEditVideo = (videoId: string) => {
+    setLocation(`/?edit=${videoId}`);
+  };
 
   const handleDownload = (videoUrl: string, title: string) => {
     const link = document.createElement('a');
@@ -283,6 +288,19 @@ export default function MyVideosPage() {
                         >
                           <Play className="h-3 w-3 mr-1" />
                           Watch
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditVideo(video.id);
+                          }}
+                          data-testid={`button-edit-${video.id}`}
+                        >
+                          <Edit3 className="h-3 w-3 mr-1" />
+                          Edit
                         </Button>
                         <Button
                           size="sm"
