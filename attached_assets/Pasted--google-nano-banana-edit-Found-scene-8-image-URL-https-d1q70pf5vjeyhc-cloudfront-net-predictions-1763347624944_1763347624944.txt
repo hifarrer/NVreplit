@@ -1,0 +1,59 @@
+[google/nano-banana/edit] Found scene 8 image URL: https://d1q70pf5vjeyhc.cloudfront.net/predictions/cf9c584eb62044b09f1acc0b40a29772/1.jpg
+✓ Scene 1 generated successfully using google/nano-banana/edit
+✓ Scene 2 generated successfully using google/nano-banana/edit
+✓ Scene 3 generated successfully using google/nano-banana/edit
+✓ Scene 4 generated successfully using google/nano-banana/edit
+✓ Scene 5 generated successfully using google/nano-banana/edit
+✓ Scene 6 generated successfully using google/nano-banana/edit
+✓ Scene 7 generated successfully using google/nano-banana/edit
+✓ Scene 8 generated successfully using google/nano-banana/edit
+✓ Scene 9 generated successfully using google/nano-banana/edit
+✓ Scene 10 generated successfully using google/nano-banana/edit
+✓ Scene 11 generated successfully using google/nano-banana/edit
+✓ Scene 12 generated successfully using google/nano-banana/edit
+✓ Scene 13 generated successfully using google/nano-banana/edit
+✓ Scene 14 generated successfully using google/nano-banana/edit
+✓ Scene 15 generated successfully using google/nano-banana/edit
+✓ Scene 16 generated successfully using google/nano-banana/edit
+✓ Scene 17 generated successfully using google/nano-banana/edit
+✓ Scene 18 generated successfully using google/nano-banana/edit
+✓ All 18 scenes generated successfully (with automatic fallback support)
+2:44:51 AM [express] POST /api/projects/d57bf8bc-f0b4-4e45-961b-1bd52f1c8391/generate-scenes 200 in …
+Updated scene data for project d57bf8bc-f0b4-4e45-961b-1bd52f1c8391
+2:45:01 AM [express] POST /api/projects/d57bf8bc-f0b4-4e45-961b-1bd52f1c8391/update-scenes 200 in 26…
+2:45:01 AM [express] PATCH /api/projects/d57bf8bc-f0b4-4e45-961b-1bd52f1c8391 200 in 387ms :: {"id":…
+2:45:02 AM [express] GET /api/video-queue/status 200 in 724ms :: {"activeCount":4,"maxConcurrent":20}
+2:45:02 AM [express] GET /api/projects/d57bf8bc-f0b4-4e45-961b-1bd52f1c8391 200 in 388ms :: {"id":"d…
+Using audio duration: 180 seconds for video generation
+Dynamically calculated video generation parameters:
+- Number of audio parts: 18
+- Number of scenes: 18
+- Regular videos: 9
+- Lipsync videos: 9
+=== AUDIO URL DEBUG ===
+Original audio URL: /objects/songs/c736ffb3-f84b-4795-91fa-2cf4873022a8.mp3
+REPLIT_DEV_DOMAIN: 046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev
+Host: 046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev
+Final audio URL for FFMPEG: https://046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev/objects/songs/c736ffb3-f84b-4795-91fa-2cf4873022a8.mp3
+=== END DEBUG ===
+Splitting audio into 18 segments of 10 seconds each (total duration: 180s)
+2:45:02 AM [express] GET /api/trending-videos 304 in 1287ms :: []
+Audio splitting error: Error: FFMPEG API error: 404 - <!doctype html>
+<html lang=en>
+<title>404 Not Found</title>
+<h1>Not Found</h1>
+<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>
+
+    at splitAudio (/home/runner/workspace/server/services/ffmpeg.ts:74:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:4828:29)
+Generate video error: Error: Failed to split audio: FFMPEG API error: 404 - <!doctype html>
+<html lang=en>
+<title>404 Not Found</title>
+<h1>Not Found</h1>
+<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>
+
+    at splitAudio (/home/runner/workspace/server/services/ffmpeg.ts:86:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:4828:29)
+2:45:03 AM [express] POST /api/projects/d57bf8bc-f0b4-4e45-961b-1bd52f1c8391/generate-video 500 

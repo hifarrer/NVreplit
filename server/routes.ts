@@ -4793,25 +4793,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { step: 1, total: 4, numberOfSegments: numberOfAudioParts }
       });
 
-      // Convert audio URL to externally accessible URL for FFMPEG API
-      // Serve files through our server instead of using signed URLs
+      // Convert audio URL to externally accessible signed URL for FFMPEG API
       let audioUrl = project.audioUrl;
-      if (audioUrl.startsWith('/')) {
-        // Use the actual Replit dev domain from environment for local files
+      if (audioUrl.startsWith('/objects/')) {
+        // Generate signed URL for object storage files (publicly accessible by external APIs)
+        const objectStorageService = new ObjectStorageService();
+        audioUrl = await objectStorageService.getSignedUrlForPath(audioUrl, 3600); // 1 hour TTL
+      } else if (audioUrl.startsWith('/')) {
+        // For truly local files (e.g., /uploads/...) use Replit domain
+        // Note: This is only for self-hosted tests; object storage files use signed URLs above
         const replitDevDomain = process.env.REPLIT_DEV_DOMAIN;
         
         if (replitDevDomain) {
-          // Use the actual Replit dev domain
           audioUrl = `https://${replitDevDomain}${audioUrl}`;
         } else {
-          // Fallback to constructing from environment variables
           const replSlug = process.env.REPL_SLUG;
           const replOwner = process.env.REPL_OWNER;
           
           if (replSlug && replOwner) {
             audioUrl = `https://${replSlug}-${replOwner}.replit.app${audioUrl}`;
           } else {
-            // Final fallback to host header
             const host = req.get('host') || 'localhost:5000';
             audioUrl = host.includes('localhost') ? `http://${host}${audioUrl}` : `https://${host}${audioUrl}`;
           }
