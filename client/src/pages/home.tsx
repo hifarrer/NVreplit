@@ -93,11 +93,16 @@ export default function Home() {
     if (project && !isEditMode) {
       // Normal mode: always sync with project step
       setCurrentStep(project.currentStep);
-    } else if (project && isEditMode && editSessionId === currentEditSession) {
-      // Edit mode: only sync after edit session is initialized
+    } else if (project && isEditMode && editSessionId && currentEditSession && editSessionId === currentEditSession) {
+      // Edit mode: only sync AFTER edit session is fully initialized
+      // Don't override if we just set it to 3 and backend hasn't caught up yet
+      if (currentStep === 3 && project.currentStep !== 3) {
+        // We just jumped to step 3, backend hasn't updated yet - don't sync
+        return;
+      }
       setCurrentStep(project.currentStep);
     }
-  }, [project?.currentStep, isEditMode, editSessionId, currentEditSession]);
+  }, [project?.currentStep, isEditMode, editSessionId, currentEditSession, currentStep]);
 
   const handleStepChange = async (step: number) => {
     setCurrentStep(step);
