@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { VideoPlayer } from "@/components/ui/video-player";
 import { useToast } from "@/hooks/use-toast";
-import { RotateCcw, Download, Share2, Plus } from "lucide-react";
+import { useLocation } from "wouter";
+import { RotateCcw, Download, Share2, Plus, Edit } from "lucide-react";
 
 interface VideoResultStepProps {
   projectId: string;
@@ -11,6 +12,11 @@ interface VideoResultStepProps {
 
 export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResultStepProps) {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const handleEdit = () => {
+    setLocation(`/?edit=${projectId}`);
+  };
 
   const downloadVideo = () => {
     // Create a temporary link to download the video
@@ -89,6 +95,14 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResul
           >
             <Share2 className="w-4 h-4 mr-2" />
             Share Video
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={handleEdit}
+            data-testid="edit-video-button"
+          >
+            <Edit className="w-4 h-4 mr-2" />
+            Edit & Regenerate
           </Button>
           <Button 
             variant="outline"
