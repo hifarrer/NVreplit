@@ -234,6 +234,13 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
     }
   };
 
+  // Calculate credit cost for video regeneration (video generation only, no song cost)
+  const calculateRegenerationCost = () => {
+    if (!audioDuration) return 0;
+    // Video generation: 1000 credits per 30 seconds
+    return Math.ceil(audioDuration / 30) * 1000;
+  };
+
   return (
     <div className="max-w-6xl mx-auto mb-12 bg-card rounded-lg p-2 sm:p-4" data-testid="scene-generation-step">
       <div className="bg-background border border-border rounded-lg p-4 sm:p-6 md:p-8">
@@ -341,6 +348,22 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Credit Cost Info for Edit Mode */}
+        {isEditMode && audioDuration && (
+          <div className="bg-muted/30 border border-border rounded-lg p-4 mb-6" data-testid="regeneration-cost-info">
+            <div className="flex items-center gap-2 text-sm">
+              <i className="fas fa-coins text-primary"></i>
+              <span className="font-medium">Regeneration Cost:</span>
+              <span className="text-muted-foreground">
+                {calculateRegenerationCost().toLocaleString()} credits
+              </span>
+              <span className="text-xs text-muted-foreground">
+                (Video generation: {Math.ceil(audioDuration / 30)} × 30s segments)
+              </span>
+            </div>
           </div>
         )}
 
