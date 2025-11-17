@@ -18,13 +18,17 @@ interface SceneGenerationStepProps {
   projectId: string;
   audioDuration?: number;
   scenes?: SceneData[];
+  isEditMode?: boolean;
   onNext: () => void;
   onBack: () => void;
   onReset: () => void;
 }
 
-export function SceneGenerationStep({ projectId, audioDuration, scenes = [], onNext, onBack, onReset }: SceneGenerationStepProps) {
-  const [generatedScenes, setGeneratedScenes] = useState<SceneData[]>(scenes);
+export function SceneGenerationStep({ projectId, audioDuration, scenes = [], isEditMode = false, onNext, onBack, onReset }: SceneGenerationStepProps) {
+  // Defensively copy scenes array to avoid mutating the original project data
+  const [generatedScenes, setGeneratedScenes] = useState<SceneData[]>(() => 
+    scenes.map(scene => ({ ...scene }))
+  );
   const [progress, setProgress] = useState(0);
   const [regeneratingScenes, setRegeneratingScenes] = useState<number[]>([]);
   const { toast } = useToast();
@@ -83,10 +87,18 @@ export function SceneGenerationStep({ projectId, audioDuration, scenes = [], onN
   });
 
   useEffect(() => {
-    if (generatedScenes.length === 0) {
+    // Only auto-generate scenes if none exist AND not in edit mode
+    if (generatedScenes.length === 0 && !isEditMode) {
       generateScenesMutation.mutate();
     }
-  }, []);
+  }, [isEditMode]);
+  
+  // Sync with scenes prop when it changes (e.g., when project data loads in edit mode)
+  useEffect(() => {
+    if (scenes.length > 0 && generatedScenes.length === 0) {
+      setGeneratedScenes(scenes.map(scene => ({ ...scene })));
+    }
+  }, [scenes]);
 
   const regenerateSceneMutation = useMutation({
     mutationFn: async ({ sceneIndex, prompt }: { sceneIndex: number; prompt: string }) => {
@@ -123,6 +135,16 @@ export function SceneGenerationStep({ projectId, audioDuration, scenes = [], onN
   });
 
   const regenerateScene = (index: number, prompt: string) => {
+    // In edit mode, prevent any scene regeneration that would modify the original project
+    if (isEditMode) {
+      toast({
+        title: "Action Disabled",
+        description: "Scene regeneration is disabled in edit mode. Please edit the prompt text and click 'Re-generate Music Video' to create a new video.",
+        variant: "default",
+      });
+      return;
+    }
+    
     setRegeneratingScenes(prev => [...prev, index]);
     regenerateSceneMutation.mutate({ sceneIndex: index, prompt });
   };
@@ -137,33 +159,75 @@ export function SceneGenerationStep({ projectId, audioDuration, scenes = [], onN
 
   const saveScenesMutation = useMutation({
     mutationFn: async (scenes: SceneData[]) => {
+      // In edit mode, never save to the original project
+      if (isEditMode) {
+        console.log("Edit mode: Skipping scene save to original project");
+        return Promise.resolve({ success: true });
+      }
+      
       const response = await apiRequest("POST", `/api/projects/${projectId}/update-scenes`, {
         scenes
       });
       return response.json();
     },
     onSuccess: () => {
-      console.log("Scenes saved successfully before video generation");
+      if (!isEditMode) {
+        console.log("Scenes saved successfully before video generation");
+      }
     },
     onError: (error) => {
-      console.error("Failed to save scenes:", error);
+      if (!isEditMode) {
+        console.error("Failed to save scenes:", error);
+        toast({
+          title: "Warning",
+          description: "Failed to save scene changes. Proceeding with video generation anyway.",
+          variant: "destructive",
+        });
+      }
+    }
+  });
+
+  // Mutation to clone/regenerate the project
+  const regenerateVideoMutation = useMutation({
+    mutationFn: async () => {
+      // Clone the project with updated scenes (don't modify the original)
+      const response = await apiRequest("POST", `/api/projects/${projectId}/clone`, {
+        updatedScenes: generatedScenes
+      });
+      return response.json();
+    },
+    onSuccess: (newProject) => {
       toast({
-        title: "Warning",
-        description: "Failed to save scene changes. Proceeding with video generation anyway.",
+        title: "Starting Regeneration",
+        description: "Creating a new video with your updated scenes...",
+      });
+      
+      // Navigate to the new project's video generation step
+      window.location.href = `/create?id=${newProject.id}`;
+    },
+    onError: (error) => {
+      toast({
+        title: "Regeneration Failed",
+        description: error instanceof Error ? error.message : "Failed to start regeneration",
         variant: "destructive",
       });
     }
   });
 
   const handleProceedToVideo = async () => {
-    // Save all scene changes before proceeding to video generation
-    try {
-      await saveScenesMutation.mutateAsync(generatedScenes);
-    } catch (error) {
-      console.error("Error saving scenes:", error);
+    if (isEditMode) {
+      // In edit mode, trigger regeneration (clone + redirect)
+      regenerateVideoMutation.mutate();
+    } else {
+      // In normal mode, save scenes and proceed to next step
+      try {
+        await saveScenesMutation.mutateAsync(generatedScenes);
+      } catch (error) {
+        console.error("Error saving scenes:", error);
+      }
+      // Proceed to next step regardless of save result
+      onNext();
     }
-    // Proceed to next step regardless of save result
-    onNext();
   };
 
   return (
@@ -249,9 +313,10 @@ export function SceneGenerationStep({ projectId, audioDuration, scenes = [], onN
                         variant="outline"
                         size="sm"
                         onClick={() => regenerateScene(index, scene.prompt)}
-                        disabled={regeneratingScenes.includes(index)}
+                        disabled={regeneratingScenes.includes(index) || isEditMode}
                         className="flex items-center gap-2"
                         data-testid={`regenerate-scene-${index + 1}`}
+                        title={isEditMode ? "Scene regeneration disabled in edit mode. Click 'Re-generate Music Video' to create new video with edited scenes." : ""}
                       >
                         <RefreshCw className={`w-4 h-4 ${regeneratingScenes.includes(index) ? 'animate-spin' : ''}`} />
                         {regeneratingScenes.includes(index) ? 'Regenerating...' : 'Regenerate'}
@@ -288,12 +353,14 @@ export function SceneGenerationStep({ projectId, audioDuration, scenes = [], onN
           </Button>
           <Button
             onClick={handleProceedToVideo}
-            disabled={generatedScenes.length === 0 || saveScenesMutation.isPending}
+            disabled={generatedScenes.length === 0 || saveScenesMutation.isPending || regenerateVideoMutation.isPending}
             className="floating-button py-3 px-8"
             data-testid="proceed-to-video-generation-button"
           >
             <i className="fas fa-video mr-2"></i>
-            {saveScenesMutation.isPending ? "Saving..." : "Generate Music Video"}
+            {regenerateVideoMutation.isPending ? "Regenerating..." : 
+             saveScenesMutation.isPending ? "Saving..." : 
+             isEditMode ? "Re-generate Music Video" : "Generate Music Video"}
           </Button>
         </div>
       </div>

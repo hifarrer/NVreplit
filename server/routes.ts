@@ -2941,6 +2941,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Clone/regenerate a completed project for editing
+  app.post("/api/projects/:id/clone", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const sourceProjectId = req.params.id;
+      const { updatedScenes } = req.body; // Receive updated scenes from frontend
+      
+      // Get the source project
+      const sourceProject = await storage.getProject(sourceProjectId);
+      if (!sourceProject) {
+        return res.status(404).json({ error: "Source project not found" });
+      }
+      
+      // Verify ownership
+      if (sourceProject.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized to clone this project" });
+      }
+      
+      console.log(`Cloning project ${sourceProjectId} for regeneration...`);
+      
+      // Deep copy scene data from request or source project
+      const scenePrompts = updatedScenes 
+        ? updatedScenes.map((s: any) => s.prompt)
+        : (sourceProject.scenePrompts ? JSON.parse(JSON.stringify(sourceProject.scenePrompts)) : undefined);
+      const sceneImages = updatedScenes
+        ? updatedScenes.map((s: any) => s.imageUrl)
+        : (sourceProject.sceneImages ? JSON.parse(JSON.stringify(sourceProject.sceneImages)) : undefined);
+      
+      // Deep copy audio segments (use undefined instead of null to let Zod apply defaults)
+      const audioSegments = sourceProject.audioSegments 
+        ? JSON.parse(JSON.stringify(sourceProject.audioSegments))
+        : undefined;
+      
+      // Create a new project with all the same data except:
+      // - New ID (auto-generated)
+      // - Reset completion status and generation tracking
+      // - Reset final video and MUX data
+      // - Reset video segments (will be regenerated)
+      // - Use updated scenes if provided
+      // - Keep all other data (audio, character, etc.)
+      const clonedProjectData: any = {
+        userId: sourceProject.userId,
+        title: sourceProject.title || "My Music Video",
+        description: sourceProject.description || "AI-generated music video project",
+        currentStep: 4, // Set to step 4 (ready for video generation)
+        audioUrl: sourceProject.audioUrl,
+        audioType: sourceProject.audioType,
+        audioPrompt: sourceProject.audioPrompt,
+        audioTags: sourceProject.audioTags,
+        audioLyrics: sourceProject.audioLyrics,
+        audioDuration: sourceProject.audioDuration,
+        addSubtitles: sourceProject.addSubtitles,
+        subtitleFileUrl: sourceProject.subtitleFileUrl,
+        kieTaskId: sourceProject.kieTaskId,
+        kieAudioId: sourceProject.kieAudioId,
+        characterImageUrl: sourceProject.characterImageUrl,
+        characterType: sourceProject.characterType,
+        characterPrompt: sourceProject.characterPrompt,
+        makeCharacterSing: sourceProject.makeCharacterSing,
+        isCompleted: false, // Not completed yet
+        generationStatus: 'idle',
+      };
+      
+      // Add optional fields only if they have values (undefined fields are omitted)
+      if (scenePrompts !== undefined) clonedProjectData.scenePrompts = scenePrompts;
+      if (sceneImages !== undefined) clonedProjectData.sceneImages = sceneImages;
+      if (audioSegments !== undefined) clonedProjectData.audioSegments = audioSegments;
+      
+      const validatedData = insertProjectSchema.parse(clonedProjectData);
+      const clonedProject = await storage.createProject(validatedData);
+      
+      console.log(`Successfully cloned project ${sourceProjectId} to new project ${clonedProject.id}`);
+      
+      res.json(clonedProject);
+    } catch (error) {
+      console.error("Clone project error:", error);
+      if (error instanceof Error && 'name' in error && error.name === 'ZodError') {
+        console.error("Validation errors:", (error as any).errors);
+        res.status(400).json({ error: "Validation failed", details: (error as any).errors });
+      } else {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        res.status(400).json({ error: "Failed to clone project", message });
+      }
+    }
+  });
+
   // Delete a project
   app.delete("/api/projects/:id", authenticateToken, async (req, res) => {
     try {
