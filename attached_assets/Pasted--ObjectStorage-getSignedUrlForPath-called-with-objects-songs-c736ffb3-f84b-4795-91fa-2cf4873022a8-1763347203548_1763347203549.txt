@@ -1,0 +1,30 @@
+[ObjectStorage] getSignedUrlForPath called with: /objects/songs/c736ffb3-f84b-4795-91fa-2cf4873022a8.mp3
+[ObjectStorage] Private dir: /replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private
+[ObjectStorage] Full object path: /replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/c736ffb3-f84b-4795-91fa-2cf4873022a8.mp3
+[ObjectStorage] Bucket: replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73, Object: .private/songs/c736ffb3-f84b-4795-91fa-2cf4873022a8.mp3
+[ObjectStorage] Successfully generated signed URL (https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/c...)
+=== AUDIO URL DEBUG ===
+Original audio URL: /objects/songs/c736ffb3-f84b-4795-91fa-2cf4873022a8.mp3
+REPLIT_DEV_DOMAIN: 046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev
+Host: 046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev
+Final audio URL for FFMPEG: https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/c736ffb3-f84b-4795-91fa-2cf4873022a8.mp3?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20251117%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20251117T023741Z&X-Goog-Expires=3599&X-Goog-Signature=6252481ccaf31248b374c7a7efae1344f8c74ed50f2281c220db9b8c81f5f829f5f8a71e9730fe319242894f42269e4d33cd49026a4a44ad87879bbee2462fa67921240749da790ebb8fcb5557299abaf6433c48988bdd12ba39cfe9888e14177dd7021da53ddd15e08e7c72e8cd3b3deeafec73efab95acbeb28d1518c7f831e02fa4a10919f9e92b90be28ca03b9b3c417b9d91c6ee069d5f41ddd5a382d97392f26d51dc3448d1a93ff364e31a02ca329d5bb0e7589a43172273b8e629c2bed9889a89ea850b158ee0f6f2aae70f84d33b9ad63c0eb5368d00fb67c4f5a588148c1d0f7953d0f05981d58e6e5bcc524b6e747f30265ddf8a03e34bec81c2a&X-Goog-SignedHeaders=host
+=== END DEBUG ===
+Splitting audio into 18 segments of 10 seconds each (total duration: 180s)
+Audio splitting error: Error: FFMPEG API error: 404 - <!doctype html>
+<html lang=en>
+<title>404 Not Found</title>
+<h1>Not Found</h1>
+<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>
+
+    at splitAudio (/home/runner/workspace/server/services/ffmpeg.ts:74:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:4831:29)
+Generate video error: Error: Failed to split audio: FFMPEG API error: 404 - <!doctype html>
+<html lang=en>
+<title>404 Not Found</title>
+<h1>Not Found</h1>
+<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>
+
+    at splitAudio (/home/runner/workspace/server/services/ffmpeg.ts:86:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:4831:29)
