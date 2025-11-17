@@ -56,31 +56,51 @@ export async function splitAudio(audioUrl: string, parts: number = 4, totalDurat
     
     console.log(`Splitting audio into ${calculatedParts} segments of ${segmentDuration} seconds each (total duration: ${totalDurationSeconds || 'unknown'}s)`);
     
-    // Use split_audio_by_time endpoint to ensure fixed 10-second intervals
-    const response = await fetch("https://ffmpegapi.net/api/split_audio_by_time", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": FFMPEG_API_KEY,
-      },
-      body: JSON.stringify({
-        audio_url: audioUrl,
-        segment_duration: segmentDuration, // Fixed 10-second segments
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`FFMPEG API error: ${response.status} - ${errorText}`);
-    }
-
-    const result = await response.json();
+    // Use trim_audio endpoint iteratively for each segment since split_audio_by_time doesn't exist
+    const segments: { part: string; download_url: string }[] = [];
     
-    if (!result.success) {
-      throw new Error(`Audio splitting failed: ${result.message || "Unknown error"}`);
+    for (let i = 0; i < calculatedParts; i++) {
+      const startTime = i * segmentDuration;
+      const endTime = Math.min((i + 1) * segmentDuration, totalDurationSeconds || (parts * segmentDuration));
+      const actualDuration = endTime - startTime;
+      
+      console.log(`Trimming segment ${i + 1}/${calculatedParts}: ${startTime}s - ${endTime}s (${actualDuration}s)`);
+      
+      const response = await fetch("https://ffmpegapi.net/api/trim_audio", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": FFMPEG_API_KEY,
+        },
+        body: JSON.stringify({
+          audio_url: audioUrl,
+          start_time: startTime,
+          desired_length: actualDuration,
+          fade_duration: 0 // No fade for segments
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`FFMPEG API error for segment ${i + 1}: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(`Audio segment ${i + 1} trimming failed: ${result.message || "Unknown error"}`);
+      }
+
+      segments.push({
+        part: `segment_${i + 1}`,
+        download_url: result.download_url
+      });
+      
+      console.log(`✓ Segment ${i + 1} created: ${result.download_url}`);
     }
 
-    return result.audio_parts || [];
+    console.log(`Successfully split audio into ${segments.length} segments`);
+    return segments;
   } catch (error) {
     console.error("Audio splitting error:", error);
     throw new Error("Failed to split audio: " + (error as Error).message);
