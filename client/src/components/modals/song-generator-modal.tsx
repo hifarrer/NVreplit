@@ -39,10 +39,10 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
   
   // Duration options based on user plan
   const durationOptions = isPaidUser 
-    ? [30, 60, 90, 120, 150, 180, 210, 240]
+    ? [30, 60, 90, 120, 150, 180]
     : [30, 60, 90, 120];
   
-  const maxDuration = isPaidUser ? 240 : 120;
+  const maxDuration = isPaidUser ? 180 : 120;
 
   // Reset duration to 60 seconds when modal opens
   useEffect(() => {
@@ -59,8 +59,6 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
     if (value === 120) return "2 min (2000 credits)";
     if (value === 150) return "2.5 min (2500 credits)";
     if (value === 180) return "3 min (3000 credits)";
-    if (value === 210) return "3.5 min (3500 credits)";
-    if (value === 240) return "4 min (4000 credits)";
     return `${value} sec (${credits} credits)`;
   };
 

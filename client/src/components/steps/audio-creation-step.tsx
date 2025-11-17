@@ -50,10 +50,10 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   
   // Duration options based on user plan
   const durationOptions = isPaidUser 
-    ? [30, 60, 90, 120, 150, 180, 210, 240]
+    ? [30, 60, 90, 120, 150, 180]
     : [30, 60, 90, 120];
   
-  const maxDuration = isPaidUser ? 240 : 120;
+  const maxDuration = isPaidUser ? 180 : 120;
   
   const getDurationLabel = (value: number) => {
     if (value === 30) return "30 sec";
@@ -62,8 +62,6 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
     if (value === 120) return "2 min";
     if (value === 150) return "2.5 min";
     if (value === 180) return "3 min";
-    if (value === 210) return "3.5 min";
-    if (value === 240) return "4 min";
     return `${value} sec`;
   };
   const [currentAudioUrl, setCurrentAudioUrl] = useState(audioUrl);

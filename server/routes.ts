@@ -3686,8 +3686,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get duration from request (default to 60 seconds if not provided)
       const requestedDuration = parseInt(req.body.duration) || 60;
       
-      // Cap duration based on user plan: Free users max 120s (2 min), Paid users max 240s (4 min)
-      const maxDuration = isPaidUser ? 240 : 120;
+      // Cap duration based on user plan: Free users max 120s (2 min), Paid users max 180s (3 min)
+      const maxDuration = isPaidUser ? 180 : 120;
       const targetDuration = Math.min(requestedDuration, maxDuration);
       
       // Get song title from request (optional)
@@ -3997,8 +3997,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userWithPlan = await storage.getUserWithPlan(project.userId);
       const isPaidUser = userWithPlan?.plan && userWithPlan.plan.monthlyPrice > 0;
       
-      // Validate duration based on user plan: Free users max 120s (2 min), Paid users max 240s (4 min)
-      const maxDuration = isPaidUser ? 240 : 120;
+      // Validate duration based on user plan: Free users max 120s (2 min), Paid users max 180s (3 min)
+      const maxDuration = isPaidUser ? 180 : 120;
       if (duration > maxDuration) {
         return res.status(400).json({ 
           error: `Duration exceeds maximum allowed for your plan. ${isPaidUser ? 'Paid users' : 'Free users'} can generate songs up to ${maxDuration} seconds (${maxDuration / 60} minutes).`,
