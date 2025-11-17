@@ -20,9 +20,10 @@ export default function Home() {
   const [projectId, setProjectId] = useState<string>("");
   const [currentEditSession, setCurrentEditSession] = useState<string | null>(null);
   
-  // Extract edit parameter and session timestamp from URL using window.location.search
+  // Extract project ID and edit parameters from URL using window.location.search
   // This is needed because wouter's location doesn't include query params
   const urlParams = new URLSearchParams(window.location.search);
+  const urlProjectId = urlParams.get('id'); // Used when loading a cloned project
   const editProjectId = urlParams.get('edit');
   const editSessionId = urlParams.get('t'); // Timestamp from edit button
   const isEditMode = !!editProjectId;
@@ -67,26 +68,27 @@ export default function Home() {
     }
   };
 
-  // Initialize project logic: create new project or load existing one in edit mode
+  // Initialize project logic: create new project or load existing one from URL
   useEffect(() => {
     // Only proceed if user is authenticated
     if (!user) {
       return;
     }
     
-    // If edit mode with a project ID, load that project
-    if (editProjectId) {
-      if (projectId !== editProjectId) {
-        setProjectId(editProjectId);
+    // If we have a project ID in the URL (either 'id' or 'edit' param), load that project
+    const targetProjectId = urlProjectId || editProjectId;
+    if (targetProjectId) {
+      if (projectId !== targetProjectId) {
+        setProjectId(targetProjectId);
       }
       return;
     }
     
     // Otherwise, create a new project when the Create page loads
-    if (!projectId && !editProjectId) {
+    if (!projectId && !targetProjectId) {
       createProjectMutation.mutate();
     }
-  }, [user, editProjectId]); // Only depend on edit project ID, not timestamp
+  }, [user, urlProjectId, editProjectId]); // Depend on both URL project IDs
 
   // Handle edit session changes - jump to step 3 when a new edit session starts
   useEffect(() => {
