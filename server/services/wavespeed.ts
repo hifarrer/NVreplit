@@ -251,10 +251,11 @@ export async function generateAllVideoSegmentsDynamic(
         const segmentEnd = (i + 1) * segmentDuration;
         
         // Check if this segment has lyrics
-        // If we have subtitle data, check if segment has lyrics; otherwise assume NO lyrics
+        // If we have subtitle data, check if segment has lyrics
+        // Otherwise, if makeCharacterSing is enabled, use default pattern (odd indices have lyrics)
         const hasLyrics = timestampedWords.length > 0 
           ? segmentHasLyrics(segmentStart, segmentEnd, timestampedWords)
-          : false; // Default to false (don't use lipsync) if no subtitle data available
+          : (config.makeCharacterSing && i % 2 === 1); // Default pattern: odd indices have lyrics when singing is enabled
         
         if (i === 0) {
           // First segment: always seedance (no lipsync)
@@ -303,10 +304,11 @@ export async function generateAllVideoSegmentsDynamic(
         const segmentEnd = (i + 1) * segmentDuration;
         
         // Check if this segment has lyrics
-        // If we have subtitle data, check if segment has lyrics; otherwise assume NO lyrics
+        // If we have subtitle data, check if segment has lyrics
+        // Otherwise, if makeCharacterSing is enabled, use default pattern (odd indices have lyrics)
         const hasLyrics = timestampedWords.length > 0 
           ? segmentHasLyrics(segmentStart, segmentEnd, timestampedWords)
-          : false; // Default to false (don't use lipsync) if no subtitle data available
+          : (config.makeCharacterSing && i % 2 === 1); // Default pattern: odd indices have lyrics when singing is enabled
 
         // Smart model selection based on lyrics presence and pattern
         console.log(`\n=== SEGMENT ${i + 1} (${segmentStart.toFixed(1)}s-${segmentEnd.toFixed(1)}s) ===`);
