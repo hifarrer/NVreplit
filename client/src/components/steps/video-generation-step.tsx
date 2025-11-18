@@ -32,6 +32,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
   const [progressInterval, setProgressInterval] = useState<NodeJS.Timeout | null>(null);
   const [isQueued, setIsQueued] = useState(false);
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
+  const [shouldPollCompletion, setShouldPollCompletion] = useState(false);
   const { toast } = useToast();
   const hasInitiatedGeneration = useRef(false);
 
@@ -149,6 +150,8 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
       
       if (is409Error) {
         // 409 error means video is already generating (duplicate call)
+        // Start polling the project to check for completion
+        setShouldPollCompletion(true);
         // Reset the mutation error state but keep the progress going
         setTimeout(() => generateVideoMutation.reset(), 100);
         return;
@@ -168,6 +171,30 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
       setCurrentStep(0);
     },
   });
+
+  // Poll project status when we got a 409 to detect completion
+  const { data: projectStatus } = useQuery<{ finalVideoUrl?: string }>({
+    queryKey: ["/api/projects", projectId],
+    refetchInterval: shouldPollCompletion ? 3000 : false, // Poll every 3 seconds if needed
+    enabled: shouldPollCompletion,
+  });
+
+  // Check if video generation completed while polling
+  useEffect(() => {
+    if (shouldPollCompletion && projectStatus?.finalVideoUrl) {
+      // Video generation completed!
+      setShouldPollCompletion(false);
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        setProgressInterval(null);
+      }
+      onVideoComplete(projectStatus.finalVideoUrl);
+      toast({
+        title: "Success",
+        description: "Your music video has been generated successfully!",
+      });
+    }
+  }, [projectStatus, shouldPollCompletion, progressInterval, onVideoComplete, toast]);
 
   // Query for queue status
   const { data: queueStats } = useQuery<QueueStats>({
