@@ -182,7 +182,8 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
   useEffect(() => {
     // Only start generation once when component mounts
     // Use ref to prevent duplicate calls even in React StrictMode (development)
-    if (!hasInitiatedGeneration.current) {
+    // Also check if mutation is already pending to avoid duplicate calls
+    if (!hasInitiatedGeneration.current && !generateVideoMutation.isPending) {
       hasInitiatedGeneration.current = true;
       generateVideoMutation.mutate();
     }

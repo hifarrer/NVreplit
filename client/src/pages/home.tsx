@@ -209,7 +209,9 @@ export default function Home() {
             projectId={projectId}
             onVideoComplete={(videoUrl) => {
               // Video generation backend already updates project to step 6
-              // Just refetch to get the updated project state
+              // Update local state immediately to prevent SceneGenerationStep from mounting
+              setCurrentStep(6);
+              // Then refetch to get the updated project state
               refetchProject();
             }}
             onBack={() => handleStepChange(3)}

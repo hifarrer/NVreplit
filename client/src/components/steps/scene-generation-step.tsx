@@ -89,7 +89,8 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
 
   useEffect(() => {
     // Only auto-generate scenes if none exist AND not in edit mode
-    if (generatedScenes.length === 0 && !isEditMode) {
+    // Also check that we're not already generating to prevent duplicate calls
+    if (generatedScenes.length === 0 && !isEditMode && !generateScenesMutation.isPending) {
       generateScenesMutation.mutate();
     }
   }, [isEditMode]);
