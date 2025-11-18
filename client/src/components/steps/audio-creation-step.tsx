@@ -545,42 +545,45 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
               </div>
             </div>
 
-            {/* Add Subtitles Toggle */}
-            <div>
-              <Label className="flex items-center text-sm font-semibold mb-2">
-                <Subtitles className="w-4 h-4 text-accent mr-2" />
-                Add Subtitles
-              </Label>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={addSubtitles}
-                  onCheckedChange={setAddSubtitles}
-                  data-testid="subtitles-toggle"
-                />
-                <Label className="text-sm text-muted-foreground">
-                  Generate timed lyrics for your music video
+            {/* Subtitles & Watermark Toggles - Side by side on desktop, stacked on mobile */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Add Subtitles Toggle */}
+              <div>
+                <Label className="flex items-center text-sm font-semibold mb-2">
+                  <Subtitles className="w-4 h-4 text-accent mr-2" />
+                  Add Subtitles
                 </Label>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={addSubtitles}
+                    onCheckedChange={setAddSubtitles}
+                    data-testid="subtitles-toggle"
+                  />
+                  <Label className="text-sm text-muted-foreground">
+                    Generate timed lyrics for your music video
+                  </Label>
+                </div>
               </div>
-            </div>
 
-            {/* Watermark Toggle */}
-            <div>
-              <Label className="flex items-center text-sm font-semibold mb-2">
-                <i className="fas fa-copyright text-accent mr-2"></i>
-                Watermark
-              </Label>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={includeWatermark}
-                  onCheckedChange={setIncludeWatermark}
-                  data-testid="watermark-toggle"
-                  disabled={!isPremiumUser}
-                />
-                <Label className="text-sm text-muted-foreground">
-                  {isPremiumUser 
-                    ? "Include watermark on your music video" 
-                    : "Premium users can disable the watermark"}
+              {/* Watermark Toggle */}
+              <div>
+                <Label className="flex items-center text-sm font-semibold mb-2">
+                  <i className="fas fa-copyright text-accent mr-2"></i>
+                  Watermark
                 </Label>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={includeWatermark}
+                    onCheckedChange={setIncludeWatermark}
+                    data-testid="watermark-toggle"
+                    disabled={!isPremiumUser}
+                  />
+                  <Label className="text-sm text-muted-foreground">
+                    {isPremiumUser 
+                      ? "Include watermark on your music video" 
+                      : "Premium users can disable the watermark"}
+                  </Label>
+                </div>
               </div>
             </div>
 
