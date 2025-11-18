@@ -29,6 +29,7 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
   const [songTitle, setSongTitle] = useState("");
   const [duration, setDuration] = useState([60]); // Default 1 minute (60 seconds)
   const [addSubtitles, setAddSubtitles] = useState(false);
+  const [includeWatermark, setIncludeWatermark] = useState(true);
   const [progress, setProgress] = useState(0);
   const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(null);
   const { toast } = useToast();
@@ -36,6 +37,9 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
 
   // Check if user is paid (has a plan with monthly price > 0)
   const isPaidUser = user?.plan && user.plan.monthlyPrice > 0;
+  
+  // Check if user is Premium (can disable watermark)
+  const isPremiumUser = user?.plan?.name === "Premium";
   
   // Duration options based on user plan
   const durationOptions = isPaidUser 
@@ -110,7 +114,8 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
         lyrics,
         songTitle,
         duration: duration[0],
-        addSubtitles: addSubtitles
+        addSubtitles: addSubtitles,
+        includeWatermark: includeWatermark
       });
 
       clearInterval(progressInterval);
@@ -149,6 +154,7 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
     setSongTitle("");
     setDuration([60]);
     setAddSubtitles(false);
+    setIncludeWatermark(true);
     setProgress(0);
     setGeneratedSubtitles(null);
     onClose();
@@ -363,6 +369,26 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
               </Label>
             </div>
           </div>
+
+          {/* Watermark Toggle - Premium Users Only */}
+          {isPremiumUser && (
+            <div>
+              <Label className="flex items-center text-sm font-semibold mb-2">
+                <i className="fas fa-copyright text-accent mr-2"></i>
+                Watermark
+              </Label>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={includeWatermark}
+                  onCheckedChange={setIncludeWatermark}
+                  data-testid="watermark-toggle"
+                />
+                <Label className="text-sm text-muted-foreground">
+                  Include watermark on your music video
+                </Label>
+              </div>
+            </div>
+          )}
 
 
           {/* Generation Progress */}
