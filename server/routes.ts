@@ -3798,17 +3798,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userWithPlan = await storage.getUserWithPlan(project.userId);
       const isPaidUser = userWithPlan?.plan && userWithPlan.plan.monthlyPrice > 0;
       
-      // Get duration from request (default to 60 seconds if not provided)
-      const requestedDuration = parseInt(req.body.duration) || 60;
-      
       // Cap duration based on user plan: Free users max 120s (2 min), Paid users max 180s (3 min)
       const maxDuration = isPaidUser ? 180 : 120;
-      const targetDuration = Math.min(requestedDuration, maxDuration);
       
       // Get song title from request (optional)
       const songTitle = req.body.title || "";
 
-      console.log(`Uploading audio with target duration: ${targetDuration} seconds (user plan: ${isPaidUser ? 'paid' : 'free'}, max: ${maxDuration}s)${songTitle ? `, title: "${songTitle}"` : ''}`);
+      console.log(`Uploading audio file (user plan: ${isPaidUser ? 'paid' : 'free'}, max allowed: ${maxDuration}s)${songTitle ? `, title: "${songTitle}"` : ''}`);
 
       // First, store the uploaded audio to object storage to get a public URL
       const objectStorageService = new ObjectStorageService();
@@ -3821,44 +3817,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Audio uploaded to object storage: ${uploadedUrl}`);
 
-      let finalAudioUrl = uploadedUrl;
-      let actualDuration = targetDuration;
-
-      // Trim the audio if needed
+      // Get the actual duration of the uploaded audio
+      let actualDuration: number;
       try {
         await storage.addGenerationLog({
           projectId: req.params.id,
           step: "audio_upload",
-          message: `Trimming audio to ${targetDuration} seconds...`,
+          message: "Detecting audio duration...",
           status: "progress",
-          metadata: { targetDuration }
+          metadata: {}
         });
 
-        const { trimAudio } = await import("./services/ffmpeg");
-        const trimResult = await trimAudio(publicAudioUrl, targetDuration);
+        const { getAudioDuration } = await import("./services/ffmpeg");
+        actualDuration = await getAudioDuration(publicAudioUrl);
         
-        console.log(`Audio trimmed successfully: ${trimResult.filename}`);
+        console.log(`Detected audio duration: ${actualDuration} seconds`);
         
-        // Download the trimmed audio and store it back to object storage
-        const trimmedResponse = await fetch(trimResult.download_url);
-        const trimmedBuffer = Buffer.from(await trimmedResponse.arrayBuffer());
+        // Validate duration doesn't exceed the maximum for user's plan
+        if (actualDuration > maxDuration) {
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "audio_upload",
+            message: `Audio file too long: ${actualDuration}s exceeds maximum of ${maxDuration}s`,
+            status: "error",
+            metadata: { actualDuration, maxDuration }
+          });
+          
+          // Clean up the uploaded file
+          fs.unlinkSync(req.file.path);
+          
+          return res.status(400).json({ 
+            error: `Audio file is too long. Maximum allowed duration is ${maxDuration / 60} minute${maxDuration > 60 ? 's' : ''} (${maxDuration} seconds). Your audio is ${Math.floor(actualDuration / 60)}:${String(actualDuration % 60).padStart(2, '0')} (${actualDuration} seconds).${!isPaidUser ? ' Upgrade to a paid plan for longer videos!' : ''}` 
+          });
+        }
         
-        const trimmedPath = `songs/${crypto.randomUUID()}_trimmed.mp3`;
-        finalAudioUrl = await objectStorageService.uploadAudioBuffer(trimmedBuffer, trimmedPath);
-        actualDuration = trimResult.trimmed_length;
-        
-        console.log(`Trimmed audio stored at: ${finalAudioUrl}`);
-      } catch (trimError) {
-        console.error("Audio trimming failed, using original:", trimError);
-        // If trimming fails, continue with the original uploaded audio
+      } catch (durationError) {
+        console.error("Failed to detect audio duration:", durationError);
         await storage.addGenerationLog({
           projectId: req.params.id,
           step: "audio_upload",
-          message: "Audio trimming failed, using original audio",
+          message: "Failed to detect audio duration, using estimate",
           status: "warning",
-          metadata: { error: (trimError as Error).message }
+          metadata: { error: (durationError as Error).message }
         });
+        // Default to 60 seconds if detection fails
+        actualDuration = 60;
       }
+
+      const finalAudioUrl = uploadedUrl;
       
       // Update project with audio URL and title (if provided)
       const updateData: any = { 

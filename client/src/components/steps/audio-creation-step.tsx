@@ -73,7 +73,6 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   // Upload tab state
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadDuration, setUploadDuration] = useState([60]); // Default 60 seconds (1 minute) for upload
   const [uploadSongTitle, setUploadSongTitle] = useState(""); // Song title for upload tab
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -122,7 +121,6 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('audio', file);
-      formData.append('duration', uploadDuration[0].toString());
       if (uploadSongTitle.trim()) {
         formData.append('title', uploadSongTitle.trim());
       }
@@ -142,9 +140,10 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
     onSuccess: (data) => {
       setCurrentAudioUrl(data.audioUrl);
       setIsUploading(false);
+      const sceneCount = Math.ceil(data.duration / 10);
       toast({
         title: "Success",
-        description: `Audio file "${data.originalName}" uploaded successfully!`,
+        description: `Audio uploaded successfully! Duration: ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')} (${sceneCount} scenes will be generated)`,
       });
     },
     onError: (error) => {
@@ -798,51 +797,17 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
               <p className="text-xs text-muted-foreground mt-2">Supports MP3, WAV, AAC (Max 10MB)</p>
             </div>
             
-            {/* Song Duration Slider for Upload */}
-            <div className="bg-gradient-to-br from-primary/5 to-accent/5 border-2 border-primary/20 rounded-lg p-4">
-              <Label className="flex items-center text-sm font-semibold mb-3">
-                <Clock className="w-4 h-4 text-accent mr-2" />
-                Trim Audio Duration
-              </Label>
-              <div className="space-y-3">
-                <div className="bg-background/60 rounded-lg p-4 border border-primary/30">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-muted-foreground">Select duration:</span>
-                    <span className="text-lg font-bold text-primary">{getDurationLabel(uploadDuration[0])}</span>
-                  </div>
-                  <Slider
-                    value={uploadDuration}
-                    onValueChange={setUploadDuration}
-                    max={maxDuration}
-                    min={30}
-                    step={30}
-                    className="w-full"
-                    data-testid="upload-duration-slider"
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-muted-foreground px-1 flex-wrap gap-1">
-                  {durationOptions.map(option => (
-                    <span 
-                      key={option}
-                      className={uploadDuration[0] === option ? "text-primary font-bold" : ""}
-                    >
-                      {getDurationLabel(option)}
-                    </span>
-                  ))}
-                </div>
-                <div className="bg-blue-500/10 border border-blue-500/30 rounded-md p-2">
-                  <p className="text-sm text-blue-600 dark:text-blue-400 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-                    Your audio will be trimmed to <strong className="mx-1">{getDurationLabel(uploadDuration[0])}</strong> and will generate <strong className="mx-1">{Math.ceil(uploadDuration[0] / 10)} scenes</strong>
-                  </p>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Maximum duration: {maxDuration / 60} minutes
+            {/* Upload Info */}
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-md p-3">
+              <p className="text-sm text-blue-600 dark:text-blue-400 flex items-start">
+                <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
+                <span>
+                  Upload your audio file and we'll automatically detect its duration. Maximum allowed: <strong>3 minutes</strong>. The number of scenes will be determined by your audio length (10 seconds per scene).
                   {!isPaidUser && (
-                    <span className="ml-2 text-orange-500">• Upgrade to paid plan for up to 3 min songs</span>
+                    <span className="block mt-1 text-orange-600 dark:text-orange-400">• Free plan users: maximum 2 minutes</span>
                   )}
-                </p>
-              </div>
+                </span>
+              </p>
             </div>
             
             {/* Song Title for Upload */}
