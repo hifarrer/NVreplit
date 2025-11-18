@@ -109,7 +109,12 @@ export default function Home() {
   // Sync current step with project's step (except during edit session initialization)
   useEffect(() => {
     if (project && !isEditMode) {
-      // Normal mode: always sync with project step
+      // Normal mode: sync with project step, but NEVER go backwards once at step 4+
+      // This prevents unmounting VideoGenerationStep while video is generating
+      if (currentStep >= 4 && project.currentStep < currentStep) {
+        // Don't sync backwards during video generation (step 4+)
+        return;
+      }
       setCurrentStep(project.currentStep);
     } else if (project && isEditMode && editSessionId && currentEditSession && editSessionId === currentEditSession) {
       // Edit mode: only sync AFTER edit session is fully initialized
