@@ -421,23 +421,7 @@ export function SongGeneratorModal({
             </div>
           </div>
 
-          {/* Test Watermark Toggle */}
-          <div>
-            <Label className="flex items-center text-sm font-semibold mb-2">
-              <i className="fas fa-copyright text-accent mr-2"></i>
-              Test Watermark
-            </Label>
-            <div className="flex items-center space-x-2">
-              <Switch
-                checked={includeWatermark}
-                onCheckedChange={setIncludeWatermark}
-                data-testid="watermark-toggle"
-              />
-              <Label className="text-sm text-muted-foreground">
-                This is a test watermark toggle
-              </Label>
-            </div>
-          </div>
+          <Label className="text-2xl font-bold text-red-500">TEST</Label>
 
           {/* Watermark Toggle */}
           <div>
