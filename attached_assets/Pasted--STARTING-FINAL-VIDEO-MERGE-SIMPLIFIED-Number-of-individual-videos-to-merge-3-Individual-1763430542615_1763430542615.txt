@@ -1,0 +1,70 @@
+=== STARTING FINAL VIDEO MERGE (SIMPLIFIED) ===
+Number of individual videos to merge: 3
+Individual video URLs to merge: [
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/f824ebd25610422fbf9b791f6ae6c7f2/1.mp4',
+  'https://d2p7pge43lyniu.cloudfront.net/output/51a337f8-49dd-44a2-888f-6a1e0e1cc547-u2_fe64e7f7-3204-4caa-8165-ef9b9512837d.mp4',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/a8a8e004ce1d42a69066a00de98e299c/1.mp4'
+]
+Using external URL for segment 1: https://d1q70pf5vjeyhc.cloudfront.net/predictions/f824ebd25610422fbf9b791f6ae6c7f2/1.mp4
+Using external URL for segment 2: https://d2p7pge43lyniu.cloudfront.net/output/51a337f8-49dd-44a2-888f-6a1e0e1cc547-u2_fe64e7f7-3204-4caa-8165-ef9b9512837d.mp4
+Using external URL for segment 3: https://d1q70pf5vjeyhc.cloudfront.net/predictions/a8a8e004ce1d42a69066a00de98e299c/1.mp4
+Found outro.mp4 in object storage, generating signed URL...
+Added outro video to merge with signed URL from object storage: https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/public/outro.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20251118%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20251118T014028Z&X-Goog-Expires=7199&X-Goog-Signature=0cfd73e770bbdd60dc69578d8375a92811e6692691c4df96b6d7f13829d9c3475fd385e9d5612da1fb2a735cbdaf3c22bdc414b6508d5ce7aaf742792b962723384e96deb916da9cd11b84e68c6b94eba0286f889b15dc472d144c9e5478a8fb4b8a0da28bfa34461dd2a38512f0055653cc58008e43b2192b4ea78d948b876353d8503250036c727bc2680f6b17cafadb9b6a2f260755a71c229f4859a1fdf4b37a8727fd454e8021f5e8a24e508aaaa34a1e6e1f1d08721c8b18588dbf26002819677b0db5c649257cb894d6c307049aedddc0e86281ae58d803e148728386afb08f4a272c1d7e86696c7b753fbd5ccc7bcfdde723ff77e49861bed2515e5f&X-Goog-SignedHeaders=host
+Signed video URLs for FFMPEG merge (including outro): [
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/f824ebd25610422fbf9b791f6ae6c7f2/1.mp4',
+  'https://d2p7pge43lyniu.cloudfront.net/output/51a337f8-49dd-44a2-888f-6a1e0e1cc547-u2_fe64e7f7-3204-4caa-8165-ef9b9512837d.mp4',
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/a8a8e004ce1d42a69066a00de98e299c/1.mp4',
+  'https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/public/outro.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20251118%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20251118T014028Z&X-Goog-Expires=7199&X-Goog-Signature=0cfd73e770bbdd60dc69578d8375a92811e6692691c4df96b6d7f13829d9c3475fd385e9d5612da1fb2a735cbdaf3c22bdc414b6508d5ce7aaf742792b962723384e96deb916da9cd11b84e68c6b94eba0286f889b15dc472d144c9e5478a8fb4b8a0da28bfa34461dd2a38512f0055653cc58008e43b2192b4ea78d948b876353d8503250036c727bc2680f6b17cafadb9b6a2f260755a71c229f4859a1fdf4b37a8727fd454e8021f5e8a24e508aaaa34a1e6e1f1d08721c8b18588dbf26002819677b0db5c649257cb894d6c307049aedddc0e86281ae58d803e148728386afb08f4a272c1d7e86696c7b753fbd5ccc7bcfdde723ff77e49861bed2515e5f&X-Goog-SignedHeaders=host'
+]
+[ObjectStorage] getSignedUrlForPath called with: /objects/songs/fb5cb280-88a7-420f-91b4-fd2995bc3665.mp3
+[ObjectStorage] Private dir: /replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private
+[ObjectStorage] Full object path: /replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/fb5cb280-88a7-420f-91b4-fd2995bc3665.mp3
+[ObjectStorage] Bucket: replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73, Object: .private/songs/fb5cb280-88a7-420f-91b4-fd2995bc3665.mp3
+[ObjectStorage] Successfully generated signed URL (https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/f...)
+Generated signed URL for audio: /objects/songs/fb5cb280-88a7-420f-91b4-fd2995bc3665.mp3 -> https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/fb5cb280-88a7-420f-91b4-fd2995bc3665.mp3?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20251118%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20251118T014028Z&X-Goog-Expires=7199&X-Goog-Signature=88a2c18f2d16a3d5ecdbc8c3a23f9c582d76b2b6e9c4dda07d5deb668fa7fb7f7ce12ca9cb8348ed34790e2836650ce9762f98ee2f4572a3afc3db8c2c9c7af2c319e52a2ecfb9a8fa3d5ac6c0ad40e4e4a0a50f8e921ca1256f87b9bdd2a20acb39790d35c130ae7caa548d4b200b11a27aa1d53f57acce5f4916ef0e86c6160455a77c24c2caf74232e5b9fccc0d331c39b0fec2b343ed12b5456955b1f4cdf2bec4e6a7a1a769c193c80777a3ca6fbe86443c67639f1d46f43e73b144eefe57412e599dc5415053c7c2a379583b3620a4a43c3d8f18b6c5292ba42c993934654f4d9238f51ac179f3a51b7b7b61194b420ab2c68509023acd76e9ebd3ceed&X-Goog-SignedHeaders=host
+Final audio URL for FFMPEG merge: https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/fb5cb280-88a7-420f-91b4-fd2995bc3665.mp3?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20251118%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20251118T014028Z&X-Goog-Expires=7199&X-Goog-Signature=88a2c18f2d16a3d5ecdbc8c3a23f9c582d76b2b6e9c4dda07d5deb668fa7fb7f7ce12ca9cb8348ed34790e2836650ce9762f98ee2f4572a3afc3db8c2c9c7af2c319e52a2ecfb9a8fa3d5ac6c0ad40e4e4a0a50f8e921ca1256f87b9bdd2a20acb39790d35c130ae7caa548d4b200b11a27aa1d53f57acce5f4916ef0e86c6160455a77c24c2caf74232e5b9fccc0d331c39b0fec2b343ed12b5456955b1f4cdf2bec4e6a7a1a769c193c80777a3ca6fbe86443c67639f1d46f43e73b144eefe57412e599dc5415053c7c2a379583b3620a4a43c3d8f18b6c5292ba42c993934654f4d9238f51ac179f3a51b7b7b61194b420ab2c68509023acd76e9ebd3ceed&X-Goog-SignedHeaders=host
+Generated public URL for subtitles: /public-objects/subtitles/b239a4bd-c76b-42fe-af2b-fec3d4f6125e.ass -> https://046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev/public-objects/subtitles/b239a4bd-c76b-42fe-af2b-fec3d4f6125e.ass
+Subtitle URL for FFMPEG merge: https://046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev/public-objects/subtitles/b239a4bd-c76b-42fe-af2b-fec3d4f6125e.ass
+=== FFMPEG MERGE VIDEOS REQUEST ===
+Endpoint: https://ffmpegapi.net/api/merge_videos
+Number of videos to merge: 4
+Audio URL (full song): https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/fb5cb280-88a7-420f-91b4-fd2995bc3665.mp3?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20251118%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20251118T014028Z&X-Goog-Expires=7199&X-Goog-Signature=88a2c18f2d16a3d5ecdbc8c3a23f9c582d76b2b6e9c4dda07d5deb668fa7fb7f7ce12ca9cb8348ed34790e2836650ce9762f98ee2f4572a3afc3db8c2c9c7af2c319e52a2ecfb9a8fa3d5ac6c0ad40e4e4a0a50f8e921ca1256f87b9bdd2a20acb39790d35c130ae7caa548d4b200b11a27aa1d53f57acce5f4916ef0e86c6160455a77c24c2caf74232e5b9fccc0d331c39b0fec2b343ed12b5456955b1f4cdf2bec4e6a7a1a769c193c80777a3ca6fbe86443c67639f1d46f43e73b144eefe57412e599dc5415053c7c2a379583b3620a4a43c3d8f18b6c5292ba42c993934654f4d9238f51ac179f3a51b7b7b61194b420ab2c68509023acd76e9ebd3ceed&X-Goog-SignedHeaders=host
+Subtitle URL (.ass file): https://046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev/public-objects/subtitles/b239a4bd-c76b-42fe-af2b-fec3d4f6125e.ass
+Watermark URL: https://notifications.nusong.ai/neonlogo.png
+Request body: {
+  "video_urls": [
+    "https://d1q70pf5vjeyhc.cloudfront.net/predictions/f824ebd25610422fbf9b791f6ae6c7f2/1.mp4",
+    "https://d2p7pge43lyniu.cloudfront.net/output/51a337f8-49dd-44a2-888f-6a1e0e1cc547-u2_fe64e7f7-3204-4caa-8165-ef9b9512837d.mp4",
+    "https://d1q70pf5vjeyhc.cloudfront.net/predictions/a8a8e004ce1d42a69066a00de98e299c/1.mp4",
+    "https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/public/outro.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20251118%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20251118T014028Z&X-Goog-Expires=7199&X-Goog-Signature=0cfd73e770bbdd60dc69578d8375a92811e6692691c4df96b6d7f13829d9c3475fd385e9d5612da1fb2a735cbdaf3c22bdc414b6508d5ce7aaf742792b962723384e96deb916da9cd11b84e68c6b94eba0286f889b15dc472d144c9e5478a8fb4b8a0da28bfa34461dd2a38512f0055653cc58008e43b2192b4ea78d948b876353d8503250036c727bc2680f6b17cafadb9b6a2f260755a71c229f4859a1fdf4b37a8727fd454e8021f5e8a24e508aaaa34a1e6e1f1d08721c8b18588dbf26002819677b0db5c649257cb894d6c307049aedddc0e86281ae58d803e148728386afb08f4a272c1d7e86696c7b753fbd5ccc7bcfdde723ff77e49861bed2515e5f&X-Goog-SignedHeaders=host"
+  ],
+  "async": false,
+  "audio_url": "https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/fb5cb280-88a7-420f-91b4-fd2995bc3665.mp3?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20251118%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20251118T014028Z&X-Goog-Expires=7199&X-Goog-Signature=88a2c18f2d16a3d5ecdbc8c3a23f9c582d76b2b6e9c4dda07d5deb668fa7fb7f7ce12ca9cb8348ed34790e2836650ce9762f98ee2f4572a3afc3db8c2c9c7af2c319e52a2ecfb9a8fa3d5ac6c0ad40e4e4a0a50f8e921ca1256f87b9bdd2a20acb39790d35c130ae7caa548d4b200b11a27aa1d53f57acce5f4916ef0e86c6160455a77c24c2caf74232e5b9fccc0d331c39b0fec2b343ed12b5456955b1f4cdf2bec4e6a7a1a769c193c80777a3ca6fbe86443c67639f1d46f43e73b144eefe57412e599dc5415053c7c2a379583b3620a4a43c3d8f18b6c5292ba42c993934654f4d9238f51ac179f3a51b7b7b61194b420ab2c68509023acd76e9ebd3ceed&X-Goog-SignedHeaders=host",
+  "subtitle_url": "https://046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev/public-objects/subtitles/b239a4bd-c76b-42fe-af2b-fec3d4f6125e.ass",
+  "watermark_url": "https://notifications.nusong.ai/neonlogo.png"
+}
+Public object request: subtitles/b239a4bd-c76b-42fe-af2b-fec3d4f6125e.ass
+Found file in object storage: subtitles/b239a4bd-c76b-42fe-af2b-fec3d4f6125e.ass
+=== FFMPEG MERGE RESPONSE ===
+Raw response: {
+  "download_url": "https://ffmpegapi.net/api/storage/80dde1b2-561b-42df-af3b-06b0fbb2cdb2_merged_watermarked_videos.mp4",
+  "filename": "80dde1b2-561b-42df-af3b-06b0fbb2cdb2_merged_watermarked_videos.mp4",
+  "message": "Videos merged, subtitles and watermark added successfully",
+  "success": true
+}
+Response success field: true
+=== SYNCHRONOUS RESPONSE ===
+Download URL: https://ffmpegapi.net/api/storage/80dde1b2-561b-42df-af3b-06b0fbb2cdb2_merged_watermarked_videos.mp4
+Final video merge successful: https://ffmpegapi.net/api/storage/80dde1b2-561b-42df-af3b-06b0fbb2cdb2_merged_watermarked_videos.mp4
+Saving final video to object storage...
+Downloading video from URL: https://ffmpegapi.net/api/storage/80dde1b2-561b-42df-af3b-06b0fbb2cdb2_merged_watermarked_videos.mp4
+Video uploaded to object storage: /replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/videos/neonvideo_1763430046950.mp4
+Generated permanent video path: /objects/videos/neonvideo_1763430046950.mp4
+Final video saved to storage: /objects/videos/neonvideo_1763430046950.mp4
+Added Mux job for project 068248fc-a6b2-45cf-b8eb-48095dbc72f8
+Creating Mux asset for project 068248fc-a6b2-45cf-b8eb-48095dbc72f8
+Normalizing video URL for Mux: /objects/videos/neonvideo_1763430046950.mp4 -> https://neonvideo.ai/objects/videos/neonvideo_1763430046950.mp4
+Creating Mux asset with URL: https://neonvideo.ai/objects/videos/neonvideo_1763430046950.mp4
+Deducted 1000 credits for video generation (30s) from user 2de27027-765e-4e87-97f5-145a4a2dc588
+Mux asset created for project 068248fc-a6b2-45cf-b8eb-48095dbc72f8: fjg002zzjJkl2FiASXZqd3zV6igYzRZRmXbbDvRC6k01k
+Mux asset ready for project 068248fc-a6b2-45cf-b8eb-48095dbc72f8: https://stream.mux.com/FXUV37uC8PQbDoyUOOuJl6oQYLm7IpK5spHH15vCdUk.m3u8
