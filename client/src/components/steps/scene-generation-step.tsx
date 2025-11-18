@@ -88,9 +88,13 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
   });
 
   useEffect(() => {
-    // Only auto-generate scenes if none exist AND not in edit mode
-    // Also check that we're not already generating to prevent duplicate calls
-    if (generatedScenes.length === 0 && !isEditMode && !generateScenesMutation.isPending) {
+    // Only auto-generate scenes if:
+    // 1. No scenes exist in local state AND no scenes exist in the project (scenes prop)
+    // 2. Not in edit mode
+    // 3. Not already generating
+    // This prevents re-generating scenes that already exist when component remounts
+    const hasExistingScenes = generatedScenes.length > 0 || scenes.length > 0;
+    if (!hasExistingScenes && !isEditMode && !generateScenesMutation.isPending) {
       generateScenesMutation.mutate();
     }
   }, [isEditMode]);
