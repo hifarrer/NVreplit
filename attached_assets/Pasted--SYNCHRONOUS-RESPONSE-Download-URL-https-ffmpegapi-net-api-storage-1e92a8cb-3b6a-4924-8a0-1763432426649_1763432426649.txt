@@ -1,0 +1,24 @@
+=== SYNCHRONOUS RESPONSE ===
+Download URL: https://ffmpegapi.net/api/storage/1e92a8cb-3b6a-4924-8a01-99072183a463_merged_watermarked_videos.mp4
+Final video merge successful: https://ffmpegapi.net/api/storage/1e92a8cb-3b6a-4924-8a01-99072183a463_merged_watermarked_videos.mp4
+Saving final video to object storage...
+Downloading video from URL: https://ffmpegapi.net/api/storage/1e92a8cb-3b6a-4924-8a01-99072183a463_merged_watermarked_videos.mp4
+Video uploaded to object storage: /replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/videos/neonvideo_1763432138778.mp4
+Generated permanent video path: /objects/videos/neonvideo_1763432138778.mp4
+Final video saved to storage: /objects/videos/neonvideo_1763432138778.mp4
+Added Mux job for project 7e8b7c88-35e7-4414-a8d6-7bc55f8c6cbb
+Creating Mux asset for project 7e8b7c88-35e7-4414-a8d6-7bc55f8c6cbb
+Normalizing video URL for Mux: /objects/videos/neonvideo_1763432138778.mp4 -> https://neonvideo.ai/objects/videos/neonvideo_1763432138778.mp4
+Creating Mux asset with URL: https://neonvideo.ai/objects/videos/neonvideo_1763432138778.mp4
+Mux asset created for project 7e8b7c88-35e7-4414-a8d6-7bc55f8c6cbb: NW8Jr01NCsIfMcfWx1MLnj8TNzaTb2DfoljGOf9obWwA
+Deducted 1000 credits for video generation (30s) from user 2de27027-765e-4e87-97f5-145a4a2dc588
+2:15:41 AM [express] POST /api/projects/7e8b7c88-35e7-4414-a8d6-7bc55f8c6cbb/generate-video 200 in 3…
+2:15:42 AM [express] GET /api/projects/7e8b7c88-35e7-4414-a8d6-7bc55f8c6cbb 200 in 415ms :: {"id":"7…
+Error serving object: Error: Object not found
+    at ObjectStorageService.getObjectEntityFile (/home/runner/workspace/server/objectStorage.ts:143:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2907:26)
+2:15:42 AM [express] POST /api/projects/7e8b7c88-35e7-4414-a8d6-7bc55f8c6cbb/generate-video 200 in 4…
+2:15:43 AM [express] GET /api/projects/7e8b7c88-35e7-4414-a8d6-7bc55f8c6cbb 304 in 391ms :: {"id":"7…
+2:15:43 AM [express] GET /api/trending-videos 304 in 931ms :: []
+Mux asset ready for project 7e8b7c88-35e7-4414-a8d6-7bc55f8c6cbb: https://stream.mux.com/SFXJNOv01S00vCtSsA6mKzxTS01hdv21pKgc9cG5brztj8.m3u8

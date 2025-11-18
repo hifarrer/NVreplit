@@ -141,26 +141,31 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
       });
     },
     onError: (error) => {
-      if (progressInterval) {
-        clearInterval(progressInterval);
-        setProgressInterval(null);
-      }
-      
       // Don't show error popup for 409 "already generating" errors
       // The video is actually generating, so this is a false alarm
       const errorMessage = error instanceof Error ? error.message : "";
       const is409Error = errorMessage.includes("already in progress") || 
                          errorMessage.includes("409");
       
-      if (!is409Error) {
-        toast({
-          title: "Generation Failed",
-          description: errorMessage || "Failed to generate video",
-          variant: "destructive",
-        });
-        setOverallProgress(0);
-        setCurrentStep(0);
+      if (is409Error) {
+        // 409 error means video is already generating (duplicate call)
+        // Reset the mutation error state but keep the progress going
+        setTimeout(() => generateVideoMutation.reset(), 100);
+        return;
       }
+      
+      // For real errors, stop progress and show error
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        setProgressInterval(null);
+      }
+      toast({
+        title: "Generation Failed",
+        description: errorMessage || "Failed to generate video",
+        variant: "destructive",
+      });
+      setOverallProgress(0);
+      setCurrentStep(0);
     },
   });
 
