@@ -370,25 +370,26 @@ export function SongGeneratorModal({ isOpen, onClose, onSongGenerated, projectId
             </div>
           </div>
 
-          {/* Watermark Toggle - Premium Users Only */}
-          {isPremiumUser && (
-            <div>
-              <Label className="flex items-center text-sm font-semibold mb-2">
-                <i className="fas fa-copyright text-accent mr-2"></i>
-                Watermark
+          {/* Watermark Toggle */}
+          <div>
+            <Label className="flex items-center text-sm font-semibold mb-2">
+              <i className="fas fa-copyright text-accent mr-2"></i>
+              Watermark {isPremiumUser && <span className="ml-2 text-xs text-primary">(Premium)</span>}
+            </Label>
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={includeWatermark}
+                onCheckedChange={setIncludeWatermark}
+                data-testid="watermark-toggle"
+                disabled={!isPremiumUser}
+              />
+              <Label className="text-sm text-muted-foreground">
+                {isPremiumUser 
+                  ? "Include watermark on your music video" 
+                  : "Premium users can disable the watermark"}
               </Label>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={includeWatermark}
-                  onCheckedChange={setIncludeWatermark}
-                  data-testid="watermark-toggle"
-                />
-                <Label className="text-sm text-muted-foreground">
-                  Include watermark on your music video
-                </Label>
-              </div>
             </div>
-          )}
+          </div>
 
 
           {/* Generation Progress */}
