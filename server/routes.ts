@@ -4118,6 +4118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user with plan to validate duration limit
       const userWithPlan = await storage.getUserWithPlan(project.userId);
       const isPaidUser = userWithPlan?.plan && userWithPlan.plan.monthlyPrice > 0;
+      const isPremiumUser = userWithPlan?.plan?.name === "Premium";
       
       // Validate duration based on user plan: Free users max 120s (2 min), Paid users max 180s (3 min)
       const maxDuration = isPaidUser ? 180 : 120;
@@ -4128,6 +4129,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isPaidUser
         });
       }
+      
+      // Only Premium users can disable watermark - enforce server-side
+      const finalIncludeWatermark = isPremiumUser ? includeWatermark : true;
       
       // Check if user has enough credits for song generation (250 credits)
       const SONG_GENERATION_CREDITS = 250;
@@ -4146,7 +4150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         step: "song_generation",
         message: "Starting song generation",
         status: "started",
-        metadata: { tags, lyrics, addSubtitles, includeWatermark }
+        metadata: { tags, lyrics, addSubtitles, includeWatermark: finalIncludeWatermark, isPremiumUser }
       });
 
       let result;
@@ -4264,7 +4268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audioLyrics: lyrics,
         audioDuration: duration, // Store the duration in seconds
         addSubtitles: addSubtitles,
-        includeWatermark: includeWatermark,
+        includeWatermark: finalIncludeWatermark, // Server-side enforced watermark setting
         subtitleFileUrl: subtitleFileUrl,
         // Remove KIE fields since we're using ElevenLabs
         kieTaskId: null,
@@ -5154,9 +5158,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let finalVideo;
       let savedFinalVideoUrl: string;
       try {
-        // Get watermark URL for branding (only if includeWatermark is true)
+        // Get watermark URL for branding (only Premium users can disable it)
+        // Double-check user plan server-side for security
+        const userWithPlan = await storage.getUserWithPlan(project.userId);
+        const isPremiumUser = userWithPlan?.plan?.name === "Premium";
+        const shouldIncludeWatermark = isPremiumUser ? (project.includeWatermark !== false) : true;
+        
         let watermarkUrl: string | undefined;
-        if (project.includeWatermark !== false) {
+        if (shouldIncludeWatermark) {
           watermarkUrl = await getWatermarkUrl() || undefined;
         }
         
