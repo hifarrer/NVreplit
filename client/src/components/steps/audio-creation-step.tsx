@@ -48,6 +48,9 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   // Check if user is paid (has a plan with monthly price > 0)
   const isPaidUser = user?.plan && user.plan.monthlyPrice > 0;
   
+  // Check if user is Premium (can disable watermark)
+  const isPremiumUser = user?.plan?.name === "Premium";
+  
   // Duration options based on user plan
   const durationOptions = isPaidUser 
     ? [30, 60, 90, 120, 150, 180]
@@ -81,6 +84,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const [songTitle, setSongTitle] = useState(""); // Song title for generate tab
   const [duration, setDuration] = useState([60]); // Default 60 seconds (1 minute)
   const [addSubtitles, setAddSubtitles] = useState(true); // Subtitle toggle - enabled by default
+  const [includeWatermark, setIncludeWatermark] = useState(true); // Watermark toggle - enabled by default
   const [progress, setProgress] = useState(0);
   const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(null); // For debugging display
   const [profanityCheck, setProfanityCheck] = useState<ProfanityCheckResult | null>(null);
@@ -208,7 +212,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
         tags,
         lyrics,
         duration: duration[0],
-        addSubtitles
+        addSubtitles,
+        includeWatermark
       });
 
       clearInterval(progressInterval);
@@ -554,6 +559,27 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                 />
                 <Label className="text-sm text-muted-foreground">
                   Generate timed lyrics for your music video
+                </Label>
+              </div>
+            </div>
+
+            {/* Watermark Toggle */}
+            <div>
+              <Label className="flex items-center text-sm font-semibold mb-2">
+                <i className="fas fa-copyright text-accent mr-2"></i>
+                Watermark
+              </Label>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={includeWatermark}
+                  onCheckedChange={setIncludeWatermark}
+                  data-testid="watermark-toggle"
+                  disabled={!isPremiumUser}
+                />
+                <Label className="text-sm text-muted-foreground">
+                  {isPremiumUser 
+                    ? "Include watermark on your music video" 
+                    : "Premium users can disable the watermark"}
                 </Label>
               </div>
             </div>
