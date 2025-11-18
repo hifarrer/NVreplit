@@ -7,7 +7,7 @@ import fs from "fs";
 import { storage } from "./storage";
 import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema, insertPlanSchema, insertReferralSchema, type Plan, type InsertPlan } from "@shared/schema";
 import { z } from "zod";
-import { generateLyrics, generateScenePrompts, splitLyricsIntoSections, openai } from "./services/openai";
+import { generateLyrics, generateLyricsWithTitle, generateScenePrompts, splitLyricsIntoSections, openai } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
@@ -3803,9 +3803,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const targetDuration = Math.min(requestedDuration, maxDuration);
       
       // Get song title from request (optional)
-      const songTitle = req.body.songTitle || "";
+      const songTitle = req.body.title || "";
 
-      console.log(`Uploading audio with target duration: ${targetDuration} seconds (user plan: ${isPaidUser ? 'paid' : 'free'}, max: ${maxDuration}s)`);
+      console.log(`Uploading audio with target duration: ${targetDuration} seconds (user plan: ${isPaidUser ? 'paid' : 'free'}, max: ${maxDuration}s)${songTitle ? `, title: "${songTitle}"` : ''}`);
 
       // First, store the uploaded audio to object storage to get a public URL
       const objectStorageService = new ObjectStorageService();
@@ -3857,12 +3857,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Update project with audio URL
-      const updatedProject = await storage.updateProject(req.params.id, { 
+      // Update project with audio URL and title (if provided)
+      const updateData: any = { 
         audioUrl: finalAudioUrl,
         audioType: 'uploaded',
         audioDuration: actualDuration
-      });
+      };
+      
+      // Only update title if user provided one
+      if (songTitle.trim()) {
+        updateData.title = songTitle.trim();
+      }
+      
+      const updatedProject = await storage.updateProject(req.params.id, updateData);
       
       if (!updatedProject) {
         return res.status(404).json({ error: "Project not found" });
@@ -4445,7 +4452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Select song for project (handles both generated songs and library songs)
   app.post("/api/projects/:id/select-song", authenticateToken, async (req, res) => {
     try {
-      const { audioUrl, audioTags, audioLyrics, audioType, duration, subtitleFileUrl, kieTaskId, kieAudioId } = req.body;
+      const { audioUrl, audioTags, audioLyrics, audioType, duration, subtitleFileUrl, kieTaskId, kieAudioId, title } = req.body;
       
       console.log("=== SELECT-SONG REQUEST ===");
       console.log("Request body:", JSON.stringify(req.body, null, 2));
@@ -4462,6 +4469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (audioLyrics) updateData.audioLyrics = audioLyrics;
       if (audioType) updateData.audioType = audioType;
       if (duration) updateData.audioDuration = duration;
+      if (title && title.trim()) updateData.title = title.trim();
       if (subtitleFileUrl) {
         updateData.addSubtitles = true;
         updateData.subtitleFileUrl = subtitleFileUrl;
@@ -6392,18 +6400,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       console.log(`[NEON-SINGLE-PROMPT] Created project ${project.id}`);
 
-      // Step 3: Generate lyrics
+      // Step 3: Generate lyrics and title
       const lyricsPrompt = parsed.song_title 
         ? `${parsed.song_title}. ${parsed.video_description}`
         : parsed.video_description;
-      console.log(`[NEON-SINGLE-PROMPT] Step 3: Generating lyrics...`);
-      const lyrics = await generateLyrics(lyricsPrompt, 30);
+      console.log(`[NEON-SINGLE-PROMPT] Step 3: Generating lyrics and title with OpenAI...`);
+      const { lyrics, title: aiGeneratedTitle } = await generateLyricsWithTitle(lyricsPrompt, 30);
       await storage.updateProject(project.id, { 
-        lyrics,
-        duration: 30,
+        audioLyrics: lyrics,
+        title: aiGeneratedTitle,
+        audioDuration: 30,
         currentStep: 1
       });
-      console.log(`[NEON-SINGLE-PROMPT] Generated lyrics (${lyrics.length} chars)`);
+      console.log(`[NEON-SINGLE-PROMPT] Generated lyrics (${lyrics.length} chars) and title: ${aiGeneratedTitle}`);
 
       // Step 4: Generate song with ElevenLabs
       console.log(`[NEON-SINGLE-PROMPT] Step 4: Generating 30-second song with ElevenLabs...`);

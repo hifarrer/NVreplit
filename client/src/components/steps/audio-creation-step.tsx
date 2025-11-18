@@ -119,6 +119,9 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
       const formData = new FormData();
       formData.append('audio', file);
       formData.append('duration', uploadDuration[0].toString());
+      if (uploadSongTitle.trim()) {
+        formData.append('title', uploadSongTitle.trim());
+      }
       
       const response = await fetch(`/api/projects/${projectId}/upload-audio`, {
         method: 'POST',
@@ -252,6 +255,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
         audioUrl: selectedSong.audioUrl,
         audioTags: selectedSong.audioTags,
         audioLyrics: selectedSong.audioLyrics,
+        title: selectedSong.title,
         duration: selectedSong.duration,
         subtitleFileUrl: selectedSong.subtitleFileUrl,
         kieTaskId: selectedSong.kieTaskId,
@@ -280,7 +284,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   // Library mutations
   const selectFromLibraryMutation = useMutation({
     mutationFn: async (song: GeneratedSong) => {
-      const response = await apiRequest("POST", `/api/projects/${projectId}/select-song`, {
+      const requestData: any = {
         audioUrl: song.audioUrl,
         audioTags: song.audioTags,
         audioLyrics: song.audioLyrics,
@@ -289,7 +293,14 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
         subtitleFileUrl: song.subtitleFileUrl,
         kieTaskId: song.kieTaskId,
         kieAudioId: song.kieAudioId
-      });
+      };
+      
+      // Include custom title if provided
+      if (librarySongTitle.trim()) {
+        requestData.title = librarySongTitle.trim();
+      }
+      
+      const response = await apiRequest("POST", `/api/projects/${projectId}/select-song`, requestData);
       return response.json();
     },
     onSuccess: (data) => {
