@@ -242,36 +242,22 @@ export async function generateAllVideoSegmentsDynamic(
   if (config.makeCharacterSing) {
     // Special handling for 30-second videos (3 segments)
     if (audioSegments.length === 3 && config.numberOfVideosRegularApi === 1 && config.numberOfVideosLipsync === 2) {
-      // For 30-second videos with smart lyrics detection
+      // For 30-second videos: Scene 1 (index 0) = seedance, Scenes 2-3 (indices 1-2) = infinitetalk
+      // This matches the pattern defined in scene generation (openai.ts)
       for (let i = 0; i < audioSegments.length; i++) {
         let model: "seedance" | "infinitetalk";
         
-        // Calculate time range for this segment
-        const segmentStart = i * segmentDuration;
-        const segmentEnd = (i + 1) * segmentDuration;
-        
-        // Check if this segment has lyrics
-        // If we have subtitle data, check if segment has lyrics
-        // Otherwise, if makeCharacterSing is enabled, use default pattern (odd indices have lyrics)
-        const hasLyrics = timestampedWords.length > 0 
-          ? segmentHasLyrics(segmentStart, segmentEnd, timestampedWords)
-          : (config.makeCharacterSing && i % 2 === 1); // Default pattern: odd indices have lyrics when singing is enabled
-        
+        // Follow the exact scene generation pattern
         if (i === 0) {
-          // First segment: always seedance (no lipsync)
+          // Scene 1 (index 0): REGULAR = seedance
           model = "seedance";
+          console.log(`Segment ${i + 1} (Scene ${i + 1}): REGULAR scene → using seedance`);
         } else {
-          // Last two segments: use infinitetalk only if there are lyrics
-          if (hasLyrics) {
-            model = "infinitetalk";
-            console.log(`Segment ${i + 1}: Has lyrics (${segmentStart}s-${segmentEnd}s), using infinitetalk`);
-          } else {
-            model = "seedance";
-            console.log(`Segment ${i + 1}: No lyrics detected (${segmentStart}s-${segmentEnd}s), switching to seedance`);
-          }
+          // Scenes 2-3 (indices 1-2): LIPSYNC = infinitetalk
+          model = "infinitetalk";
+          console.log(`Segment ${i + 1} (Scene ${i + 1}): LIPSYNC scene → using infinitetalk`);
         }
         
-        console.log(`Generating video segment ${i + 1} using ${model} model`);
         videoTypes.push(model);
         
         if (model === "infinitetalk") {
@@ -292,65 +278,28 @@ export async function generateAllVideoSegmentsDynamic(
         }
       }
     } else {
-      // Default intercalation pattern for other video durations with smart lyrics detection
-      let seedanceCount = 0;
-      let infinitetalkCount = 0;
-
+      // For longer videos: Follow scene generation pattern
+      // ODD scenes (1, 3, 5...) = REGULAR = seedance (indices 0, 2, 4...)
+      // EVEN scenes (2, 4, 6...) = LIPSYNC = infinitetalk (indices 1, 3, 5...)
       for (let i = 0; i < audioSegments.length; i++) {
         let model: "seedance" | "infinitetalk";
+        const sceneNumber = i + 1; // 1-indexed scene number
         
-        // Calculate time range for this segment
+        // Calculate time range for logging
         const segmentStart = i * segmentDuration;
         const segmentEnd = (i + 1) * segmentDuration;
         
-        // Check if this segment has lyrics
-        // If we have subtitle data, check if segment has lyrics
-        // Otherwise, if makeCharacterSing is enabled, use default pattern (odd indices have lyrics)
-        const hasLyrics = timestampedWords.length > 0 
-          ? segmentHasLyrics(segmentStart, segmentEnd, timestampedWords)
-          : (config.makeCharacterSing && i % 2 === 1); // Default pattern: odd indices have lyrics when singing is enabled
-
-        // Smart model selection based on lyrics presence and pattern
         console.log(`\n=== SEGMENT ${i + 1} (${segmentStart.toFixed(1)}s-${segmentEnd.toFixed(1)}s) ===`);
-        console.log(`  - Index: ${i} (${i % 2 === 0 ? 'EVEN' : 'ODD'})`);
-        console.log(`  - Has lyrics: ${hasLyrics}`);
-        console.log(`  - Current counts: seedance=${seedanceCount}/${config.numberOfVideosRegularApi}, lipsync=${infinitetalkCount}/${config.numberOfVideosLipsync}`);
+        console.log(`  - Scene ${sceneNumber} (index ${i})`);
         
-        if (i % 2 === 0) {
-          // Even indices: Prefer seedance for wider shots
-          if (seedanceCount < config.numberOfVideosRegularApi) {
-            model = "seedance";
-            seedanceCount++;
-            console.log(`  → Using SEEDANCE (even index, slots available)`);
-          } else if (hasLyrics && infinitetalkCount < config.numberOfVideosLipsync) {
-            model = "infinitetalk";
-            infinitetalkCount++;
-            console.log(`  → Using INFINITETALK (has lyrics, all seedance slots filled)`);
-          } else {
-            model = "seedance";
-            seedanceCount++;
-            console.log(`  → Using SEEDANCE (fallback)`);
-          }
+        if (sceneNumber % 2 === 1) {
+          // ODD scene numbers (1, 3, 5...) = REGULAR = seedance
+          model = "seedance";
+          console.log(`  - ODD scene → REGULAR → using seedance`);
         } else {
-          // Odd indices: Prefer infinitetalk if lyrics are present
-          if (hasLyrics && infinitetalkCount < config.numberOfVideosLipsync) {
-            model = "infinitetalk";
-            infinitetalkCount++;
-            console.log(`  → Using INFINITETALK (odd index + has lyrics)`);
-          } else if (seedanceCount < config.numberOfVideosRegularApi) {
-            model = "seedance";
-            seedanceCount++;
-            if (!hasLyrics) {
-              console.log(`  → Using SEEDANCE (odd index but NO LYRICS)`);
-            } else {
-              console.log(`  → Using SEEDANCE (odd index, all lipsync slots filled)`);
-            }
-          } else {
-            // Fallback to infinitetalk even without lyrics if we need more
-            model = "infinitetalk";
-            infinitetalkCount++;
-            console.log(`  → Using INFINITETALK (fallback, all slots filled)`);
-          }
+          // EVEN scene numbers (2, 4, 6...) = LIPSYNC = infinitetalk
+          model = "infinitetalk";
+          console.log(`  - EVEN scene → LIPSYNC → using infinitetalk`);
         }
 
         videoTypes.push(model);

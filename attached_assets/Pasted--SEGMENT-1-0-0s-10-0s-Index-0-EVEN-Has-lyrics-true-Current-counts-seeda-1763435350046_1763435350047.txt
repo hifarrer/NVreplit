@@ -1,0 +1,57 @@
+=== SEGMENT 1 (0.0s-10.0s) ===
+  - Index: 0 (EVEN)
+  - Has lyrics: true
+  - Current counts: seedance=0/2, lipsync=0/1
+  → Using SEEDANCE (even index, slots available)
+  → No audio (seedance doesn't require it)
+=== GENERATING VIDEO SEGMENT ===
+Audio URL: 
+Image URL: https://d1q70pf5vjeyhc.cloudfront.net/predictions/ca7eaded0300497f95fd2b69a8b04536/1.jpg
+Prompt: Cyberpunk kitty prowling through neon-lit streets, camera follows her sleek movements in a dynamic dolly shot. 
+Model: seedance
+Wavespeed request body: {
+  "camera_fixed": false,
+  "duration": 10,
+  "image": "https://d1q70pf5vjeyhc.cloudfront.net/predictions/ca7eaded0300497f95fd2b69a8b04536/1.jpg",
+  "prompt": "Cyberpunk kitty prowling through neon-lit streets, camera follows her sleek movements in a dynamic dolly shot. ",
+  "seed": -1
+}
+Segment 10.0s-20.0s contains 12 word(s)
+
+=== SEGMENT 2 (10.0s-20.0s) ===
+  - Index: 1 (ODD)
+  - Has lyrics: true
+  - Current counts: seedance=1/2, lipsync=0/1
+  → Using INFINITETALK (odd index + has lyrics)
+  → Audio URL: https://ffmpegapi.net/download/e88e1a45-8825-43aa-...
+=== GENERATING VIDEO SEGMENT ===
+Audio URL: https://ffmpegapi.net/download/e88e1a45-8825-43aa-ba07-9368e3c844b6/split_part_02.mp3
+Image URL: https://d1q70pf5vjeyhc.cloudfront.net/predictions/0d8db0f5ea534b85acbf1fb3c8ea731e/1.jpg
+Prompt: Closeup of cyberpunk kitty's face as she sings joyfully, camera slowly tilting up to emphasize her bright eyes. 
+Model: infinitetalk
+Wavespeed request body: {
+  "audio": "https://ffmpegapi.net/download/e88e1a45-8825-43aa-ba07-9368e3c844b6/split_part_02.mp3",
+  "image": "https://d1q70pf5vjeyhc.cloudfront.net/predictions/0d8db0f5ea534b85acbf1fb3c8ea731e/1.jpg",
+  "prompt": "Closeup of cyberpunk kitty's face as she sings joyfully, camera slowly tilting up to emphasize her bright eyes. ",
+  "seed": -1
+}
+Segment 20.0s-30.0s contains 9 word(s)
+
+=== SEGMENT 3 (20.0s-30.0s) ===
+  - Index: 2 (EVEN)
+  - Has lyrics: true
+  - Current counts: seedance=1/2, lipsync=1/1
+  → Using SEEDANCE (even index, slots available)
+  → No audio (seedance doesn't require it)
+=== GENERATING VIDEO SEGMENT ===
+Audio URL: 
+Image URL: https://d1q70pf5vjeyhc.cloudfront.net/predictions/40cbc775f9274d2984620f245ba755db/1.jpg
+Prompt: Closeup of cyberpunk kitty's face, she smiles and winks playfully, camera gently zooming in on her whiskers.
+Model: seedance
+Wavespeed request body: {
+  "camera_fixed": false,
+  "duration": 10,
+  "image": "https://d1q70pf5vjeyhc.cloudfront.net/predictions/40cbc775f9274d2984620f245ba755db/1.jpg",
+  "prompt": "Closeup of cyberpunk kitty's face, she smiles and winks playfully, camera gently zooming in on her whiskers.",
+  "seed": -1
+}
