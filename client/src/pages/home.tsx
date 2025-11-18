@@ -37,7 +37,7 @@ export default function Home() {
   const createProjectMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/projects", {
-        title: "My Music Video",
+        title: "NeonVideo Song",
         description: "AI-generated music video project",
         currentStep: 1,
       });

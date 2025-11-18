@@ -68,7 +68,7 @@ export async function generateSong(tags: string, lyrics?: string, duration: numb
       body: JSON.stringify({
         prompt: lyrics || `A song with the style: ${tags}`,
         style: tags,
-        title: description && description.length > 30 ? description.substring(0, 30).trim() + '...' : description || `Generated Song - ${tags}`,
+        title: description && description.length > 30 ? description.substring(0, 30).trim() + '...' : description || "NeonVideo Song",
         customMode: true,
         instrumental: false, // We want vocals since we have lyrics
         model: "V4",

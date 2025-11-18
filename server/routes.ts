@@ -2371,7 +2371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             ...video,
-            title: video.title === "My Music Video" ? (video.audioPrompt ? video.audioPrompt.substring(0, 50) + (video.audioPrompt.length > 50 ? '...' : '') : video.title) : video.title,
+            title: ["My Music Video", "NeonVideo Song", "AI Generated Song"].includes(video.title) ? (video.audioPrompt ? video.audioPrompt.substring(0, 50) + (video.audioPrompt.length > 50 ? '...' : '') : video.title) : video.title,
             username: user?.username || 'Unknown User',
             thumbnailUrl
           };
@@ -3009,7 +3009,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // - Keep all other data (audio, character, etc.)
       const clonedProjectData: any = {
         userId: sourceProject.userId,
-        title: sourceProject.title || "My Music Video",
+        title: sourceProject.title || "NeonVideo Song",
         description: sourceProject.description || "AI-generated music video project",
         currentStep: 4, // Set to step 4 (ready for video generation)
         audioUrl: sourceProject.audioUrl,
@@ -3099,7 +3099,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Format the response
       const videoData = {
         id: project.id,
-        title: project.title === "My Music Video" ? (project.audioPrompt ? project.audioPrompt.substring(0, 30) + (project.audioPrompt.length > 30 ? '...' : '') : project.title) : project.title,
+        title: ["My Music Video", "NeonVideo Song", "AI Generated Song"].includes(project.title) ? (project.audioPrompt ? project.audioPrompt.substring(0, 30) + (project.audioPrompt.length > 30 ? '...' : '') : project.title) : project.title,
         videoUrl: project.finalVideoUrl,
         thumbnailUrl: project.characterImageUrl || null,
         createdAt: project.createdAt,
@@ -3137,7 +3137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Format the response
       const publicVideos = videosWithFinal.map(project => ({
         id: project.id,
-        title: project.title === "My Music Video" ? (project.audioPrompt ? project.audioPrompt.substring(0, 30) + (project.audioPrompt.length > 30 ? '...' : '') : project.title) : project.title,
+        title: ["My Music Video", "NeonVideo Song", "AI Generated Song"].includes(project.title) ? (project.audioPrompt ? project.audioPrompt.substring(0, 30) + (project.audioPrompt.length > 30 ? '...' : '') : project.title) : project.title,
         videoUrl: project.finalVideoUrl,
         thumbnailUrl: project.characterImageUrl || null,
         createdAt: project.createdAt,
@@ -3291,7 +3291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             id: project.id,
-            title: project.title === "My Music Video" ? (project.audioPrompt ? project.audioPrompt.substring(0, 30) + (project.audioPrompt.length > 30 ? '...' : '') : project.title) : project.title,
+            title: ["My Music Video", "NeonVideo Song", "AI Generated Song"].includes(project.title) ? (project.audioPrompt ? project.audioPrompt.substring(0, 30) + (project.audioPrompt.length > 30 ? '...' : '') : project.title) : project.title,
             videoUrl: project.finalVideoUrl,
             thumbnailUrl,
             createdAt: project.createdAt,
@@ -3373,7 +3373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             id: project.id,
-            title: project.title === "My Music Video" ? (project.audioPrompt ? project.audioPrompt.substring(0, 30) + (project.audioPrompt.length > 30 ? '...' : '') : project.title) : project.title,
+            title: ["My Music Video", "NeonVideo Song", "AI Generated Song"].includes(project.title) ? (project.audioPrompt ? project.audioPrompt.substring(0, 30) + (project.audioPrompt.length > 30 ? '...' : '') : project.title) : project.title,
             videoUrl: project.finalVideoUrl,
             thumbnailUrl,
             createdAt: project.createdAt,
@@ -4209,7 +4209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const selectedSong = result.songs[0];
       const songData = {
         userId: project.userId,
-        title: songTitle || description || tags || "Generated Song",
+        title: songTitle || description || tags || "NeonVideo Song",
         url: selectedSong.audioUrl,
         duration: duration,
         tags: tags || null,

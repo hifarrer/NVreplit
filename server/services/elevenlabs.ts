@@ -90,7 +90,7 @@ export async function generateSongWithElevenLabs(
 
     return {
       audioUrl: objectUrl,
-      title: "AI Generated Song",
+      title: "NeonVideo Song",
       duration: Math.round(durationMs / 1000), // Convert to seconds
     };
   } catch (error) {
