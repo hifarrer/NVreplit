@@ -539,7 +539,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                 <p className="text-xs text-muted-foreground">
                   Current: {getDurationLabel(duration[0])}
                   {!isPaidUser && (
-                    <span className="ml-2 text-orange-500">• Upgrade to paid plan for up to 4 min songs</span>
+                    <span className="ml-2 text-orange-500">• Upgrade to paid plan for up to 3 min songs</span>
                   )}
                 </p>
               </div>
@@ -832,7 +832,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                 <p className="text-xs text-muted-foreground">
                   Maximum duration: {maxDuration / 60} minutes
                   {!isPaidUser && (
-                    <span className="ml-2 text-orange-500">• Upgrade to paid plan for up to 4 min songs</span>
+                    <span className="ml-2 text-orange-500">• Upgrade to paid plan for up to 3 min songs</span>
                   )}
                 </p>
               </div>
