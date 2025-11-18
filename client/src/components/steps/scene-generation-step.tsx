@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,6 +33,7 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
   const [progress, setProgress] = useState(0);
   const [regeneratingScenes, setRegeneratingScenes] = useState<number[]>([]);
   const { toast } = useToast();
+  const hasGeneratedRef = useRef(false);
 
   // Determine if a scene uses lipsync based on video duration and scene index
   const isLipsyncScene = (index: number): boolean => {
@@ -92,9 +93,11 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
     // 1. No scenes exist in local state AND no scenes exist in the project (scenes prop)
     // 2. Not in edit mode
     // 3. Not already generating
+    // 4. Haven't already triggered generation (prevents React Strict Mode double-call)
     // This prevents re-generating scenes that already exist when component remounts
     const hasExistingScenes = generatedScenes.length > 0 || scenes.length > 0;
-    if (!hasExistingScenes && !isEditMode && !generateScenesMutation.isPending) {
+    if (!hasExistingScenes && !isEditMode && !generateScenesMutation.isPending && !hasGeneratedRef.current) {
+      hasGeneratedRef.current = true;
       generateScenesMutation.mutate();
     }
   }, [isEditMode]);
