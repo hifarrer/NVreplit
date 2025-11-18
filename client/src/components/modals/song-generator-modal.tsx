@@ -277,7 +277,7 @@ export function SongGeneratorModal({
                 Current: {getDurationLabel(duration[0])}
                 {!isPaidUser && (
                   <span className="ml-2 text-orange-500">
-                    • Upgrade to paid plan for up to 4 min songs
+                    • Upgrade to paid plan for up to 3 min songs
                   </span>
                 )}
               </p>
