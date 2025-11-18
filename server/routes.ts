@@ -4082,7 +4082,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate song
   app.post("/api/projects/:id/generate-song", async (req, res) => {
     try {
-      const { description, tags, lyrics, songTitle, duration = 120, addSubtitles = false } = req.body; // Duration in seconds
+      const { description, tags, lyrics, songTitle, duration = 120, addSubtitles = false, includeWatermark = true } = req.body; // Duration in seconds
       
       // Check for profanity in user-provided lyrics
       if (lyrics) {
@@ -4146,7 +4146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         step: "song_generation",
         message: "Starting song generation",
         status: "started",
-        metadata: { tags, lyrics, addSubtitles }
+        metadata: { tags, lyrics, addSubtitles, includeWatermark }
       });
 
       let result;
@@ -4264,6 +4264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audioLyrics: lyrics,
         audioDuration: duration, // Store the duration in seconds
         addSubtitles: addSubtitles,
+        includeWatermark: includeWatermark,
         subtitleFileUrl: subtitleFileUrl,
         // Remove KIE fields since we're using ElevenLabs
         kieTaskId: null,
@@ -5153,10 +5154,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let finalVideo;
       let savedFinalVideoUrl: string;
       try {
-        // Get watermark URL for branding
-        const watermarkUrl = await getWatermarkUrl();
+        // Get watermark URL for branding (only if includeWatermark is true)
+        let watermarkUrl: string | undefined;
+        if (project.includeWatermark !== false) {
+          watermarkUrl = await getWatermarkUrl() || undefined;
+        }
         
-        finalVideo = await mergeVideos(signedVideoUrls, finalAudioUrl, subtitleUrl, watermarkUrl || undefined);
+        finalVideo = await mergeVideos(signedVideoUrls, finalAudioUrl, subtitleUrl, watermarkUrl);
         console.log("Final video merge successful:", finalVideo.download_url);
         
         // Try to save the final video to object storage
