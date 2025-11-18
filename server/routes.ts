@@ -3690,6 +3690,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           audioTags: song.tags,
           audioLyrics: song.lyrics,
           duration: song.duration,
+          subtitleFileUrl: song.subtitleFileUrl,
+          kieTaskId: song.kieTaskId,
+          kieAudioId: song.kieAudioId,
           createdAt: song.createdAt,
           updatedAt: song.createdAt // Songs table doesn't have updatedAt
         }));
