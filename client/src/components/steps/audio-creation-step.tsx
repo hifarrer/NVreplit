@@ -799,13 +799,17 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
             </div>
             
             {/* Song Duration Slider for Upload */}
-            <div>
-              <Label className="flex items-center text-sm font-semibold mb-2">
-                <i className="fas fa-clock text-accent mr-2"></i>
+            <div className="bg-gradient-to-br from-primary/5 to-accent/5 border-2 border-primary/20 rounded-lg p-4">
+              <Label className="flex items-center text-sm font-semibold mb-3">
+                <Clock className="w-4 h-4 text-accent mr-2" />
                 Trim Audio Duration
               </Label>
               <div className="space-y-3">
-                <div className="px-3">
+                <div className="bg-background/60 rounded-lg p-4 border border-primary/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-muted-foreground">Select duration:</span>
+                    <span className="text-lg font-bold text-primary">{getDurationLabel(uploadDuration[0])}</span>
+                  </div>
                   <Slider
                     value={uploadDuration}
                     onValueChange={setUploadDuration}
@@ -820,15 +824,18 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                   {durationOptions.map(option => (
                     <span 
                       key={option}
-                      className={uploadDuration[0] === option ? "text-primary font-medium" : ""}
+                      className={uploadDuration[0] === option ? "text-primary font-bold" : ""}
                     >
                       {getDurationLabel(option)}
                     </span>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Audio will be trimmed to: {getDurationLabel(uploadDuration[0])}
-                </p>
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-md p-2">
+                  <p className="text-sm text-blue-600 dark:text-blue-400 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                    Your audio will be trimmed to <strong className="mx-1">{getDurationLabel(uploadDuration[0])}</strong> and will generate <strong className="mx-1">{Math.ceil(uploadDuration[0] / 10)} scenes</strong>
+                  </p>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Maximum duration: {maxDuration / 60} minutes
                   {!isPaidUser && (
