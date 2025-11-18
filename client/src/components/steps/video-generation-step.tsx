@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -33,6 +33,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
   const [isQueued, setIsQueued] = useState(false);
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
   const { toast } = useToast();
+  const hasInitiatedGeneration = useRef(false);
 
   const generateVideoMutation = useMutation({
     mutationFn: async () => {
@@ -180,7 +181,11 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
 
   useEffect(() => {
     // Only start generation once when component mounts
-    generateVideoMutation.mutate();
+    // Use ref to prevent duplicate calls even in React StrictMode (development)
+    if (!hasInitiatedGeneration.current) {
+      hasInitiatedGeneration.current = true;
+      generateVideoMutation.mutate();
+    }
     
     // Cleanup interval on unmount
     return () => {
