@@ -241,9 +241,10 @@ export async function generateAllVideoSegmentsDynamic(
 
   if (config.makeCharacterSing) {
     // Special handling for 30-second videos (3 segments)
-    if (audioSegments.length === 3 && config.numberOfVideosRegularApi === 1 && config.numberOfVideosLipsync === 2) {
+    if (audioSegments.length === 3) {
       // For 30-second videos: Scene 1 (index 0) = seedance, Scenes 2-3 (indices 1-2) = infinitetalk
       // This matches the pattern defined in scene generation (openai.ts)
+      console.log("Using 30-second video pattern: Scene 1=REGULAR, Scenes 2-3=LIPSYNC");
       for (let i = 0; i < audioSegments.length; i++) {
         let model: "seedance" | "infinitetalk";
         

@@ -1,0 +1,45 @@
+=== GENERATING VIDEO SEGMENT ===
+Audio URL: 
+Image URL: https://d1q70pf5vjeyhc.cloudfront.net/predictions/24f08d55f7b840a3aaad3e438172395f/1.jpg
+Prompt: Character prowling through neon-lit alley with glowing billboards. Camera follows her dynamically, weaving around walls and objects to showcase the environment.
+Model: seedance
+Wavespeed request body: {
+  "camera_fixed": false,
+  "duration": 10,
+  "image": "https://d1q70pf5vjeyhc.cloudfront.net/predictions/24f08d55f7b840a3aaad3e438172395f/1.jpg",
+  "prompt": "Character prowling through neon-lit alley with glowing billboards. Camera follows her dynamically, weaving around walls and objects to showcase the environment.",
+  "seed": -1
+}
+
+=== SEGMENT 2 (10.0s-20.0s) ===
+  - Scene 2 (index 1)
+  - EVEN scene → LIPSYNC → using infinitetalk
+  → Audio URL: https://ffmpegapi.net/download/e3d8eeec-5de0-4b14-...
+=== GENERATING VIDEO SEGMENT ===
+Audio URL: https://ffmpegapi.net/download/e3d8eeec-5de0-4b14-9a3a-205ca9241b26/split_part_02.mp3
+Image URL: https://d1q70pf5vjeyhc.cloudfront.net/predictions/82c94f8393d4468ca68166ed2d48d66f/1.jpg
+Prompt: Closeup of character's face as she sings joyfully, light reflecting off her headphones. Camera gently zooms in to capture the sparkle in her eyes.
+Model: infinitetalk
+Wavespeed request body: {
+  "audio": "https://ffmpegapi.net/download/e3d8eeec-5de0-4b14-9a3a-205ca9241b26/split_part_02.mp3",
+  "image": "https://d1q70pf5vjeyhc.cloudfront.net/predictions/82c94f8393d4468ca68166ed2d48d66f/1.jpg",
+  "prompt": "Closeup of character's face as she sings joyfully, light reflecting off her headphones. Camera gently zooms in to capture the sparkle in her eyes.",
+  "seed": -1
+}
+
+=== SEGMENT 3 (20.0s-30.0s) ===
+  - Scene 3 (index 2)
+  - ODD scene → REGULAR → using seedance
+  → No audio (seedance doesn't require it)
+=== GENERATING VIDEO SEGMENT ===
+Audio URL: 
+Image URL: https://d1q70pf5vjeyhc.cloudfront.net/predictions/566f3cb709154ef7aa4df22114a89faa/1.jpg
+Prompt: Closeup of character's face as she lip-syncs with a playful smile, her ears twitching to the beat. Camera slowly tilts up to highlight her animated expressions.
+Model: seedance
+Wavespeed request body: {
+  "camera_fixed": false,
+  "duration": 10,
+  "image": "https://d1q70pf5vjeyhc.cloudfront.net/predictions/566f3cb709154ef7aa4df22114a89faa/1.jpg",
+  "prompt": "Closeup of character's face as she lip-syncs with a playful smile, her ears twitching to the beat. Camera slowly tilts up to highlight her animated expressions.",
+  "seed": -1
+}
