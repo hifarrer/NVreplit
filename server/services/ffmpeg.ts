@@ -5,33 +5,14 @@ export async function getWatermarkUrl(): Promise<string | null> {
   return "https://notifications.nusong.ai/neonlogo.png";
 }
 
-export async function getAudioDuration(audioUrl: string): Promise<number> {
+export async function getAudioDurationFromFile(filePath: string): Promise<number> {
   try {
-    console.log(`Getting audio duration for: ${audioUrl}`);
+    const { parseFile } = await import('music-metadata');
+    console.log(`Getting audio duration from file: ${filePath}`);
     
-    const response = await fetch("https://ffmpegapi.net/api/get_audio_info", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": FFMPEG_API_KEY,
-      },
-      body: JSON.stringify({
-        audio_url: audioUrl
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`FFMPEG API error: ${response.status} - ${errorText}`);
-    }
-
-    const result = await response.json();
+    const metadata = await parseFile(filePath);
+    const duration = Math.floor(metadata.format.duration || 0);
     
-    if (!result.success) {
-      throw new Error(`Failed to get audio info: ${result.message || "Unknown error"}`);
-    }
-
-    const duration = Math.floor(result.duration || 0);
     console.log(`Audio duration: ${duration} seconds`);
     return duration;
   } catch (error) {

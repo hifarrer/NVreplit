@@ -3817,7 +3817,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Audio uploaded to object storage: ${uploadedUrl}`);
 
-      // Get the actual duration of the uploaded audio
+      // Get the actual duration of the uploaded audio file
       let actualDuration: number;
       try {
         await storage.addGenerationLog({
@@ -3828,8 +3828,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           metadata: {}
         });
 
-        const { getAudioDuration } = await import("./services/ffmpeg");
-        actualDuration = await getAudioDuration(publicAudioUrl);
+        const { getAudioDurationFromFile } = await import("./services/ffmpeg");
+        actualDuration = await getAudioDurationFromFile(req.file.path);
         
         console.log(`Detected audio duration: ${actualDuration} seconds`);
         
