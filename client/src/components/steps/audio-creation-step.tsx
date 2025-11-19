@@ -927,16 +927,6 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
               onChange={handleFileInputChange}
               className="hidden"
             />
-
-            <Button 
-              onClick={handleAudioUpload}
-              disabled={isUploading}
-              className="w-full floating-button"
-              data-testid="upload-audio-button"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              {isUploading ? 'Uploading...' : 'Upload Audio'}
-            </Button>
           </TabsContent>
 
           {/* Select from Library Tab */}
