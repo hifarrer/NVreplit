@@ -3899,12 +3899,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update project with audio URL and description
-      // For uploaded audio, we use the user-provided description to generate scenes
+      // For uploaded audio, we store the description in audioPrompt to generate scenes
       const updateData: any = { 
         audioUrl: finalAudioUrl,
         audioType: 'uploaded',
         audioDuration: actualDuration,
-        audioLyrics: songDescription || null, // Store description in audioLyrics for scene generation
+        audioPrompt: songDescription || null, // Store description in audioPrompt for scene generation
         addSubtitles: false // No subtitles for uploaded audio
       };
       
@@ -4609,25 +4609,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Character image URL is required. Please create or select a character first." });
       }
 
-      // Create a prompt based on what we have - ALWAYS prioritize lyrics if available
+      // Create a prompt based on what we have
       let audioPrompt = "";
       
-      if (project.audioLyrics) {
-        // Always use transcribed or generated lyrics to create more relevant scenes
+      // For uploaded audio, prioritize the user's description (stored in audioPrompt)
+      if (project.audioType === 'uploaded' && project.audioPrompt) {
+        // User provided a description of what the video should be about
+        audioPrompt = project.audioPrompt;
+        console.log("Using uploaded audio description:", audioPrompt);
+      } else if (project.audioLyrics) {
+        // For generated audio, use the lyrics to create more relevant scenes
         const tags = project.audioTags || "music";
         const lyricsPreview = project.audioLyrics.substring(0, 200);
-        if (project.audioType === 'uploaded') {
-          audioPrompt = `Music video based on the transcribed lyrics: ${lyricsPreview}`;
-        } else {
-          audioPrompt = `${tags} music video based on these lyrics: ${lyricsPreview}`;
-        }
+        audioPrompt = `${tags} music video based on these lyrics: ${lyricsPreview}`;
         console.log("Using lyrics-based prompt:", audioPrompt);
       } else if (project.audioPrompt) {
-        // Fall back to user-provided audio prompt
+        // Fall back to audio generation prompt if available
         audioPrompt = project.audioPrompt;
         console.log("Using audio prompt:", audioPrompt);
       } else if (project.audioType === 'uploaded') {
-        // Last resort for uploaded audio without lyrics or prompt
+        // Last resort for uploaded audio without description
         audioPrompt = "Create a music video with dramatic scenes";
         console.log("Using generic uploaded prompt");
       } else {
