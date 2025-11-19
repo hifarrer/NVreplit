@@ -21,17 +21,16 @@ export async function transcribeAudio(audioFilePath: string): Promise<string> {
     const transcription = await openai.audio.transcriptions.create({
       file: audioFile,
       model: "whisper-1",
-      response_format: "verbose_json",
+      response_format: "text",
       language: "en",
-      prompt: "This is a song with singing vocals and lyrics. Transcribe the sung lyrics accurately, focusing on the words being sung rather than background music or instrumental sounds.",
       temperature: 0,
     });
 
     console.log("Transcription completed successfully");
-    console.log("Transcribed text:", transcription.text);
-    console.log("Transcribed text length:", transcription.text.length);
+    console.log("Transcribed text:", transcription);
+    console.log("Transcribed text length:", transcription.length);
     
-    return transcription.text;
+    return transcription;
   } catch (error) {
     console.error("Whisper transcription error:", error);
     throw new Error(`Failed to transcribe audio: ${(error as Error).message}`);
