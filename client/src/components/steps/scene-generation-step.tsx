@@ -118,11 +118,6 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
       console.log("Setting generated scenes:", sceneData);
       setGeneratedScenes(sceneData);
       
-      // Refetch project data in parent to sync the scenes prop
-      if (onScenesGenerated) {
-        onScenesGenerated();
-      }
-      
       toast({
         title: "Success",
         description: "Scenes generated successfully!",
@@ -301,6 +296,12 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
       } catch (error) {
         console.error("Error saving scenes:", error);
       }
+      
+      // Refetch project data in parent before proceeding
+      if (onScenesGenerated) {
+        onScenesGenerated();
+      }
+      
       // Proceed to next step regardless of save result
       onNext();
     }
