@@ -566,7 +566,14 @@ export async function generateSingleSceneImage(
   );
 
   console.log(`Single scene generated successfully using model: ${result.modelUsed}`);
-  return result.imageUrl;
+  
+  // Download and store the scene image permanently
+  console.log(`Downloading and storing scene image permanently...`);
+  const { downloadAndStoreImage } = await import("./imageStorage");
+  const storedImage = await downloadAndStoreImage(result.imageUrl, "scenes");
+  console.log(`Scene image stored permanently at: ${storedImage.storedUrl}`);
+  
+  return storedImage.storedUrl;
 }
 
 export async function generateSceneImages(
@@ -635,5 +642,20 @@ export async function generateSceneImages(
   console.log(
     `✓ All ${prompts.length} scenes generated successfully (with automatic fallback support)`,
   );
-  return successfulScenes;
+  
+  // Download and store all scene images permanently
+  console.log(`Downloading and storing ${successfulScenes.length} scene images permanently...`);
+  const { downloadAndStoreImage } = await import("./imageStorage");
+  
+  const storePromises = successfulScenes.map(async (sceneUrl, index) => {
+    console.log(`Storing scene ${index + 1}...`);
+    const storedImage = await downloadAndStoreImage(sceneUrl, "scenes");
+    console.log(`Scene ${index + 1} stored permanently at: ${storedImage.storedUrl}`);
+    return storedImage.storedUrl;
+  });
+  
+  const storedSceneUrls = await Promise.all(storePromises);
+  console.log(`✓ All ${storedSceneUrls.length} scene images stored permanently`);
+  
+  return storedSceneUrls;
 }
