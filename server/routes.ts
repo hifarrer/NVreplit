@@ -3426,6 +3426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             title: p.title || p.audioPrompt || "Untitled Video", // Use actual title (song title) if available, fallback to audio prompt, then default
             videoUrl: p.finalVideoUrl,
             thumbnailUrl,
+            sceneImages: p.sceneImages || [],
             createdAt: p.createdAt,
             updatedAt: p.updatedAt,
             // Mux streaming data for performance optimization

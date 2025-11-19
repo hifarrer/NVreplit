@@ -20,6 +20,7 @@ interface CompletedVideo {
   title: string;
   videoUrl: string;
   thumbnailUrl?: string | null;
+  sceneImages?: string[];
   createdAt: string;
   updatedAt: string;
   mux?: {
@@ -44,6 +45,18 @@ export default function MyVideosPage() {
   const { data: videos = [], isLoading, refetch } = useQuery<CompletedVideo[]>({
     queryKey: ["/api/my-videos"],
   });
+
+  // Check if a video has valid (non-expired) scene images stored in object storage
+  const hasValidSceneImages = (video: CompletedVideo): boolean => {
+    if (!video.sceneImages || video.sceneImages.length === 0) {
+      return false;
+    }
+    // Check if at least one scene image is stored in our object storage
+    // (starts with /objects/ or /public-objects/)
+    return video.sceneImages.some(
+      url => url.startsWith('/objects/') || url.startsWith('/public-objects/')
+    );
+  };
 
   const handleEditVideo = (videoId: string) => {
     // Add timestamp to force re-initialization of edit mode
@@ -290,19 +303,21 @@ export default function MyVideosPage() {
                           <Play className="h-3 w-3 mr-1" />
                           Watch
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 text-xs px-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditVideo(video.id);
-                          }}
-                          data-testid={`button-edit-${video.id}`}
-                        >
-                          <Edit3 className="h-3 w-3 mr-1" />
-                          Edit
-                        </Button>
+                        {hasValidSceneImages(video) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 text-xs px-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditVideo(video.id);
+                            }}
+                            data-testid={`button-edit-${video.id}`}
+                          >
+                            <Edit3 className="h-3 w-3 mr-1" />
+                            Edit
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
