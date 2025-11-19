@@ -73,6 +73,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   // Upload tab state
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState(""); // Status message for upload progress
   const [uploadSongTitle, setUploadSongTitle] = useState(""); // Song title for upload tab
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -119,35 +121,98 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   // Upload mutations
   const uploadAudioMutation = useMutation({
     mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append('audio', file);
-      if (uploadSongTitle.trim()) {
-        formData.append('title', uploadSongTitle.trim());
-      }
-      
-      const response = await fetch(`/api/projects/${projectId}/upload-audio`, {
-        method: 'POST',
-        body: formData,
+      return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('audio', file);
+        if (uploadSongTitle.trim()) {
+          formData.append('title', uploadSongTitle.trim());
+        }
+        
+        const xhr = new XMLHttpRequest();
+        
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const percentComplete = Math.round((e.loaded / e.total) * 100);
+            // Upload takes 0-50% of total progress
+            setUploadProgress(percentComplete * 0.5);
+            setUploadStatus("Uploading audio file...");
+          }
+        });
+        
+        // Handle completion
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            // Upload complete, now transcribing
+            setUploadProgress(50);
+            setUploadStatus("Transcribing audio...");
+            
+            // Simulate transcription progress (we don't have real-time feedback from server)
+            const transcribeInterval = setInterval(() => {
+              setUploadProgress(prev => {
+                if (prev >= 95) {
+                  clearInterval(transcribeInterval);
+                  return prev;
+                }
+                return prev + 5;
+              });
+            }, 500);
+            
+            try {
+              const response = JSON.parse(xhr.responseText);
+              clearInterval(transcribeInterval);
+              setUploadProgress(100);
+              setUploadStatus("Complete!");
+              resolve(response);
+            } catch (error) {
+              clearInterval(transcribeInterval);
+              reject(new Error('Failed to parse response'));
+            }
+          } else {
+            try {
+              const error = JSON.parse(xhr.responseText);
+              reject(new Error(error.error || 'Upload failed'));
+            } catch {
+              reject(new Error('Upload failed'));
+            }
+          }
+        });
+        
+        // Handle errors
+        xhr.addEventListener('error', () => {
+          reject(new Error('Upload failed due to network error'));
+        });
+        
+        xhr.open('POST', `/api/projects/${projectId}/upload-audio`);
+        xhr.send(formData);
       });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Upload failed');
-      }
-      
-      return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       setCurrentAudioUrl(data.audioUrl);
       setIsUploading(false);
+      setUploadProgress(0);
+      setUploadStatus("");
       const sceneCount = Math.ceil(data.duration / 10);
+      
+      const hasLyrics = data.hasLyrics;
+      const hasSubtitles = data.hasSubtitles;
+      
+      let description = `Audio uploaded successfully! Duration: ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')} (${sceneCount} scenes will be generated)`;
+      if (hasLyrics && hasSubtitles) {
+        description += " Audio transcribed and subtitles generated!";
+      } else if (hasLyrics) {
+        description += " Audio transcribed successfully!";
+      }
+      
       toast({
         title: "Success",
-        description: `Audio uploaded successfully! Duration: ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')} (${sceneCount} scenes will be generated)`,
+        description,
       });
     },
     onError: (error) => {
       setIsUploading(false);
+      setUploadProgress(0);
+      setUploadStatus("");
       toast({
         title: "Upload Failed",
         description: (error as Error).message,
@@ -787,7 +852,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
             >
               <Music className="w-12 h-12 text-muted-foreground mb-4 mx-auto" />
               {isUploading ? (
-                <p className="text-muted-foreground mb-2">Uploading and trimming audio file...</p>
+                <p className="text-muted-foreground mb-2">Processing audio file...</p>
               ) : (
                 <>
                   <p className="text-muted-foreground mb-2">Drag and drop your audio file here</p>
@@ -796,6 +861,22 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
               )}
               <p className="text-xs text-muted-foreground mt-2">Supports MP3, WAV, AAC (Max 10MB)</p>
             </div>
+            
+            {/* Upload Progress */}
+            {isUploading && (
+              <div className="bg-muted/30 rounded-lg p-4" data-testid="upload-progress">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-semibold">{uploadStatus}</span>
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                </div>
+                <Progress value={uploadProgress} className="mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  {uploadProgress < 50 ? "Uploading your audio file..." :
+                   uploadProgress < 95 ? "Transcribing audio with AI..." :
+                   "Finalizing..."}
+                </p>
+              </div>
+            )}
             
             {/* Upload Info */}
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-md p-3">
