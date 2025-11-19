@@ -85,10 +85,11 @@ export default function Home() {
     }
     
     // Otherwise, create a new project when the Create page loads
-    if (!projectId && !targetProjectId) {
+    // Only create if we don't have a projectId already
+    if (!projectId && !targetProjectId && !createProjectMutation.isPending) {
       createProjectMutation.mutate();
     }
-  }, [user, urlProjectId, editProjectId]); // Depend on both URL project IDs
+  }, [user, urlProjectId, editProjectId, projectId, createProjectMutation]); // Include projectId to prevent duplicate creation
 
   // Handle edit session changes - jump to step 3 when a new edit session starts
   useEffect(() => {
