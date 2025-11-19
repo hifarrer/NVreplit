@@ -108,7 +108,10 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
           throw new Error("Timeout waiting for scene generation to complete");
         }
         
-        return response.json();
+        // Parse JSON once and return the data
+        const data = await response.json();
+        console.log("Parsed scene generation response:", data);
+        return data;
       } finally {
         isGeneratingRef.current = false;
       }
