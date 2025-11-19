@@ -1,0 +1,98 @@
+Validated data: {
+2025-11-19 10:56:42.64
+5421a191
+User
+userId: 'cd56d92c-a56f-462a-acaf-b072aeb24b72',
+2025-11-19 10:56:42.64
+5421a191
+User
+Creating project with data: {
+2025-11-19 10:56:42.64
+5421a191
+User
+description: 'AI-generated music video project',
+2025-11-19 10:56:42.64
+5421a191
+User
+description: 'AI-generated music video project',
+2025-11-19 10:56:42.67
+5421a191
+User
+at handle (file:///home/runner/workspace/node_modules/postgres/src/connection.js:480:6)
+2025-11-19 10:56:42.67
+5421a191
+User
+at ErrorResponse (file:///home/runner/workspace/node_modules/postgres/src/connection.js:794:26)
+2025-11-19 10:56:42.67
+5421a191
+User
+at TLSSocket.emit (node:events:524:28)
+2025-11-19 10:56:42.67
+5421a191
+User
+at TLSSocket.data (file:///home/runner/workspace/node_modules/postgres/src/connection.js:315:9)
+2025-11-19 10:56:42.67
+5421a191
+User
+at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23) {
+2025-11-19 10:56:42.67
+5421a191
+User
+code: '42703',
+2025-11-19 10:56:42.67
+5421a191
+User
+position: '190',
+2025-11-19 10:56:42.67
+5421a191
+User
+routine: 'checkInsertTargets'
+2025-11-19 10:56:42.67
+5421a191
+User
+at addChunk (node:internal/streams/readable:561:12)
+2025-11-19 10:56:42.67
+5421a191
+User
+severity_local: 'ERROR',
+2025-11-19 10:56:42.67
+5421a191
+User
+at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+2025-11-19 10:56:42.67
+5421a191
+User
+severity: 'ERROR',
+2025-11-19 10:56:42.67
+5421a191
+User
+4:56:42 PM [express] POST /api/projects 400 in 155ms :: {"error":"Invalid project data","message":"c…
+2025-11-19 10:56:42.67
+5421a191
+User
+}
+2025-11-19 10:56:42.67
+5421a191
+User
+file: 'parse_target.c',
+2025-11-19 10:56:42.67
+5421a191
+User
+at Readable.push (node:internal/streams/readable:392:5)
+2025-11-19 10:56:42.67
+5421a191
+User
+Create project error: PostgresError: column "include_watermark" of relation "projects" does not exist
+2025-11-19 10:56:42.67
+5421a191
+User
+line: '1066',
+2025-11-19 10:56:42.97
+5421a191
+User
+currentStep: 1
+
+2025-11-19 10:56:42.97
+5421a191
+User
+}
