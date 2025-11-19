@@ -68,6 +68,9 @@ const objectStorage = new ObjectStorageService();
 
 const JWT_SECRET = process.env.JWT_SECRET || "music-video-maker-secret-key";
 
+// In-memory lock to prevent duplicate scene generation for the same project
+const sceneGenerationLocks = new Set<string>();
+
 // Google OAuth configuration
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -4594,12 +4597,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Generate scenes
   app.post("/api/projects/:id/generate-scenes", async (req, res) => {
+    const projectId = req.params.id;
+    
+    // Check if scene generation is already in progress for this project
+    if (sceneGenerationLocks.has(projectId)) {
+      console.log(`Scene generation already in progress for project ${projectId}, rejecting duplicate request`);
+      return res.status(409).json({ 
+        error: "Scene generation already in progress for this project" 
+      });
+    }
+    
+    // Acquire lock
+    sceneGenerationLocks.add(projectId);
+    console.log(`Acquired scene generation lock for project ${projectId}`);
+    
     try {
-      const project = await storage.getProject(req.params.id);
+      const project = await storage.getProject(projectId);
       console.log("Project data for scene generation:", JSON.stringify(project, null, 2));
       
       if (!project) {
-        console.log("No project found for ID:", req.params.id);
+        console.log("No project found for ID:", projectId);
         return res.status(400).json({ error: "Project not found" });
       }
       
@@ -4713,13 +4730,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Generate scenes error:", error);
       await storage.addGenerationLog({
-        projectId: req.params.id,
+        projectId: projectId,
         step: "scene_generation",
         message: `Scene generation failed: ${(error as Error).message}`,
         status: "error",
         metadata: { error: (error as Error).message }
       });
       res.status(500).json({ error: "Failed to generate scenes" });
+    } finally {
+      // Always release the lock when done (success or error)
+      sceneGenerationLocks.delete(projectId);
+      console.log(`Released scene generation lock for project ${projectId}`);
     }
   });
 

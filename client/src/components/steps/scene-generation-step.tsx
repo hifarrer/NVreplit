@@ -74,6 +74,12 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
         }
 
         const response = await apiRequest("POST", `/api/projects/${projectId}/generate-scenes`, {});
+        
+        // If server returns 409, it means generation is already in progress
+        if (response.status === 409) {
+          throw new Error("Scene generation already in progress on server");
+        }
+        
         return response.json();
       } finally {
         isGeneratingRef.current = false;
