@@ -50,12 +50,17 @@ export default function Version201Release() {
               </p>
 
               <div className="rounded-lg overflow-hidden border border-purple-500/20 mb-8">
-                <img 
-                  src="https://res.cloudinary.com/dqemas8ht/image/upload/v1763573973/squirrelneon_me4wfe.png" 
-                  alt="NeonVideo.ai Version 2.0.1 Release" 
+                <video 
+                  src="https://res.cloudinary.com/dqemas8ht/video/upload/v1763583061/NeonVideo_Song_2_gupjcf.mp4" 
+                  controls
+                  autoPlay
+                  muted
+                  loop
                   className="w-full h-auto"
-                  data-testid="img-release-banner"
-                />
+                  data-testid="video-release-banner"
+                >
+                  Your browser does not support the video tag.
+                </video>
               </div>
             </header>
 
