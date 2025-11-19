@@ -23,10 +23,9 @@ interface SceneGenerationStepProps {
   onNext: () => void;
   onBack: () => void;
   onReset: () => void;
-  onScenesGenerated?: () => void;
 }
 
-export function SceneGenerationStep({ projectId, audioDuration, characterImageUrl, scenes = [], isEditMode = false, onNext, onBack, onReset, onScenesGenerated }: SceneGenerationStepProps) {
+export function SceneGenerationStep({ projectId, audioDuration, characterImageUrl, scenes = [], isEditMode = false, onNext, onBack, onReset }: SceneGenerationStepProps) {
   // Defensively copy scenes array to avoid mutating the original project data
   const [generatedScenes, setGeneratedScenes] = useState<SceneData[]>(() => 
     scenes.map(scene => ({ ...scene }))
@@ -35,18 +34,6 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
   const [regeneratingScenes, setRegeneratingScenes] = useState<number[]>([]);
   const { toast } = useToast();
   const hasGeneratedRef = useRef(false);
-  const isGeneratingRef = useRef(false);
-
-  // Debug: Log on every render
-  console.log("SceneGenerationStep render - generatedScenes.length:", generatedScenes.length);
-
-  // Sync scenes prop to local state when it changes (e.g., after parent refetch)
-  useEffect(() => {
-    if (scenes.length > 0 && generatedScenes.length === 0) {
-      console.log("Syncing scenes from props to local state:", scenes);
-      setGeneratedScenes(scenes.map(scene => ({ ...scene })));
-    }
-  }, [scenes, generatedScenes.length]);
 
   // Determine if a scene uses lipsync based on video duration and scene index
   const isLipsyncScene = (index: number): boolean => {
@@ -64,70 +51,28 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
 
   const generateScenesMutation = useMutation({
     mutationFn: async () => {
-      // Guard against duplicate calls - if already generating, throw error
-      if (isGeneratingRef.current) {
-        throw new Error("Scene generation already in progress");
+      const progressSteps = [25, 50, 75, 100];
+      const messages = [
+        "Analyzing song concept...",
+        "Generating scene prompts...",
+        "Creating scene images...",
+        "Scene generation complete!"
+      ];
+
+      for (let i = 0; i < progressSteps.length; i++) {
+        setProgress(progressSteps[i]);
+        await new Promise(resolve => setTimeout(resolve, 2500));
       }
-      
-      isGeneratingRef.current = true;
-      
-      try {
-        // Simple progress updates during actual API call
-        setProgress(25);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setProgress(50);
-        
-        const response = await apiRequest("POST", `/api/projects/${projectId}/generate-scenes`, {});
-        setProgress(75);
-        
-        // If server returns 409, it means generation is already in progress by another request
-        // Wait for it to complete and fetch the scenes
-        if (response.status === 409) {
-          console.log("Scene generation already in progress, waiting for completion...");
-          
-          // Poll the project every 2 seconds until scenes are available
-          let attempts = 0;
-          const maxAttempts = 30; // Max 60 seconds
-          
-          while (attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            const projectResponse = await fetch(`/api/projects/${projectId}`);
-            const project = await projectResponse.json();
-            
-            if (project.scenePrompts && project.scenePrompts.length > 0) {
-              return {
-                scenePrompts: project.scenePrompts,
-                sceneImages: project.sceneImages
-              };
-            }
-            
-            attempts++;
-          }
-          
-          throw new Error("Timeout waiting for scene generation to complete");
-        }
-        
-        // Parse JSON once and return the data
-        const data = await response.json();
-        console.log("Parsed scene generation response:", data);
-        return data;
-      } finally {
-        isGeneratingRef.current = false;
-      }
+
+      const response = await apiRequest("POST", `/api/projects/${projectId}/generate-scenes`, {});
+      return response.json();
     },
     onSuccess: (data) => {
-      console.log("Scene generation onSuccess called with data:", data);
       const sceneData: SceneData[] = data.scenePrompts.map((prompt: string, index: number) => ({
         prompt,
         imageUrl: data.sceneImages[index]
       }));
-      console.log("Setting generated scenes:", sceneData);
-      console.log("Current generatedScenes.length before setState:", generatedScenes.length);
       setGeneratedScenes(sceneData);
-      setProgress(100);
-      console.log("Called setGeneratedScenes with", sceneData.length, "scenes");
-      
       toast({
         title: "Success",
         description: "Scenes generated successfully!",
@@ -135,14 +80,11 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
     },
     onError: (error) => {
       setProgress(0);
-      // Only show error toast if it's not a duplicate call error
-      if (!error.message?.includes("already in progress")) {
-        toast({
-          title: "Error",
-          description: "Failed to generate scenes",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Error",
+        description: "Failed to generate scenes",
+        variant: "destructive",
+      });
     }
   });
 
@@ -156,11 +98,6 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
     
     // Exit early if mutation is not idle (already started, pending, or completed)
     if (generateScenesMutation.status !== "idle") {
-      return;
-    }
-    
-    // Exit early if already generating (ref guard)
-    if (isGeneratingRef.current) {
       return;
     }
     
@@ -306,12 +243,6 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
       } catch (error) {
         console.error("Error saving scenes:", error);
       }
-      
-      // Refetch project data in parent before proceeding
-      if (onScenesGenerated) {
-        onScenesGenerated();
-      }
-      
       // Proceed to next step regardless of save result
       onNext();
     }
