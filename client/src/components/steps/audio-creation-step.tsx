@@ -129,6 +129,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
         }
         
         const xhr = new XMLHttpRequest();
+        let transcribeInterval: NodeJS.Timeout | null = null;
         
         // Track upload progress
         xhr.upload.addEventListener('progress', (e) => {
@@ -140,32 +141,39 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
           }
         });
         
-        // Handle completion
-        xhr.addEventListener('load', () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            // Upload complete, now transcribing
-            setUploadProgress(50);
-            setUploadStatus("Transcribing audio...");
-            
-            // Simulate transcription progress (we don't have real-time feedback from server)
-            const transcribeInterval = setInterval(() => {
-              setUploadProgress(prev => {
-                if (prev >= 95) {
+        // When upload completes, start simulating transcription progress
+        xhr.upload.addEventListener('load', () => {
+          // Upload complete, now transcribing
+          setUploadProgress(50);
+          setUploadStatus("Transcribing audio with AI...");
+          
+          // Simulate transcription progress while waiting for server response
+          transcribeInterval = setInterval(() => {
+            setUploadProgress(prev => {
+              if (prev >= 95) {
+                if (transcribeInterval) {
                   clearInterval(transcribeInterval);
-                  return prev;
                 }
-                return prev + 5;
-              });
-            }, 500);
-            
+                return prev;
+              }
+              return prev + 3;
+            });
+          }, 400);
+        });
+        
+        // Handle server response
+        xhr.addEventListener('load', () => {
+          if (transcribeInterval) {
+            clearInterval(transcribeInterval);
+          }
+          
+          if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const response = JSON.parse(xhr.responseText);
-              clearInterval(transcribeInterval);
               setUploadProgress(100);
               setUploadStatus("Complete!");
               resolve(response);
             } catch (error) {
-              clearInterval(transcribeInterval);
               reject(new Error('Failed to parse response'));
             }
           } else {
@@ -180,6 +188,9 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
         
         // Handle errors
         xhr.addEventListener('error', () => {
+          if (transcribeInterval) {
+            clearInterval(transcribeInterval);
+          }
           reject(new Error('Upload failed due to network error'));
         });
         
