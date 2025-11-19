@@ -37,6 +37,14 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
   const hasGeneratedRef = useRef(false);
   const isGeneratingRef = useRef(false);
 
+  // Sync scenes prop to local state when it changes (e.g., after parent refetch)
+  useEffect(() => {
+    if (scenes.length > 0 && generatedScenes.length === 0) {
+      console.log("Syncing scenes from props to local state:", scenes);
+      setGeneratedScenes(scenes.map(scene => ({ ...scene })));
+    }
+  }, [scenes]);
+
   // Determine if a scene uses lipsync based on video duration and scene index
   const isLipsyncScene = (index: number): boolean => {
     if (!audioDuration) return false;
@@ -61,18 +69,22 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
       isGeneratingRef.current = true;
       
       try {
-        const progressSteps = [25, 50, 75, 100];
-        const messages = [
-          "Analyzing song concept...",
-          "Generating scene prompts...",
-          "Creating scene images...",
-          "Scene generation complete!"
+        // Realistic progress: slower animation that won't complete before actual generation
+        const progressUpdates = [
+          { progress: 20, delay: 2000 },
+          { progress: 40, delay: 3000 },
+          { progress: 60, delay: 4000 },
+          { progress: 75, delay: 5000 },
+          { progress: 90, delay: 6000 },
         ];
 
-        for (let i = 0; i < progressSteps.length; i++) {
-          setProgress(progressSteps[i]);
-          await new Promise(resolve => setTimeout(resolve, 2500));
-        }
+        // Start progress animation in background
+        (async () => {
+          for (const { progress, delay } of progressUpdates) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+            setProgress(progress);
+          }
+        })();
 
         const response = await apiRequest("POST", `/api/projects/${projectId}/generate-scenes`, {});
         
@@ -117,6 +129,7 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
       }));
       console.log("Setting generated scenes:", sceneData);
       setGeneratedScenes(sceneData);
+      setProgress(100); // Set to 100% when actually complete
       
       toast({
         title: "Success",
