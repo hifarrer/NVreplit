@@ -23,9 +23,10 @@ interface SceneGenerationStepProps {
   onNext: () => void;
   onBack: () => void;
   onReset: () => void;
+  onScenesGenerated?: () => void;
 }
 
-export function SceneGenerationStep({ projectId, audioDuration, characterImageUrl, scenes = [], isEditMode = false, onNext, onBack, onReset }: SceneGenerationStepProps) {
+export function SceneGenerationStep({ projectId, audioDuration, characterImageUrl, scenes = [], isEditMode = false, onNext, onBack, onReset, onScenesGenerated }: SceneGenerationStepProps) {
   // Defensively copy scenes array to avoid mutating the original project data
   const [generatedScenes, setGeneratedScenes] = useState<SceneData[]>(() => 
     scenes.map(scene => ({ ...scene }))
@@ -116,6 +117,12 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
       }));
       console.log("Setting generated scenes:", sceneData);
       setGeneratedScenes(sceneData);
+      
+      // Refetch project data in parent to sync the scenes prop
+      if (onScenesGenerated) {
+        onScenesGenerated();
+      }
+      
       toast({
         title: "Success",
         description: "Scenes generated successfully!",

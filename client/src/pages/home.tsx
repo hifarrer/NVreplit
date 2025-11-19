@@ -207,6 +207,7 @@ export default function Home() {
             onNext={() => handleStepChange(4)}
             onBack={() => handleStepChange(2)}
             onReset={resetProject}
+            onScenesGenerated={() => refetchProject()}
           />
         )}
 
