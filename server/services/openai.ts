@@ -1,4 +1,6 @@
 import OpenAI from "openai";
+import fs from "fs";
+import FormData from "form-data";
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 // Validate API key exists
@@ -9,6 +11,28 @@ if (!process.env.OPENAI_API_KEY) {
 export const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+export async function transcribeAudio(audioFilePath: string): Promise<string> {
+  try {
+    console.log("Starting Whisper transcription for:", audioFilePath);
+    
+    const audioFile = fs.createReadStream(audioFilePath);
+    
+    const transcription = await openai.audio.transcriptions.create({
+      file: audioFile,
+      model: "whisper-1",
+      response_format: "text",
+    });
+
+    console.log("Transcription completed successfully");
+    console.log("Transcribed text length:", transcription.length);
+    
+    return transcription;
+  } catch (error) {
+    console.error("Whisper transcription error:", error);
+    throw new Error(`Failed to transcribe audio: ${(error as Error).message}`);
+  }
+}
 
 export async function generateLyrics(
   songDescription: string,

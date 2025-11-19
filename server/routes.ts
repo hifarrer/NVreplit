@@ -3886,11 +3886,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const finalAudioUrl = uploadedUrl;
       
-      // Update project with audio URL and title (if provided)
+      // Transcribe audio using OpenAI Whisper
+      let transcribedLyrics = "";
+      let subtitleFileUrl = "";
+      let tempFilePath = req.file.path;
+      
+      try {
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "audio_transcription",
+          message: "Transcribing audio with OpenAI Whisper...",
+          status: "progress",
+          metadata: {}
+        });
+
+        const { transcribeAudio } = await import("./services/openai");
+        transcribedLyrics = await transcribeAudio(tempFilePath);
+        
+        console.log("Transcribed lyrics:", transcribedLyrics.substring(0, 200));
+        
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "audio_transcription",
+          message: `Audio transcription completed (${transcribedLyrics.length} characters)`,
+          status: "completed",
+          metadata: { lyricsLength: transcribedLyrics.length }
+        });
+
+        // Generate subtitles using forced alignment
+        if (transcribedLyrics.trim()) {
+          try {
+            await storage.addGenerationLog({
+              projectId: req.params.id,
+              step: "subtitle_generation",
+              message: "Generating subtitles with forced alignment...",
+              status: "progress",
+              metadata: {}
+            });
+
+            const { 
+              createForcedAlignment, 
+              convertElevenLabsAlignmentToASS, 
+              storeElevenLabsSubtitleFile 
+            } = await import("./services/elevenlabs");
+            
+            // Get public URL for forced alignment
+            const publicAudioUrl = await objectStorageService.getSignedUrlForPath(finalAudioUrl, 86400);
+            
+            const alignmentData = await createForcedAlignment(publicAudioUrl, transcribedLyrics);
+            const assContent = convertElevenLabsAlignmentToASS(alignmentData);
+            subtitleFileUrl = await storeElevenLabsSubtitleFile(assContent, req.params.id);
+            
+            console.log("Subtitle file created:", subtitleFileUrl);
+            
+            await storage.addGenerationLog({
+              projectId: req.params.id,
+              step: "subtitle_generation",
+              message: "Subtitles generated successfully",
+              status: "completed",
+              metadata: { subtitleFileUrl }
+            });
+          } catch (subtitleError) {
+            console.error("Subtitle generation error:", subtitleError);
+            await storage.addGenerationLog({
+              projectId: req.params.id,
+              step: "subtitle_generation",
+              message: `Subtitle generation failed: ${(subtitleError as Error).message}`,
+              status: "warning",
+              metadata: { error: (subtitleError as Error).message }
+            });
+          }
+        }
+      } catch (transcriptionError) {
+        console.error("Audio transcription error:", transcriptionError);
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "audio_transcription",
+          message: `Audio transcription failed: ${(transcriptionError as Error).message}`,
+          status: "warning",
+          metadata: { error: (transcriptionError as Error).message }
+        });
+      } finally {
+        // Always clean up the temporary file after all file operations are complete
+        try {
+          if (fs.existsSync(tempFilePath)) {
+            fs.unlinkSync(tempFilePath);
+            console.log("Temporary file cleaned up:", tempFilePath);
+          }
+        } catch (cleanupError) {
+          console.error("Failed to clean up uploaded file:", cleanupError);
+        }
+      }
+      
+      // Update project with audio URL, lyrics, and subtitles
+      // For uploaded audio, we always attempt subtitle generation, so set addSubtitles to true
+      // The presence of subtitleFileUrl indicates whether generation succeeded
       const updateData: any = { 
         audioUrl: finalAudioUrl,
         audioType: 'uploaded',
-        audioDuration: actualDuration
+        audioDuration: actualDuration,
+        audioLyrics: transcribedLyrics || null,
+        subtitleFileUrl: subtitleFileUrl || null,
+        addSubtitles: true // Always true for uploaded audio since we attempt subtitle generation
       };
       
       // Only update title if user provided one
@@ -3907,30 +4004,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "audio_upload",
-        message: `Audio file uploaded successfully (${actualDuration}s)`,
+        message: `Audio file uploaded successfully (${actualDuration}s)${transcribedLyrics ? ', transcribed' : ''}${subtitleFileUrl ? ', subtitles generated' : ''}`,
         status: "completed",
         metadata: { 
           filename: req.file.filename,
           originalName: req.file.originalname,
           size: req.file.size,
           audioUrl: finalAudioUrl,
-          duration: actualDuration
+          duration: actualDuration,
+          hasLyrics: !!transcribedLyrics,
+          hasSubtitles: !!subtitleFileUrl
         }
       });
-
-      // Clean up the temporary uploaded file
-      try {
-        fs.unlinkSync(req.file.path);
-      } catch (cleanupError) {
-        console.error("Failed to clean up uploaded file:", cleanupError);
-      }
 
       res.json({ 
         audioUrl: finalAudioUrl,
         filename: req.file.filename,
         originalName: req.file.originalname,
         size: req.file.size,
-        duration: actualDuration
+        duration: actualDuration,
+        hasLyrics: !!transcribedLyrics,
+        hasSubtitles: !!subtitleFileUrl
       });
     } catch (error) {
       console.error("Upload audio error:", error);
@@ -4599,18 +4693,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Character image URL is required. Please create or select a character first." });
       }
 
-      // Create a prompt based on what we have
-      let audioPrompt = project.audioPrompt;
-      if (!audioPrompt) {
+      // Create a prompt based on what we have - ALWAYS prioritize lyrics if available
+      let audioPrompt = "";
+      
+      if (project.audioLyrics) {
+        // Always use transcribed or generated lyrics to create more relevant scenes
+        const tags = project.audioTags || "music";
+        const lyricsPreview = project.audioLyrics.substring(0, 200);
         if (project.audioType === 'uploaded') {
-          audioPrompt = "Create a music video with dramatic scenes";
-        } else if (project.audioType === 'generated' && project.audioLyrics) {
-          // Use the lyrics/tags to create a prompt for generated songs
-          const tags = project.audioTags || "music";
-          audioPrompt = `${tags} music video based on these lyrics: ${project.audioLyrics.substring(0, 200)}`;
+          audioPrompt = `Music video based on the transcribed lyrics: ${lyricsPreview}`;
         } else {
-          audioPrompt = "Create an engaging music video";
+          audioPrompt = `${tags} music video based on these lyrics: ${lyricsPreview}`;
         }
+        console.log("Using lyrics-based prompt:", audioPrompt);
+      } else if (project.audioPrompt) {
+        // Fall back to user-provided audio prompt
+        audioPrompt = project.audioPrompt;
+        console.log("Using audio prompt:", audioPrompt);
+      } else if (project.audioType === 'uploaded') {
+        // Last resort for uploaded audio without lyrics or prompt
+        audioPrompt = "Create a music video with dramatic scenes";
+        console.log("Using generic uploaded prompt");
+      } else {
+        // Last resort fallback
+        audioPrompt = "Create an engaging music video";
+        console.log("Using generic fallback prompt");
       }
 
       // Combine audio description with character description for better scene generation
