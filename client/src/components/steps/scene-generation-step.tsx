@@ -75,9 +75,32 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
 
         const response = await apiRequest("POST", `/api/projects/${projectId}/generate-scenes`, {});
         
-        // If server returns 409, it means generation is already in progress
+        // If server returns 409, it means generation is already in progress by another request
+        // Wait for it to complete and fetch the scenes
         if (response.status === 409) {
-          throw new Error("Scene generation already in progress on server");
+          console.log("Scene generation already in progress, waiting for completion...");
+          
+          // Poll the project every 2 seconds until scenes are available
+          let attempts = 0;
+          const maxAttempts = 30; // Max 60 seconds
+          
+          while (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            const projectResponse = await fetch(`/api/projects/${projectId}`);
+            const project = await projectResponse.json();
+            
+            if (project.scenePrompts && project.scenePrompts.length > 0) {
+              return {
+                scenePrompts: project.scenePrompts,
+                sceneImages: project.sceneImages
+              };
+            }
+            
+            attempts++;
+          }
+          
+          throw new Error("Timeout waiting for scene generation to complete");
         }
         
         return response.json();
