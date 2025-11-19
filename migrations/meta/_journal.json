@@ -15,6 +15,13 @@
       "when": 1759029159903,
       "tag": "0001_classy_iron_monger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1763571563304,
+      "tag": "0002_equal_tomas",
+      "breakpoints": true
     }
   ]
 }
