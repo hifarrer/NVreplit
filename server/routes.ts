@@ -3828,27 +3828,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
           metadata: {}
         });
 
-        const { getAudioDurationFromFile } = await import("./services/ffmpeg");
+        const { getAudioDurationFromFile, trimAudio } = await import("./services/ffmpeg");
         actualDuration = await getAudioDurationFromFile(req.file.path);
         
         console.log(`Detected audio duration: ${actualDuration} seconds`);
         
-        // Validate duration doesn't exceed the maximum for user's plan
+        // Auto-trim if duration exceeds the maximum for user's plan
         if (actualDuration > maxDuration) {
+          const originalDuration = actualDuration;
+          
           await storage.addGenerationLog({
             projectId: req.params.id,
             step: "audio_upload",
-            message: `Audio file too long: ${actualDuration}s exceeds maximum of ${maxDuration}s`,
-            status: "error",
-            metadata: { actualDuration, maxDuration }
+            message: `Audio file is ${originalDuration}s long, automatically trimming to ${maxDuration}s...`,
+            status: "progress",
+            metadata: { originalDuration, maxDuration }
           });
           
-          // Clean up the uploaded file
-          fs.unlinkSync(req.file.path);
+          console.log(`Audio is ${originalDuration}s, trimming to ${maxDuration}s`);
           
-          return res.status(400).json({ 
-            error: `Audio file is too long. Maximum allowed duration is ${maxDuration / 60} minute${maxDuration > 60 ? 's' : ''} (${maxDuration} seconds). Your audio is ${Math.floor(actualDuration / 60)}:${String(actualDuration % 60).padStart(2, '0')} (${actualDuration} seconds).${!isPaidUser ? ' Upgrade to a paid plan for longer videos!' : ''}` 
+          // Trim the audio using the FFMPEG API
+          const trimResult = await trimAudio(publicAudioUrl, maxDuration);
+          
+          // Download the trimmed audio
+          const trimmedResponse = await fetch(trimResult.download_url);
+          const trimmedBuffer = Buffer.from(await trimmedResponse.arrayBuffer());
+          
+          // Replace the original audio in object storage with the trimmed version
+          await objectStorageService.uploadAudioBuffer(trimmedBuffer, audioPath);
+          
+          // Update duration to the trimmed length
+          actualDuration = maxDuration;
+          
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "audio_upload",
+            message: `Audio automatically trimmed from ${originalDuration}s to ${maxDuration}s`,
+            status: "completed",
+            metadata: { originalDuration, trimmedDuration: actualDuration }
           });
+          
+          console.log(`Audio trimmed successfully to ${actualDuration}s`);
         }
         
       } catch (durationError) {
