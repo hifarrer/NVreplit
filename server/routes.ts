@@ -4603,6 +4603,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Project not found" });
       }
       
+      // Prevent duplicate generation: if scenes already exist, return them instead of regenerating
+      if (project.scenePrompts && project.scenePrompts.length > 0 && project.sceneImages && project.sceneImages.length > 0) {
+        console.log("Scenes already exist for this project, returning existing scenes instead of regenerating");
+        return res.json({
+          scenePrompts: project.scenePrompts,
+          sceneImages: project.sceneImages
+        });
+      }
+      
       if (!project.characterImageUrl) {
         console.log("Missing characterImageUrl in project:", project.characterImageUrl);
         return res.status(400).json({ error: "Character image URL is required. Please create or select a character first." });
