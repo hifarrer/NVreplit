@@ -76,6 +76,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState(""); // Status message for upload progress
   const [uploadSongTitle, setUploadSongTitle] = useState(""); // Song title for upload tab
+  const [uploadSongDescription, setUploadSongDescription] = useState(""); // Song description for upload tab
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Generate tab state
@@ -127,6 +128,9 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
         if (uploadSongTitle.trim()) {
           formData.append('title', uploadSongTitle.trim());
         }
+        if (uploadSongDescription.trim()) {
+          formData.append('description', uploadSongDescription.trim());
+        }
         
         const xhr = new XMLHttpRequest();
         let transcribeInterval: NodeJS.Timeout | null = null;
@@ -141,13 +145,13 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
           }
         });
         
-        // When upload completes, start simulating transcription progress
+        // When upload completes, start simulating processing progress
         xhr.upload.addEventListener('load', () => {
-          // Upload complete, now transcribing
+          // Upload complete, now processing
           setUploadProgress(50);
-          setUploadStatus("Transcribing audio with AI...");
+          setUploadStatus("Processing audio file...");
           
-          // Simulate transcription progress while waiting for server response
+          // Simulate processing progress while waiting for server response
           transcribeInterval = setInterval(() => {
             setUploadProgress(prev => {
               if (prev >= 95) {
@@ -205,15 +209,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
       setUploadStatus("");
       const sceneCount = Math.ceil(data.duration / 10);
       
-      const hasLyrics = data.hasLyrics;
-      const hasSubtitles = data.hasSubtitles;
-      
-      let description = `Audio uploaded successfully! Duration: ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')} (${sceneCount} scenes will be generated)`;
-      if (hasLyrics && hasSubtitles) {
-        description += " Audio transcribed and subtitles generated!";
-      } else if (hasLyrics) {
-        description += " Audio transcribed successfully!";
-      }
+      const description = `Audio uploaded successfully! Duration: ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')} (${sceneCount} scenes will be generated)`;
       
       toast({
         title: "Success",
@@ -883,7 +879,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                 <Progress value={uploadProgress} className="mb-2" />
                 <p className="text-sm text-muted-foreground">
                   {uploadProgress < 50 ? "Uploading your audio file..." :
-                   uploadProgress < 95 ? "Transcribing audio with AI..." :
+                   uploadProgress < 95 ? "Processing audio file..." :
                    "Finalizing..."}
                 </p>
               </div>
@@ -899,6 +895,25 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                     <span className="block mt-1 text-orange-600 dark:text-orange-400">• Free plan users: maximum 2 minutes</span>
                   )}
                 </span>
+              </p>
+            </div>
+            
+            {/* Song Description for Upload */}
+            <div>
+              <Label className="flex items-center text-sm font-semibold mb-2">
+                <Lightbulb className="w-4 h-4 text-accent mr-2" />
+                What is your song about?
+              </Label>
+              <Textarea
+                value={uploadSongDescription}
+                onChange={(e) => setUploadSongDescription(e.target.value)}
+                placeholder="e.g., A lonely cowboy cat riding through the desert at sunset..."
+                rows={3}
+                className="resize-none"
+                data-testid="upload-song-description-input"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Describe the theme, mood, or story of your song - this will help generate relevant video scenes
               </p>
             </div>
             

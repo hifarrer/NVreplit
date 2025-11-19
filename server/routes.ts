@@ -3801,10 +3801,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Cap duration based on user plan: Free users max 120s (2 min), Paid users max 180s (3 min)
       const maxDuration = isPaidUser ? 180 : 120;
       
-      // Get song title from request (optional)
+      // Get song title and description from request (optional)
       const songTitle = req.body.title || "";
+      const songDescription = req.body.description || "";
 
-      console.log(`Uploading audio file (user plan: ${isPaidUser ? 'paid' : 'free'}, max allowed: ${maxDuration}s)${songTitle ? `, title: "${songTitle}"` : ''}`);
+      console.log(`Uploading audio file (user plan: ${isPaidUser ? 'paid' : 'free'}, max allowed: ${maxDuration}s)${songTitle ? `, title: "${songTitle}"` : ''}${songDescription ? `, description: "${songDescription.substring(0, 50)}..."` : ''}`);
 
       // First, store the uploaded audio to object storage to get a public URL
       const objectStorageService = new ObjectStorageService();
@@ -3886,59 +3887,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const finalAudioUrl = uploadedUrl;
       
-      // Transcribe audio using OpenAI Whisper
-      let transcribedLyrics = "";
-      let tempFilePath = req.file.path;
-      
+      // Clean up the temporary uploaded file
       try {
-        await storage.addGenerationLog({
-          projectId: req.params.id,
-          step: "audio_transcription",
-          message: "Transcribing audio with OpenAI Whisper...",
-          status: "progress",
-          metadata: {}
-        });
-
-        const { transcribeAudio } = await import("./services/openai");
-        transcribedLyrics = await transcribeAudio(tempFilePath);
-        
-        console.log("Transcribed lyrics:", transcribedLyrics.substring(0, 200));
-        
-        await storage.addGenerationLog({
-          projectId: req.params.id,
-          step: "audio_transcription",
-          message: `Audio transcription completed (${transcribedLyrics.length} characters)`,
-          status: "completed",
-          metadata: { lyricsLength: transcribedLyrics.length }
-        });
-      } catch (transcriptionError) {
-        console.error("Audio transcription error:", transcriptionError);
-        await storage.addGenerationLog({
-          projectId: req.params.id,
-          step: "audio_transcription",
-          message: `Audio transcription failed: ${(transcriptionError as Error).message}`,
-          status: "warning",
-          metadata: { error: (transcriptionError as Error).message }
-        });
-      } finally {
-        // Always clean up the temporary file after all file operations are complete
-        try {
-          if (fs.existsSync(tempFilePath)) {
-            fs.unlinkSync(tempFilePath);
-            console.log("Temporary file cleaned up:", tempFilePath);
-          }
-        } catch (cleanupError) {
-          console.error("Failed to clean up uploaded file:", cleanupError);
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+          console.log("Temporary file cleaned up:", req.file.path);
         }
+      } catch (cleanupError) {
+        console.error("Failed to clean up uploaded file:", cleanupError);
       }
       
-      // Update project with audio URL and lyrics
-      // For uploaded audio, we don't generate subtitles due to poor transcription quality
+      // Update project with audio URL and description
+      // For uploaded audio, we use the user-provided description to generate scenes
       const updateData: any = { 
         audioUrl: finalAudioUrl,
         audioType: 'uploaded',
         audioDuration: actualDuration,
-        audioLyrics: transcribedLyrics || null,
+        audioLyrics: songDescription || null, // Store description in audioLyrics for scene generation
         addSubtitles: false // No subtitles for uploaded audio
       };
       
@@ -3956,7 +3921,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "audio_upload",
-        message: `Audio file uploaded successfully (${actualDuration}s)${transcribedLyrics ? ', transcribed' : ''}`,
+        message: `Audio file uploaded successfully (${actualDuration}s)${songDescription ? ', with description' : ''}`,
         status: "completed",
         metadata: { 
           filename: req.file.filename,
@@ -3964,7 +3929,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           size: req.file.size,
           audioUrl: finalAudioUrl,
           duration: actualDuration,
-          hasLyrics: !!transcribedLyrics
+          hasDescription: !!songDescription
         }
       });
 
@@ -3974,7 +3939,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         originalName: req.file.originalname,
         size: req.file.size,
         duration: actualDuration,
-        hasLyrics: !!transcribedLyrics
+        hasDescription: !!songDescription
       });
     } catch (error) {
       console.error("Upload audio error:", error);
