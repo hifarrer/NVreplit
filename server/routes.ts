@@ -3888,7 +3888,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Transcribe audio using OpenAI Whisper
       let transcribedLyrics = "";
-      let subtitleFileUrl = "";
       let tempFilePath = req.file.path;
       
       try {
@@ -3912,51 +3911,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "completed",
           metadata: { lyricsLength: transcribedLyrics.length }
         });
-
-        // Generate subtitles using forced alignment
-        if (transcribedLyrics.trim()) {
-          try {
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation",
-              message: "Generating subtitles with forced alignment...",
-              status: "progress",
-              metadata: {}
-            });
-
-            const { 
-              createForcedAlignment, 
-              convertElevenLabsAlignmentToASS, 
-              storeElevenLabsSubtitleFile 
-            } = await import("./services/elevenlabs");
-            
-            // Get public URL for forced alignment
-            const publicAudioUrl = await objectStorageService.getSignedUrlForPath(finalAudioUrl, 86400);
-            
-            const alignmentData = await createForcedAlignment(publicAudioUrl, transcribedLyrics);
-            const assContent = convertElevenLabsAlignmentToASS(alignmentData);
-            subtitleFileUrl = await storeElevenLabsSubtitleFile(assContent, req.params.id);
-            
-            console.log("Subtitle file created:", subtitleFileUrl);
-            
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation",
-              message: "Subtitles generated successfully",
-              status: "completed",
-              metadata: { subtitleFileUrl }
-            });
-          } catch (subtitleError) {
-            console.error("Subtitle generation error:", subtitleError);
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation",
-              message: `Subtitle generation failed: ${(subtitleError as Error).message}`,
-              status: "warning",
-              metadata: { error: (subtitleError as Error).message }
-            });
-          }
-        }
       } catch (transcriptionError) {
         console.error("Audio transcription error:", transcriptionError);
         await storage.addGenerationLog({
@@ -3978,16 +3932,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Update project with audio URL, lyrics, and subtitles
-      // For uploaded audio, we always attempt subtitle generation, so set addSubtitles to true
-      // The presence of subtitleFileUrl indicates whether generation succeeded
+      // Update project with audio URL and lyrics
+      // For uploaded audio, we don't generate subtitles due to poor transcription quality
       const updateData: any = { 
         audioUrl: finalAudioUrl,
         audioType: 'uploaded',
         audioDuration: actualDuration,
         audioLyrics: transcribedLyrics || null,
-        subtitleFileUrl: subtitleFileUrl || null,
-        addSubtitles: true // Always true for uploaded audio since we attempt subtitle generation
+        addSubtitles: false // No subtitles for uploaded audio
       };
       
       // Only update title if user provided one
@@ -4004,7 +3956,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "audio_upload",
-        message: `Audio file uploaded successfully (${actualDuration}s)${transcribedLyrics ? ', transcribed' : ''}${subtitleFileUrl ? ', subtitles generated' : ''}`,
+        message: `Audio file uploaded successfully (${actualDuration}s)${transcribedLyrics ? ', transcribed' : ''}`,
         status: "completed",
         metadata: { 
           filename: req.file.filename,
@@ -4012,8 +3964,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           size: req.file.size,
           audioUrl: finalAudioUrl,
           duration: actualDuration,
-          hasLyrics: !!transcribedLyrics,
-          hasSubtitles: !!subtitleFileUrl
+          hasLyrics: !!transcribedLyrics
         }
       });
 
@@ -4023,8 +3974,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         originalName: req.file.originalname,
         size: req.file.size,
         duration: actualDuration,
-        hasLyrics: !!transcribedLyrics,
-        hasSubtitles: !!subtitleFileUrl
+        hasLyrics: !!transcribedLyrics
       });
     } catch (error) {
       console.error("Upload audio error:", error);
