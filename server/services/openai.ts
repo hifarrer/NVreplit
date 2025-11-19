@@ -636,7 +636,44 @@ Respond with JSON in this format: {"prompts": [${Array(
     });
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
-    return result.prompts || [];
+    let prompts = result.prompts || [];
+    
+    // Validate that prompts is actually an array
+    if (!Array.isArray(prompts)) {
+      console.error("⚠️ OpenAI response 'prompts' is not an array:", typeof prompts);
+      prompts = [];
+    }
+    
+    // CRITICAL: Ensure we have exactly the requested number of scenes
+    console.log(`OpenAI returned ${prompts.length} prompts, requested ${numberOfScenes}`);
+    
+    if (prompts.length < numberOfScenes) {
+      // If OpenAI returned fewer scenes, generate fallback prompts that respect the REGULAR/LIPSYNC pattern
+      console.warn(`⚠️ OpenAI returned ${prompts.length} scenes instead of ${numberOfScenes}. Generating fallback prompts.`);
+      
+      while (prompts.length < numberOfScenes) {
+        const sceneIndex = prompts.length;
+        const sceneNumber = sceneIndex + 1;
+        
+        // Determine if this should be a REGULAR or LIPSYNC scene
+        const isLipsyncScene = isThirtySecondVideo 
+          ? (sceneNumber === 2 || sceneNumber === 3)  // For 30s: scenes 2-3 are lipsync
+          : (sceneNumber % 2 === 0);  // For others: even scenes are lipsync
+        
+        const fallbackPrompt = isLipsyncScene
+          ? `Closeup of character's face as they sing passionately. Camera slowly pans around to capture their emotion.`
+          : `Character performs energetically in a vibrant setting. Camera pulls back to reveal the full scene.`;
+        
+        prompts.push(fallbackPrompt);
+      }
+    } else if (prompts.length > numberOfScenes) {
+      // If OpenAI returned more scenes, trim to exact count
+      console.warn(`⚠️ OpenAI returned ${prompts.length} scenes instead of ${numberOfScenes}. Trimming excess.`);
+      prompts = prompts.slice(0, numberOfScenes);
+    }
+    
+    console.log(`✓ Returning exactly ${prompts.length} scene prompts`);
+    return prompts;
   } catch (error) {
     console.error("OpenAI scene generation error:", error);
     throw new Error(
