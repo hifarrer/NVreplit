@@ -109,10 +109,12 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
       }
     },
     onSuccess: (data) => {
+      console.log("Scene generation onSuccess called with data:", data);
       const sceneData: SceneData[] = data.scenePrompts.map((prompt: string, index: number) => ({
         prompt,
         imageUrl: data.sceneImages[index]
       }));
+      console.log("Setting generated scenes:", sceneData);
       setGeneratedScenes(sceneData);
       toast({
         title: "Success",
