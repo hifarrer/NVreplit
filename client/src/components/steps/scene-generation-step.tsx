@@ -34,6 +34,7 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
   const [regeneratingScenes, setRegeneratingScenes] = useState<number[]>([]);
   const { toast } = useToast();
   const hasGeneratedRef = useRef(false);
+  const isGeneratingRef = useRef(false);
 
   // Determine if a scene uses lipsync based on video duration and scene index
   const isLipsyncScene = (index: number): boolean => {
@@ -51,21 +52,32 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
 
   const generateScenesMutation = useMutation({
     mutationFn: async () => {
-      const progressSteps = [25, 50, 75, 100];
-      const messages = [
-        "Analyzing song concept...",
-        "Generating scene prompts...",
-        "Creating scene images...",
-        "Scene generation complete!"
-      ];
-
-      for (let i = 0; i < progressSteps.length; i++) {
-        setProgress(progressSteps[i]);
-        await new Promise(resolve => setTimeout(resolve, 2500));
+      // Guard against duplicate calls - if already generating, throw error
+      if (isGeneratingRef.current) {
+        throw new Error("Scene generation already in progress");
       }
+      
+      isGeneratingRef.current = true;
+      
+      try {
+        const progressSteps = [25, 50, 75, 100];
+        const messages = [
+          "Analyzing song concept...",
+          "Generating scene prompts...",
+          "Creating scene images...",
+          "Scene generation complete!"
+        ];
 
-      const response = await apiRequest("POST", `/api/projects/${projectId}/generate-scenes`, {});
-      return response.json();
+        for (let i = 0; i < progressSteps.length; i++) {
+          setProgress(progressSteps[i]);
+          await new Promise(resolve => setTimeout(resolve, 2500));
+        }
+
+        const response = await apiRequest("POST", `/api/projects/${projectId}/generate-scenes`, {});
+        return response.json();
+      } finally {
+        isGeneratingRef.current = false;
+      }
     },
     onSuccess: (data) => {
       const sceneData: SceneData[] = data.scenePrompts.map((prompt: string, index: number) => ({
@@ -80,11 +92,14 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
     },
     onError: (error) => {
       setProgress(0);
-      toast({
-        title: "Error",
-        description: "Failed to generate scenes",
-        variant: "destructive",
-      });
+      // Only show error toast if it's not a duplicate call error
+      if (!error.message?.includes("already in progress")) {
+        toast({
+          title: "Error",
+          description: "Failed to generate scenes",
+          variant: "destructive",
+        });
+      }
     }
   });
 
@@ -98,6 +113,11 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
     
     // Exit early if mutation is not idle (already started, pending, or completed)
     if (generateScenesMutation.status !== "idle") {
+      return;
+    }
+    
+    // Exit early if already generating (ref guard)
+    if (isGeneratingRef.current) {
       return;
     }
     
