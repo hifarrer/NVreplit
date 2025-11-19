@@ -4960,6 +4960,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("- Regular videos:", numberOfVideosRegularApi);
       console.log("- Lipsync videos:", numberOfVideosLipsync);
       
+      // Initialize ObjectStorageService once for reuse throughout video generation
+      const objectStorageService = new ObjectStorageService();
+
       // Step 1: Split audio based on calculation
       await storage.addGenerationLog({
         projectId: req.params.id,
@@ -4973,7 +4976,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let audioUrl = project.audioUrl;
       if (audioUrl.startsWith('/objects/')) {
         // Generate signed URL for object storage files (publicly accessible by external APIs)
-        const objectStorageService = new ObjectStorageService();
         audioUrl = await objectStorageService.getSignedUrlForPath(audioUrl, 3600); // 1 hour TTL
       } else if (audioUrl.startsWith('/')) {
         // For truly local files (e.g., /uploads/...) use Replit domain
@@ -5090,9 +5092,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("No subtitle file URL found in project - will use default lipsync pattern");
       }
 
+      // Convert scene images to signed URLs for Wavespeed API
+      console.log("Converting scene images to signed URLs for Wavespeed API...");
+      const sceneImages = project.sceneImages as string[];
+      const signedSceneUrls: string[] = [];
+      
+      try {
+        for (let i = 0; i < sceneImages.length; i++) {
+          const imageUrl = sceneImages[i];
+          
+          if (imageUrl.startsWith('/objects/')) {
+            // Private object storage URL - convert to signed URL
+            const signedUrl = await objectStorageService.getSignedUrlForPath(imageUrl, 86400); // 24 hours
+            signedSceneUrls.push(signedUrl);
+            console.log(`Scene ${i + 1}: ${imageUrl} -> signed URL generated`);
+          } else if (imageUrl.startsWith('/public-objects/')) {
+            // Public object storage URL - convert to signed URL
+            const signedUrl = await objectStorageService.getSignedUrlForPublicObject(imageUrl, 86400); // 24 hours
+            signedSceneUrls.push(signedUrl);
+            console.log(`Scene ${i + 1}: ${imageUrl} -> signed URL generated`);
+          } else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+            // Already a public URL - use as-is
+            signedSceneUrls.push(imageUrl);
+            console.log(`Scene ${i + 1}: using external URL as-is`);
+          } else {
+            throw new Error(`Unrecognized scene image URL format: ${imageUrl}`);
+          }
+        }
+        console.log(`Successfully converted ${signedSceneUrls.length} scene images to signed URLs`);
+      } catch (error) {
+        const errorMsg = `Failed to convert scene images to signed URLs: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        console.error(errorMsg);
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "video_generation",
+          message: errorMsg,
+          status: "error",
+          metadata: { error: errorMsg }
+        });
+        return res.status(500).json({ error: errorMsg });
+      }
+
       const { videoUrls: allVideoUrls, segmentPairs } = await generateAllVideoSegmentsDynamic(
         audioUrls,
-        project.sceneImages as string[],
+        signedSceneUrls,
         project.scenePrompts as string[],
         {
           numberOfVideosRegularApi,
@@ -5120,26 +5163,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Individual video URLs to merge:", allVideoUrls);
       
       // Convert video URLs to signed URLs for external FFMPEG API
-      const objectStorageService = new ObjectStorageService();
       const signedVideoUrls: string[] = [];
-      for (let i = 0; i < allVideoUrls.length; i++) {
-        const videoUrl = allVideoUrls[i];
-        if (videoUrl.startsWith('/objects/')) {
-          // Internal object storage URL - convert to signed URL
-          const signedUrl = await objectStorageService.getSignedUrlForPath(videoUrl, 7200); // 2 hours
-          signedVideoUrls.push(signedUrl);
-          console.log(`Generated signed URL for segment ${i + 1}: ${videoUrl} -> ${signedUrl}`);
-        } else {
-          // External URL - use as-is
-          signedVideoUrls.push(videoUrl);
-          console.log(`Using external URL for segment ${i + 1}: ${videoUrl}`);
+      try {
+        for (let i = 0; i < allVideoUrls.length; i++) {
+          const videoUrl = allVideoUrls[i];
+          
+          if (videoUrl.startsWith('/objects/')) {
+            // Private object storage URL - convert to signed URL
+            const signedUrl = await objectStorageService.getSignedUrlForPath(videoUrl, 7200); // 2 hours
+            signedVideoUrls.push(signedUrl);
+            console.log(`Generated signed URL for segment ${i + 1}: ${videoUrl} -> signed`);
+          } else if (videoUrl.startsWith('/public-objects/')) {
+            // Public object storage URL - convert to signed URL
+            const signedUrl = await objectStorageService.getSignedUrlForPublicObject(videoUrl, 7200); // 2 hours
+            signedVideoUrls.push(signedUrl);
+            console.log(`Generated signed URL for segment ${i + 1}: ${videoUrl} -> signed`);
+          } else if (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) {
+            // Already a public URL - use as-is
+            signedVideoUrls.push(videoUrl);
+            console.log(`Using external URL for segment ${i + 1}: ${videoUrl}`);
+          } else {
+            throw new Error(`Unrecognized video URL format: ${videoUrl}`);
+          }
         }
+        console.log(`Successfully converted ${signedVideoUrls.length} video segments to signed URLs`);
+      } catch (error) {
+        const errorMsg = `Failed to convert video segments to signed URLs: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        console.error(errorMsg);
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "video_generation",
+          message: errorMsg,
+          status: "error",
+          metadata: { error: errorMsg }
+        });
+        return res.status(500).json({ error: errorMsg });
       }
       
       // Add outro video to the end of the video list  
       try {
         // Try to find outro.mp4 in the public object storage
-        const objectStorageService = new ObjectStorageService();
         const outroFile = await objectStorageService.searchPublicObject('outro.mp4');
         
         if (outroFile) {
