@@ -17,6 +17,14 @@ interface BlogPost {
 
 const blogPosts: BlogPost[] = [
   {
+    title: "Version 2.0.1 Released: Longer Videos, Powerful Editing & More",
+    slug: "/version-2-0-1-release",
+    excerpt: "NeonVideo.ai version 2.0.1 is here! Create videos up to 3 minutes long, edit your existing videos, and enjoy improved performance. Discover all the new features and enhancements.",
+    date: "November 19, 2025",
+    category: "Product Update",
+    readTime: "5 min read"
+  },
+  {
     title: "Best AI Music Video Generator 2025: Transform Text into Stunning Music Videos",
     slug: "/best-ai-music-generator-2025",
     excerpt: "Discover the best AI music video generator in 2025. Create stunning music videos from text prompts with AI-powered song generation, character creation, and scene animation.",
