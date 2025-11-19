@@ -92,15 +92,21 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
     // Only auto-generate scenes if:
     // 1. No scenes exist in local state AND no scenes exist in the project (scenes prop)
     // 2. Not in edit mode
-    // 3. Not already generating
+    // 3. Not already generating or already generated
     // 4. Haven't already triggered generation (prevents React Strict Mode double-call)
     // This prevents re-generating scenes that already exist when component remounts
+    
+    // Exit early if mutation is not idle (already started, pending, or completed)
+    if (generateScenesMutation.status !== "idle") {
+      return;
+    }
+    
     const hasExistingScenes = generatedScenes.length > 0 || scenes.length > 0;
-    if (!hasExistingScenes && !isEditMode && !generateScenesMutation.isPending && !hasGeneratedRef.current) {
+    if (!hasExistingScenes && !isEditMode && !hasGeneratedRef.current) {
       hasGeneratedRef.current = true;
       generateScenesMutation.mutate();
     }
-  }, [isEditMode]);
+  }, [isEditMode, scenes.length, generatedScenes.length, generateScenesMutation.status]);
   
   // Sync with scenes prop when it changes (e.g., when project data loads in edit mode)
   useEffect(() => {
