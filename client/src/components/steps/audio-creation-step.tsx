@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock, X, Subtitles, AlertCircle } from "lucide-react";
+import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock, X, Subtitles, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -87,6 +87,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const [duration, setDuration] = useState([60]); // Default 60 seconds (1 minute)
   const [addSubtitles, setAddSubtitles] = useState(true); // Subtitle toggle - enabled by default
   const [includeWatermark, setIncludeWatermark] = useState(true); // Watermark toggle - enabled by default
+  const [isPublic, setIsPublic] = useState(true); // Privacy toggle - public by default (Premium users can make private)
   const [progress, setProgress] = useState(0);
   const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(null); // For debugging display
   const [profanityCheck, setProfanityCheck] = useState<ProfanityCheckResult | null>(null);
@@ -284,7 +285,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
         lyrics,
         duration: duration[0],
         addSubtitles,
-        includeWatermark
+        includeWatermark,
+        isPublic
       });
 
       clearInterval(progressInterval);
@@ -616,7 +618,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
               </div>
             </div>
 
-            {/* Subtitles & Watermark Toggles - Side by side on desktop, stacked on mobile */}
+            {/* Subtitles, Watermark & Privacy Toggles - Grid layout */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Add Subtitles Toggle */}
               <div>
@@ -653,6 +655,27 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                     {isPremiumUser 
                       ? "Include watermark on your music video" 
                       : "Premium users can disable the watermark"}
+                  </Label>
+                </div>
+              </div>
+
+              {/* Privacy Toggle */}
+              <div>
+                <Label className="flex items-center text-sm font-semibold mb-2">
+                  {isPublic ? <Eye className="w-4 h-4 text-accent mr-2" /> : <EyeOff className="w-4 h-4 text-accent mr-2" />}
+                  Privacy
+                </Label>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={isPublic}
+                    onCheckedChange={setIsPublic}
+                    data-testid="privacy-toggle"
+                    disabled={!isPremiumUser}
+                  />
+                  <Label className="text-sm text-muted-foreground">
+                    {isPremiumUser 
+                      ? (isPublic ? "Video is public and can be shared" : "Video is private (not shared to social media)") 
+                      : "Premium users can make videos private"}
                   </Label>
                 </div>
               </div>

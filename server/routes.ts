@@ -3345,8 +3345,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (excludeUserId && p.userId === excludeUserId) {
             return false;
           }
-          // Only show completed videos that are marked as featured by admin
-          return p.isCompleted && p.finalVideoUrl && p.isFeatured;
+          // Only show completed, public videos that are marked as featured by admin
+          return p.isCompleted && p.finalVideoUrl && p.isFeatured && p.isPublic !== false;
         })
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 12) // Get top 12 videos
@@ -4118,7 +4118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate song
   app.post("/api/projects/:id/generate-song", async (req, res) => {
     try {
-      const { description, tags, lyrics, songTitle, duration = 120, addSubtitles = false, includeWatermark = true } = req.body; // Duration in seconds
+      const { description, tags, lyrics, songTitle, duration = 120, addSubtitles = false, includeWatermark = true, isPublic = true } = req.body; // Duration in seconds
       
       // Check for profanity in user-provided lyrics
       if (lyrics) {
@@ -4169,6 +4169,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Only Premium users can disable watermark - enforce server-side
       const finalIncludeWatermark = isPremiumUser ? includeWatermark : true;
       
+      // Only Premium users can make videos private - enforce server-side
+      const finalIsPublic = isPremiumUser ? isPublic : true;
+      
       // Check if user has enough credits for song generation (250 credits)
       const SONG_GENERATION_CREDITS = 250;
       const canAfford = await storage.canUserAffordCredits(project.userId, SONG_GENERATION_CREDITS);
@@ -4186,7 +4189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         step: "song_generation",
         message: "Starting song generation",
         status: "started",
-        metadata: { tags, lyrics, addSubtitles, includeWatermark: finalIncludeWatermark, isPremiumUser }
+        metadata: { tags, lyrics, addSubtitles, includeWatermark: finalIncludeWatermark, isPublic: finalIsPublic, isPremiumUser }
       });
 
       let result;
@@ -4305,6 +4308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audioDuration: duration, // Store the duration in seconds
         addSubtitles: addSubtitles,
         includeWatermark: finalIncludeWatermark, // Server-side enforced watermark setting
+        isPublic: finalIsPublic, // Server-side enforced privacy setting (Premium only)
         subtitleFileUrl: subtitleFileUrl,
         // Remove KIE fields since we're using ElevenLabs
         kieTaskId: null,
@@ -6380,7 +6384,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allProjects = await storage.getAllProjects();
       const completedVideos = allProjects.filter(p => 
         p.isCompleted && 
-        p.finalVideoUrl
+        p.finalVideoUrl &&
+        p.isPublic !== false // Only include public videos (true or undefined for backwards compatibility)
       );
 
       console.log(`[AUTO-POST] Found ${completedVideos.length} completed videos`);
