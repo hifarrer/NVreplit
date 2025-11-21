@@ -618,66 +618,44 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
               </div>
             </div>
 
-            {/* Subtitles, Watermark & Privacy Toggles - Grid layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Subtitles, Watermark & Privacy Toggles - Single row */}
+            <div className="flex flex-wrap gap-6">
               {/* Add Subtitles Toggle */}
-              <div>
-                <Label className="flex items-center text-sm font-semibold mb-2">
-                  <Subtitles className="w-4 h-4 text-accent mr-2" />
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={addSubtitles}
+                  onCheckedChange={setAddSubtitles}
+                  data-testid="subtitles-toggle"
+                />
+                <Label className="text-sm font-medium cursor-pointer" onClick={() => setAddSubtitles(!addSubtitles)}>
                   Add Subtitles
                 </Label>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    checked={addSubtitles}
-                    onCheckedChange={setAddSubtitles}
-                    data-testid="subtitles-toggle"
-                  />
-                  <Label className="text-sm text-muted-foreground">
-                    Generate timed lyrics for your music video
-                  </Label>
-                </div>
               </div>
 
               {/* Watermark Toggle */}
-              <div>
-                <Label className="flex items-center text-sm font-semibold mb-2">
-                  <i className="fas fa-copyright text-accent mr-2"></i>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={includeWatermark}
+                  onCheckedChange={setIncludeWatermark}
+                  data-testid="watermark-toggle"
+                  disabled={!isPremiumUser}
+                />
+                <Label className="text-sm font-medium cursor-pointer" onClick={() => isPremiumUser && setIncludeWatermark(!includeWatermark)}>
                   Watermark
                 </Label>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    checked={includeWatermark}
-                    onCheckedChange={setIncludeWatermark}
-                    data-testid="watermark-toggle"
-                    disabled={!isPremiumUser}
-                  />
-                  <Label className="text-sm text-muted-foreground">
-                    {isPremiumUser 
-                      ? "Include watermark on your music video" 
-                      : "Premium users can disable the watermark"}
-                  </Label>
-                </div>
               </div>
 
-              {/* Privacy Toggle */}
-              <div>
-                <Label className="flex items-center text-sm font-semibold mb-2">
-                  {isPublic ? <Eye className="w-4 h-4 text-accent mr-2" /> : <EyeOff className="w-4 h-4 text-accent mr-2" />}
-                  Privacy
+              {/* Public Toggle */}
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={isPublic}
+                  onCheckedChange={setIsPublic}
+                  data-testid="privacy-toggle"
+                  disabled={!isPremiumUser}
+                />
+                <Label className="text-sm font-medium cursor-pointer" onClick={() => isPremiumUser && setIsPublic(!isPublic)}>
+                  Public
                 </Label>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    checked={isPublic}
-                    onCheckedChange={setIsPublic}
-                    data-testid="privacy-toggle"
-                    disabled={!isPremiumUser}
-                  />
-                  <Label className="text-sm text-muted-foreground">
-                    {isPremiumUser 
-                      ? (isPublic ? "Video is public and can be shared" : "Video is private (not shared to social media)") 
-                      : "Premium users can make videos private"}
-                  </Label>
-                </div>
               </div>
             </div>
 
