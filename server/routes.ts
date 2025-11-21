@@ -4156,11 +4156,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isPaidUser = userWithPlan?.plan && userWithPlan.plan.monthlyPrice > 0;
       const isPremiumUser = userWithPlan?.plan?.name === "Premium";
       
-      // Validate duration based on user plan: Free users max 120s (2 min), Paid users max 180s (3 min)
-      const maxDuration = isPaidUser ? 180 : 120;
+      // Validate duration based on user plan: Free users max 30s, Paid users max 180s (3 min)
+      const maxDuration = isPaidUser ? 180 : 30;
       if (duration > maxDuration) {
         return res.status(400).json({ 
-          error: `Duration exceeds maximum allowed for your plan. ${isPaidUser ? 'Paid users' : 'Free users'} can generate songs up to ${maxDuration} seconds (${maxDuration / 60} minutes).`,
+          error: `Duration exceeds maximum allowed for your plan. ${isPaidUser ? 'Paid users' : 'Free users'} can generate songs up to ${maxDuration} seconds${isPaidUser ? ` (${maxDuration / 60} minutes)` : ''}.`,
           maxDuration,
           isPaidUser
         });

@@ -54,9 +54,9 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   // Duration options based on user plan
   const durationOptions = isPaidUser 
     ? [30, 60, 90, 120, 150, 180]
-    : [30, 60, 90, 120];
+    : [30]; // Free users can only make 30 second videos
   
-  const maxDuration = isPaidUser ? 180 : 120;
+  const maxDuration = isPaidUser ? 180 : 30;
   
   const getDurationLabel = (value: number) => {
     if (value === 30) return "30 sec";
@@ -84,7 +84,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const [tags, setTags] = useState("");
   const [lyrics, setLyrics] = useState("");
   const [songTitle, setSongTitle] = useState(""); // Song title for generate tab
-  const [duration, setDuration] = useState([60]); // Default 60 seconds (1 minute)
+  const [duration, setDuration] = useState([isPaidUser ? 60 : 30]); // Default: 30s for free, 60s for paid
   const [addSubtitles, setAddSubtitles] = useState(true); // Subtitle toggle - enabled by default
   const [includeWatermark, setIncludeWatermark] = useState(true); // Watermark toggle - enabled by default
   const [isPublic, setIsPublic] = useState(true); // Privacy toggle - public by default (Premium users can make private)
@@ -612,7 +612,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                 <p className="text-xs text-muted-foreground">
                   Current: {getDurationLabel(duration[0])}
                   {!isPaidUser && (
-                    <span className="ml-2 text-orange-500">• Upgrade to paid plan for up to 3 min songs</span>
+                    <span className="ml-2 text-orange-500">• Free users can only make 30 sec videos</span>
                   )}
                 </p>
               </div>
