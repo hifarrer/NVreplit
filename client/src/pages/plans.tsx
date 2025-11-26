@@ -233,17 +233,17 @@ export default function PlansPage() {
                 <div className="bg-white/20 backdrop-blur-sm border-2 border-yellow-400/60 rounded-lg px-4 py-3 shadow-xl">
                   <div className="text-xs text-yellow-300 mb-1 font-semibold">BASIC PLAN - JUST $5</div>
                   <div className="text-xl font-black text-white tracking-wider drop-shadow-lg" data-testid="promo-code-basic">
-                    BFNEON10
+                    BFNEON5
                   </div>
                 </div>
                 <Button
-                  onClick={() => copyPromoCode('BFNEON10', 'Basic')}
+                  onClick={() => copyPromoCode('BFNEON5', 'Basic')}
                   variant="secondary"
                   size="sm"
                   className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105"
                   data-testid="copy-promo-code-basic"
                 >
-                  {copiedCode === 'BFNEON10' ? (
+                  {copiedCode === 'BFNEON5' ? (
                     <CheckCircle2 className="w-4 h-4" />
                   ) : (
                     <Copy className="w-4 h-4" />
