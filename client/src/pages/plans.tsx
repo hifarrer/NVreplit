@@ -26,7 +26,7 @@ export default function PlansPage() {
   const { toast } = useToast();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
-  const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Add conversion tracking script
   useEffect(() => {
@@ -197,67 +197,84 @@ export default function PlansPage() {
   // Sort plans by monthly price
   const sortedPlans = plans?.sort((a, b) => a.monthlyPrice - b.monthlyPrice) || [];
 
-  const copyPromoCode = () => {
-    navigator.clipboard.writeText('NEONWELCOME');
-    setCopied(true);
+  const copyPromoCode = (code: string, planName: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
     toast({
       title: "Promo code copied!",
-      description: "NEONWELCOME has been copied to your clipboard",
+      description: `${code} for ${planName} plan has been copied to your clipboard`,
     });
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopiedCode(null), 2000);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 flex flex-col">
       <NavigationHeader currentPage="plans" />
 
-      {/* Flashy Promo Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 animate-gradient-x">
+      {/* Black Friday Promo Banner */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-gray-900 via-red-900 to-gray-900 animate-gradient-x">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjA1IiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-30"></div>
         <div className="container mx-auto px-4 py-6 relative z-10">
-          <div className="flex flex-col md:flex-row items-center justify-center gap-4 text-center md:text-left">
+          <div className="flex flex-col items-center justify-center gap-4 text-center">
             <div className="flex items-center gap-2 animate-pulse">
-              <Sparkles className="w-8 h-8 text-yellow-300 drop-shadow-glow" />
-              <Sparkles className="w-6 h-6 text-yellow-300 drop-shadow-glow" />
+              <Sparkles className="w-8 h-8 text-yellow-400 drop-shadow-glow" />
+              <Sparkles className="w-6 h-6 text-red-400 drop-shadow-glow" />
             </div>
-            <div className="flex-1">
+            <div>
               <h2 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg mb-1 animate-bounce-subtle">
-                🎉 Special Offer: 50% OFF Your First Month! 🎉
+                🖤 BLACK FRIDAY SALE 🖤
               </h2>
               <p className="text-white/90 text-sm md:text-base">
-                Use promo code at checkout to unlock your exclusive discount
+                Limited time only! Use these codes at checkout for exclusive savings
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="bg-white/20 backdrop-blur-sm border-2 border-white/40 rounded-lg px-6 py-3 shadow-xl">
-                <div className="text-xs text-white/80 mb-1 font-semibold">PROMO CODE</div>
-                <div className="text-2xl font-black text-white tracking-wider drop-shadow-lg" data-testid="promo-code-text">
-                  NEONWELCOME
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="bg-white/20 backdrop-blur-sm border-2 border-yellow-400/60 rounded-lg px-4 py-3 shadow-xl">
+                  <div className="text-xs text-yellow-300 mb-1 font-semibold">BASIC PLAN - JUST $5</div>
+                  <div className="text-xl font-black text-white tracking-wider drop-shadow-lg" data-testid="promo-code-basic">
+                    BFNEON10
+                  </div>
                 </div>
+                <Button
+                  onClick={() => copyPromoCode('BFNEON10', 'Basic')}
+                  variant="secondary"
+                  size="sm"
+                  className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                  data-testid="copy-promo-code-basic"
+                >
+                  {copiedCode === 'BFNEON10' ? (
+                    <CheckCircle2 className="w-4 h-4" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                </Button>
               </div>
-              <Button
-                onClick={copyPromoCode}
-                variant="secondary"
-                size="lg"
-                className="bg-white hover:bg-white/90 text-purple-600 font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105"
-                data-testid="copy-promo-code-button"
-              >
-                {copied ? (
-                  <>
-                    <CheckCircle2 className="w-5 h-5 mr-2" />
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-5 h-5 mr-2" />
-                    Copy Code
-                  </>
-                )}
-              </Button>
+              <div className="flex items-center gap-2">
+                <div className="bg-white/20 backdrop-blur-sm border-2 border-red-400/60 rounded-lg px-4 py-3 shadow-xl">
+                  <div className="text-xs text-red-300 mb-1 font-semibold">PREMIUM PLAN - JUST $25</div>
+                  <div className="text-xl font-black text-white tracking-wider drop-shadow-lg" data-testid="promo-code-premium">
+                    BFNEON25
+                  </div>
+                </div>
+                <Button
+                  onClick={() => copyPromoCode('BFNEON25', 'Premium')}
+                  variant="secondary"
+                  size="sm"
+                  className="bg-red-500 hover:bg-red-400 text-white font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                  data-testid="copy-promo-code-premium"
+                >
+                  {copiedCode === 'BFNEON25' ? (
+                    <CheckCircle2 className="w-4 h-4" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
             </div>
             <div className="flex items-center gap-2 animate-pulse">
-              <Sparkles className="w-6 h-6 text-yellow-300 drop-shadow-glow" />
-              <Sparkles className="w-8 h-8 text-yellow-300 drop-shadow-glow" />
+              <Sparkles className="w-6 h-6 text-red-400 drop-shadow-glow" />
+              <Sparkles className="w-8 h-8 text-yellow-400 drop-shadow-glow" />
             </div>
           </div>
         </div>
