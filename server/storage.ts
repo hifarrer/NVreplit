@@ -80,6 +80,40 @@ export interface IStorage {
   updateVideoAsAdmin(id: string, updates: Partial<Project>): Promise<Project | undefined>;
   deleteVideoAsAdmin(id: string): Promise<boolean>;
   
+  // Optimized admin methods with database-level pagination and search
+  getAdminUsersPaginated(options: {
+    page: number;
+    limit: number;
+    search?: string;
+    planFilter?: string;
+  }): Promise<{
+    users: Array<{
+      id: string;
+      username: string;
+      email: string;
+      emailVerified: boolean;
+      avatarUrl: string | null;
+      createdAt: Date;
+      projectCount: number;
+      songCount: number;
+      planName: string;
+      planId: string;
+      creditsUsed: number;
+      creditsLimit: number;
+    }>;
+    totalCount: number;
+  }>;
+  
+  getAdminVideosPaginated(options: {
+    page: number;
+    limit: number;
+    search?: string;
+    statusFilter?: string;
+  }): Promise<{
+    videos: Project[];
+    totalCount: number;
+  }>;
+  
   // App settings methods
   getSetting(key: string): Promise<string | null>;
   setSetting(key: string, value: string, isSecret?: boolean): Promise<void>;
@@ -669,6 +703,118 @@ export class MemStorage implements IStorage {
       }
     }
     return this.projects.delete(id);
+  }
+
+  async getAdminUsersPaginated(options: {
+    page: number;
+    limit: number;
+    search?: string;
+    planFilter?: string;
+  }): Promise<{
+    users: Array<{
+      id: string;
+      username: string;
+      email: string;
+      emailVerified: boolean;
+      avatarUrl: string | null;
+      createdAt: Date;
+      projectCount: number;
+      songCount: number;
+      planName: string;
+      planId: string;
+      creditsUsed: number;
+      creditsLimit: number;
+    }>;
+    totalCount: number;
+  }> {
+    const { page, limit, search, planFilter } = options;
+    let allUsers = Array.from(this.users.values());
+    
+    if (search) {
+      const searchLower = search.toLowerCase();
+      allUsers = allUsers.filter(u => 
+        u.username.toLowerCase().includes(searchLower) || 
+        u.email.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    if (planFilter && planFilter !== "all") {
+      const usersWithPlans = await Promise.all(allUsers.map(async (u) => {
+        const userWithPlan = await this.getUserWithPlan(u.id);
+        return { user: u, planName: userWithPlan?.plan?.name || "Free" };
+      }));
+      allUsers = usersWithPlans.filter(u => u.planName === planFilter).map(u => u.user);
+    }
+    
+    const totalCount = allUsers.length;
+    const offset = (page - 1) * limit;
+    const paginatedUsers = allUsers.slice(offset, offset + limit);
+    
+    const usersWithStats = await Promise.all(paginatedUsers.map(async (user) => {
+      const projects = await this.getUserProjects(user.id);
+      const songs = await this.getSongs(user.id);
+      const userWithPlan = await this.getUserWithPlan(user.id);
+      
+      return {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        avatarUrl: user.avatarUrl,
+        createdAt: user.createdAt,
+        projectCount: projects.length,
+        songCount: songs.length,
+        planName: userWithPlan?.plan?.name || "Free",
+        planId: userWithPlan?.planId || "",
+        creditsUsed: userWithPlan?.creditsUsed || 0,
+        creditsLimit: userWithPlan?.plan?.credits || 0
+      };
+    }));
+    
+    return { users: usersWithStats, totalCount };
+  }
+
+  async getAdminVideosPaginated(options: {
+    page: number;
+    limit: number;
+    search?: string;
+    statusFilter?: string;
+  }): Promise<{
+    videos: Project[];
+    totalCount: number;
+  }> {
+    const { page, limit, search, statusFilter } = options;
+    let allProjects = Array.from(this.projects.values())
+      .filter(p => p.finalVideoUrl)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+    if (search) {
+      const searchLower = search.toLowerCase();
+      allProjects = allProjects.filter(p => {
+        const user = this.users.get(p.userId);
+        return p.title.toLowerCase().includes(searchLower) ||
+          p.description?.toLowerCase().includes(searchLower) ||
+          p.audioPrompt?.toLowerCase().includes(searchLower) ||
+          user?.username.toLowerCase().includes(searchLower) ||
+          p.userId.toLowerCase().includes(searchLower);
+      });
+    }
+    
+    if (statusFilter && statusFilter !== "all") {
+      if (statusFilter === "completed") {
+        allProjects = allProjects.filter(p => p.currentStep === 7);
+      } else if (statusFilter === "in-progress") {
+        allProjects = allProjects.filter(p => p.currentStep < 7);
+      } else if (statusFilter === "featured") {
+        allProjects = allProjects.filter(p => p.isFeatured);
+      }
+    }
+    
+    const totalCount = allProjects.length;
+    const offset = (page - 1) * limit;
+    const paginatedVideos = allProjects.slice(offset, offset + limit);
+    
+    return { videos: paginatedVideos, totalCount };
   }
   
   // App settings methods
@@ -1749,6 +1895,152 @@ export class DbStorage implements IStorage {
     // Delete the project
     const result = await this.db.delete(projects).where(eq(projects.id, id)).returning();
     return result.length > 0;
+  }
+
+  async getAdminUsersPaginated(options: {
+    page: number;
+    limit: number;
+    search?: string;
+    planFilter?: string;
+  }): Promise<{
+    users: Array<{
+      id: string;
+      username: string;
+      email: string;
+      emailVerified: boolean;
+      avatarUrl: string | null;
+      createdAt: Date;
+      projectCount: number;
+      songCount: number;
+      planName: string;
+      planId: string;
+      creditsUsed: number;
+      creditsLimit: number;
+    }>;
+    totalCount: number;
+  }> {
+    const { page, limit, search, planFilter } = options;
+    const offset = (page - 1) * limit;
+    
+    const conditions: any[] = [];
+    
+    if (search && search.trim()) {
+      const searchLower = `%${search.toLowerCase().trim()}%`;
+      conditions.push(
+        sql`(LOWER(${users.username}) LIKE ${searchLower} OR LOWER(${users.email}) LIKE ${searchLower})`
+      );
+    }
+    
+    const allPlans = await this.getAllPlans();
+    const planMap = new Map(allPlans.map(p => [p.id, p]));
+    const freePlan = allPlans.find(p => p.name === "Free");
+    
+    if (planFilter && planFilter !== "all") {
+      const matchingPlan = allPlans.find(p => p.name === planFilter);
+      if (matchingPlan) {
+        conditions.push(eq(users.planId, matchingPlan.id));
+      } else if (planFilter === "Free") {
+        conditions.push(sql`(${users.planId} IS NULL OR ${users.planId} = ${freePlan?.id || ''})`);
+      }
+    }
+    
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    
+    const countResult = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(whereClause);
+    const totalCount = Number(countResult[0]?.count || 0);
+    
+    const paginatedUsers = await this.db
+      .select()
+      .from(users)
+      .where(whereClause)
+      .orderBy(sql`${users.createdAt} DESC`)
+      .limit(limit)
+      .offset(offset);
+    
+    const usersWithStats = await Promise.all(paginatedUsers.map(async (user) => {
+      const [projectCountResult, songCountResult] = await Promise.all([
+        this.db.select({ count: sql<number>`count(*)` }).from(projects).where(eq(projects.userId, user.id)),
+        this.db.select({ count: sql<number>`count(*)` }).from(songs).where(eq(songs.userId, user.id))
+      ]);
+      
+      const userPlan = user.planId ? planMap.get(user.planId) : freePlan;
+      
+      return {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        avatarUrl: user.avatarUrl,
+        createdAt: user.createdAt,
+        projectCount: Number(projectCountResult[0]?.count || 0),
+        songCount: Number(songCountResult[0]?.count || 0),
+        planName: userPlan?.name || "Free",
+        planId: user.planId || "",
+        creditsUsed: user.creditsUsed || 0,
+        creditsLimit: userPlan?.credits || 0
+      };
+    }));
+    
+    return { users: usersWithStats, totalCount };
+  }
+
+  async getAdminVideosPaginated(options: {
+    page: number;
+    limit: number;
+    search?: string;
+    statusFilter?: string;
+  }): Promise<{
+    videos: Project[];
+    totalCount: number;
+  }> {
+    const { page, limit, search, statusFilter } = options;
+    const offset = (page - 1) * limit;
+    
+    const conditions: any[] = [sql`${projects.finalVideoUrl} IS NOT NULL`];
+    
+    if (search && search.trim()) {
+      const searchLower = `%${search.toLowerCase().trim()}%`;
+      conditions.push(
+        sql`(
+          LOWER(${projects.title}) LIKE ${searchLower} OR 
+          LOWER(${projects.description}) LIKE ${searchLower} OR 
+          LOWER(${projects.audioPrompt}) LIKE ${searchLower} OR
+          LOWER(${projects.userId}) LIKE ${searchLower} OR
+          EXISTS (SELECT 1 FROM ${users} u WHERE u.id = ${projects.userId} AND LOWER(u.username) LIKE ${searchLower})
+        )`
+      );
+    }
+    
+    if (statusFilter && statusFilter !== "all") {
+      if (statusFilter === "completed") {
+        conditions.push(eq(projects.currentStep, 7));
+      } else if (statusFilter === "in-progress") {
+        conditions.push(sql`${projects.currentStep} < 7`);
+      } else if (statusFilter === "featured") {
+        conditions.push(eq(projects.isFeatured, true));
+      }
+    }
+    
+    const whereClause = and(...conditions);
+    
+    const countResult = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(projects)
+      .where(whereClause);
+    const totalCount = Number(countResult[0]?.count || 0);
+    
+    const paginatedVideos = await this.db
+      .select()
+      .from(projects)
+      .where(whereClause)
+      .orderBy(sql`${projects.createdAt} DESC`)
+      .limit(limit)
+      .offset(offset);
+    
+    return { videos: paginatedVideos, totalCount };
   }
   
   // App settings methods

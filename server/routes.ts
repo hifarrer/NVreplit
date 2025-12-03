@@ -1880,83 +1880,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes
   app.get("/api/admin/users", authenticateAdmin, async (req, res) => {
     try {
-      // Parse pagination, filter, and search parameters
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
-      const limit = Math.max(1, Math.min(100, parseInt(req.query.limit as string) || 20)); // Default 20 per page, max 100
+      const limit = Math.max(1, Math.min(100, parseInt(req.query.limit as string) || 50));
       const planFilter = req.query.plan as string;
-      const searchQuery = (req.query.search as string || '').toLowerCase().trim();
+      const searchQuery = req.query.search as string;
 
-      // Get all users (lightweight, just basic user data)
-      const allUsers = await storage.getAllUsers();
+      const result = await storage.getAdminUsersPaginated({
+        page,
+        limit,
+        search: searchQuery,
+        planFilter
+      });
       
-      // For plan filtering, we need to get user plans first (but not all stats)
-      // This is still more efficient than getting all stats for all users
-      let usersWithPlans: Array<{ user: any; planName: string }> = [];
-      
-      if (planFilter && planFilter !== "all") {
-        // Only get plans when filtering by plan
-        usersWithPlans = await Promise.all(allUsers.map(async (user) => {
-          const userWithPlan = await storage.getUserWithPlan(user.id);
-          return {
-            user,
-            planName: userWithPlan?.plan?.name || "Free"
-          };
-        }));
-      }
-      
-      // Filter users first (before getting expensive stats)
-      let filteredUsers = allUsers;
-      
-      // Filter by plan if specified
-      if (planFilter && planFilter !== "all") {
-        filteredUsers = usersWithPlans
-          .filter(u => u.planName === planFilter)
-          .map(u => u.user);
-      }
-
-      // Filter by search query if specified
-      if (searchQuery) {
-        filteredUsers = filteredUsers.filter(user => 
-          user.username.toLowerCase().includes(searchQuery) || 
-          user.email.toLowerCase().includes(searchQuery)
-        );
-      }
-
-      // Calculate pagination BEFORE getting stats
-      const totalCount = filteredUsers.length;
-      const totalPages = Math.ceil(totalCount / limit);
-      const offset = (page - 1) * limit;
-      const usersToFetch = filteredUsers.slice(offset, offset + limit);
-      
-      // NOW get stats, but ONLY for the paginated subset
-      const paginatedUsersWithStats = await Promise.all(usersToFetch.map(async (user) => {
-        const projects = await storage.getUserProjects(user.id);
-        const songs = await storage.getSongs(user.id);
-        const userWithPlan = await storage.getUserWithPlan(user.id);
-        const creditsRemaining = await storage.getUserCreditsRemaining(user.id);
-        
-        return {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          emailVerified: user.emailVerified,
-          avatarUrl: user.avatarUrl,
-          createdAt: user.createdAt,
-          projectCount: projects.length,
-          songCount: songs.length,
-          planName: userWithPlan?.plan?.name || "Free",
-          planId: userWithPlan?.planId || "",
-          creditsUsed: userWithPlan?.creditsUsed || 0,
-          creditsLimit: userWithPlan?.plan?.credits || 0
-        };
-      }));
+      const totalPages = Math.ceil(result.totalCount / limit);
       
       res.json({
-        users: paginatedUsersWithStats,
+        users: result.users,
         pagination: {
           page,
           limit,
-          totalCount,
+          totalCount: result.totalCount,
           totalPages,
           hasNext: page < totalPages,
           hasPrev: page > 1
@@ -2333,26 +2276,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin Video Management Routes
   app.get("/api/admin/videos", authenticateAdmin, async (req, res) => {
     try {
-      // Parse pagination parameters
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
-      const limit = Math.max(1, Math.min(100, parseInt(req.query.limit as string) || 20)); // Default 20 per page, max 100
-      const offset = (page - 1) * limit;
+      const limit = Math.max(1, Math.min(100, parseInt(req.query.limit as string) || 50));
+      const searchQuery = req.query.search as string;
+      const statusFilter = req.query.status as string;
 
-      const allProjects = await storage.getAllVideosForAdmin();
-      // Filter only completed videos (projects with finalVideoUrl)
-      const videos = allProjects.filter(p => p.finalVideoUrl);
-      const totalCount = videos.length;
-      const totalPages = Math.ceil(totalCount / limit);
+      const result = await storage.getAdminVideosPaginated({
+        page,
+        limit,
+        search: searchQuery,
+        statusFilter
+      });
       
-      // Get paginated videos
-      const paginatedVideos = videos.slice(offset, offset + limit);
+      const totalPages = Math.ceil(result.totalCount / limit);
       
-      // Add user information and thumbnail to each video
       const videosWithUsers = await Promise.all(
-        paginatedVideos.map(async (video) => {
+        result.videos.map(async (video) => {
           const user = await storage.getUser(video.userId);
           
-          // Get the last scene image if available
           let thumbnailUrl = null;
           if (video.sceneData) {
             try {
@@ -2383,7 +2324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pagination: {
           page,
           limit,
-          totalCount,
+          totalCount: result.totalCount,
           totalPages,
           hasNext: page < totalPages,
           hasPrev: page > 1

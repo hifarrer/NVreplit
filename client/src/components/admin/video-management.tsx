@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,18 +33,41 @@ interface VideosResponse {
 export function VideoManagement() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [editingVideo, setEditingVideo] = useState<VideoWithUser | null>(null);
   const [deletingVideo, setDeletingVideo] = useState<VideoWithUser | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(20);
+  const [pageSize] = useState(50);
 
-  // Fetch all completed videos (projects with finalVideoUrl) with pagination
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+  };
+
   const { data: videosResponse, isLoading } = useQuery<VideosResponse>({
-    queryKey: ["/api/admin/videos", currentPage, pageSize],
+    queryKey: ["/api/admin/videos", currentPage, pageSize, debouncedSearchTerm, statusFilter],
     queryFn: async () => {
       const token = localStorage.getItem("adminToken");
-      const res = await fetch(`/api/admin/videos?page=${currentPage}&limit=${pageSize}`, {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: pageSize.toString(),
+      });
+      if (debouncedSearchTerm.trim()) {
+        params.append("search", debouncedSearchTerm.trim());
+      }
+      if (statusFilter !== "all") {
+        params.append("status", statusFilter);
+      }
+      const res = await fetch(`/api/admin/videos?${params}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -187,22 +210,6 @@ export function VideoManagement() {
     },
   });
 
-  // Filter videos based on search and status
-  const filteredVideos = videos.filter((video) => {
-    const matchesSearch = 
-      video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      video.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      video.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      video.userId.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || 
-      (statusFilter === "completed" && video.currentStep === 7) ||
-      (statusFilter === "in-progress" && video.currentStep < 7) ||
-      (statusFilter === "featured" && video.isFeatured);
-    
-    return matchesSearch && matchesStatus;
-  });
-
   const getStepName = (step: number) => {
     const steps = [
       "Not started",
@@ -246,7 +253,7 @@ export function VideoManagement() {
                 />
               </div>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
               <SelectTrigger className="w-48 bg-black/50 border-purple-500/30 text-white">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Filter by status" />
@@ -270,14 +277,14 @@ export function VideoManagement() {
               Loading videos...
             </CardContent>
           </Card>
-        ) : filteredVideos.length === 0 ? (
+        ) : videos.length === 0 ? (
           <Card className="bg-black/30 border-purple-500/20">
             <CardContent className="p-8 text-center text-gray-300">
               No videos found
             </CardContent>
           </Card>
         ) : (
-          filteredVideos.map((video) => (
+          videos.map((video) => (
             <Card key={video.id} className="bg-black/30 border-purple-500/20">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
