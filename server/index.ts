@@ -39,9 +39,30 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as any;
-        const userId = session.metadata.userId;
-        const planId = session.metadata.planId;
+        const userId = session.metadata?.userId;
+        const planId = session.metadata?.planId;
+        const purchaseType = session.metadata?.type;
         
+        // Handle credit purchase (one-time payment)
+        if (purchaseType === 'credit_purchase' && userId) {
+          const creditsToAdd = parseInt(session.metadata?.creditsToAdd || '5000');
+          
+          if (session.payment_status === 'paid') {
+            const user = await storage.getUser(userId);
+            if (user) {
+              const newBonusCredits = (user.bonusCredits || 0) + creditsToAdd;
+              await storage.updateUser(userId, { bonusCredits: newBonusCredits });
+              console.log(`Credit purchase: Added ${creditsToAdd} bonus credits to user ${userId}. New bonus credits: ${newBonusCredits}`);
+            } else {
+              console.error(`Credit purchase: User ${userId} not found`);
+            }
+          } else {
+            console.log(`Credit purchase: Payment not completed for user ${userId}. Status: ${session.payment_status}`);
+          }
+          break;
+        }
+        
+        // Handle subscription purchase
         if (userId && planId) {
           // Update user with subscription details
           await storage.updateUser(userId, {
@@ -49,14 +70,10 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
             planId: planId,
           });
           
-          // Get plan details and add credits
-          const plan = await storage.getPlanById(planId);
-          if (plan) {
-            const currentUser = await storage.getUser(userId);
-            await storage.updateUser(userId, {
-              credits: (currentUser?.credits || 0) + plan.credits
-            });
-          }
+          // Reset credits used for new subscription
+          await storage.updateUser(userId, {
+            creditsUsed: 0
+          });
           
           console.log(`Subscription created for user ${userId} with plan ${planId}`);
         }
@@ -115,16 +132,16 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
             // Find plan by price ID
             const plans = await storage.getAllPlans();
             const plan = plans.find(p => 
-              p.stripePriceIdMonthly === priceId || 
-              p.stripePriceIdYearly === priceId
+              p.stripeMonthlyPriceId === priceId || 
+              p.stripeYearlyPriceId === priceId
             );
             
             if (plan) {
-              // Add credits for renewal
+              // Reset credits used for renewal (gives fresh credits)
               await storage.updateUser(user.id, {
-                credits: (user.credits || 0) + plan.credits
+                creditsUsed: 0
               });
-              console.log(`Added ${plan.credits} credits to user ${user.id} for subscription renewal`);
+              console.log(`Reset credits for user ${user.id} for subscription renewal (plan: ${plan.name})`);
             }
           }
         }
