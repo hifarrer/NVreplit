@@ -589,7 +589,7 @@ export default function ProfilePage() {
                     <div className="space-y-1 text-sm text-muted-foreground">
                       <div className="flex justify-between">
                         <span>• Song Generation</span>
-                        <span>500 credits</span>
+                        <span className="text-green-500">Free</span>
                       </div>
                       <div className="flex justify-between">
                         <span>• Video (30 seconds)</span>
@@ -764,7 +764,7 @@ export default function ProfilePage() {
                         <div className="space-y-2 text-sm text-muted-foreground mb-4">
                           <p className="flex items-center gap-2">
                             <CheckCircle className="h-4 w-4 text-green-500" />
-                            Create up to 5 songs (500 credits each)
+                            Unlimited song generation (free)
                           </p>
                           <p className="flex items-center gap-2">
                             <CheckCircle className="h-4 w-4 text-green-500" />

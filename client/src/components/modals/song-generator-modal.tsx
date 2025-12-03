@@ -76,18 +76,16 @@ export function SongGeneratorModal({
   }, [isOpen]);
 
   const getDurationLabel = (value: number) => {
-    // Song generation is always 250 credits, video generation is 1000 per 30 seconds
-    const songCredits = 250;
+    // Song generation is free, video generation is 1000 credits per 30 seconds
     const videoCredits = Math.ceil(value / 30) * 1000;
-    const totalCredits = songCredits + videoCredits;
 
-    if (value === 30) return `30 sec (${totalCredits} credits)`;
-    if (value === 60) return `1 min (${totalCredits} credits)`;
-    if (value === 90) return `1.5 min (${totalCredits} credits)`;
-    if (value === 120) return `2 min (${totalCredits} credits)`;
-    if (value === 150) return `2.5 min (${totalCredits} credits)`;
-    if (value === 180) return `3 min (${totalCredits} credits)`;
-    return `${value} sec (${totalCredits} credits)`;
+    if (value === 30) return `30 sec (${videoCredits} credits for video)`;
+    if (value === 60) return `1 min (${videoCredits} credits for video)`;
+    if (value === 90) return `1.5 min (${videoCredits} credits for video)`;
+    if (value === 120) return `2 min (${videoCredits} credits for video)`;
+    if (value === 150) return `2.5 min (${videoCredits} credits for video)`;
+    if (value === 180) return `3 min (${videoCredits} credits for video)`;
+    return `${value} sec (${videoCredits} credits for video)`;
   };
 
   const generateLyricsMutation = useMutation({
@@ -534,7 +532,7 @@ export function SongGeneratorModal({
             }
           >
             <i className="fas fa-magic mr-2"></i>
-            Generate Song ({(duration[0] / 30) * 500} credits)
+            Generate Song (Free)
           </Button>
         </div>
       </DialogContent>

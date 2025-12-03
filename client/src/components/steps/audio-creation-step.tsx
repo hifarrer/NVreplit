@@ -104,13 +104,13 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const [librarySongTitle, setLibrarySongTitle] = useState(""); // Custom title for library song
   
   // Calculate credit costs based on duration
-  const SONG_GENERATION_CREDITS = 250;
+  // Song generation is free, only video generation costs credits
   const getVideoCreditCost = (durationSeconds: number) => {
-    // New pricing: 1000 credits for every 30 seconds
+    // Pricing: 1000 credits for every 30 seconds of video
     return Math.ceil(durationSeconds / 30) * 1000;
   };
   
-  const totalCreditsNeeded = SONG_GENERATION_CREDITS + getVideoCreditCost(duration[0]);
+  const totalCreditsNeeded = getVideoCreditCost(duration[0]);
   const userCreditsRemaining = user?.creditsRemaining || 0;
   const hasEnoughCredits = userCreditsRemaining >= totalCreditsNeeded;
 

@@ -170,10 +170,10 @@ When `isCompleted: true` and `finalVideoUrl` is populated, the video is ready.
 ## Credits Required
 
 - **Total**: ~1000 credits per 30-second video
-  - Lyrics generation: ~100 credits
-  - Song generation (30s): ~300 credits  
-  - Character image: ~100 credits
-  - Scene images (3): ~200 credits
+  - Lyrics generation: Free
+  - Song generation: Free  
+  - Character image: Free
+  - Scene images: Free
   - Video generation (30s): ~1000 credits
 
 ## Technical Details

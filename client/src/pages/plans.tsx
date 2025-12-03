@@ -488,8 +488,8 @@ export default function PlansPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                       <div className="flex flex-col items-center p-3 bg-primary/5 rounded-lg">
                         <Check className="h-5 w-5 text-green-500 mb-2" />
-                        <p className="text-sm font-medium">5 AI Songs</p>
-                        <p className="text-xs text-muted-foreground">500 credits each</p>
+                        <p className="text-sm font-medium">Unlimited Songs</p>
+                        <p className="text-xs text-green-500">Free</p>
                       </div>
                       <div className="flex flex-col items-center p-3 bg-primary/5 rounded-lg">
                         <Check className="h-5 w-5 text-green-500 mb-2" />

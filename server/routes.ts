@@ -4172,17 +4172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Only Premium users can make videos private - enforce server-side
       const finalIsPublic = isPremiumUser ? isPublic : true;
       
-      // Check if user has enough credits for song generation (250 credits)
-      const SONG_GENERATION_CREDITS = 250;
-      const canAfford = await storage.canUserAffordCredits(project.userId, SONG_GENERATION_CREDITS);
-      if (!canAfford) {
-        const creditsRemaining = await storage.getUserCreditsRemaining(project.userId);
-        return res.status(402).json({ 
-          error: "Insufficient credits", 
-          creditsRequired: SONG_GENERATION_CREDITS,
-          creditsRemaining 
-        });
-      }
+      // Song generation is free - credits are only consumed for video generation
       
       await storage.addGenerationLog({
         projectId: req.params.id,
@@ -4324,13 +4314,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { songs: result.songs }
       });
 
-      // Deduct credits for successful song generation
-      const creditDeducted = await storage.deductUserCredits(project.userId, SONG_GENERATION_CREDITS);
-      if (!creditDeducted) {
-        console.error("Failed to deduct credits for song generation, but song was already generated");
-      } else {
-        console.log(`Deducted ${SONG_GENERATION_CREDITS} credits for song generation from user ${project.userId}`);
-      }
+      // Song generation is free - no credit deduction needed
+      // Credits are only consumed when generating the video
       
       // Add debugging subtitle content to response if generated
       const responseData = {
