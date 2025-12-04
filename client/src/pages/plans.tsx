@@ -1,14 +1,14 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Loader2, Sparkles, Copy, CheckCircle2, Coins, CreditCard } from "lucide-react";
+import { Check, Loader2, Sparkles, Copy, CheckCircle2, Coins, CreditCard, Gift } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Plan } from "@shared/schema";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
@@ -479,6 +479,38 @@ export default function PlansPage() {
             </p>
           </div>
         )}
+
+        {/* Gift a Subscription */}
+        <div className="mt-16">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold gradient-text mb-2">Gift a Subscription</h2>
+            <p className="text-muted-foreground">Give the gift of music video creation to your loved ones</p>
+          </div>
+          <div className="flex justify-center">
+            <Card className="border-2 border-pink-500/30 bg-gradient-to-br from-pink-500/5 to-purple-500/5 w-full max-w-md hover:shadow-xl transition-all">
+              <CardHeader className="text-center">
+                <div className="mx-auto w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-500 rounded-full flex items-center justify-center mb-4">
+                  <Gift className="h-8 w-8 text-white" />
+                </div>
+                <CardTitle className="text-xl">Share the Joy of Creation</CardTitle>
+                <CardDescription>
+                  Send a prepaid subscription to a friend or family member. They'll receive an email with a unique code to activate their account.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link href="/gift">
+                  <Button 
+                    className="w-full bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600"
+                    data-testid="button-gift-subscription-plans"
+                  >
+                    <Gift className="h-4 w-4 mr-2" />
+                    Gift a Subscription
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
         <div className="mt-12 sm:mt-16 text-center">
           <h2 className="text-xl sm:text-2xl font-semibold mb-4">All Plans Include</h2>
