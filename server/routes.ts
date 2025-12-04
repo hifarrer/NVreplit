@@ -1832,6 +1832,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Development-only: Reset admin password
+  app.post("/api/dev/reset-admin-password", async (req, res) => {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ error: "This endpoint is disabled in production" });
+    }
+    
+    try {
+      const { newPassword } = req.body;
+      
+      if (!newPassword || newPassword.length < 6) {
+        return res.status(400).json({ error: "New password must be at least 6 characters" });
+      }
+      
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await storage.setSetting('admin_password', hashedPassword);
+      
+      const adminUsername = await storage.getSetting('admin_username') || 'admin';
+      
+      console.log(`[DEV] Admin password reset successfully for user: ${adminUsername}`);
+      res.json({ 
+        success: true, 
+        message: `Admin password reset successfully. Username: ${adminUsername}` 
+      });
+    } catch (error) {
+      console.error("Reset admin password error:", error);
+      res.status(500).json({ error: "Failed to reset admin password" });
+    }
+  });
+
   // Admin authentication routes
   app.post("/api/admin/login", async (req, res) => {
     try {
