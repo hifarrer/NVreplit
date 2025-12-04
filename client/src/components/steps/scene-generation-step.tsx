@@ -12,7 +12,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SceneData } from "@/lib/types";
-import { RotateCcw, RefreshCw, Mic } from "lucide-react";
+import { RotateCcw, RefreshCw, Mic, Upload, Loader2 } from "lucide-react";
 
 interface SceneGenerationStepProps {
   projectId: string;
@@ -25,6 +25,8 @@ interface SceneGenerationStepProps {
   onReset: () => void;
 }
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+
 export function SceneGenerationStep({ projectId, audioDuration, characterImageUrl, scenes = [], isEditMode = false, onNext, onBack, onReset }: SceneGenerationStepProps) {
   // Defensively copy scenes array to avoid mutating the original project data
   const [generatedScenes, setGeneratedScenes] = useState<SceneData[]>(() => 
@@ -32,8 +34,10 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
   );
   const [progress, setProgress] = useState(0);
   const [regeneratingScenes, setRegeneratingScenes] = useState<number[]>([]);
+  const [uploadingScenes, setUploadingScenes] = useState<number[]>([]);
   const { toast } = useToast();
   const hasGeneratedRef = useRef(false);
+  const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
 
   // Determine if a scene uses lipsync based on video duration and scene index
   const isLipsyncScene = (index: number): boolean => {
@@ -165,6 +169,103 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
   const regenerateScene = (index: number, prompt: string) => {
     setRegeneratingScenes(prev => [...prev, index]);
     regenerateSceneMutation.mutate({ sceneIndex: index, prompt });
+  };
+
+  // Upload scene image mutation
+  const uploadSceneImageMutation = useMutation({
+    mutationFn: async ({ sceneIndex, file }: { sceneIndex: number; file: File }) => {
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('sceneIndex', sceneIndex.toString());
+
+      // Use different endpoints based on mode
+      const endpoint = isEditMode 
+        ? '/api/upload-scene-image'
+        : `/api/projects/${projectId}/upload-scene-image`;
+
+      // Use apiRequest to include auth headers automatically
+      const response = await apiRequest('POST', endpoint, formData);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to upload image');
+      }
+
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      const { sceneIndex } = variables;
+      setGeneratedScenes(prev => 
+        prev.map((scene, index) => 
+          index === sceneIndex 
+            ? { ...scene, imageUrl: data.imageUrl }
+            : scene
+        )
+      );
+      setUploadingScenes(prev => prev.filter(i => i !== sceneIndex));
+      toast({
+        title: "Success",
+        description: isEditMode 
+          ? `Scene ${sceneIndex + 1} image uploaded! Changes will be saved when you click 'Re-generate Music Video'.`
+          : `Scene ${sceneIndex + 1} image uploaded successfully!`,
+      });
+    },
+    onError: (error, variables) => {
+      const { sceneIndex } = variables;
+      setUploadingScenes(prev => prev.filter(i => i !== sceneIndex));
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to upload scene image",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleFileSelect = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (10MB limit)
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: "File too large",
+        description: "Please select an image under 10MB",
+        variant: "destructive",
+      });
+      // Reset the input
+      if (fileInputRefs.current[index]) {
+        fileInputRefs.current[index]!.value = '';
+      }
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select a JPEG, PNG, GIF, or WebP image",
+        variant: "destructive",
+      });
+      // Reset the input
+      if (fileInputRefs.current[index]) {
+        fileInputRefs.current[index]!.value = '';
+      }
+      return;
+    }
+
+    // Start upload
+    setUploadingScenes(prev => [...prev, index]);
+    uploadSceneImageMutation.mutate({ sceneIndex: index, file });
+
+    // Reset the input so the same file can be selected again
+    if (fileInputRefs.current[index]) {
+      fileInputRefs.current[index]!.value = '';
+    }
+  };
+
+  const triggerFileInput = (index: number) => {
+    fileInputRefs.current[index]?.click();
   };
 
   const updateScenePrompt = (index: number, newPrompt: string) => {
@@ -300,8 +401,8 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
                 <div className="space-y-4">
                   <div className="flex flex-col sm:flex-row items-start gap-4 sm:space-x-4">
                     <div className="w-20 h-20 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center flex-shrink-0">
-                      {regeneratingScenes.includes(index) ? (
-                        <div className="loading-spinner" />
+                      {regeneratingScenes.includes(index) || uploadingScenes.includes(index) ? (
+                        <Loader2 className="w-6 h-6 animate-spin text-white" />
                       ) : scene.imageUrl ? (
                         <img 
                           src={scene.imageUrl}
@@ -310,7 +411,7 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
                           data-testid={`scene-image-${index + 1}`}
                         />
                       ) : (
-                        <div className="loading-spinner" />
+                        <Loader2 className="w-6 h-6 animate-spin text-white" />
                       )}
                     </div>
                     <div className="flex-1">
@@ -334,17 +435,42 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
                           </TooltipProvider>
                         )}
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => regenerateScene(index, scene.prompt)}
-                        disabled={regeneratingScenes.includes(index)}
-                        className="flex items-center gap-2"
-                        data-testid={`regenerate-scene-${index + 1}`}
-                      >
-                        <RefreshCw className={`w-4 h-4 ${regeneratingScenes.includes(index) ? 'animate-spin' : ''}`} />
-                        {regeneratingScenes.includes(index) ? 'Regenerating...' : 'Regenerate'}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => regenerateScene(index, scene.prompt)}
+                          disabled={regeneratingScenes.includes(index) || uploadingScenes.includes(index)}
+                          className="flex items-center gap-2"
+                          data-testid={`regenerate-scene-${index + 1}`}
+                        >
+                          <RefreshCw className={`w-4 h-4 ${regeneratingScenes.includes(index) ? 'animate-spin' : ''}`} />
+                          {regeneratingScenes.includes(index) ? 'Regenerating...' : 'Regenerate'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => triggerFileInput(index)}
+                          disabled={regeneratingScenes.includes(index) || uploadingScenes.includes(index)}
+                          className="flex items-center gap-2"
+                          data-testid={`upload-scene-${index + 1}`}
+                        >
+                          {uploadingScenes.includes(index) ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Upload className="w-4 h-4" />
+                          )}
+                          {uploadingScenes.includes(index) ? 'Uploading...' : 'Upload'}
+                        </Button>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                          className="hidden"
+                          ref={(el) => { fileInputRefs.current[index] = el; }}
+                          onChange={(e) => handleFileSelect(index, e)}
+                          data-testid={`file-input-scene-${index + 1}`}
+                        />
+                      </div>
                     </div>
                   </div>
                   <div>

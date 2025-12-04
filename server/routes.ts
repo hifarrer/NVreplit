@@ -4,6 +4,7 @@ import { spawn } from "child_process";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import sharp from "sharp";
 import { storage } from "./storage";
 import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema, insertPlanSchema, insertReferralSchema, type Plan, type InsertPlan } from "@shared/schema";
 import { z } from "zod";
@@ -60,6 +61,22 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
+  }
+});
+
+// Configure multer for scene image uploads (10MB limit)
+const sceneImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req: any, file: any, cb: any) => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.'));
+    }
   }
 });
 
@@ -4744,6 +4761,250 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { error: (error as Error).message }
       });
       res.status(500).json({ error: "Failed to regenerate scene" });
+    }
+  });
+
+  // Upload custom scene image endpoint (crops to 16:9 ratio)
+  app.post("/api/projects/:id/upload-scene-image", sceneImageUpload.single('image'), async (req: any, res) => {
+    try {
+      const sceneIndex = parseInt(req.body.sceneIndex);
+      
+      if (isNaN(sceneIndex)) {
+        return res.status(400).json({ error: "Scene index is required" });
+      }
+      
+      if (!req.file) {
+        return res.status(400).json({ error: "Image file is required" });
+      }
+
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(400).json({ error: "Project not found" });
+      }
+
+      // Get current scene arrays from project
+      const scenePrompts = (project.scenePrompts as string[]) || [];
+      const sceneImages = (project.sceneImages as string[]) || [];
+
+      if (sceneIndex < 0 || sceneIndex >= scenePrompts.length) {
+        return res.status(400).json({ error: "Invalid scene index" });
+      }
+
+      console.log(`Processing uploaded scene image for project ${req.params.id}, scene ${sceneIndex + 1}`);
+
+      // Get original image metadata
+      const originalImage = sharp(req.file.buffer);
+      const metadata = await originalImage.metadata();
+      
+      if (!metadata.width || !metadata.height) {
+        return res.status(400).json({ error: "Could not read image dimensions" });
+      }
+
+      console.log(`Original image dimensions: ${metadata.width}x${metadata.height}`);
+
+      // Target aspect ratio is 16:9
+      const targetRatio = 16 / 9;
+      const currentRatio = metadata.width / metadata.height;
+
+      let cropWidth: number;
+      let cropHeight: number;
+      let cropLeft: number;
+      let cropTop: number;
+
+      if (currentRatio > targetRatio) {
+        // Image is wider than 16:9, crop width (center crop)
+        cropHeight = metadata.height;
+        cropWidth = Math.round(metadata.height * targetRatio);
+        cropLeft = Math.round((metadata.width - cropWidth) / 2);
+        cropTop = 0;
+      } else {
+        // Image is taller than 16:9, crop height (center crop)
+        cropWidth = metadata.width;
+        cropHeight = Math.round(metadata.width / targetRatio);
+        cropLeft = 0;
+        cropTop = Math.round((metadata.height - cropHeight) / 2);
+      }
+
+      console.log(`Cropping to 16:9: ${cropWidth}x${cropHeight} from (${cropLeft}, ${cropTop})`);
+
+      // Process the image: crop to 16:9 and resize to standard size (1280x720)
+      const processedImageBuffer = await sharp(req.file.buffer)
+        .extract({
+          left: cropLeft,
+          top: cropTop,
+          width: cropWidth,
+          height: cropHeight
+        })
+        .resize(1280, 720, {
+          fit: 'fill',
+          withoutEnlargement: false
+        })
+        .jpeg({ quality: 90 })
+        .toBuffer();
+
+      console.log(`Processed image size: ${processedImageBuffer.length} bytes`);
+
+      // Store the processed image in object storage
+      const { randomUUID } = await import("crypto");
+      const filename = `scenes/${randomUUID()}.jpg`;
+      
+      const objectStorageService = new ObjectStorageService();
+      const privateObjectDir = objectStorageService.getPrivateObjectDir();
+      const fullPath = `${privateObjectDir}/${filename}`;
+      
+      // Parse the path to get bucket and object name
+      const pathParts = fullPath.startsWith("/") ? fullPath.slice(1).split("/") : fullPath.split("/");
+      const bucketName = pathParts[0];
+      const objectName = pathParts.slice(1).join("/");
+      
+      const bucket = objectStorageClient.bucket(bucketName);
+      const file = bucket.file(objectName);
+      
+      await file.save(processedImageBuffer, {
+        metadata: {
+          contentType: 'image/jpeg',
+          metadata: {
+            category: 'scenes',
+            uploadedAt: new Date().toISOString(),
+            projectId: req.params.id,
+            sceneIndex: sceneIndex.toString(),
+            isUserUpload: 'true'
+          },
+        },
+      });
+
+      const storedUrl = `/objects/${filename}`;
+      console.log(`Scene image stored at: ${storedUrl}`);
+
+      // Update the scene image in the project
+      sceneImages[sceneIndex] = storedUrl;
+
+      await storage.updateProject(req.params.id, {
+        sceneImages: sceneImages
+      });
+
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "scene_upload",
+        message: `Scene ${sceneIndex + 1} image uploaded successfully`,
+        status: "completed",
+        metadata: { sceneIndex, imageUrl: storedUrl }
+      });
+
+      res.json({ 
+        imageUrl: storedUrl,
+        sceneIndex: sceneIndex
+      });
+    } catch (error) {
+      console.error("Scene image upload error:", error);
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "scene_upload",
+        message: "Scene image upload failed",
+        status: "failed",
+        metadata: { error: (error as Error).message }
+      });
+      res.status(500).json({ error: "Failed to upload scene image" });
+    }
+  });
+
+  // Endpoint for uploading scene image without project (for edit mode)
+  app.post("/api/upload-scene-image", sceneImageUpload.single('image'), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "Image file is required" });
+      }
+
+      console.log(`Processing standalone scene image upload`);
+
+      // Get original image metadata
+      const originalImage = sharp(req.file.buffer);
+      const metadata = await originalImage.metadata();
+      
+      if (!metadata.width || !metadata.height) {
+        return res.status(400).json({ error: "Could not read image dimensions" });
+      }
+
+      console.log(`Original image dimensions: ${metadata.width}x${metadata.height}`);
+
+      // Target aspect ratio is 16:9
+      const targetRatio = 16 / 9;
+      const currentRatio = metadata.width / metadata.height;
+
+      let cropWidth: number;
+      let cropHeight: number;
+      let cropLeft: number;
+      let cropTop: number;
+
+      if (currentRatio > targetRatio) {
+        // Image is wider than 16:9, crop width (center crop)
+        cropHeight = metadata.height;
+        cropWidth = Math.round(metadata.height * targetRatio);
+        cropLeft = Math.round((metadata.width - cropWidth) / 2);
+        cropTop = 0;
+      } else {
+        // Image is taller than 16:9, crop height (center crop)
+        cropWidth = metadata.width;
+        cropHeight = Math.round(metadata.width / targetRatio);
+        cropLeft = 0;
+        cropTop = Math.round((metadata.height - cropHeight) / 2);
+      }
+
+      console.log(`Cropping to 16:9: ${cropWidth}x${cropHeight} from (${cropLeft}, ${cropTop})`);
+
+      // Process the image: crop to 16:9 and resize to standard size (1280x720)
+      const processedImageBuffer = await sharp(req.file.buffer)
+        .extract({
+          left: cropLeft,
+          top: cropTop,
+          width: cropWidth,
+          height: cropHeight
+        })
+        .resize(1280, 720, {
+          fit: 'fill',
+          withoutEnlargement: false
+        })
+        .jpeg({ quality: 90 })
+        .toBuffer();
+
+      console.log(`Processed image size: ${processedImageBuffer.length} bytes`);
+
+      // Store the processed image in object storage
+      const { randomUUID } = await import("crypto");
+      const filename = `scenes/${randomUUID()}.jpg`;
+      
+      const objectStorageService = new ObjectStorageService();
+      const privateObjectDir = objectStorageService.getPrivateObjectDir();
+      const fullPath = `${privateObjectDir}/${filename}`;
+      
+      // Parse the path to get bucket and object name
+      const pathParts = fullPath.startsWith("/") ? fullPath.slice(1).split("/") : fullPath.split("/");
+      const bucketName = pathParts[0];
+      const objectName = pathParts.slice(1).join("/");
+      
+      const bucket = objectStorageClient.bucket(bucketName);
+      const file = bucket.file(objectName);
+      
+      await file.save(processedImageBuffer, {
+        metadata: {
+          contentType: 'image/jpeg',
+          metadata: {
+            category: 'scenes',
+            uploadedAt: new Date().toISOString(),
+            isUserUpload: 'true'
+          },
+        },
+      });
+
+      const storedUrl = `/objects/${filename}`;
+      console.log(`Scene image stored at: ${storedUrl}`);
+
+      res.json({ 
+        imageUrl: storedUrl
+      });
+    } catch (error) {
+      console.error("Scene image upload error:", error);
+      res.status(500).json({ error: "Failed to upload scene image" });
     }
   });
 
