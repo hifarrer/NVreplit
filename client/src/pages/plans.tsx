@@ -423,7 +423,7 @@ export default function PlansPage() {
               <p className="text-muted-foreground">Exclusive yearly subscription options</p>
             </div>
             <div className="flex justify-center">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-4xl">
+              <div className="flex flex-wrap justify-center gap-4 sm:gap-6 max-w-4xl">
                 {yearlyOnlyPlans.map((plan) => {
                   const isCurrentPlan = (subscriptionStatus?.planId === plan.id && subscriptionStatus?.hasSubscription) || 
                     (user?.plan?.id === plan.id);
@@ -431,7 +431,7 @@ export default function PlansPage() {
                   return (
                     <Card 
                       key={plan.id} 
-                      className={`relative overflow-hidden transition-all hover:shadow-xl border-2 border-purple-500/50 bg-gradient-to-br from-purple-500/5 to-primary/5 ${
+                      className={`relative overflow-hidden transition-all hover:shadow-xl border-2 border-purple-500/50 bg-gradient-to-br from-purple-500/5 to-primary/5 w-full sm:w-80 ${
                         isCurrentPlan ? 'border-green-500 bg-green-50/5' : ''
                       }`}
                       data-testid={`plan-card-${plan.id}`}
