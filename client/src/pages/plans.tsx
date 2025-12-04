@@ -173,6 +173,7 @@ export default function PlansPage() {
       navigate("/auth");
     } else {
       // Skip checkout for free plan (using price-based detection)
+      // Free plan has monthlyPrice of 0 (not null)
       if (plan.monthlyPrice === 0) {
         toast({
           title: "Free Plan",
@@ -181,8 +182,11 @@ export default function PlansPage() {
         return;
       }
       
+      // For yearly-only plans (monthlyPrice is null), always use yearly billing
+      const effectiveBillingPeriod = plan.monthlyPrice === null ? 'yearly' : billingPeriod;
+      
       setSelectedPlanId(plan.id);
-      createCheckoutSession.mutate({ planId: plan.id, billingPeriod });
+      createCheckoutSession.mutate({ planId: plan.id, billingPeriod: effectiveBillingPeriod });
     }
   };
 
@@ -194,8 +198,9 @@ export default function PlansPage() {
     );
   }
 
-  // Sort plans by monthly price
-  const sortedPlans = plans?.sort((a, b) => a.monthlyPrice - b.monthlyPrice) || [];
+  // Separate regular plans (with monthly price) from yearly-only plans
+  const regularPlans = plans?.filter(p => p.monthlyPrice !== null).sort((a, b) => (a.monthlyPrice ?? 0) - (b.monthlyPrice ?? 0)) || [];
+  const yearlyOnlyPlans = plans?.filter(p => p.monthlyPrice === null).sort((a, b) => a.yearlyPrice - b.yearlyPrice) || [];
 
   const copyPromoCode = (code: string, planName: string) => {
     navigator.clipboard.writeText(code);
@@ -309,9 +314,9 @@ export default function PlansPage() {
 
         <div className="flex justify-center">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-4xl">
-          {sortedPlans.map((plan, index) => {
+          {regularPlans.map((plan, index) => {
             // Mark the second plan as popular (if there are at least 2 plans)
-            const isPopular = index === 1 && sortedPlans.length > 1;
+            const isPopular = index === 1 && regularPlans.length > 1;
             
             // For Free plan: user is on it if they don't have an active subscription AND no database plan
             // For paid plans: user is on it if they have an active subscription for that plan OR database plan matches
@@ -342,15 +347,15 @@ export default function PlansPage() {
                 <CardHeader className="text-center pb-8">
                   <CardTitle className="text-2xl mb-2">{plan.name}</CardTitle>
                   <CardDescription className="text-sm mb-4">
-                    Perfect for {index === 0 ? 'getting started' : index === sortedPlans.length - 1 ? 'professional creators' : 'growing creators'}
+                    Perfect for {index === 0 ? 'getting started' : index === regularPlans.length - 1 ? 'professional creators' : 'growing creators'}
                   </CardDescription>
                   <div className="flex items-baseline justify-center gap-1">
                     <span className="text-4xl font-bold">
                       ${billingPeriod === 'monthly' 
-                        ? (plan.monthlyPrice / 100).toFixed(0)
+                        ? ((plan.monthlyPrice ?? 0) / 100).toFixed(0)
                         : plan.yearlyPrice 
                           ? (plan.yearlyPrice / 100).toFixed(0)
-                          : (plan.monthlyPrice * 12 / 100).toFixed(0)
+                          : ((plan.monthlyPrice ?? 0) * 12 / 100).toFixed(0)
                       }
                     </span>
                     <span className="text-muted-foreground">
@@ -358,9 +363,9 @@ export default function PlansPage() {
                     </span>
                   </div>
                   <div className="mt-2 text-sm text-muted-foreground">
-                    {plan.credits} credits included
+                    {plan.credits.toLocaleString()} credits included
                   </div>
-                  {billingPeriod === 'yearly' && plan.yearlyPrice && (
+                  {billingPeriod === 'yearly' && plan.yearlyPrice && plan.monthlyPrice && (
                     <div className="mt-1 text-xs text-green-600">
                       Save ${((plan.monthlyPrice * 12 - plan.yearlyPrice) / 100).toFixed(0)} compared to monthly
                     </div>
@@ -374,8 +379,8 @@ export default function PlansPage() {
                 
                 <CardContent className="space-y-4">
                   <ul className="space-y-3">
-                    {plan.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-2">
+                    {plan.features.map((feature, featureIndex) => (
+                      <li key={featureIndex} className="flex items-start gap-2">
                         <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                         <span className="text-sm">{feature}</span>
                       </li>
@@ -410,7 +415,87 @@ export default function PlansPage() {
           </div>
         </div>
 
-        {sortedPlans.length === 0 && (
+        {/* Yearly-Only Plans Section */}
+        {yearlyOnlyPlans.length > 0 && (
+          <div className="mt-12">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold gradient-text mb-2">Special Plans</h2>
+              <p className="text-muted-foreground">Exclusive yearly subscription options</p>
+            </div>
+            <div className="flex justify-center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-4xl">
+                {yearlyOnlyPlans.map((plan) => {
+                  const isCurrentPlan = (subscriptionStatus?.planId === plan.id && subscriptionStatus?.hasSubscription) || 
+                    (user?.plan?.id === plan.id);
+                  
+                  return (
+                    <Card 
+                      key={plan.id} 
+                      className={`relative overflow-hidden transition-all hover:shadow-xl border-2 border-purple-500/50 bg-gradient-to-br from-purple-500/5 to-primary/5 ${
+                        isCurrentPlan ? 'border-green-500 bg-green-50/5' : ''
+                      }`}
+                      data-testid={`plan-card-${plan.id}`}
+                    >
+                      <div className="absolute top-0 right-0 bg-purple-600 text-white px-3 py-1 text-xs font-bold rounded-bl-lg">
+                        {isCurrentPlan ? 'CURRENT PLAN' : 'YEARLY ONLY'}
+                      </div>
+                      
+                      <CardHeader className="text-center pb-8">
+                        <CardTitle className="text-2xl mb-2">{plan.name}</CardTitle>
+                        <CardDescription className="text-sm mb-4">
+                          Ultimate plan for power users
+                        </CardDescription>
+                        <div className="flex items-baseline justify-center gap-1">
+                          <span className="text-4xl font-bold">
+                            ${(plan.yearlyPrice / 100).toFixed(0)}
+                          </span>
+                          <span className="text-muted-foreground">/year</span>
+                        </div>
+                        <div className="mt-2 text-sm text-muted-foreground">
+                          {plan.credits.toLocaleString()} credits included
+                        </div>
+                      </CardHeader>
+                      
+                      <CardContent className="space-y-4">
+                        <ul className="space-y-3">
+                          {plan.features.map((feature, featureIndex) => (
+                            <li key={featureIndex} className="flex items-start gap-2">
+                              <Check className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
+                              <span className="text-sm">{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        
+                        <Button 
+                          className="w-full bg-purple-600 hover:bg-purple-700"
+                          onClick={() => handleSelectPlan(plan, 'yearly')}
+                          disabled={
+                            (createCheckoutSession.isPending && selectedPlanId === plan.id) ||
+                            Boolean(isCurrentPlan)
+                          }
+                          data-testid={`select-plan-${plan.id}`}
+                        >
+                          {createCheckoutSession.isPending && selectedPlanId === plan.id ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Redirecting to checkout...
+                            </>
+                          ) : isCurrentPlan ? (
+                            'Current Plan'
+                          ) : (
+                            user ? 'Get Started' : 'Sign up Now'
+                          )}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {regularPlans.length === 0 && yearlyOnlyPlans.length === 0 && (
           <div className="text-center py-12">
             <p className="text-muted-foreground">
               No plans available at the moment. Please check back later.
