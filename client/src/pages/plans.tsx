@@ -216,7 +216,7 @@ export default function PlansPage() {
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 flex flex-col">
       <NavigationHeader currentPage="plans" />
 
-      {/* Christmas Sale Promo Banner */}
+      {/* Holiday Sale Promo Banner */}
       <div className="relative overflow-hidden bg-gradient-to-r from-red-900 via-green-900 to-red-900 animate-gradient-x">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjA1IiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-30"></div>
         <div className="container mx-auto px-4 py-6 relative z-10">
@@ -227,55 +227,32 @@ export default function PlansPage() {
             </div>
             <div>
               <h2 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg mb-1 animate-bounce-subtle">
-                🎄 CHRISTMAS SALE 🎁
+                🎄 HOLIDAY SALE 🎁
               </h2>
               <p className="text-white/90 text-sm md:text-base">
-                Limited time only! Use these codes at checkout for exclusive savings
+                Limited time only! Get 30% OFF Basic or Premium plans
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="bg-white/20 backdrop-blur-sm border-2 border-green-400/60 rounded-lg px-4 py-3 shadow-xl">
-                  <div className="text-xs text-green-300 mb-1 font-semibold">BASIC PLAN - JUST $5</div>
-                  <div className="text-xl font-black text-white tracking-wider drop-shadow-lg" data-testid="promo-code-basic">
-                    BFNEON5
-                  </div>
+            <div className="flex items-center gap-2">
+              <div className="bg-white/20 backdrop-blur-sm border-2 border-yellow-400/60 rounded-lg px-6 py-4 shadow-xl">
+                <div className="text-xs text-yellow-300 mb-1 font-semibold">30% OFF BASIC OR PREMIUM</div>
+                <div className="text-2xl font-black text-white tracking-wider drop-shadow-lg" data-testid="promo-code-holiday">
+                  NEONHOLIDAY
                 </div>
-                <Button
-                  onClick={() => copyPromoCode('BFNEON5', 'Basic')}
-                  variant="secondary"
-                  size="sm"
-                  className="bg-green-500 hover:bg-green-400 text-white font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105"
-                  data-testid="copy-promo-code-basic"
-                >
-                  {copiedCode === 'BFNEON5' ? (
-                    <CheckCircle2 className="w-4 h-4" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
-                </Button>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="bg-white/20 backdrop-blur-sm border-2 border-red-400/60 rounded-lg px-4 py-3 shadow-xl">
-                  <div className="text-xs text-red-300 mb-1 font-semibold">PREMIUM PLAN - JUST $25</div>
-                  <div className="text-xl font-black text-white tracking-wider drop-shadow-lg" data-testid="promo-code-premium">
-                    BFNEON25
-                  </div>
-                </div>
-                <Button
-                  onClick={() => copyPromoCode('BFNEON25', 'Premium')}
-                  variant="secondary"
-                  size="sm"
-                  className="bg-red-500 hover:bg-red-400 text-white font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105"
-                  data-testid="copy-promo-code-premium"
-                >
-                  {copiedCode === 'BFNEON25' ? (
-                    <CheckCircle2 className="w-4 h-4" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
-                </Button>
-              </div>
+              <Button
+                onClick={() => copyPromoCode('NEONHOLIDAY', 'Basic or Premium')}
+                variant="secondary"
+                size="sm"
+                className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                data-testid="copy-promo-code-holiday"
+              >
+                {copiedCode === 'NEONHOLIDAY' ? (
+                  <CheckCircle2 className="w-4 h-4" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
+              </Button>
             </div>
             <div className="flex items-center gap-2 animate-pulse">
               <Sparkles className="w-6 h-6 text-green-400 drop-shadow-glow" />
