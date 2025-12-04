@@ -8,7 +8,7 @@ export const plans = pgTable("plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   features: jsonb("features").notNull().$type<string[]>(), // Array of feature strings
-  monthlyPrice: integer("monthly_price").notNull(), // Price in cents
+  monthlyPrice: integer("monthly_price"), // Price in cents (null for yearly-only plans)
   yearlyPrice: integer("yearly_price").notNull(), // Price in cents
   stripeMonthlyPriceId: text("stripe_monthly_price_id"),
   stripeYearlyPriceId: text("stripe_yearly_price_id"),
