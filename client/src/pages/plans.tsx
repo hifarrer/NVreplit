@@ -230,12 +230,12 @@ export default function PlansPage() {
                 🎄 HOLIDAY SALE 🎁
               </h2>
               <p className="text-white/90 text-sm md:text-base">
-                Limited time only! Get 30% OFF Basic or Premium plans
+                Limited time only! Save an EXTRA 30% OFF Basic or Premium plans
               </p>
             </div>
             <div className="flex items-center gap-2">
               <div className="bg-white/20 backdrop-blur-sm border-2 border-yellow-400/60 rounded-lg px-6 py-4 shadow-xl">
-                <div className="text-xs text-yellow-300 mb-1 font-semibold">30% OFF BASIC OR PREMIUM</div>
+                <div className="text-xs text-yellow-300 mb-1 font-semibold">EXTRA 30% OFF BASIC OR PREMIUM</div>
                 <div className="text-2xl font-black text-white tracking-wider drop-shadow-lg" data-testid="promo-code-holiday">
                   NEONHOLIDAY
                 </div>
