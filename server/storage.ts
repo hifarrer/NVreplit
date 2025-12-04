@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, type OauthClient, type InsertOauthClient, type OauthAuthorizationCode, type InsertOauthAuthorizationCode, type OauthAccessToken, type InsertOauthAccessToken, type BannedUser, type InsertBannedUser, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts, oauthClients, oauthAuthorizationCodes, oauthAccessTokens, bannedUsers } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, type OauthClient, type InsertOauthClient, type OauthAuthorizationCode, type InsertOauthAuthorizationCode, type OauthAccessToken, type InsertOauthAccessToken, type BannedUser, type InsertBannedUser, type GiftSubscription, type InsertGiftSubscription, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts, oauthClients, oauthAuthorizationCodes, oauthAccessTokens, bannedUsers, giftSubscriptions } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -179,6 +179,13 @@ export interface IStorage {
   banUser(email: string, bannedBy: string, reason?: string): Promise<void>;
   unbanUser(email: string): Promise<void>;
   getAllBannedUsers(): Promise<BannedUser[]>;
+
+  // Gift subscription methods
+  createGiftSubscription(gift: InsertGiftSubscription): Promise<GiftSubscription>;
+  getGiftSubscriptionByCode(code: string): Promise<GiftSubscription | undefined>;
+  getGiftSubscriptionsByPurchaser(userId: string): Promise<GiftSubscription[]>;
+  updateGiftSubscription(id: string, updates: Partial<GiftSubscription>): Promise<GiftSubscription | undefined>;
+  redeemGiftSubscription(code: string, userId: string): Promise<GiftSubscription | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -199,6 +206,7 @@ export class MemStorage implements IStorage {
   private affiliateEarningsStorage: Map<string, AffiliateEarning>;
   private affiliatePayoutsStorage: Map<string, AffiliatePayout>;
   private bannedUsersStorage: Map<string, BannedUser>;
+  private giftSubscriptionsStorage: Map<string, GiftSubscription>;
 
   constructor() {
     this.users = new Map();
@@ -218,6 +226,7 @@ export class MemStorage implements IStorage {
     this.affiliateEarningsStorage = new Map();
     this.affiliatePayoutsStorage = new Map();
     this.bannedUsersStorage = new Map();
+    this.giftSubscriptionsStorage = new Map();
     
     // Initialize default video generation configs
     this.initializeDefaultConfigs();
@@ -1351,6 +1360,63 @@ export class MemStorage implements IStorage {
 
   async getAllBannedUsers(): Promise<BannedUser[]> {
     return Array.from(this.bannedUsersStorage.values());
+  }
+
+  // Gift subscription methods
+  async createGiftSubscription(gift: InsertGiftSubscription): Promise<GiftSubscription> {
+    const id = randomUUID();
+    const now = new Date();
+    const giftSubscription: GiftSubscription = {
+      ...gift,
+      id,
+      recipientName: gift.recipientName || null,
+      personalMessage: gift.personalMessage || null,
+      stripePaymentIntentId: gift.stripePaymentIntentId || null,
+      stripeSessionId: gift.stripeSessionId || null,
+      status: gift.status || 'pending',
+      redeemedByUserId: gift.redeemedByUserId || null,
+      redeemedAt: gift.redeemedAt || null,
+      createdAt: now
+    };
+    this.giftSubscriptionsStorage.set(id, giftSubscription);
+    return giftSubscription;
+  }
+
+  async getGiftSubscriptionByCode(code: string): Promise<GiftSubscription | undefined> {
+    for (const gift of this.giftSubscriptionsStorage.values()) {
+      if (gift.redemptionCode === code) {
+        return gift;
+      }
+    }
+    return undefined;
+  }
+
+  async getGiftSubscriptionsByPurchaser(userId: string): Promise<GiftSubscription[]> {
+    return Array.from(this.giftSubscriptionsStorage.values())
+      .filter(gift => gift.purchaserUserId === userId);
+  }
+
+  async updateGiftSubscription(id: string, updates: Partial<GiftSubscription>): Promise<GiftSubscription | undefined> {
+    const existing = this.giftSubscriptionsStorage.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...updates };
+    this.giftSubscriptionsStorage.set(id, updated);
+    return updated;
+  }
+
+  async redeemGiftSubscription(code: string, userId: string): Promise<GiftSubscription | undefined> {
+    const gift = await this.getGiftSubscriptionByCode(code);
+    if (!gift || gift.status !== 'paid') return undefined;
+    const now = new Date();
+    if (gift.expiresAt < now) return undefined;
+    const updated: GiftSubscription = {
+      ...gift,
+      status: 'redeemed',
+      redeemedByUserId: userId,
+      redeemedAt: now
+    };
+    this.giftSubscriptionsStorage.set(gift.id, updated);
+    return updated;
   }
 }
 
@@ -2902,6 +2968,50 @@ export class DbStorage implements IStorage {
       console.error("Error getting banned users:", error);
       return [];
     }
+  }
+
+  // Gift subscription methods
+  async createGiftSubscription(gift: InsertGiftSubscription): Promise<GiftSubscription> {
+    const result = await this.db.insert(giftSubscriptions).values(gift).returning();
+    return result[0];
+  }
+
+  async getGiftSubscriptionByCode(code: string): Promise<GiftSubscription | undefined> {
+    const result = await this.db.select().from(giftSubscriptions)
+      .where(eq(giftSubscriptions.redemptionCode, code))
+      .limit(1);
+    return result[0];
+  }
+
+  async getGiftSubscriptionsByPurchaser(userId: string): Promise<GiftSubscription[]> {
+    return await this.db.select().from(giftSubscriptions)
+      .where(eq(giftSubscriptions.purchaserUserId, userId))
+      .orderBy(asc(giftSubscriptions.createdAt));
+  }
+
+  async updateGiftSubscription(id: string, updates: Partial<GiftSubscription>): Promise<GiftSubscription | undefined> {
+    const result = await this.db.update(giftSubscriptions)
+      .set(updates)
+      .where(eq(giftSubscriptions.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async redeemGiftSubscription(code: string, userId: string): Promise<GiftSubscription | undefined> {
+    const gift = await this.getGiftSubscriptionByCode(code);
+    if (!gift || gift.status !== 'paid') return undefined;
+    const now = new Date();
+    if (gift.expiresAt < now) return undefined;
+    
+    const result = await this.db.update(giftSubscriptions)
+      .set({
+        status: 'redeemed',
+        redeemedByUserId: userId,
+        redeemedAt: now
+      })
+      .where(eq(giftSubscriptions.id, gift.id))
+      .returning();
+    return result[0];
   }
 }
 

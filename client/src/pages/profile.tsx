@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut, ExternalLink, CreditCard, AlertTriangle, CheckCircle, XCircle, Trash2, Coins } from "lucide-react";
+import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut, ExternalLink, CreditCard, AlertTriangle, CheckCircle, XCircle, Trash2, Coins, Gift, Copy, Check, Clock, Mail } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -47,6 +47,34 @@ export default function ProfilePage() {
     enabled: !!(user?.plan && user?.plan?.name !== "Free"),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
+
+  // Get sent gift subscriptions
+  const { data: sentGifts } = useQuery<Array<{
+    id: string;
+    recipientEmail: string;
+    recipientName: string | null;
+    billingPeriod: string;
+    status: string;
+    redemptionCode: string;
+    createdAt: string;
+    expiresAt: string;
+    plan: { name: string; credits: number } | null;
+  }>>({
+    queryKey: ["/api/gifts/sent"],
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  const [copiedGiftCode, setCopiedGiftCode] = useState<string | null>(null);
+  
+  const handleCopyGiftCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedGiftCode(code);
+    toast({
+      title: "Copied!",
+      description: "Gift code copied to clipboard",
+    });
+    setTimeout(() => setCopiedGiftCode(null), 2000);
+  };
   
   const avatarOptions = avatarData?.avatarOptions || [
     // Default anonymous avatar
@@ -802,6 +830,98 @@ export default function ProfilePage() {
                 </Card>
               </>
             )}
+
+            {/* Gift Subscriptions Section */}
+            <Separator />
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Gift className="h-5 w-5" />
+                  Gift Subscriptions
+                </CardTitle>
+                <CardDescription>
+                  Give the gift of creativity to friends and family
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <Link href="/gift">
+                    <Button className="w-full" variant="outline" data-testid="button-gift-subscription">
+                      <Gift className="h-4 w-4 mr-2" />
+                      Gift a Subscription
+                    </Button>
+                  </Link>
+
+                  {sentGifts && sentGifts.length > 0 && (
+                    <div className="space-y-3 mt-4">
+                      <h4 className="text-sm font-medium text-muted-foreground">Sent Gifts</h4>
+                      {sentGifts.map((gift) => (
+                        <div 
+                          key={gift.id} 
+                          className="border rounded-lg p-4 space-y-2"
+                          data-testid={`gift-item-${gift.id}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Mail className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium">{gift.recipientEmail}</span>
+                            </div>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              gift.status === 'redeemed' 
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                : gift.status === 'paid'
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                : gift.status === 'expired'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                            }`}>
+                              {gift.status === 'redeemed' && <CheckCircle className="inline h-3 w-3 mr-1" />}
+                              {gift.status === 'paid' && <Clock className="inline h-3 w-3 mr-1" />}
+                              {gift.status.charAt(0).toUpperCase() + gift.status.slice(1)}
+                            </span>
+                          </div>
+                          
+                          <div className="text-sm text-muted-foreground">
+                            <span>{gift.plan?.name} Plan</span>
+                            <span className="mx-2">•</span>
+                            <span>{gift.billingPeriod === 'yearly' ? '1 Year' : '1 Month'}</span>
+                          </div>
+
+                          {gift.status === 'paid' && (
+                            <div className="flex items-center gap-2 mt-2">
+                              <code className="flex-1 bg-muted px-3 py-1 rounded text-sm font-mono">
+                                {gift.redemptionCode}
+                              </code>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleCopyGiftCode(gift.redemptionCode)}
+                                data-testid={`button-copy-gift-code-${gift.id}`}
+                              >
+                                {copiedGiftCode === gift.redemptionCode ? (
+                                  <Check className="h-4 w-4" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                          )}
+
+                          <div className="text-xs text-muted-foreground">
+                            Sent: {new Date(gift.createdAt).toLocaleDateString()}
+                            {gift.status === 'paid' && (
+                              <span className="ml-2">
+                                Expires: {new Date(gift.expiresAt).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
             <Separator />
             {/* Username Update */}

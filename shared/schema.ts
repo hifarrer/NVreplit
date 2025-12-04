@@ -278,6 +278,26 @@ export const oauthAccessTokens = pgTable("oauth_access_tokens", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Gift subscriptions table for tracking gifted subscriptions
+export const giftSubscriptions = pgTable("gift_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  purchaserUserId: varchar("purchaser_user_id").references(() => users.id).notNull(),
+  recipientEmail: text("recipient_email").notNull(),
+  recipientName: text("recipient_name"),
+  personalMessage: text("personal_message"),
+  planId: varchar("plan_id").references(() => plans.id).notNull(),
+  billingPeriod: text("billing_period").notNull(), // 'monthly' or 'yearly'
+  amount: integer("amount").notNull(), // Amount paid in cents
+  redemptionCode: text("redemption_code").notNull().unique(),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  stripeSessionId: text("stripe_session_id"),
+  status: text("status").default("pending").notNull(), // 'pending' | 'paid' | 'redeemed' | 'expired'
+  redeemedByUserId: varchar("redeemed_by_user_id").references(() => users.id),
+  redeemedAt: timestamp("redeemed_at"),
+  expiresAt: timestamp("expires_at").notNull(), // When the gift expires if not redeemed
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -383,6 +403,11 @@ export const insertBannedUserSchema = createInsertSchema(bannedUsers).omit({
   createdAt: true,
 });
 
+export const insertGiftSubscriptionSchema = createInsertSchema(giftSubscriptions).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertBannedUser = z.infer<typeof insertBannedUserSchema>;
@@ -423,3 +448,5 @@ export type InsertOauthAuthorizationCode = z.infer<typeof insertOauthAuthorizati
 export type OauthAuthorizationCode = typeof oauthAuthorizationCodes.$inferSelect;
 export type InsertOauthAccessToken = z.infer<typeof insertOauthAccessTokenSchema>;
 export type OauthAccessToken = typeof oauthAccessTokens.$inferSelect;
+export type InsertGiftSubscription = z.infer<typeof insertGiftSubscriptionSchema>;
+export type GiftSubscription = typeof giftSubscriptions.$inferSelect;

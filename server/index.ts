@@ -62,6 +62,100 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
           break;
         }
         
+        // Handle gift subscription purchase
+        if (purchaseType === 'gift_subscription') {
+          const giftSubscriptionId = session.metadata?.giftSubscriptionId;
+          const recipientEmail = session.metadata?.recipientEmail;
+          const redemptionCode = session.metadata?.redemptionCode;
+          const purchaserUserId = session.metadata?.purchaserUserId;
+          
+          if (session.payment_status === 'paid' && giftSubscriptionId) {
+            // Update gift subscription status to 'paid'
+            await storage.updateGiftSubscription(giftSubscriptionId, {
+              status: 'paid',
+              stripePaymentIntentId: session.payment_intent
+            });
+            
+            console.log(`Gift subscription ${giftSubscriptionId} payment completed. Redemption code: ${redemptionCode}`);
+            
+            // Send email to recipient
+            if (recipientEmail && redemptionCode) {
+              try {
+                const { emailService } = await import("./services/email");
+                const purchaser = purchaserUserId ? await storage.getUser(purchaserUserId) : null;
+                const gift = await storage.getGiftSubscriptionByCode(redemptionCode);
+                const plan = gift ? await storage.getPlanById(gift.planId) : null;
+                
+                const baseUrl = process.env.FRONTEND_URL || 
+                  (process.env.NODE_ENV === 'production' 
+                    ? 'https://neonvideo.ai' 
+                    : `http://localhost:${process.env.PORT || 5000}`);
+                const redemptionUrl = `${baseUrl}/redeem-gift?code=${redemptionCode}`;
+                
+                await emailService.sendEmail({
+                  to: recipientEmail,
+                  subject: `You've received a gift subscription to neonvideo.ai!`,
+                  html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+                        <h1 style="color: white; margin: 0;">🎁 You've Received a Gift!</h1>
+                      </div>
+                      <div style="background: #fff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
+                        <p style="font-size: 16px; color: #333;">
+                          ${purchaser ? `<strong>${purchaser.username}</strong> has` : 'Someone special has'} gifted you a subscription to neonvideo.ai!
+                        </p>
+                        
+                        ${gift?.personalMessage ? `
+                          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea;">
+                            <p style="font-style: italic; color: #666; margin: 0;">"${gift.personalMessage}"</p>
+                          </div>
+                        ` : ''}
+                        
+                        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                          <h3 style="color: #333; margin-top: 0;">Your Gift</h3>
+                          <p><strong>Plan:</strong> ${plan?.name || 'Premium'} (${gift?.billingPeriod === 'yearly' ? '1 Year' : '1 Month'})</p>
+                          <p><strong>Redemption Code:</strong> <code style="background: #e0e0e0; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${redemptionCode}</code></p>
+                        </div>
+                        
+                        <div style="text-align: center; margin: 30px 0;">
+                          <a href="${redemptionUrl}" 
+                             style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                    color: white; 
+                                    padding: 15px 30px; 
+                                    text-decoration: none; 
+                                    border-radius: 8px; 
+                                    font-weight: bold;
+                                    display: inline-block;">
+                            Redeem Your Gift
+                          </a>
+                        </div>
+                        
+                        <p style="color: #666; font-size: 14px;">
+                          If the button doesn't work, copy and paste this link into your browser:
+                          <br><a href="${redemptionUrl}" style="color: #667eea;">${redemptionUrl}</a>
+                        </p>
+                        
+                        <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
+                        
+                        <p style="color: #999; font-size: 12px; text-align: center;">
+                          This gift expires in 1 year if not redeemed.
+                        </p>
+                      </div>
+                    </div>
+                  `
+                });
+                
+                console.log(`Gift subscription email sent to ${recipientEmail}`);
+              } catch (emailError) {
+                console.error('Failed to send gift subscription email:', emailError);
+              }
+            }
+          } else {
+            console.log(`Gift subscription: Payment not completed. Status: ${session.payment_status}`);
+          }
+          break;
+        }
+        
         // Handle subscription purchase
         if (userId && planId) {
           // Update user with subscription details

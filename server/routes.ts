@@ -5710,6 +5710,266 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // This ensures the raw body is preserved for signature verification
   // All webhook events (subscriptions, credit purchases, etc.) are handled there
 
+  // ============= GIFT SUBSCRIPTION ENDPOINTS =============
+
+  // Create checkout session for gift subscription
+  app.post("/api/stripe/gift/create-checkout-session", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const { planId, billingPeriod, recipientEmail, recipientName, personalMessage } = req.body;
+      
+      if (!planId || !billingPeriod || !recipientEmail) {
+        return res.status(400).json({ error: "Plan ID, billing period, and recipient email are required" });
+      }
+      
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(recipientEmail)) {
+        return res.status(400).json({ error: "Invalid recipient email address" });
+      }
+      
+      // Get Stripe settings from database
+      const stripeSettings = await storage.getAllSettings();
+      const stripeSecretKey = stripeSettings.find(s => s.key === 'stripe_secret_key')?.value;
+      
+      if (!stripeSecretKey) {
+        console.error("Stripe secret key not configured");
+        return res.status(500).json({ error: "Payment system not configured. Please contact support." });
+      }
+      
+      const Stripe = (await import('stripe')).default;
+      const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
+      
+      // Get user and plan details
+      const user = await storage.getUser(userId);
+      const plan = await storage.getPlanById(planId);
+      
+      if (!plan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+      
+      // Get the price based on billing period
+      const price = billingPeriod === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
+      
+      if (!price) {
+        return res.status(400).json({ error: "Price not configured for this billing period" });
+      }
+      
+      // Generate unique redemption code
+      const { nanoid } = await import('nanoid');
+      const redemptionCode = `GIFT-${nanoid(10).toUpperCase()}`;
+      
+      // Calculate expiration date (1 year from now for gift codes)
+      const expiresAt = new Date();
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+      
+      // Create gift subscription record (status: pending until payment completes)
+      const giftSubscription = await storage.createGiftSubscription({
+        purchaserUserId: userId,
+        recipientEmail,
+        recipientName: recipientName || null,
+        personalMessage: personalMessage || null,
+        planId,
+        billingPeriod,
+        amount: price,
+        redemptionCode,
+        status: 'pending',
+        expiresAt
+      });
+      
+      // Create Stripe customer if not exists
+      let stripeCustomerId = user?.stripeCustomerId;
+      if (!stripeCustomerId && user) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: user.username,
+          metadata: {
+            userId: userId
+          }
+        });
+        stripeCustomerId = customer.id;
+        await storage.updateUser(userId, { stripeCustomerId });
+      }
+      
+      // Create checkout session for one-time payment
+      const session = await stripe.checkout.sessions.create({
+        customer: stripeCustomerId || undefined,
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: `Gift: ${plan.name} Plan (${billingPeriod === 'yearly' ? '1 Year' : '1 Month'})`,
+              description: `Gift subscription for ${recipientEmail}`,
+            },
+            unit_amount: price,
+          },
+          quantity: 1,
+        }],
+        mode: 'payment',
+        success_url: `${req.headers.origin}/gift-success?code=${redemptionCode}`,
+        cancel_url: `${req.headers.origin}/gift?cancelled=true`,
+        metadata: {
+          type: 'gift_subscription',
+          giftSubscriptionId: giftSubscription.id,
+          purchaserUserId: userId,
+          recipientEmail,
+          planId,
+          billingPeriod,
+          redemptionCode
+        },
+      });
+      
+      // Update gift subscription with Stripe session ID
+      await storage.updateGiftSubscription(giftSubscription.id, {
+        stripeSessionId: session.id
+      });
+      
+      res.json({ sessionUrl: session.url });
+    } catch (error) {
+      console.error("Create gift checkout session error:", error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to create checkout session" });
+    }
+  });
+
+  // Get gift subscriptions sent by the current user
+  app.get("/api/gifts/sent", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const gifts = await storage.getGiftSubscriptionsByPurchaser(userId);
+      
+      // Get plan details for each gift
+      const giftsWithPlans = await Promise.all(gifts.map(async (gift) => {
+        const plan = await storage.getPlanById(gift.planId);
+        return {
+          ...gift,
+          plan: plan ? { name: plan.name, credits: plan.credits } : null
+        };
+      }));
+      
+      res.json(giftsWithPlans);
+    } catch (error) {
+      console.error("Get sent gifts error:", error);
+      res.status(500).json({ error: "Failed to get sent gifts" });
+    }
+  });
+
+  // Validate a gift code (for redemption page)
+  app.get("/api/gifts/validate/:code", async (req, res) => {
+    try {
+      const { code } = req.params;
+      const gift = await storage.getGiftSubscriptionByCode(code);
+      
+      if (!gift) {
+        return res.status(404).json({ error: "Gift code not found", valid: false });
+      }
+      
+      if (gift.status === 'redeemed') {
+        return res.status(400).json({ error: "This gift has already been redeemed", valid: false });
+      }
+      
+      if (gift.status !== 'paid') {
+        return res.status(400).json({ error: "This gift is not yet active", valid: false });
+      }
+      
+      if (new Date() > gift.expiresAt) {
+        return res.status(400).json({ error: "This gift code has expired", valid: false });
+      }
+      
+      // Get plan details
+      const plan = await storage.getPlanById(gift.planId);
+      
+      res.json({
+        valid: true,
+        recipientEmail: gift.recipientEmail,
+        recipientName: gift.recipientName,
+        personalMessage: gift.personalMessage,
+        billingPeriod: gift.billingPeriod,
+        plan: plan ? { name: plan.name, credits: plan.credits } : null,
+        expiresAt: gift.expiresAt
+      });
+    } catch (error) {
+      console.error("Validate gift code error:", error);
+      res.status(500).json({ error: "Failed to validate gift code", valid: false });
+    }
+  });
+
+  // Redeem a gift subscription
+  app.post("/api/gifts/redeem", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const { code } = req.body;
+      
+      if (!code) {
+        return res.status(400).json({ error: "Gift code is required" });
+      }
+      
+      // Get the gift subscription
+      const gift = await storage.getGiftSubscriptionByCode(code);
+      
+      if (!gift) {
+        return res.status(404).json({ error: "Gift code not found" });
+      }
+      
+      if (gift.status === 'redeemed') {
+        return res.status(400).json({ error: "This gift has already been redeemed" });
+      }
+      
+      if (gift.status !== 'paid') {
+        return res.status(400).json({ error: "This gift is not yet active" });
+      }
+      
+      if (new Date() > gift.expiresAt) {
+        return res.status(400).json({ error: "This gift code has expired" });
+      }
+      
+      // Get the user and check if they already have a subscription
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Check if user already has the same or higher plan
+      if (user.planId) {
+        const currentPlan = await storage.getPlanById(user.planId);
+        const giftPlan = await storage.getPlanById(gift.planId);
+        
+        if (currentPlan && giftPlan && currentPlan.credits >= giftPlan.credits && currentPlan.name !== 'Free') {
+          return res.status(400).json({ 
+            error: "You already have an equal or higher tier subscription. Gift cannot be applied." 
+          });
+        }
+      }
+      
+      // Redeem the gift
+      const redeemedGift = await storage.redeemGiftSubscription(code, userId);
+      
+      if (!redeemedGift) {
+        return res.status(500).json({ error: "Failed to redeem gift subscription" });
+      }
+      
+      // Update the user's plan
+      await storage.updateUser(userId, {
+        planId: gift.planId,
+        creditsUsed: 0 // Reset credits for the new subscription
+      });
+      
+      // Get plan details for response
+      const plan = await storage.getPlanById(gift.planId);
+      
+      res.json({
+        success: true,
+        message: `Successfully redeemed ${plan?.name || 'subscription'} plan!`,
+        plan: plan ? { name: plan.name, credits: plan.credits } : null,
+        billingPeriod: gift.billingPeriod
+      });
+    } catch (error) {
+      console.error("Redeem gift error:", error);
+      res.status(500).json({ error: "Failed to redeem gift subscription" });
+    }
+  });
+
+  // ============= END GIFT SUBSCRIPTION ENDPOINTS =============
+
   // Contact form submission endpoint
   app.post("/api/contact", async (req, res) => {
     try {

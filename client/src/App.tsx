@@ -29,6 +29,9 @@ import NeonSinglePrompt from "@/pages/neon-single-prompt";
 import BlogPage from "@/pages/blog";
 import BestAIMusicGenerator2025 from "@/pages/blog-post-best-ai-music-generator";
 import Version201Release from "@/pages/blog-post-version-2-0-1";
+import GiftPage from "@/pages/gift";
+import GiftSuccessPage from "@/pages/gift-success";
+import RedeemGiftPage from "@/pages/redeem-gift";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -89,6 +92,9 @@ function AppRouter() {
       <Route path="/best-ai-music-generator-2025" component={BestAIMusicGenerator2025} />
       <Route path="/version-2-0-1-release" component={Version201Release} />
       <Route path="/neon-single-prompt" component={() => <ProtectedRoute component={NeonSinglePrompt} />} />
+      <Route path="/gift" component={() => <ProtectedRoute component={GiftPage} />} />
+      <Route path="/gift-success" component={() => <ProtectedRoute component={GiftSuccessPage} />} />
+      <Route path="/redeem-gift" component={RedeemGiftPage} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/admin" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
