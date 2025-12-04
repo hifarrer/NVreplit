@@ -45,7 +45,7 @@ interface Plan {
   id: string;
   name: string;
   features: string[];
-  monthlyPrice: number;
+  monthlyPrice: number | null; // null for yearly-only plans
   yearlyPrice: number;
   stripeMonthlyPriceId: string | null;
   stripeYearlyPriceId: string | null;
@@ -162,10 +162,15 @@ export default function AdminPlansPage() {
     const featuresText = formData.get('features') as string;
     const features = featuresText.split('\n').filter(f => f.trim());
     
+    const monthlyPriceValue = formData.get('monthlyPrice') as string;
+    const monthlyPrice = monthlyPriceValue && monthlyPriceValue.trim() !== '' 
+      ? parseInt(monthlyPriceValue) * 100 
+      : null; // null for yearly-only plans
+    
     const planData = {
       name: formData.get('name'),
       features,
-      monthlyPrice: parseInt(formData.get('monthlyPrice') as string) * 100, // Convert to cents
+      monthlyPrice,
       yearlyPrice: parseInt(formData.get('yearlyPrice') as string) * 100, // Convert to cents
       stripeMonthlyPriceId: formData.get('stripeMonthlyPriceId') || null,
       stripeYearlyPriceId: formData.get('stripeYearlyPriceId') || null,
@@ -185,11 +190,16 @@ export default function AdminPlansPage() {
     const featuresText = formData.get('features') as string;
     const features = featuresText.split('\n').filter(f => f.trim());
     
+    const monthlyPriceValue = formData.get('monthlyPrice') as string;
+    const monthlyPrice = monthlyPriceValue && monthlyPriceValue.trim() !== '' 
+      ? parseInt(monthlyPriceValue) * 100 
+      : null; // null for yearly-only plans
+    
     const planData = {
       id: selectedPlan.id,
       name: formData.get('name'),
       features,
-      monthlyPrice: parseInt(formData.get('monthlyPrice') as string) * 100, // Convert to cents
+      monthlyPrice,
       yearlyPrice: parseInt(formData.get('yearlyPrice') as string) * 100, // Convert to cents
       stripeMonthlyPriceId: formData.get('stripeMonthlyPriceId') || null,
       stripeYearlyPriceId: formData.get('stripeYearlyPriceId') || null,
@@ -281,10 +291,10 @@ export default function AdminPlansPage() {
                       type="number"
                       step="0.01"
                       min="0"
-                      placeholder="9.99"
-                      required
+                      placeholder="Leave empty for yearly-only"
                       data-testid="input-monthly-price"
                     />
+                    <p className="text-xs text-muted-foreground mt-1">Leave empty for yearly-only plans</p>
                   </div>
                   <div>
                     <Label htmlFor="yearlyPrice">Yearly Price ($)</Label>
@@ -409,10 +419,17 @@ export default function AdminPlansPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Monthly:</span>
-                      <span className="font-semibold">{formatPrice(plan.monthlyPrice)}</span>
-                    </div>
+                    {plan.monthlyPrice !== null ? (
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Monthly:</span>
+                        <span className="font-semibold">{formatPrice(plan.monthlyPrice)}</span>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Monthly:</span>
+                        <Badge variant="secondary" className="text-xs">Yearly Only</Badge>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Yearly:</span>
                       <span className="font-semibold">{formatPrice(plan.yearlyPrice)}</span>
@@ -492,10 +509,11 @@ export default function AdminPlansPage() {
                     type="number"
                     step="0.01"
                     min="0"
-                    defaultValue={(selectedPlan.monthlyPrice / 100).toString()}
-                    required
+                    defaultValue={selectedPlan.monthlyPrice !== null ? (selectedPlan.monthlyPrice / 100).toString() : ''}
+                    placeholder="Leave empty for yearly-only"
                     data-testid="input-edit-monthly-price"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Leave empty for yearly-only plans</p>
                 </div>
                 <div>
                   <Label htmlFor="edit-yearlyPrice">Yearly Price ($)</Label>
