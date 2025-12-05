@@ -105,13 +105,13 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
   }, [isDragging, duration]);
 
   return (
-    <div className={cn("p-6 media-player rounded-lg", className)} data-testid="audio-player">
+    <div className={cn("p-4 sm:p-6 media-player rounded-lg", className)} data-testid="audio-player">
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
       
-      <div className="flex items-center justify-between mb-4">
-        <h4 className="text-lg font-semibold flex items-center">
-          <Play className="w-5 h-5 text-primary mr-2" />
-          {title}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <h4 className="text-base sm:text-lg font-semibold flex items-center">
+          <Play className="w-4 h-4 sm:w-5 sm:h-5 text-primary mr-2 flex-shrink-0" />
+          <span className="truncate">{title}</span>
         </h4>
         <Button
           onClick={() => {
@@ -124,7 +124,7 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
           }}
           variant="outline"
           size="sm"
-          className="flex items-center space-x-2"
+          className="flex items-center space-x-2 w-full sm:w-auto justify-center"
           data-testid="audio-download-button"
         >
           <Download className="w-4 h-4" />
@@ -132,20 +132,20 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
         </Button>
       </div>
       
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-3 sm:space-x-4">
         <Button
           onClick={togglePlayback}
-          className="w-12 h-12 floating-button rounded-full flex items-center justify-center p-0"
+          className="w-10 h-10 sm:w-12 sm:h-12 floating-button rounded-full flex items-center justify-center p-0 flex-shrink-0"
           data-testid="audio-play-button"
         >
           {isPlaying ? (
-            <Pause className="w-5 h-5 text-primary-foreground" />
+            <Pause className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
           ) : (
-            <Play className="w-5 h-5 text-primary-foreground" />
+            <Play className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
           )}
         </Button>
         
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div 
             ref={progressBarRef}
             className="bg-muted rounded-full h-2 mb-2 cursor-pointer relative select-none"
@@ -164,9 +164,8 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
               style={{ left: `calc(${progressPercentage}% - 6px)` }}
             />
           </div>
-          <div className="flex justify-between text-sm text-muted-foreground">
+          <div className="flex justify-between text-xs sm:text-sm text-muted-foreground">
             <span data-testid="audio-current-time">{formatTime(currentTime)}</span>
-            <span className="font-medium" data-testid="audio-title">{title}</span>
             <span data-testid="audio-duration">{formatTime(duration)}</span>
           </div>
         </div>
