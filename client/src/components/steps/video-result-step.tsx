@@ -7,9 +7,10 @@ interface VideoResultStepProps {
   projectId: string;
   videoUrl: string;
   onCreateNew: () => void;
+  aspectRatio?: string;
 }
 
-export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResultStepProps) {
+export function VideoResultStep({ projectId, videoUrl, onCreateNew, aspectRatio = "16:9" }: VideoResultStepProps) {
   const { toast } = useToast();
 
   const handleEdit = () => {
@@ -75,6 +76,7 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew }: VideoResul
             videoUrl={videoUrl}
             title="Your AI Music Video"
             poster={videoUrl.replace('.mp4', '-poster.jpg')}
+            aspectRatio={aspectRatio}
           />
         </div>
 

@@ -8,9 +8,10 @@ interface VideoPlayerProps {
   title?: string;
   className?: string;
   poster?: string;
+  aspectRatio?: string;
 }
 
-export function VideoPlayer({ videoUrl, title = "Video", className, poster }: VideoPlayerProps) {
+export function VideoPlayer({ videoUrl, title = "Video", className, poster, aspectRatio = "16:9" }: VideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -26,9 +27,12 @@ export function VideoPlayer({ videoUrl, title = "Video", className, poster }: Vi
     setIsPlaying(!isPlaying);
   };
 
+  const isVertical = aspectRatio === "3:4";
+  const aspectClass = isVertical ? "aspect-[3/4]" : "aspect-video";
+
   return (
-    <div className={cn("relative", className)} data-testid="video-player">
-      <div className="aspect-video bg-muted rounded-lg relative overflow-hidden border border-border">
+    <div className={cn("relative", isVertical && "max-w-md mx-auto", className)} data-testid="video-player">
+      <div className={cn(aspectClass, "bg-muted rounded-lg relative overflow-hidden border border-border")}>
         <video
           ref={videoRef}
           src={videoUrl}

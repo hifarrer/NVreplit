@@ -232,6 +232,7 @@ export default function Home() {
             projectId={projectId}
             videoUrl={project.finalVideoUrl}
             onCreateNew={resetProject}
+            aspectRatio={project?.aspectRatio}
           />
         )}
       </main>

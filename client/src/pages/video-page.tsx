@@ -22,6 +22,7 @@ interface VideoData {
   createdAt: string;
   duration: number;
   likesCount: number;
+  aspectRatio?: string;
   mux?: {
     playbackId: string | null;
     assetStatus: string | null;
@@ -320,8 +321,8 @@ export default function VideoPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {/* Video Player */}
-          <Card className="overflow-hidden mb-6">
-            <div className="relative aspect-video bg-black">
+          <Card className={`overflow-hidden mb-6 ${video.aspectRatio === "3:4" ? "max-w-md mx-auto" : ""}`}>
+            <div className={`relative bg-black ${video.aspectRatio === "3:4" ? "aspect-[3/4]" : "aspect-video"}`}>
               <MuxVideoPlayer
                 playbackId={video.mux?.assetStatus === 'ready' ? video.mux.playbackId : null}
                 fallbackUrl={video.videoUrl}

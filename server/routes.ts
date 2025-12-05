@@ -3098,6 +3098,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdAt: project.createdAt,
         duration: project.audioDuration || 30,
         likesCount: project.likesCount || 0,
+        aspectRatio: project.aspectRatio || "16:9",
+        mux: {
+          playbackId: project.muxPlaybackId || null,
+          assetStatus: project.muxAssetStatus || null
+        },
         creator: {
           id: user.id,
           username: user.username,
