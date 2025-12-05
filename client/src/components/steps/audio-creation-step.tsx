@@ -717,7 +717,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, onNext, on
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                 <Label className="flex items-center text-sm font-semibold">
                   <PenTool className="w-4 h-4 text-accent mr-2" />
                   Lyrics
@@ -725,7 +725,8 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, onNext, on
                 <Button
                   onClick={() => generateLyricsMutation.mutate()}
                   disabled={!description.trim() || generateLyricsMutation.isPending}
-                  className="bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white"
+                  className="bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white text-sm w-full sm:w-auto"
+                  size="sm"
                   data-testid="generate-lyrics-button"
                 >
                   {generateLyricsMutation.isPending ? (
@@ -1099,7 +1100,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, onNext, on
           <Button
             onClick={onNext}
             disabled={!currentAudioUrl}
-            className={`floating-button text-lg py-3 px-4 sm:px-8 w-full sm:w-auto ${currentAudioUrl ? 'button-glow' : ''}`}
+            className={`floating-button text-base sm:text-lg py-3 px-4 sm:px-8 w-full sm:w-auto ${currentAudioUrl ? 'button-glow' : ''}`}
             data-testid="continue-to-character-button"
           >
             Continue to Character
