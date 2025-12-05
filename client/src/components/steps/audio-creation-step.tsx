@@ -21,6 +21,7 @@ import { checkProfanity, getCategoryMessage, type ProfanityCheckResult } from "@
 interface AudioCreationStepProps {
   projectId: string;
   audioUrl?: string;
+  aspectRatio?: string;
   onNext: () => void;
   onReset: () => void;
 }
@@ -41,7 +42,7 @@ interface GeneratedSong {
 
 const suggestedTags = ["pop", "electronic", "rock", "upbeat", "hip-hop", "country", "reggae", "synthwave", "kpop", "female singer", "male singer"];
 
-export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: AudioCreationStepProps) {
+export function AudioCreationStep({ projectId, audioUrl, aspectRatio, onNext, onReset }: AudioCreationStepProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   

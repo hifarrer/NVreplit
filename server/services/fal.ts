@@ -272,10 +272,15 @@ export async function generateCharacterImageWavespeed(
   // Enhanced prompt for Wavespeed.ai
   const enhancedPrompt = `front shot of a ${prompt} `;
 
+  // Determine image size based on aspect ratio
+  // 16:9 (horizontal) = 1280x720, 3:4 (vertical) = 720x960
+  const imageSize = aspectRatio === "3:4" ? "720*960" : "1280*720";
+  
   console.log(
     "Starting Wavespeed.ai character generation with prompt:",
     enhancedPrompt,
   );
+  console.log(`Using aspect ratio: ${aspectRatio}, image size: ${imageSize}`);
 
   try {
     // Submit generation request to Wavespeed.ai using seedream-v4 model
@@ -291,7 +296,7 @@ export async function generateCharacterImageWavespeed(
           enable_base64_output: false,
           enable_sync_mode: false,
           prompt: enhancedPrompt,
-          size: "1280*720",
+          size: imageSize,
         }),
       },
     );
