@@ -66,10 +66,10 @@ export function CharacterLibraryModal({ isOpen, onClose, onSelect }: CharacterLi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+      <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[85vh] flex flex-col p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <Image className="h-5 w-5" />
+          <DialogTitle className="flex items-center space-x-2 text-base sm:text-lg">
+            <Image className="h-4 w-4 sm:h-5 sm:w-5" />
             <span>My Character Library</span>
           </DialogTitle>
         </DialogHeader>
@@ -95,7 +95,7 @@ export function CharacterLibraryModal({ isOpen, onClose, onSelect }: CharacterLi
           ) : (
             <>
               <div className="flex-1 overflow-y-auto p-1">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
                   {characters.map((character) => (
                   <Card
                     key={character.id}
@@ -107,17 +107,17 @@ export function CharacterLibraryModal({ isOpen, onClose, onSelect }: CharacterLi
                     onClick={() => setSelectedCharacter(character)}
                     data-testid={`character-${character.id}`}
                   >
-                    <CardContent className="p-3">
+                    <CardContent className="p-2 sm:p-3">
                       <div className="relative">
                         <img
                           src={character.imageUrl}
                           alt={character.name}
-                          className="w-full aspect-square object-cover rounded-md mb-3"
+                          className="w-full aspect-square object-cover rounded-md mb-2 sm:mb-3"
                         />
                         <Button
                           variant="destructive"
                           size="sm"
-                          className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity"
+                          className="absolute top-1 right-1 h-6 w-6 p-0 opacity-70 sm:opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity"
                           onClick={(e) => handleDelete(e, character.id)}
                           disabled={deleteCharacterMutation.isPending}
                           data-testid={`delete-character-${character.id}`}
@@ -126,11 +126,11 @@ export function CharacterLibraryModal({ isOpen, onClose, onSelect }: CharacterLi
                         </Button>
                       </div>
                       
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-sm truncate" title={character.name}>
+                      <div className="space-y-1 sm:space-y-2">
+                        <h4 className="font-medium text-xs sm:text-sm truncate" title={character.name}>
                           {character.name}
                         </h4>
-                        <p className="text-xs text-muted-foreground line-clamp-2" title={character.prompt}>
+                        <p className="text-xs text-muted-foreground line-clamp-2 hidden sm:block" title={character.prompt}>
                           {character.prompt}
                         </p>
                         <Badge variant="secondary" className="text-xs">
@@ -143,21 +143,22 @@ export function CharacterLibraryModal({ isOpen, onClose, onSelect }: CharacterLi
                 </div>
               </div>
 
-              <div className="flex justify-between items-center mt-4 pt-4 border-t">
-                <p className="text-sm text-muted-foreground">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mt-4 pt-4 border-t">
+                <p className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
                   {characters.length} character{characters.length !== 1 ? 's' : ''} in your library
                 </p>
-                <div className="flex space-x-2">
-                  <Button variant="outline" onClick={onClose} data-testid="button-cancel">
+                <div className="flex space-x-2 justify-center sm:justify-end">
+                  <Button variant="outline" size="sm" onClick={onClose} data-testid="button-cancel">
                     Cancel
                   </Button>
                   <Button
                     onClick={handleSelect}
                     disabled={!selectedCharacter}
-                    className="bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600"
+                    size="sm"
+                    className="bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600 text-xs sm:text-sm"
                     data-testid="button-select-character"
                   >
-                    Use Selected Character
+                    Use Selected
                   </Button>
                 </div>
               </div>
