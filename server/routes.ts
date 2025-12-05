@@ -7089,8 +7089,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[NEON-SINGLE-PROMPT] Song generated and uploaded (30 seconds)`);
 
       // Step 5: Generate character image with Fal.ai
-      console.log(`[NEON-SINGLE-PROMPT] Step 5: Generating character image for "${parsed.character}"...`);
-      const characterImageUrl = await generateCharacterImage(parsed.character);
+      // Use the project's aspectRatio (defaults to 16:9 for horizontal)
+      const aspectRatio = project.aspectRatio || "16:9";
+      console.log(`[NEON-SINGLE-PROMPT] Step 5: Generating character image for "${parsed.character}" with aspectRatio: ${aspectRatio}...`);
+      const characterImageUrl = await generateCharacterImage(parsed.character, aspectRatio);
       
       await storage.updateProject(project.id, { 
         characterImageUrl,
@@ -7111,11 +7113,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[NEON-SINGLE-PROMPT] Generated ${scenePrompts.length} scene prompts`);
 
-      // Step 7: Generate scene images
-      console.log(`[NEON-SINGLE-PROMPT] Step 7: Generating scene images...`);
+      // Step 7: Generate scene images (using aspectRatio from earlier)
+      console.log(`[NEON-SINGLE-PROMPT] Step 7: Generating scene images with aspectRatio: ${aspectRatio}...`);
       const sceneImages = await generateSceneImages(
         scenePrompts,
-        characterImageUrl
+        characterImageUrl,
+        aspectRatio
       );
 
       await storage.updateProject(project.id, {
