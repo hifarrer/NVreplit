@@ -583,10 +583,11 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
         )}
 
         {/* Navigation */}
-        <div className="flex justify-between">
+        <div className="flex flex-col sm:flex-row gap-3 sm:justify-between">
           <Button 
             variant="secondary"
             onClick={onBack}
+            className="order-2 sm:order-1"
             data-testid="back-to-character-button"
           >
             <i className="fas fa-arrow-left mr-2"></i>
@@ -595,7 +596,7 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
           <Button
             onClick={handleProceedToVideo}
             disabled={generatedScenes.length === 0 || saveScenesMutation.isPending || regenerateVideoMutation.isPending}
-            className={`floating-button py-3 px-8 ${generatedScenes.length > 0 && !saveScenesMutation.isPending && !regenerateVideoMutation.isPending ? 'button-glow' : ''}`}
+            className={`floating-button py-3 px-4 sm:px-8 text-sm sm:text-base order-1 sm:order-2 ${generatedScenes.length > 0 && !saveScenesMutation.isPending && !regenerateVideoMutation.isPending ? 'button-glow' : ''}`}
             data-testid="proceed-to-video-generation-button"
           >
             <i className="fas fa-video mr-2"></i>
