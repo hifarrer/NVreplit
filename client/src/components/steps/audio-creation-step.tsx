@@ -88,6 +88,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
   const [addSubtitles, setAddSubtitles] = useState(true); // Subtitle toggle - enabled by default
   const [includeWatermark, setIncludeWatermark] = useState(true); // Watermark toggle - enabled by default
   const [isPublic, setIsPublic] = useState(true); // Privacy toggle - public by default (Premium users can make private)
+  const [isVertical, setIsVertical] = useState(false); // Aspect ratio toggle - horizontal (16:9) by default, vertical (3:4) when true
   const [progress, setProgress] = useState(0);
   const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(null); // For debugging display
   const [profanityCheck, setProfanityCheck] = useState<ProfanityCheckResult | null>(null);
@@ -132,6 +133,7 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
         if (uploadSongDescription.trim()) {
           formData.append('description', uploadSongDescription.trim());
         }
+        formData.append('aspectRatio', isVertical ? "3:4" : "16:9");
         
         const xhr = new XMLHttpRequest();
         let transcribeInterval: NodeJS.Timeout | null = null;
@@ -286,7 +288,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
         duration: duration[0],
         addSubtitles,
         includeWatermark,
-        isPublic
+        isPublic,
+        aspectRatio: isVertical ? "3:4" : "16:9"
       });
 
       clearInterval(progressInterval);
@@ -337,7 +340,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
         duration: selectedSong.duration,
         subtitleFileUrl: selectedSong.subtitleFileUrl,
         kieTaskId: selectedSong.kieTaskId,
-        kieAudioId: selectedSong.kieAudioId
+        kieAudioId: selectedSong.kieAudioId,
+        aspectRatio: isVertical ? "3:4" : "16:9"
       });
       return response.json();
     },
@@ -370,7 +374,8 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
         duration: song.duration,
         subtitleFileUrl: song.subtitleFileUrl,
         kieTaskId: song.kieTaskId,
-        kieAudioId: song.kieAudioId
+        kieAudioId: song.kieAudioId,
+        aspectRatio: isVertical ? "3:4" : "16:9"
       };
       
       // Include custom title if provided
@@ -655,6 +660,18 @@ export function AudioCreationStep({ projectId, audioUrl, onNext, onReset }: Audi
                 />
                 <Label className="text-sm font-medium cursor-pointer" onClick={() => isPremiumUser && setIsPublic(!isPublic)}>
                   Public
+                </Label>
+              </div>
+
+              {/* Aspect Ratio Toggle */}
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={isVertical}
+                  onCheckedChange={setIsVertical}
+                  data-testid="aspect-ratio-toggle"
+                />
+                <Label className="text-sm font-medium cursor-pointer" onClick={() => setIsVertical(!isVertical)}>
+                  {isVertical ? "Vertical (3:4)" : "Horizontal (16:9)"}
                 </Label>
               </div>
             </div>
