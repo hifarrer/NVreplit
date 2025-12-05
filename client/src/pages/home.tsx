@@ -203,6 +203,7 @@ export default function Home() {
               prompt,
               imageUrl: project.sceneImages?.[index] || ""
             }))}
+            sceneOrder={(project as any)?.sceneOrder}
             isEditMode={isEditMode}
             onNext={() => handleStepChange(4)}
             onBack={() => handleStepChange(2)}

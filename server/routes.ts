@@ -2959,7 +2959,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).user.userId;
       const sourceProjectId = req.params.id;
-      const { updatedScenes } = req.body; // Receive updated scenes from frontend
+      const { updatedScenes, sceneOrder: providedSceneOrder } = req.body; // Receive updated scenes and order from frontend
       
       // Get the source project
       const sourceProject = await storage.getProject(sourceProjectId);
@@ -2981,6 +2981,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sceneImages = updatedScenes
         ? updatedScenes.map((s: any) => s.imageUrl)
         : (sourceProject.sceneImages ? JSON.parse(JSON.stringify(sourceProject.sceneImages)) : undefined);
+      
+      // Use provided scene order or copy from source project
+      const sceneOrder = providedSceneOrder 
+        ? providedSceneOrder 
+        : ((sourceProject as any).sceneOrder ? JSON.parse(JSON.stringify((sourceProject as any).sceneOrder)) : undefined);
       
       // Deep copy audio segments (use undefined instead of null to let Zod apply defaults)
       const audioSegments = sourceProject.audioSegments 
@@ -3020,6 +3025,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add optional fields only if they have values (undefined fields are omitted)
       if (scenePrompts !== undefined) clonedProjectData.scenePrompts = scenePrompts;
       if (sceneImages !== undefined) clonedProjectData.sceneImages = sceneImages;
+      if (sceneOrder !== undefined) clonedProjectData.sceneOrder = sceneOrder;
       if (audioSegments !== undefined) clonedProjectData.audioSegments = audioSegments;
       
       const validatedData = insertProjectSchema.parse(clonedProjectData);
@@ -5044,6 +5050,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update scene order (for drag and drop reordering)
+  app.post("/api/projects/:id/update-scene-order", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user?.userId;
+      const { sceneOrder } = req.body;
+      
+      if (!sceneOrder || !Array.isArray(sceneOrder)) {
+        return res.status(400).json({ error: "Scene order array is required" });
+      }
+
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(400).json({ error: "Project not found" });
+      }
+      
+      // Verify ownership
+      if (project.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized to update this project" });
+      }
+
+      // Get scene count (allow empty if scenes not generated yet)
+      const sceneCount = ((project as any).scenePrompts as any[] || []).length;
+      
+      // If no scenes yet, just save the order (it will be validated later when scenes exist)
+      if (sceneCount === 0 && sceneOrder.length === 0) {
+        await storage.updateProject(req.params.id, {
+          sceneOrder: sceneOrder
+        } as any);
+        console.log(`Saved empty scene order for project ${req.params.id}`);
+        return res.json({ message: "Scene order saved", sceneOrder });
+      }
+      
+      // Validate that the order contains valid scene indices
+      const isValidOrder = sceneOrder.every((index: number) => 
+        typeof index === 'number' && index >= 0 && index < sceneCount
+      );
+      
+      if (!isValidOrder || sceneOrder.length !== sceneCount) {
+        return res.status(400).json({ 
+          error: "Invalid scene order: indices must match scene count",
+          sceneCount,
+          orderLength: sceneOrder.length
+        });
+      }
+
+      // Check for duplicates
+      const uniqueIndices = new Set(sceneOrder);
+      if (uniqueIndices.size !== sceneOrder.length) {
+        return res.status(400).json({ error: "Invalid scene order: duplicate indices found" });
+      }
+
+      // Update the project with the new scene order
+      await storage.updateProject(req.params.id, {
+        sceneOrder: sceneOrder
+      } as any);
+
+      console.log(`Updated scene order for project ${req.params.id}: ${sceneOrder.join(', ')}`);
+      res.json({ 
+        message: "Scene order updated successfully",
+        sceneOrder
+      });
+    } catch (error) {
+      console.error("Update scene order error:", error);
+      res.status(500).json({ error: "Failed to update scene order" });
+    }
+  });
+
   // Generate video
   app.post("/api/projects/:id/generate-video", async (req, res) => {
     let isInQueue = false;
@@ -5316,7 +5389,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Convert scene images to signed URLs for Wavespeed API
       console.log("Converting scene images to signed URLs for Wavespeed API...");
-      const sceneImages = project.sceneImages as string[];
+      const originalSceneImages = project.sceneImages as string[];
+      const originalScenePrompts = project.scenePrompts as string[];
+      const sceneOrder = ((project as any).sceneOrder as number[]) || originalSceneImages.map((_, i) => i);
+      
+      // Apply custom scene order if provided (reorder scenes for video merge)
+      const sceneImages = sceneOrder.map(idx => originalSceneImages[idx]);
+      const orderedScenePrompts = sceneOrder.map(idx => originalScenePrompts[idx]);
+      console.log(`Applied scene order: [${sceneOrder.join(', ')}]`);
+      
       const signedSceneUrls: string[] = [];
       
       try {
@@ -5358,7 +5439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { videoUrls: allVideoUrls, segmentPairs } = await generateAllVideoSegmentsDynamic(
         audioUrls,
         signedSceneUrls,
-        project.scenePrompts as string[],
+        orderedScenePrompts,
         {
           numberOfVideosRegularApi,
           numberOfVideosLipsync,

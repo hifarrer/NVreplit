@@ -13,12 +13,14 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SceneData } from "@/lib/types";
 import { RotateCcw, RefreshCw, Mic, Upload, Loader2 } from "lucide-react";
+import { SceneTimeline } from "@/components/scene-timeline";
 
 interface SceneGenerationStepProps {
   projectId: string;
   audioDuration?: number;
   characterImageUrl?: string;
   scenes?: SceneData[];
+  sceneOrder?: number[];
   isEditMode?: boolean;
   onNext: () => void;
   onBack: () => void;
@@ -27,10 +29,16 @@ interface SceneGenerationStepProps {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
 
-export function SceneGenerationStep({ projectId, audioDuration, characterImageUrl, scenes = [], isEditMode = false, onNext, onBack, onReset }: SceneGenerationStepProps) {
+export function SceneGenerationStep({ projectId, audioDuration, characterImageUrl, scenes = [], sceneOrder: initialSceneOrder, isEditMode = false, onNext, onBack, onReset }: SceneGenerationStepProps) {
   // Defensively copy scenes array to avoid mutating the original project data
   const [generatedScenes, setGeneratedScenes] = useState<SceneData[]>(() => 
     scenes.map(scene => ({ ...scene }))
+  );
+  // Scene order tracking - defaults to sequential order if not provided
+  const [sceneOrder, setSceneOrder] = useState<number[]>(() => 
+    initialSceneOrder && initialSceneOrder.length > 0 
+      ? initialSceneOrder 
+      : scenes.map((_, index) => index)
   );
   const [progress, setProgress] = useState(0);
   const [regeneratingScenes, setRegeneratingScenes] = useState<number[]>([]);
@@ -77,6 +85,8 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
         imageUrl: data.sceneImages[index]
       }));
       setGeneratedScenes(sceneData);
+      // Set default scene order when new scenes are generated
+      setSceneOrder(sceneData.map((_, index) => index));
       toast({
         title: "Success",
         description: "Scenes generated successfully!",
@@ -118,6 +128,17 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
       setGeneratedScenes(scenes.map(scene => ({ ...scene })));
     }
   }, [scenes]);
+  
+  // Sync scene order when it arrives asynchronously from the project
+  useEffect(() => {
+    if (initialSceneOrder && initialSceneOrder.length > 0) {
+      // Use the saved scene order from the project
+      setSceneOrder(initialSceneOrder);
+    } else if (scenes.length > 0 && sceneOrder.length === 0) {
+      // Default to sequential order if no saved order but scenes exist
+      setSceneOrder(scenes.map((_, index) => index));
+    }
+  }, [initialSceneOrder, scenes.length]);
 
   const regenerateSceneMutation = useMutation({
     mutationFn: async ({ sceneIndex, prompt }: { sceneIndex: number; prompt: string }) => {
@@ -276,6 +297,40 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
     );
   };
 
+  // Mutation to update scene order on the backend
+  const updateSceneOrderMutation = useMutation({
+    mutationFn: async (newOrder: number[]) => {
+      if (isEditMode) {
+        // In edit mode, just update local state without saving to backend
+        return Promise.resolve({ sceneOrder: newOrder });
+      }
+      const response = await apiRequest("POST", `/api/projects/${projectId}/update-scene-order`, {
+        sceneOrder: newOrder
+      });
+      return response.json();
+    },
+    onError: (error) => {
+      toast({
+        title: "Warning",
+        description: "Failed to save scene order",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleSceneReorder = (newOrder: number[]) => {
+    setSceneOrder(newOrder);
+    // Save to backend (non-blocking)
+    updateSceneOrderMutation.mutate(newOrder);
+  };
+
+  const scrollToScene = (sceneIndex: number) => {
+    const sceneElement = document.querySelector(`[data-testid="scene-${sceneIndex + 1}"]`);
+    if (sceneElement) {
+      sceneElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   const saveScenesMutation = useMutation({
     mutationFn: async (scenes: SceneData[]) => {
       // In edit mode, never save to the original project
@@ -309,9 +364,10 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
   // Mutation to clone/regenerate the project
   const regenerateVideoMutation = useMutation({
     mutationFn: async () => {
-      // Clone the project with updated scenes (don't modify the original)
+      // Clone the project with updated scenes and scene order (don't modify the original)
       const response = await apiRequest("POST", `/api/projects/${projectId}/clone`, {
-        updatedScenes: generatedScenes
+        updatedScenes: generatedScenes,
+        sceneOrder: sceneOrder
       });
       return response.json();
     },
@@ -338,8 +394,12 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
       // In edit mode, trigger regeneration (clone + redirect)
       regenerateVideoMutation.mutate();
     } else {
-      // In normal mode, save scenes and proceed to next step
+      // In normal mode, save scenes and scene order, then proceed to next step
       try {
+        // Save scene order first (non-blocking, but important for video generation)
+        if (sceneOrder.length > 0) {
+          await updateSceneOrderMutation.mutateAsync(sceneOrder);
+        }
         await saveScenesMutation.mutateAsync(generatedScenes);
       } catch (error) {
         console.error("Error saving scenes:", error);
@@ -391,6 +451,17 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
                "Scene generation complete!"}
             </p>
           </div>
+        )}
+
+        {/* Timeline for scene reordering */}
+        {generatedScenes.length > 0 && sceneOrder.length > 0 && (
+          <SceneTimeline
+            scenes={generatedScenes}
+            sceneOrder={sceneOrder}
+            audioDuration={audioDuration}
+            onReorder={handleSceneReorder}
+            onSceneClick={scrollToScene}
+          />
         )}
 
         {/* Generated Scenes */}
