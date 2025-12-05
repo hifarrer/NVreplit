@@ -83,6 +83,14 @@ export default function Version211Release() {
                       <p className="mb-4">
                         Take full control of your video's narrative flow with our new professional timeline editor. Drag and drop scenes to reorder them exactly how you want, creating the perfect visual story for your music.
                       </p>
+                      <div className="rounded-lg overflow-hidden border border-purple-500/20 my-6">
+                        <img 
+                          src="https://res.cloudinary.com/dqemas8ht/image/upload/v1764899994/neontimeline_yk3d7l.png" 
+                          alt="NeonVideo.ai Timeline Editor - Drag and drop scene reordering"
+                          className="w-full h-auto"
+                          data-testid="img-timeline-feature"
+                        />
+                      </div>
                       <ul className="space-y-2">
                         <li className="flex items-start gap-2">
                           <CheckCircle className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
