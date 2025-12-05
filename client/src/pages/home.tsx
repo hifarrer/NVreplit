@@ -178,6 +178,7 @@ export default function Home() {
           <AudioCreationStep
             projectId={projectId}
             audioUrl={project?.audioUrl}
+            aspectRatio={project?.aspectRatio}
             onNext={() => handleStepChange(2)}
             onReset={resetProject}
           />

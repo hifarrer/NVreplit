@@ -89,8 +89,13 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, onNext, on
   const [addSubtitles, setAddSubtitles] = useState(true); // Subtitle toggle - enabled by default
   const [includeWatermark, setIncludeWatermark] = useState(true); // Watermark toggle - enabled by default
   const [isPublic, setIsPublic] = useState(true); // Privacy toggle - public by default (Premium users can make private)
-  const [isVertical, setIsVertical] = useState(false); // Aspect ratio toggle - horizontal (16:9) by default, vertical (3:4) when true
+  const [isVertical, setIsVertical] = useState(aspectRatio === "3:4"); // Aspect ratio toggle - hydrated from project data, defaults to horizontal (16:9)
   const [progress, setProgress] = useState(0);
+  
+  // Hydrate isVertical state from aspectRatio prop when component mounts or aspectRatio changes
+  useEffect(() => {
+    setIsVertical(aspectRatio === "3:4");
+  }, [aspectRatio]);
   const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(null); // For debugging display
   const [profanityCheck, setProfanityCheck] = useState<ProfanityCheckResult | null>(null);
   const [descriptionProfanityCheck, setDescriptionProfanityCheck] = useState<ProfanityCheckResult | null>(null);

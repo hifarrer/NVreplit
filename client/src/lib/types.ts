@@ -23,6 +23,7 @@ export interface Project {
   title: string;
   description?: string;
   currentStep: number;
+  aspectRatio?: string;
   audioUrl?: string;
   audioType?: 'uploaded' | 'generated';
   audioPrompt?: string;
