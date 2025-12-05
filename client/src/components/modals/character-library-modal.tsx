@@ -66,7 +66,7 @@ export function CharacterLibraryModal({ isOpen, onClose, onSelect }: CharacterLi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[85vh] flex flex-col p-4 sm:p-6">
+      <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-4xl max-h-[85vh] flex flex-col p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-base sm:text-lg">
             <Image className="h-4 w-4 sm:h-5 sm:w-5" />
