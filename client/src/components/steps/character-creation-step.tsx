@@ -339,10 +339,11 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
         </div>
 
         {/* Navigation */}
-        <div className="flex justify-between mt-8">
+        <div className="flex flex-col sm:flex-row gap-3 sm:justify-between mt-8">
           <Button 
             variant="secondary"
             onClick={onBack}
+            className="order-2 sm:order-1"
             data-testid="back-to-audio-button"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -365,7 +366,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
               }
             }}
             disabled={!currentCharacterUrl}
-            className={`floating-button py-3 px-8 ${currentCharacterUrl ? 'button-glow' : ''}`}
+            className={`floating-button py-3 px-4 sm:px-8 text-sm sm:text-base order-1 sm:order-2 ${currentCharacterUrl ? 'button-glow' : ''}`}
             data-testid="proceed-to-scenes-button"
           >
             <ArrowRight className="w-4 h-4 mr-2" />
