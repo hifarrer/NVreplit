@@ -4546,17 +4546,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Image URL and prompt are required" });
       }
 
+      // Get the project to check its aspect ratio
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      
+      const projectAspectRatio = project.aspectRatio || "16:9";
+      console.log(`Project aspect ratio: ${projectAspectRatio}`);
+
       let characterImageUrl = imageUrl;
       
-      // Only download and store if it's an external URL (starts with http)
-      // Library characters already have relative URLs to our object storage
-      if (imageUrl.startsWith('http')) {
+      // For library characters (object storage URLs), we need to check if aspect ratio conversion is needed
+      if (imageUrl.startsWith('/objects/')) {
+        console.log("Processing library character for aspect ratio conversion...");
+        
+        // Read the image from object storage and check/convert aspect ratio
+        const objectPath = imageUrl.replace('/objects/', '');
+        const privateDir = process.env.PRIVATE_OBJECT_DIR || '.private';
+        const fullPath = path.join('/', process.env.REPL_ID ? `replit-objstore-${process.env.REPL_ID}` : 'replit-objstore', privateDir, objectPath);
+        
+        try {
+          const imageBuffer = await objectStorage.readFile(fullPath);
+          const metadata = await sharp(imageBuffer).metadata();
+          
+          if (metadata.width && metadata.height) {
+            const currentRatio = metadata.width / metadata.height;
+            const [widthPart, heightPart] = projectAspectRatio.split(':').map(Number);
+            const targetRatio = widthPart / heightPart;
+            const isCurrentVertical = currentRatio < 1;
+            const isTargetVertical = targetRatio < 1;
+            
+            console.log(`Current image: ${metadata.width}x${metadata.height}, ratio: ${currentRatio.toFixed(2)}`);
+            console.log(`Target ratio: ${targetRatio.toFixed(2)} (${projectAspectRatio})`);
+            
+            // If aspect ratio mismatch, crop and resize
+            if (Math.abs(currentRatio - targetRatio) > 0.1) {
+              console.log("Aspect ratio mismatch detected, converting character image...");
+              
+              const targetWidth = isTargetVertical ? 720 : 1280;
+              const targetHeight = isTargetVertical ? 960 : 720;
+              
+              let cropWidth: number;
+              let cropHeight: number;
+              let cropLeft: number;
+              let cropTop: number;
+              
+              if (currentRatio > targetRatio) {
+                cropHeight = metadata.height;
+                cropWidth = Math.round(metadata.height * targetRatio);
+                cropLeft = Math.round((metadata.width - cropWidth) / 2);
+                cropTop = 0;
+              } else {
+                cropWidth = metadata.width;
+                cropHeight = Math.round(metadata.width / targetRatio);
+                cropLeft = 0;
+                cropTop = Math.round((metadata.height - cropHeight) / 2);
+              }
+              
+              console.log(`Cropping to ${cropWidth}x${cropHeight} from (${cropLeft}, ${cropTop})`);
+              
+              const processedImageBuffer = await sharp(imageBuffer)
+                .extract({
+                  left: cropLeft,
+                  top: cropTop,
+                  width: cropWidth,
+                  height: cropHeight
+                })
+                .resize(targetWidth, targetHeight, {
+                  fit: 'fill',
+                  withoutEnlargement: false
+                })
+                .jpeg({ quality: 90 })
+                .toBuffer();
+              
+              // Store the converted image
+              const uniqueId = crypto.randomUUID();
+              const filename = `${uniqueId}.jpg`;
+              const storagePath = path.join('/', process.env.REPL_ID ? `replit-objstore-${process.env.REPL_ID}` : 'replit-objstore', privateDir, 'characters', filename);
+              
+              await objectStorage.writeFile(storagePath, processedImageBuffer);
+              characterImageUrl = `/objects/characters/${filename}`;
+              console.log(`Converted character stored at: ${characterImageUrl}`);
+            } else {
+              console.log("Aspect ratios match, using original character image");
+            }
+          }
+        } catch (error) {
+          console.error("Error processing library character:", error);
+          // Fall back to using original image if conversion fails
+        }
+      } else if (imageUrl.startsWith('http')) {
         console.log("Downloading and storing external character image...");
         const storedImage = await downloadAndStoreImage(imageUrl, "characters");
         console.log("Image stored successfully:", storedImage.storedUrl);
         characterImageUrl = storedImage.storedUrl;
-      } else {
-        console.log("Using existing character from library:", imageUrl);
       }
 
       const updateData = {
