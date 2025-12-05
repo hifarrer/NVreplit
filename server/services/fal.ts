@@ -68,26 +68,26 @@ async function ensurePublicImageUrl(characterImageUrl: string, ttlSec: number = 
 type WavespeedModel = {
   name: string;
   endpoint: string;
-  buildRequestBody: (imageUrl: string, prompt: string) => any;
+  buildRequestBody: (imageUrl: string, prompt: string, aspectRatio?: string) => any;
 };
 
 const WAVESPEED_MODELS: { primary: WavespeedModel; fallback: WavespeedModel } = {
   primary: {
     name: "google/nano-banana/edit",
     endpoint: "https://api.wavespeed.ai/api/v3/google/nano-banana/edit",
-    buildRequestBody: (imageUrl: string, prompt: string) => ({
+    buildRequestBody: (imageUrl: string, prompt: string, aspectRatio: string = "16:9") => ({
       enable_base64_output: false,
       enable_sync_mode: false,
       images: [imageUrl],
       output_format: "jpeg",
       prompt: prompt,
-      aspect_ratio: "16:9",
+      aspect_ratio: aspectRatio,
     }),
   },
   fallback: {
     name: "alibaba/wan-2.5/image-edit",
     endpoint: "https://api.wavespeed.ai/api/v3/alibaba/wan-2.5/image-edit",
-    buildRequestBody: (imageUrl: string, prompt: string) => ({
+    buildRequestBody: (imageUrl: string, prompt: string, aspectRatio?: string) => ({
       images: [imageUrl],
       prompt: prompt,
       seed: -1,
@@ -104,13 +104,14 @@ async function submitAndPollSceneGeneration(
   imageUrl: string,
   prompt: string,
   sceneLabel: string = "scene",
+  aspectRatio: string = "16:9",
 ): Promise<string> {
   const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
   if (!WAVESPEED_API_KEY) {
     throw new Error("WAVESPEED_API_KEY environment variable is required");
   }
 
-  const requestBody = model.buildRequestBody(imageUrl, prompt);
+  const requestBody = model.buildRequestBody(imageUrl, prompt, aspectRatio);
 
   console.log(
     `[${model.name}] Submitting ${sceneLabel} generation with prompt: "${prompt.substring(0, 50)}..."`,
@@ -212,6 +213,7 @@ async function generateSceneWithFallback(
   imageUrl: string,
   prompt: string,
   sceneLabel: string = "scene",
+  aspectRatio: string = "16:9",
 ): Promise<{ imageUrl: string; modelUsed: string }> {
   // Try primary model first
   try {
@@ -220,6 +222,7 @@ async function generateSceneWithFallback(
       imageUrl,
       prompt,
       sceneLabel,
+      aspectRatio,
     );
     return { imageUrl: resultUrl, modelUsed: WAVESPEED_MODELS.primary.name };
   } catch (primaryError) {
@@ -238,6 +241,7 @@ async function generateSceneWithFallback(
         imageUrl,
         prompt,
         sceneLabel,
+        aspectRatio,
       );
       console.log(
         `[Fallback] Successfully generated ${sceneLabel} using fallback model ${WAVESPEED_MODELS.fallback.name}`,
@@ -550,9 +554,11 @@ export async function generateCharacterImage(
 export async function generateSingleSceneImage(
   prompt: string,
   characterImageUrl: string,
+  aspectRatio: string = "16:9",
 ): Promise<string> {
   console.log(`Starting single scene generation with prompt: ${prompt}`);
   console.log(`Input character image URL: ${characterImageUrl}`);
+  console.log(`Aspect ratio: ${aspectRatio}`);
 
   // Ensure we have a valid public HTTP/HTTPS URL for Wavespeed API
   const publicCharacterImageUrl = await ensurePublicImageUrl(characterImageUrl, 86400);
@@ -563,6 +569,7 @@ export async function generateSingleSceneImage(
     publicCharacterImageUrl,
     prompt,
     "single scene",
+    aspectRatio,
   );
 
   console.log(`Single scene generated successfully using model: ${result.modelUsed}`);
@@ -579,11 +586,13 @@ export async function generateSingleSceneImage(
 export async function generateSceneImages(
   prompts: string[],
   characterImageUrl: string,
+  aspectRatio: string = "16:9",
 ): Promise<string[]> {
   console.log(
     `Starting parallel scene generation for ${prompts.length} scenes`,
   );
   console.log(`Input character image URL: ${characterImageUrl}`);
+  console.log(`Aspect ratio: ${aspectRatio}`);
 
   // Ensure we have a valid public HTTP/HTTPS URL for Wavespeed API
   const publicCharacterImageUrl = await ensurePublicImageUrl(characterImageUrl, 86400);
@@ -596,6 +605,7 @@ export async function generateSceneImages(
       publicCharacterImageUrl,
       prompt,
       `scene ${index + 1}`,
+      aspectRatio,
     ),
   );
 

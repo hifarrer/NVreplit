@@ -4672,7 +4672,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { scenePrompts, numberOfScenes }
       });
 
-      const sceneImages = await generateSceneImages(scenePrompts, project.characterImageUrl);
+      // Use the aspect ratio from the project (set in step 1) - defaults to 16:9 for horizontal
+      const aspectRatio = project.aspectRatio || "16:9";
+      console.log(`Using aspect ratio for scene generation: ${aspectRatio}`);
+      
+      const sceneImages = await generateSceneImages(scenePrompts, project.characterImageUrl, aspectRatio);
       
       await storage.updateProject(req.params.id, {
         scenePrompts: scenePrompts,
@@ -4736,8 +4740,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { sceneIndex, prompt }
       });
 
+      // Use the aspect ratio from the project (set in step 1) - defaults to 16:9 for horizontal
+      const aspectRatio = project.aspectRatio || "16:9";
+      
       // Generate a single scene image with the custom prompt
-      const imageUrl = await generateSingleSceneImage(prompt, project.characterImageUrl);
+      const imageUrl = await generateSingleSceneImage(prompt, project.characterImageUrl, aspectRatio);
 
       // Update the arrays with new values
       scenePrompts[sceneIndex] = prompt;
@@ -4774,7 +4781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Upload custom scene image endpoint (crops to 16:9 ratio)
+  // Upload custom scene image endpoint (crops to project's aspect ratio)
   app.post("/api/projects/:id/upload-scene-image", sceneImageUpload.single('image'), async (req: any, res) => {
     try {
       const sceneIndex = parseInt(req.body.sceneIndex);
@@ -4812,9 +4819,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Original image dimensions: ${metadata.width}x${metadata.height}`);
 
-      // Target aspect ratio is 16:9
-      const targetRatio = 16 / 9;
+      // Use the aspect ratio from the project (set in step 1) - defaults to 16:9 for horizontal
+      const aspectRatioStr = project.aspectRatio || "16:9";
+      const [widthPart, heightPart] = aspectRatioStr.split(':').map(Number);
+      const targetRatio = widthPart / heightPart; // 16:9 = 1.78 (horizontal), 3:4 = 0.75 (vertical)
       const currentRatio = metadata.width / metadata.height;
+      
+      // Determine target dimensions based on aspect ratio
+      const isVertical = targetRatio < 1;
+      const targetWidth = isVertical ? 720 : 1280;
+      const targetHeight = isVertical ? 960 : 720;
 
       let cropWidth: number;
       let cropHeight: number;
@@ -4822,22 +4836,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let cropTop: number;
 
       if (currentRatio > targetRatio) {
-        // Image is wider than 16:9, crop width (center crop)
+        // Image is wider than target, crop width (center crop)
         cropHeight = metadata.height;
         cropWidth = Math.round(metadata.height * targetRatio);
         cropLeft = Math.round((metadata.width - cropWidth) / 2);
         cropTop = 0;
       } else {
-        // Image is taller than 16:9, crop height (center crop)
+        // Image is taller than target, crop height (center crop)
         cropWidth = metadata.width;
         cropHeight = Math.round(metadata.width / targetRatio);
         cropLeft = 0;
         cropTop = Math.round((metadata.height - cropHeight) / 2);
       }
 
-      console.log(`Cropping to 16:9: ${cropWidth}x${cropHeight} from (${cropLeft}, ${cropTop})`);
+      console.log(`Cropping to ${aspectRatioStr}: ${cropWidth}x${cropHeight} from (${cropLeft}, ${cropTop})`);
 
-      // Process the image: crop to 16:9 and resize to standard size (1280x720)
+      // Process the image: crop to target ratio and resize to standard size
       const processedImageBuffer = await sharp(req.file.buffer)
         .extract({
           left: cropLeft,
@@ -4845,7 +4859,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           width: cropWidth,
           height: cropHeight
         })
-        .resize(1280, 720, {
+        .resize(targetWidth, targetHeight, {
           fit: 'fill',
           withoutEnlargement: false
         })
