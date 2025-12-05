@@ -70,6 +70,7 @@ export const projects = pgTable("projects", {
   makeCharacterSing: boolean("make_character_sing").default(true),
   scenePrompts: jsonb("scene_prompts"), // Array of scene prompts
   sceneImages: jsonb("scene_images"), // Array of generated scene image URLs
+  sceneOrder: jsonb("scene_order").$type<number[]>(), // Custom order for scenes (indices into scenePrompts/sceneImages)
   audioSegments: jsonb("audio_segments"), // Array of split audio URLs
   videoSegments: jsonb("video_segments"), // Array of generated video URLs
   finalVideoUrl: text("final_video_url"),
