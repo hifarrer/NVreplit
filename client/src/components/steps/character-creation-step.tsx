@@ -365,7 +365,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
               }
             }}
             disabled={!currentCharacterUrl}
-            className="floating-button py-3 px-8"
+            className={`floating-button py-3 px-8 ${currentCharacterUrl ? 'button-glow' : ''}`}
             data-testid="proceed-to-scenes-button"
           >
             <ArrowRight className="w-4 h-4 mr-2" />

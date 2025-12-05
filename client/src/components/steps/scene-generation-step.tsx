@@ -466,7 +466,13 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
 
         {/* Generated Scenes */}
         {generatedScenes.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8" data-testid="generated-scenes">
+          <>
+            <div className="bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20 rounded-lg p-4 mb-6 text-center" data-testid="scenes-ready-message">
+              <p className="text-sm text-muted-foreground">
+                <span className="text-primary font-medium">All scenes are ready!</span> You can proceed to create your video, or optionally customize the scenes above.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8" data-testid="generated-scenes">
             {generatedScenes.map((scene, index) => (
               <div key={index} className="bg-muted/20 rounded-lg p-4 border border-border" data-testid={`scene-${index + 1}`}>
                 <div className="space-y-4">
@@ -559,7 +565,8 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          </>
         )}
 
         {/* Credit Cost Info for Edit Mode */}
@@ -588,7 +595,7 @@ export function SceneGenerationStep({ projectId, audioDuration, characterImageUr
           <Button
             onClick={handleProceedToVideo}
             disabled={generatedScenes.length === 0 || saveScenesMutation.isPending || regenerateVideoMutation.isPending}
-            className="floating-button py-3 px-8"
+            className={`floating-button py-3 px-8 ${generatedScenes.length > 0 && !saveScenesMutation.isPending && !regenerateVideoMutation.isPending ? 'button-glow' : ''}`}
             data-testid="proceed-to-video-generation-button"
           >
             <i className="fas fa-video mr-2"></i>

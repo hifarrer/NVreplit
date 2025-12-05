@@ -1099,7 +1099,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, onNext, on
           <Button
             onClick={onNext}
             disabled={!currentAudioUrl}
-            className="floating-button text-lg py-3 px-4 sm:px-8 w-full sm:w-auto"
+            className={`floating-button text-lg py-3 px-4 sm:px-8 w-full sm:w-auto ${currentAudioUrl ? 'button-glow' : ''}`}
             data-testid="continue-to-character-button"
           >
             Continue to Character
