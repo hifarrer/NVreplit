@@ -3795,9 +3795,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Cap duration based on user plan: Free users max 120s (2 min), Paid users max 180s (3 min)
       const maxDuration = isPaidUser ? 180 : 120;
       
-      // Get song title and description from request (optional)
+      // Get song title, description and aspect ratio from request (optional)
       const songTitle = req.body.title || "";
       const songDescription = req.body.description || "";
+      const aspectRatio = req.body.aspectRatio || "16:9"; // Default to horizontal
 
       console.log(`Uploading audio file (user plan: ${isPaidUser ? 'paid' : 'free'}, max allowed: ${maxDuration}s)${songTitle ? `, title: "${songTitle}"` : ''}${songDescription ? `, description: "${songDescription.substring(0, 50)}..."` : ''}`);
 
@@ -3898,7 +3899,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audioType: 'uploaded',
         audioDuration: actualDuration,
         audioPrompt: songDescription || null, // Store description in audioPrompt for scene generation
-        addSubtitles: false // No subtitles for uploaded audio
+        addSubtitles: false, // No subtitles for uploaded audio
+        aspectRatio: aspectRatio // Store aspect ratio ('16:9' or '3:4')
       };
       
       // Only update title if user provided one
@@ -4111,7 +4113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate song
   app.post("/api/projects/:id/generate-song", async (req, res) => {
     try {
-      const { description, tags, lyrics, songTitle, duration = 120, addSubtitles = false, includeWatermark = true, isPublic = true } = req.body; // Duration in seconds
+      const { description, tags, lyrics, songTitle, duration = 120, addSubtitles = false, includeWatermark = true, isPublic = true, aspectRatio = "16:9" } = req.body; // Duration in seconds
       
       // Check for profanity in user-provided lyrics
       if (lyrics) {
@@ -4172,7 +4174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         step: "song_generation",
         message: "Starting song generation",
         status: "started",
-        metadata: { tags, lyrics, addSubtitles, includeWatermark: finalIncludeWatermark, isPublic: finalIsPublic, isPremiumUser }
+        metadata: { tags, lyrics, addSubtitles, includeWatermark: finalIncludeWatermark, isPublic: finalIsPublic, isPremiumUser, aspectRatio }
       });
 
       let result;
@@ -4292,6 +4294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         addSubtitles: addSubtitles,
         includeWatermark: finalIncludeWatermark, // Server-side enforced watermark setting
         isPublic: finalIsPublic, // Server-side enforced privacy setting (Premium only)
+        aspectRatio: aspectRatio, // Store the aspect ratio ('16:9' or '3:4')
         subtitleFileUrl: subtitleFileUrl,
         // Remove KIE fields since we're using ElevenLabs
         kieTaskId: null,
@@ -4478,7 +4481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Select song for project (handles both generated songs and library songs)
   app.post("/api/projects/:id/select-song", authenticateToken, async (req, res) => {
     try {
-      const { audioUrl, audioTags, audioLyrics, audioType, duration, subtitleFileUrl, kieTaskId, kieAudioId, title } = req.body;
+      const { audioUrl, audioTags, audioLyrics, audioType, duration, subtitleFileUrl, kieTaskId, kieAudioId, title, aspectRatio } = req.body;
       
       console.log("=== SELECT-SONG REQUEST ===");
       console.log("Request body:", JSON.stringify(req.body, null, 2));
@@ -4496,6 +4499,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (audioType) updateData.audioType = audioType;
       if (duration) updateData.audioDuration = duration;
       if (title && title.trim()) updateData.title = title.trim();
+      if (aspectRatio) updateData.aspectRatio = aspectRatio; // Store aspect ratio ('16:9' or '3:4')
       if (subtitleFileUrl) {
         updateData.addSubtitles = true;
         updateData.subtitleFileUrl = subtitleFileUrl;
