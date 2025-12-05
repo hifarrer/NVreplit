@@ -17,6 +17,14 @@ interface BlogPost {
 
 const blogPosts: BlogPost[] = [
   {
+    title: "Version 2.3.1 Released: Vertical Videos, UI Improvements & Performance",
+    slug: "/version-2-3-1-release",
+    excerpt: "NeonVideo.ai version 2.3.1 is here! Create vertical videos for TikTok and Reels, enjoy a cleaner interface with improved mobile experience, and benefit from significant performance improvements.",
+    date: "December 5, 2025",
+    category: "Product Update",
+    readTime: "5 min read"
+  },
+  {
     title: "Version 2.1.1 Released: Timeline Editing, Custom Scene Images & Unlimited Plan",
     slug: "/version-2-1-1-release",
     excerpt: "NeonVideo.ai version 2.1.1 is here! Edit your timeline and reorder scenes with drag-and-drop, upload your own scene images, gift subscriptions to friends, and enjoy our new unlimited plan for serious creators.",
