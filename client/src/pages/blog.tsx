@@ -17,6 +17,14 @@ interface BlogPost {
 
 const blogPosts: BlogPost[] = [
   {
+    title: "Version 2.1.1 Released: Timeline Editing, Custom Scene Images & Unlimited Plan",
+    slug: "/version-2-1-1-release",
+    excerpt: "NeonVideo.ai version 2.1.1 is here! Edit your timeline and reorder scenes with drag-and-drop, upload your own scene images, gift subscriptions to friends, and enjoy our new unlimited plan for serious creators.",
+    date: "December 5, 2025",
+    category: "Product Update",
+    readTime: "6 min read"
+  },
+  {
     title: "Version 2.0.1 Released: Longer Videos, Powerful Editing & More",
     slug: "/version-2-0-1-release",
     excerpt: "NeonVideo.ai version 2.0.1 is here! Create videos up to 3 minutes long, edit your existing videos, and enjoy improved performance. Discover all the new features and enhancements.",

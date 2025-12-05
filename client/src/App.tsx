@@ -29,6 +29,7 @@ import NeonSinglePrompt from "@/pages/neon-single-prompt";
 import BlogPage from "@/pages/blog";
 import BestAIMusicGenerator2025 from "@/pages/blog-post-best-ai-music-generator";
 import Version201Release from "@/pages/blog-post-version-2-0-1";
+import Version211Release from "@/pages/blog-post-version-2-1-1";
 import GiftPage from "@/pages/gift";
 import GiftSuccessPage from "@/pages/gift-success";
 import RedeemGiftPage from "@/pages/redeem-gift";
@@ -91,6 +92,7 @@ function AppRouter() {
       <Route path="/blog" component={BlogPage} />
       <Route path="/best-ai-music-generator-2025" component={BestAIMusicGenerator2025} />
       <Route path="/version-2-0-1-release" component={Version201Release} />
+      <Route path="/version-2-1-1-release" component={Version211Release} />
       <Route path="/neon-single-prompt" component={() => <ProtectedRoute component={NeonSinglePrompt} />} />
       <Route path="/gift" component={() => <ProtectedRoute component={GiftPage} />} />
       <Route path="/gift-success" component={() => <ProtectedRoute component={GiftSuccessPage} />} />
