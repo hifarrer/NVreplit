@@ -6646,9 +6646,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Project not found" });
       }
 
-      // Generate unique filename
-      const fileExtension = file.originalname.split('.').pop() || 'jpg';
-      const filename = `character_${nanoid()}.${fileExtension}`;
+      // Get the project's aspect ratio to crop/resize the uploaded image accordingly
+      const projectAspectRatio = project.aspectRatio || "16:9";
+      console.log(`Processing character image for aspect ratio: ${projectAspectRatio}`);
+
+      // Parse aspect ratio to get target dimensions
+      // 16:9 (horizontal) = 1280x720, 3:4 (vertical) = 720x960
+      let targetWidth: number;
+      let targetHeight: number;
+      if (projectAspectRatio === "3:4") {
+        targetWidth = 720;
+        targetHeight = 960;
+      } else {
+        targetWidth = 1280;
+        targetHeight = 720;
+      }
+
+      // Process the image with sharp to match the project's aspect ratio
+      let processedBuffer: Buffer;
+      try {
+        const image = sharp(file.buffer);
+        const metadata = await image.metadata();
+        
+        if (metadata.width && metadata.height) {
+          const sourceAspect = metadata.width / metadata.height;
+          const targetAspect = targetWidth / targetHeight;
+          
+          let cropWidth: number;
+          let cropHeight: number;
+          
+          if (sourceAspect > targetAspect) {
+            // Source is wider than target - crop width
+            cropHeight = metadata.height;
+            cropWidth = Math.round(metadata.height * targetAspect);
+          } else {
+            // Source is taller than target - crop height
+            cropWidth = metadata.width;
+            cropHeight = Math.round(metadata.width / targetAspect);
+          }
+          
+          // Center crop then resize to target dimensions
+          const left = Math.round((metadata.width - cropWidth) / 2);
+          const top = Math.round((metadata.height - cropHeight) / 2);
+          
+          processedBuffer = await sharp(file.buffer)
+            .extract({ left, top, width: cropWidth, height: cropHeight })
+            .resize(targetWidth, targetHeight, { fit: 'fill' })
+            .jpeg({ quality: 90 })
+            .toBuffer();
+          
+          console.log(`Image processed: original ${metadata.width}x${metadata.height}, cropped to ${cropWidth}x${cropHeight}, resized to ${targetWidth}x${targetHeight}`);
+        } else {
+          // Fallback if metadata can't be read
+          processedBuffer = await sharp(file.buffer)
+            .resize(targetWidth, targetHeight, { fit: 'cover', position: 'center' })
+            .jpeg({ quality: 90 })
+            .toBuffer();
+          console.log(`Image processed with fallback resize to ${targetWidth}x${targetHeight}`);
+        }
+      } catch (sharpError) {
+        console.error("Error processing image with sharp:", sharpError);
+        // If sharp processing fails, use original buffer
+        processedBuffer = file.buffer;
+      }
+
+      // Generate unique filename (always jpg since we convert to jpeg)
+      const filename = `character_${nanoid()}.jpg`;
       const imagePath = `characters/${filename}`;
 
       // Upload to object storage
@@ -6658,9 +6721,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bucket = objectStorageClient.bucket(bucketName);
       const fileObj = bucket.file(objectName);
       
-      await fileObj.save(file.buffer, {
+      await fileObj.save(processedBuffer, {
         metadata: {
-          contentType: file.mimetype,
+          contentType: 'image/jpeg',
         },
       });
 
@@ -6672,7 +6735,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         characterImageUrl: permanentPath
       });
 
-      console.log(`Character image uploaded: ${permanentPath}`);
+      console.log(`Character image uploaded and processed for ${projectAspectRatio} aspect ratio: ${permanentPath}`);
 
       res.json({
         imageUrl: permanentPath,
