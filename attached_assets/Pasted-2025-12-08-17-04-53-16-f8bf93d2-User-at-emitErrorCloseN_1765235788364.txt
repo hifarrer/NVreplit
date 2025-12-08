@@ -1,0 +1,112 @@
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+at emitErrorCloseNT (node:internal/streams/destroy:128:3)
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+[Symbol(gaxios-gaxios-error)]: '6.7.1'
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+at async file:///home/runner/workspace/dist/index.js:5680:25
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+at async AsyncRetry.retries (file:///home/runner/workspace/node_modules/@google-cloud/storage/build/esm/src/resumable-upload.js:390:29)
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+at TLSSocket.emit (node:events:524:28)
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+paramsSerializer: [Function: paramsSerializer],
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+at ClientRequest. (/home/runner/workspace/node_modules/gaxios/node_modules/node-fetch/lib/index.js:1501:11)
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+at emitErrorEvent (node:_http_client:101:11)
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+name: '.private/scenes/259c9180-a643-4103-a615-90d9501e1081.jpg',
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+method: 'POST',
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+uploadType: 'resumable'
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+},
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+validateStatus: [Function (anonymous)],
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+at downloadAndStoreImage (file:///home/runner/workspace/dist/index.js:3408:11)
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+at async Promise.all (index 0)
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+errno: 'ECONNRESET',
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+errorRedactor: [Function: defaultErrorRedactor]
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+at async generateSceneImages (file:///home/runner/workspace/dist/index.js:5684:27)
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+}
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+},
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+responseType: 'unknown',
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:82:21) {
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+at async Upload.createURIAsync (file:///home/runner/workspace/node_modules/@google-cloud/storage/build/esm/src/resumable-upload.js:387:21) {
+2025-12-08 17:04:53.16
+f8bf93d2
+User
+at async IdentityPoolClient.requestAsync (/home/runner/workspace/node_modules/google-auth-library/build/src/auth/baseexternalclient.js:277:24)
+2025-12-08 17:04:56.36
+f8bf93d2
+User
+Storing image as: scenes/9773cb69-5b41-4eea-a1a4-fad7a99417c0.jpg
+2025-12-08 17:04:59.36
+f8bf93d2
+User
+Storing image as: scenes/56f53da4-9856-4892-b8da-f60cf3a5e9e2.jpg
