@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 import heroVideo from "@assets/hero_video.mp4";
 import { useAuth } from "@/hooks/use-auth";
+import { SiTiktok, SiFacebook, SiYoutube } from "react-icons/si";
 
 interface TrendingVideo {
   id: string;
@@ -383,6 +384,38 @@ export default function LandingPage() {
                   Contact
                 </Button>
               </Link>
+              <div className="flex items-center space-x-4 ml-4 border-l border-border/50 pl-4">
+                <a
+                  href="https://www.tiktok.com/@neonvideoai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="link-tiktok"
+                  aria-label="TikTok"
+                >
+                  <SiTiktok className="w-5 h-5" />
+                </a>
+                <a
+                  href="https://www.facebook.com/neonvideoai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="link-facebook"
+                  aria-label="Facebook"
+                >
+                  <SiFacebook className="w-5 h-5" />
+                </a>
+                <a
+                  href="https://www.youtube.com/@NeonVideoAI"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="link-youtube"
+                  aria-label="YouTube"
+                >
+                  <SiYoutube className="w-5 h-5" />
+                </a>
+              </div>
             </div>
           </div>
         </div>
