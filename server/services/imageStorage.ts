@@ -8,73 +8,154 @@ export interface StoredImageResult {
 }
 
 /**
+ * Retry helper with exponential backoff for transient network errors
+ */
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  options: {
+    maxRetries?: number;
+    initialDelayMs?: number;
+    maxDelayMs?: number;
+    operationName?: string;
+  } = {}
+): Promise<T> {
+  const {
+    maxRetries = 3,
+    initialDelayMs = 1000,
+    maxDelayMs = 10000,
+    operationName = "operation"
+  } = options;
+
+  let lastError: Error | undefined;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error as Error;
+      const errorMessage = lastError.message || String(error);
+      
+      // Check if error is retryable (network errors, timeouts, etc.)
+      const isRetryable = 
+        errorMessage.includes('ECONNRESET') ||
+        errorMessage.includes('ETIMEDOUT') ||
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('ENOTFOUND') ||
+        errorMessage.includes('socket hang up') ||
+        errorMessage.includes('network') ||
+        errorMessage.includes('timeout') ||
+        (error as any).code === 'ECONNRESET' ||
+        (error as any).code === 'ETIMEDOUT' ||
+        (error as any).errno === 'ECONNRESET';
+
+      if (!isRetryable || attempt === maxRetries) {
+        console.error(`[Retry] ${operationName} failed after ${attempt} attempts:`, errorMessage);
+        throw error;
+      }
+
+      // Calculate delay with exponential backoff and jitter
+      const baseDelay = Math.min(initialDelayMs * Math.pow(2, attempt - 1), maxDelayMs);
+      const jitter = Math.random() * 0.3 * baseDelay; // Add up to 30% jitter
+      const delay = Math.floor(baseDelay + jitter);
+      
+      console.warn(
+        `[Retry] ${operationName} attempt ${attempt}/${maxRetries} failed with ${errorMessage}. ` +
+        `Retrying in ${delay}ms...`
+      );
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
+}
+
+/**
  * Downloads an image from an external URL and stores it permanently in object storage
  */
 export async function downloadAndStoreImage(
   imageUrl: string,
   category: string = "characters"
 ): Promise<StoredImageResult> {
-  try {
-    console.log(`Downloading image from: ${imageUrl}`);
-    
-    // Download the image from the external URL
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-    }
-    
-    // Get the image content as buffer
-    const imageBuffer = await response.buffer();
-    
-    // Get content type and determine file extension
-    const contentType = response.headers.get("content-type") || "image/jpeg";
-    const extension = getFileExtension(contentType);
-    
-    // Generate unique filename
-    const filename = `${category}/${randomUUID()}${extension}`;
-    
-    console.log(`Storing image as: ${filename}`);
-    
-    // Get object storage service
-    const objectStorageService = new ObjectStorageService();
-    const privateObjectDir = objectStorageService.getPrivateObjectDir();
-    
-    // Create full path in private directory
-    const fullPath = `${privateObjectDir}/${filename}`;
-    
-    // Parse the path to get bucket and object name
-    const { bucketName, objectName } = parseObjectPath(fullPath);
-    
-    // Get the storage client and upload the image
-    const { objectStorageClient } = await import("../objectStorage");
-    const bucket = objectStorageClient.bucket(bucketName);
-    const file = bucket.file(objectName);
-    
-    // Upload the image buffer
-    await file.save(imageBuffer, {
-      metadata: {
-        contentType,
+  console.log(`Downloading image from: ${imageUrl}`);
+  
+  // Download the image with retry logic
+  const { imageBuffer, contentType } = await withRetry(
+    async () => {
+      // Use AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      try {
+        const response = await fetch(imageUrl, {
+          signal: controller.signal as any,
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+        }
+        
+        const buffer = await response.buffer();
+        const type = response.headers.get("content-type") || "image/jpeg";
+        
+        return { imageBuffer: buffer, contentType: type };
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    },
+    { operationName: `download image from ${imageUrl.substring(0, 50)}...`, maxRetries: 3 }
+  );
+  
+  // Get content type and determine file extension
+  const extension = getFileExtension(contentType);
+  
+  // Generate unique filename
+  const filename = `${category}/${randomUUID()}${extension}`;
+  
+  console.log(`Storing image as: ${filename}`);
+  
+  // Get object storage service
+  const objectStorageService = new ObjectStorageService();
+  const privateObjectDir = objectStorageService.getPrivateObjectDir();
+  
+  // Create full path in private directory
+  const fullPath = `${privateObjectDir}/${filename}`;
+  
+  // Parse the path to get bucket and object name
+  const { bucketName, objectName } = parseObjectPath(fullPath);
+  
+  // Get the storage client
+  const { objectStorageClient } = await import("../objectStorage");
+  const bucket = objectStorageClient.bucket(bucketName);
+  const file = bucket.file(objectName);
+  
+  // Upload the image buffer with retry logic
+  await withRetry(
+    async () => {
+      await file.save(imageBuffer, {
+        resumable: false, // Disable resumable uploads to avoid complexity with retries
         metadata: {
-          originalUrl: imageUrl,
-          category,
-          uploadedAt: new Date().toISOString(),
+          contentType,
+          metadata: {
+            originalUrl: imageUrl,
+            category,
+            uploadedAt: new Date().toISOString(),
+          },
         },
-      },
-    });
-    
-    console.log(`Image stored successfully at: ${fullPath}`);
-    
-    // Return the stored URL that can be served via our API
-    const storedUrl = `/objects/${filename}`;
-    
-    return {
-      storedUrl,
-      originalUrl: imageUrl,
-    };
-  } catch (error) {
-    console.error("Error downloading and storing image:", error);
-    throw new Error(`Failed to store image: ${(error as Error).message}`);
-  }
+      });
+    },
+    { operationName: `upload to GCS (${filename})`, maxRetries: 4, initialDelayMs: 2000 }
+  );
+  
+  console.log(`Image stored successfully at: ${fullPath}`);
+  
+  // Return the stored URL that can be served via our API
+  const storedUrl = `/objects/${filename}`;
+  
+  return {
+    storedUrl,
+    originalUrl: imageUrl,
+  };
 }
 
 /**
