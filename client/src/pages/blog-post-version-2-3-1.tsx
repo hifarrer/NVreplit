@@ -51,7 +51,7 @@ export default function Version231Release() {
 
               <div className="rounded-lg overflow-hidden border border-purple-500/20 mb-8">
                 <video 
-                  src="https://res.cloudinary.com/dqemas8ht/video/upload/v1764901512/music-video_dpgwbb.mp4" 
+                  src="https://res.cloudinary.com/dqemas8ht/video/upload/v1765317271/neonvideo_1765068376251_gjihhr.mp4" 
                   controls
                   autoPlay
                   muted
