@@ -344,6 +344,95 @@ The neonvideo.ai Team
       return false;
     }
   }
+
+  async sendGreetingCardEmail(data: {
+    recipientEmail: string;
+    senderName: string;
+    senderEmail: string;
+    videoTitle: string;
+    message: string | null;
+    viewUrl: string;
+  }): Promise<boolean> {
+    if (!this.transporter) {
+      console.error('Email transporter not initialized');
+      return false;
+    }
+
+    try {
+      await this.transporter.sendMail({
+        from: `"NeonVideo.AI" <${process.env.SMTP_USER}>`,
+        to: data.recipientEmail,
+        subject: `${data.senderName} sent you a video greeting!`,
+        text: `
+Hello!
+
+${data.senderName} (${data.senderEmail}) has sent you a special video greeting from NeonVideo.AI!
+
+Video: "${data.videoTitle}"
+${data.message ? `\nPersonal message:\n"${data.message}"\n` : ''}
+Watch your video greeting here:
+${data.viewUrl}
+
+---
+This video greeting was sent via neonvideo.ai
+        `,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f0f0f; color: #ffffff;">
+            <div style="background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #06b6d4 100%); padding: 30px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 28px;">You've received a Video Greeting!</h1>
+            </div>
+            
+            <div style="padding: 30px;">
+              <p style="font-size: 16px; color: #e0e0e0;">Hello!</p>
+              
+              <p style="font-size: 16px; color: #e0e0e0;">
+                <strong style="color: #ec4899;">${data.senderName}</strong> has sent you a special video greeting!
+              </p>
+              
+              <div style="background: #1a1a1a; border-left: 4px solid #ec4899; padding: 20px; border-radius: 0 8px 8px 0; margin: 20px 0;">
+                <h3 style="margin: 0 0 10px 0; color: #ec4899;">"${data.videoTitle}"</h3>
+                ${data.message ? `
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #333;">
+                  <p style="margin: 0; color: #a0a0a0; font-style: italic; font-size: 14px;">Personal message:</p>
+                  <p style="margin: 10px 0 0 0; color: #e0e0e0; font-size: 15px;">"${data.message}"</p>
+                </div>
+                ` : ''}
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${data.viewUrl}" 
+                   style="background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%); 
+                          color: white; 
+                          padding: 16px 40px; 
+                          text-decoration: none; 
+                          border-radius: 30px; 
+                          display: inline-block; 
+                          font-weight: bold;
+                          font-size: 16px;
+                          box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4);">
+                  Watch Your Video
+                </a>
+              </div>
+              
+              <p style="color: #666; font-size: 12px; text-align: center; margin-top: 30px;">
+                This video greeting was sent via <a href="https://neonvideo.ai" style="color: #ec4899;">neonvideo.ai</a>
+              </p>
+            </div>
+            
+            <div style="text-align: center; padding: 20px; background: #1a1a1a; color: #666; font-size: 12px;">
+              <p style="margin: 0;">© 2025 neonvideo.ai. All rights reserved.</p>
+            </div>
+          </div>
+        `
+      });
+
+      console.log(`Greeting card email sent to ${data.recipientEmail}`);
+      return true;
+    } catch (error) {
+      console.error('Failed to send greeting card email:', error);
+      return false;
+    }
+  }
 }
 
 export const emailService = new EmailService();

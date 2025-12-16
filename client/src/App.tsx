@@ -34,6 +34,7 @@ import Version231Release from "@/pages/blog-post-version-2-3-1";
 import GiftPage from "@/pages/gift";
 import GiftSuccessPage from "@/pages/gift-success";
 import RedeemGiftPage from "@/pages/redeem-gift";
+import GreetingCardPage from "@/pages/greeting-card-page";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -99,6 +100,7 @@ function AppRouter() {
       <Route path="/gift" component={() => <ProtectedRoute component={GiftPage} />} />
       <Route path="/gift-success" component={() => <ProtectedRoute component={GiftSuccessPage} />} />
       <Route path="/redeem-gift" component={RedeemGiftPage} />
+      <Route path="/greeting/:token" component={GreetingCardPage} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/admin" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />

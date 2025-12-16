@@ -3668,6 +3668,218 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== GREETING CARDS API ====================
+  
+  // Create a new greeting card
+  app.post("/api/greeting-cards", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const { projectId, senderEmail, recipientEmail, message, scheduledDate, sendNow } = req.body;
+      
+      // Validate required fields
+      if (!projectId || !senderEmail || !recipientEmail) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(senderEmail) || !emailRegex.test(recipientEmail)) {
+        return res.status(400).json({ error: "Invalid email format" });
+      }
+      
+      // Verify the project belongs to the user and is completed
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+      if (project.userId !== userId) {
+        return res.status(403).json({ error: "You don't have permission to share this video" });
+      }
+      if (!project.isCompleted || !project.finalVideoUrl) {
+        return res.status(400).json({ error: "Video is not yet completed" });
+      }
+      
+      // Get user info for sender name
+      const user = await storage.getUser(userId);
+      
+      // Generate unique token for viewing
+      const uniqueToken = nanoid(32);
+      
+      // Determine scheduled date
+      let scheduleDate: Date;
+      if (sendNow) {
+        scheduleDate = new Date();
+      } else if (scheduledDate) {
+        scheduleDate = new Date(scheduledDate);
+        if (isNaN(scheduleDate.getTime())) {
+          return res.status(400).json({ error: "Invalid scheduled date" });
+        }
+      } else {
+        // Default to next day
+        scheduleDate = new Date();
+        scheduleDate.setDate(scheduleDate.getDate() + 1);
+        scheduleDate.setHours(9, 0, 0, 0);
+      }
+      
+      // Create the greeting card
+      const greetingCard = await storage.createGreetingCard({
+        projectId,
+        senderEmail,
+        senderName: user?.username || senderEmail.split('@')[0],
+        recipientEmail,
+        message: message || null,
+        scheduledDate: scheduleDate,
+        uniqueToken,
+        status: sendNow ? 'pending' : 'pending', // Will be picked up by cron
+      });
+      
+      // If sendNow, immediately send the email
+      if (sendNow) {
+        try {
+          const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+            ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+            : process.env.APP_URL || 'https://neonvideo.ai';
+          const viewUrl = `${baseUrl}/greeting/${uniqueToken}`;
+          
+          const emailSent = await emailService.sendGreetingCardEmail({
+            recipientEmail,
+            senderName: user?.username || senderEmail.split('@')[0],
+            senderEmail,
+            videoTitle: project.title || 'A Special Video',
+            message: message || null,
+            viewUrl
+          });
+          
+          if (emailSent) {
+            await storage.updateGreetingCard(greetingCard.id, {
+              status: 'sent',
+              sentAt: new Date()
+            });
+          } else {
+            await storage.updateGreetingCard(greetingCard.id, {
+              status: 'failed'
+            });
+          }
+        } catch (emailError) {
+          console.error('Failed to send greeting card email:', emailError);
+          await storage.updateGreetingCard(greetingCard.id, {
+            status: 'failed'
+          });
+        }
+      }
+      
+      res.status(201).json({
+        success: true,
+        greetingCardId: greetingCard.id,
+        message: sendNow ? 'Greeting card sent!' : 'Greeting card scheduled successfully!'
+      });
+    } catch (error) {
+      console.error("Create greeting card error:", error);
+      res.status(500).json({ error: "Failed to create greeting card" });
+    }
+  });
+  
+  // Cron endpoint to send pending greeting cards (secured with secret key)
+  app.get("/api/cron/send-greeting-cards", async (req, res) => {
+    try {
+      // Verify secret key for cron-job.org
+      const cronSecret = req.query.secret || req.headers['x-cron-secret'];
+      const expectedSecret = process.env.CRON_SECRET;
+      
+      if (!expectedSecret || cronSecret !== expectedSecret) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      // Get all pending greeting cards scheduled for today
+      const pendingCards = await storage.getPendingGreetingCardsForToday();
+      console.log(`[Cron] Found ${pendingCards.length} pending greeting cards to send`);
+      
+      let sentCount = 0;
+      let failedCount = 0;
+      
+      for (const card of pendingCards) {
+        try {
+          const project = await storage.getProject(card.projectId);
+          if (!project || !project.finalVideoUrl) {
+            await storage.updateGreetingCard(card.id, { status: 'failed' });
+            failedCount++;
+            continue;
+          }
+          
+          const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+            ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+            : process.env.APP_URL || 'https://neonvideo.ai';
+          const viewUrl = `${baseUrl}/greeting/${card.uniqueToken}`;
+          
+          const emailSent = await emailService.sendGreetingCardEmail({
+            recipientEmail: card.recipientEmail,
+            senderName: card.senderName || card.senderEmail.split('@')[0],
+            senderEmail: card.senderEmail,
+            videoTitle: project.title || 'A Special Video',
+            message: card.message,
+            viewUrl
+          });
+          
+          if (emailSent) {
+            await storage.updateGreetingCard(card.id, {
+              status: 'sent',
+              sentAt: new Date()
+            });
+            sentCount++;
+          } else {
+            await storage.updateGreetingCard(card.id, { status: 'failed' });
+            failedCount++;
+          }
+        } catch (cardError) {
+          console.error(`[Cron] Failed to send greeting card ${card.id}:`, cardError);
+          await storage.updateGreetingCard(card.id, { status: 'failed' });
+          failedCount++;
+        }
+      }
+      
+      res.json({
+        success: true,
+        processed: pendingCards.length,
+        sent: sentCount,
+        failed: failedCount
+      });
+    } catch (error) {
+      console.error("Cron send greeting cards error:", error);
+      res.status(500).json({ error: "Failed to process greeting cards" });
+    }
+  });
+  
+  // Get greeting card details for public viewing
+  app.get("/api/greeting/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      const greetingCard = await storage.getGreetingCardByToken(token);
+      if (!greetingCard) {
+        return res.status(404).json({ error: "Greeting card not found" });
+      }
+      
+      const project = await storage.getProject(greetingCard.projectId);
+      if (!project || !project.finalVideoUrl) {
+        return res.status(404).json({ error: "Video not available" });
+      }
+      
+      res.json({
+        senderName: greetingCard.senderName || 'Someone',
+        message: greetingCard.message,
+        videoTitle: project.title || 'A Special Video',
+        videoUrl: project.finalVideoUrl,
+        thumbnailUrl: project.thumbnailUrl || null,
+        muxPlaybackId: project.muxPlaybackId || null,
+        aspectRatio: project.aspectRatio || '16:9',
+        createdAt: greetingCard.createdAt
+      });
+    } catch (error) {
+      console.error("Get greeting card error:", error);
+      res.status(500).json({ error: "Failed to get greeting card" });
+    }
+  });
+
   // Get all user's generated songs
   app.get("/api/my-songs", authenticateToken, async (req, res) => {
     try {
