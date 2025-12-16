@@ -3736,9 +3736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If sendNow, immediately send the email
       if (sendNow) {
         try {
-          const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-            ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-            : process.env.APP_URL || 'https://neonvideo.ai';
+          const baseUrl = process.env.FRONTEND_URL || 'https://neonvideo.ai';
           const viewUrl = `${baseUrl}/greeting/${uniqueToken}`;
           
           const emailSent = await emailService.sendGreetingCardEmail({
@@ -3806,9 +3804,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-            ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-            : process.env.APP_URL || 'https://neonvideo.ai';
+          const baseUrl = process.env.FRONTEND_URL || 'https://neonvideo.ai';
           const viewUrl = `${baseUrl}/greeting/${card.uniqueToken}`;
           
           const emailSent = await emailService.sendGreetingCardEmail({
