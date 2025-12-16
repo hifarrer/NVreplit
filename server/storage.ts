@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, type OauthClient, type InsertOauthClient, type OauthAuthorizationCode, type InsertOauthAuthorizationCode, type OauthAccessToken, type InsertOauthAccessToken, type BannedUser, type InsertBannedUser, type GiftSubscription, type InsertGiftSubscription, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts, oauthClients, oauthAuthorizationCodes, oauthAccessTokens, bannedUsers, giftSubscriptions } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, type OauthClient, type InsertOauthClient, type OauthAuthorizationCode, type InsertOauthAuthorizationCode, type OauthAccessToken, type InsertOauthAccessToken, type BannedUser, type InsertBannedUser, type GiftSubscription, type InsertGiftSubscription, type GreetingCard, type InsertGreetingCard, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts, oauthClients, oauthAuthorizationCodes, oauthAccessTokens, bannedUsers, giftSubscriptions, greetingCards } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -186,6 +186,12 @@ export interface IStorage {
   getGiftSubscriptionsByPurchaser(userId: string): Promise<GiftSubscription[]>;
   updateGiftSubscription(id: string, updates: Partial<GiftSubscription>): Promise<GiftSubscription | undefined>;
   redeemGiftSubscription(code: string, userId: string): Promise<GiftSubscription | undefined>;
+
+  // Greeting card methods
+  createGreetingCard(card: InsertGreetingCard): Promise<GreetingCard>;
+  getGreetingCardByToken(token: string): Promise<GreetingCard | undefined>;
+  getPendingGreetingCardsForToday(): Promise<GreetingCard[]>;
+  updateGreetingCard(id: string, updates: Partial<GreetingCard>): Promise<GreetingCard | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -1416,6 +1422,55 @@ export class MemStorage implements IStorage {
       redeemedAt: now
     };
     this.giftSubscriptionsStorage.set(gift.id, updated);
+    return updated;
+  }
+
+  // Greeting card methods
+  private greetingCardsStorage: Map<string, GreetingCard> = new Map();
+
+  async createGreetingCard(card: InsertGreetingCard): Promise<GreetingCard> {
+    const id = randomUUID();
+    const now = new Date();
+    const greetingCard: GreetingCard = {
+      ...card,
+      id,
+      senderName: card.senderName || null,
+      message: card.message || null,
+      status: card.status || 'pending',
+      sentAt: card.sentAt || null,
+      createdAt: now
+    };
+    this.greetingCardsStorage.set(id, greetingCard);
+    return greetingCard;
+  }
+
+  async getGreetingCardByToken(token: string): Promise<GreetingCard | undefined> {
+    for (const card of this.greetingCardsStorage.values()) {
+      if (card.uniqueToken === token) {
+        return card;
+      }
+    }
+    return undefined;
+  }
+
+  async getPendingGreetingCardsForToday(): Promise<GreetingCard[]> {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    
+    return Array.from(this.greetingCardsStorage.values())
+      .filter(card => 
+        card.status === 'pending' && 
+        card.scheduledDate >= startOfDay && 
+        card.scheduledDate < endOfDay
+      );
+  }
+
+  async updateGreetingCard(id: string, updates: Partial<GreetingCard>): Promise<GreetingCard | undefined> {
+    const existing = this.greetingCardsStorage.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...updates };
+    this.greetingCardsStorage.set(id, updated);
     return updated;
   }
 }
@@ -3010,6 +3065,42 @@ export class DbStorage implements IStorage {
         redeemedAt: now
       })
       .where(eq(giftSubscriptions.id, gift.id))
+      .returning();
+    return result[0];
+  }
+
+  // Greeting card methods
+  async createGreetingCard(card: InsertGreetingCard): Promise<GreetingCard> {
+    const result = await this.db.insert(greetingCards).values(card).returning();
+    return result[0];
+  }
+
+  async getGreetingCardByToken(token: string): Promise<GreetingCard | undefined> {
+    const result = await this.db.select().from(greetingCards)
+      .where(eq(greetingCards.uniqueToken, token))
+      .limit(1);
+    return result[0];
+  }
+
+  async getPendingGreetingCardsForToday(): Promise<GreetingCard[]> {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    
+    return await this.db.select().from(greetingCards)
+      .where(
+        and(
+          eq(greetingCards.status, 'pending'),
+          sql`${greetingCards.scheduledDate} >= ${startOfDay}`,
+          sql`${greetingCards.scheduledDate} < ${endOfDay}`
+        )
+      );
+  }
+
+  async updateGreetingCard(id: string, updates: Partial<GreetingCard>): Promise<GreetingCard | undefined> {
+    const result = await this.db.update(greetingCards)
+      .set(updates)
+      .where(eq(greetingCards.id, id))
       .returning();
     return result[0];
   }

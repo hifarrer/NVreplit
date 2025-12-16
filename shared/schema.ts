@@ -280,6 +280,21 @@ export const oauthAccessTokens = pgTable("oauth_access_tokens", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Greeting cards table for scheduled video greeting cards
+export const greetingCards = pgTable("greeting_cards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").references(() => projects.id).notNull(),
+  senderEmail: text("sender_email").notNull(),
+  senderName: text("sender_name"),
+  recipientEmail: text("recipient_email").notNull(),
+  message: text("message"),
+  scheduledDate: timestamp("scheduled_date").notNull(),
+  status: text("status").default("pending").notNull(), // 'pending' | 'sent' | 'failed'
+  uniqueToken: text("unique_token").notNull().unique(),
+  sentAt: timestamp("sent_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Gift subscriptions table for tracking gifted subscriptions
 export const giftSubscriptions = pgTable("gift_subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -410,6 +425,11 @@ export const insertGiftSubscriptionSchema = createInsertSchema(giftSubscriptions
   createdAt: true,
 });
 
+export const insertGreetingCardSchema = createInsertSchema(greetingCards).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertBannedUser = z.infer<typeof insertBannedUserSchema>;
@@ -452,3 +472,5 @@ export type InsertOauthAccessToken = z.infer<typeof insertOauthAccessTokenSchema
 export type OauthAccessToken = typeof oauthAccessTokens.$inferSelect;
 export type InsertGiftSubscription = z.infer<typeof insertGiftSubscriptionSchema>;
 export type GiftSubscription = typeof giftSubscriptions.$inferSelect;
+export type InsertGreetingCard = z.infer<typeof insertGreetingCardSchema>;
+export type GreetingCard = typeof greetingCards.$inferSelect;
