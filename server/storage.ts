@@ -3091,8 +3091,8 @@ export class DbStorage implements IStorage {
       .where(
         and(
           eq(greetingCards.status, 'pending'),
-          sql`${greetingCards.scheduledDate} >= ${startOfDay}`,
-          sql`${greetingCards.scheduledDate} < ${endOfDay}`
+          sql`${greetingCards.scheduledDate} >= ${startOfDay.toISOString()}`,
+          sql`${greetingCards.scheduledDate} < ${endOfDay.toISOString()}`
         )
       );
   }
