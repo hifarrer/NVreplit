@@ -47,3 +47,8 @@ integrations = ["javascript_supabase:1.0.0", "javascript_object_storage:1.0.0", 
 
 [objectStorage]
 defaultBucketID = "replit-objstore-2b41d446-a481-4048-b395-249a1b7496ae"
+
+[userenv]
+
+[userenv.shared]
+CRON_SECRET = "nv_cron_2025_greeting_cards_secure_key_x7k9m2p5"
