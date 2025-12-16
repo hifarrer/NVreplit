@@ -23,7 +23,7 @@ export default function GreetingCardPage() {
   const [showVideo, setShowVideo] = useState(false);
 
   const { data: greetingCard, isLoading, error } = useQuery<GreetingCardData>({
-    queryKey: ['/api/greeting', token],
+    queryKey: [`/api/greeting/${token}`],
     enabled: !!token,
   });
 
