@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users, Share2, Edit3 } from "lucide-react";
+import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users, Share2, Edit3, Gift } from "lucide-react";
+import { SendGreetingCardModal } from "@/components/modals/send-greeting-card-modal";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { MuxVideoPlayer } from "@/components/mux-video-player";
@@ -41,6 +42,7 @@ export default function MyVideosPage() {
   const [editingVideo, setEditingVideo] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState<string>("");
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [greetingCardVideo, setGreetingCardVideo] = useState<CompletedVideo | null>(null);
 
   const { data: videos = [], isLoading, refetch } = useQuery<CompletedVideo[]>({
     queryKey: ["/api/my-videos"],
@@ -344,6 +346,19 @@ export default function MyVideosPage() {
                           <Share2 className="h-3 w-3 mr-1" />
                           Share
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 text-xs px-2 text-pink-500 border-pink-500/50 hover:bg-pink-500/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setGreetingCardVideo(video);
+                          }}
+                          data-testid={`button-greeting-${video.id}`}
+                        >
+                          <Gift className="h-3 w-3 mr-1" />
+                          Gift
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -427,6 +442,15 @@ export default function MyVideosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Send as Greeting Card Modal */}
+      <SendGreetingCardModal
+        isOpen={!!greetingCardVideo}
+        onClose={() => setGreetingCardVideo(null)}
+        projectId={greetingCardVideo?.id || ''}
+        videoTitle={greetingCardVideo?.title || ''}
+      />
+
       <Footer />
     </div>
   );

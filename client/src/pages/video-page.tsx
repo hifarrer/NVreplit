@@ -5,7 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Share2, User, ThumbsUp, MessageCircle, Trash2, Send } from "lucide-react";
+import { ArrowLeft, Share2, User, ThumbsUp, MessageCircle, Trash2, Send, Gift } from "lucide-react";
+import { SendGreetingCardModal } from "@/components/modals/send-greeting-card-modal";
 import { format, formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -59,6 +60,7 @@ export default function VideoPage() {
   const [newComment, setNewComment] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [commentProfanityCheck, setCommentProfanityCheck] = useState<ProfanityCheckResult | null>(null);
+  const [showGreetingCardModal, setShowGreetingCardModal] = useState(false);
   const { user } = useAuth();
   const isAuthenticated = !!user;
 
@@ -303,16 +305,28 @@ export default function VideoPage() {
                 className="h-16 cursor-pointer" 
               />
             </Link>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleShare}
-              className="gap-2"
-              data-testid="button-share-video"
-            >
-              <Share2 className="h-4 w-4" />
-              Share Video
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleShare}
+                className="gap-2"
+                data-testid="button-share-video"
+              >
+                <Share2 className="h-4 w-4" />
+                Share
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowGreetingCardModal(true)}
+                className="gap-2 text-pink-500 border-pink-500/50 hover:bg-pink-500/10"
+                data-testid="button-gift-video"
+              >
+                <Gift className="h-4 w-4" />
+                Gift
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -526,6 +540,14 @@ export default function VideoPage() {
           </Card>
         </div>
       </div>
+
+      {/* Send as Greeting Card Modal */}
+      <SendGreetingCardModal
+        isOpen={showGreetingCardModal}
+        onClose={() => setShowGreetingCardModal(false)}
+        projectId={videoId}
+        videoTitle={video.title}
+      />
     </div>
   );
 }
