@@ -17,6 +17,14 @@ interface BlogPost {
 
 const blogPosts: BlogPost[] = [
   {
+    title: "How to Create a Christmas Postcard Video",
+    slug: "/christmas-postcard-video",
+    excerpt: "Learn how to create a personalized AI-generated Christmas postcard video in minutes. Follow our step-by-step guide to create and send festive video greetings to loved ones this holiday season.",
+    date: "December 16, 2025",
+    category: "Tutorial",
+    readTime: "4 min read"
+  },
+  {
     title: "Version 2.3.1 Released: Vertical Videos, UI Improvements & Performance",
     slug: "/version-2-3-1-release",
     excerpt: "NeonVideo.ai version 2.3.1 is here! Create vertical videos for TikTok and Reels, enjoy a cleaner interface with improved mobile experience, and benefit from significant performance improvements.",

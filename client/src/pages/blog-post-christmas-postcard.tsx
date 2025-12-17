@@ -1,0 +1,289 @@
+import { Helmet } from "react-helmet-async";
+import { Link } from "wouter";
+import { NavigationHeader } from "@/components/navigation-header";
+import { Footer } from "@/components/footer";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowLeft, Music, User, Video, Gift, CheckCircle, Sparkles, TreePine, Send, Calendar, Play } from "lucide-react";
+
+export default function ChristmasPostcardBlogPost() {
+  return (
+    <>
+      <Helmet>
+        <title>How to Create a Christmas Postcard Video | NeonVideo.ai</title>
+        <meta name="description" content="Learn how to create a personalized AI-generated Christmas postcard video in minutes. Follow our step-by-step guide to create and send festive video greetings to loved ones." />
+        <meta property="og:title" content="How to Create a Christmas Postcard Video" />
+        <meta property="og:description" content="Create magical AI-generated Christmas video postcards in minutes. Perfect for sending holiday greetings to friends and family!" />
+        <meta property="og:type" content="article" />
+        <meta property="og:url" content="https://neonvideo.ai/christmas-postcard-video" />
+        <meta name="keywords" content="Christmas video, holiday postcard, AI video generator, Christmas greetings, video postcard, festive video, holiday message" />
+        <link rel="canonical" href="https://neonvideo.ai/christmas-postcard-video" />
+      </Helmet>
+
+      <div className="min-h-screen flex flex-col bg-black dark:bg-black">
+        <NavigationHeader />
+        
+        <main className="flex-1 container mx-auto px-4 py-12 max-w-4xl">
+          <Link href="/blog">
+            <Button variant="ghost" className="mb-6 text-white hover:text-white/80" data-testid="button-back-blog">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Blog
+            </Button>
+          </Link>
+
+          <article className="bg-black/30 backdrop-blur-md rounded-lg border border-red-500/20 p-8 md:p-12">
+            <header className="mb-8">
+              <div className="flex items-center gap-2 text-red-400 text-sm mb-4">
+                <TreePine className="h-4 w-4" />
+                <span>Tutorial</span>
+                <span className="text-gray-500">•</span>
+                <time dateTime="2025-12-16">December 16, 2025</time>
+              </div>
+              
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">
+                How to Create a Christmas Postcard Video
+              </h1>
+              
+              <p className="text-xl text-gray-300 leading-relaxed mb-8">
+                This holiday season, surprise your friends and family with a personalized AI-generated Christmas video postcard! In just a few minutes, you can create a magical, festive video greeting complete with custom music, animated characters, and heartfelt messages. Here's how to do it.
+              </p>
+
+              {/* Demo Video Placeholder */}
+              <div className="rounded-lg overflow-hidden border border-red-500/30 mb-8 bg-gradient-to-br from-red-950/50 to-green-950/50">
+                <div className="aspect-video flex items-center justify-center">
+                  <div className="text-center p-8">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-red-500 to-green-600 flex items-center justify-center mx-auto mb-4">
+                      <Play className="w-10 h-10 text-white ml-1" fill="white" />
+                    </div>
+                    <p className="text-gray-400 text-lg">Demo Video Coming Soon</p>
+                    <p className="text-gray-500 text-sm mt-2">Watch how to create your Christmas postcard video</p>
+                  </div>
+                </div>
+              </div>
+            </header>
+
+            <div className="prose prose-invert max-w-none">
+              {/* Step 1: Create Christmas Song */}
+              <section className="mb-12">
+                <Card className="bg-gradient-to-r from-red-950/50 to-red-900/30 border-red-500/30">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-white font-bold">1</div>
+                      <Music className="h-6 w-6 text-red-400" />
+                      Describe Your Christmas Song or Jingle
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-gray-300">
+                    <p className="mb-4">
+                      Start by creating the perfect Christmas soundtrack for your video postcard. Our AI music generator will compose a unique holiday song based on your description.
+                    </p>
+                    
+                    <div className="bg-black/40 rounded-lg p-4 mb-4 border border-red-500/20">
+                      <p className="text-sm text-gray-400 mb-2">Example prompts:</p>
+                      <ul className="space-y-2 text-sm">
+                        <li className="text-red-300">"A cheerful Christmas jingle with sleigh bells and warm vocals"</li>
+                        <li className="text-red-300">"A cozy acoustic holiday song about family and winter snow"</li>
+                        <li className="text-red-300">"An upbeat festive tune with children's choir and magical vibes"</li>
+                      </ul>
+                    </div>
+                    
+                    <ul className="space-y-2">
+                      <li className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
+                        <span>Choose a festive genre like "Christmas Pop", "Holiday Jazz", or "Classical Christmas"</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
+                        <span>Add personalized lyrics mentioning the recipient's name or special memories</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
+                        <span>Keep it short and sweet - 30-60 seconds is perfect for a postcard greeting</span>
+                      </li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              </section>
+
+              {/* Step 2: Create Christmas Character */}
+              <section className="mb-12">
+                <Card className="bg-gradient-to-r from-green-950/50 to-green-900/30 border-green-500/30">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-bold">2</div>
+                      <User className="h-6 w-6 text-green-400" />
+                      Create Your Christmas Character
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-gray-300">
+                    <p className="mb-4">
+                      Design a festive character that will star in your Christmas video. This could be a cute elf, a jolly snowman, a friendly reindeer, or even a stylized version of yourself in holiday attire!
+                    </p>
+                    
+                    <div className="bg-black/40 rounded-lg p-4 mb-4 border border-green-500/20">
+                      <p className="text-sm text-gray-400 mb-2">Fun character ideas:</p>
+                      <ul className="space-y-2 text-sm">
+                        <li className="text-green-300">"A cute cartoon elf with a red hat and pointy ears, holding a gift"</li>
+                        <li className="text-green-300">"A friendly snowman wearing a cozy scarf in a winter wonderland"</li>
+                        <li className="text-green-300">"A magical reindeer with glowing antlers in a snowy forest"</li>
+                        <li className="text-green-300">"A cheerful Santa Claus character with rosy cheeks"</li>
+                      </ul>
+                    </div>
+                    
+                    <ul className="space-y-2">
+                      <li className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 flex-shrink-0" />
+                        <span>Use descriptive details like "wearing a red Christmas sweater" or "surrounded by snowflakes"</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 flex-shrink-0" />
+                        <span>Choose a style that matches the mood - cute and whimsical or elegant and classic</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 flex-shrink-0" />
+                        <span>The AI will generate multiple options so you can pick your favorite</span>
+                      </li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              </section>
+
+              {/* Step 3: Generate Scenes and Video */}
+              <section className="mb-12">
+                <Card className="bg-gradient-to-r from-purple-950/50 to-purple-900/30 border-purple-500/30">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold">3</div>
+                      <Video className="h-6 w-6 text-purple-400" />
+                      Generate Scenes and Video
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-gray-300">
+                    <p className="mb-4">
+                      Now comes the magic! Our AI will automatically generate beautiful Christmas-themed scenes and animate your character to create a stunning music video.
+                    </p>
+                    
+                    <div className="bg-black/40 rounded-lg p-4 mb-4 border border-purple-500/20">
+                      <p className="text-sm text-gray-400 mb-2">What the AI creates for you:</p>
+                      <ul className="space-y-2 text-sm">
+                        <li className="text-purple-300">Festive backgrounds like snowy villages, cozy fireplaces, and Christmas trees</li>
+                        <li className="text-purple-300">Animated scenes with falling snow, twinkling lights, and holiday magic</li>
+                        <li className="text-purple-300">Your character brought to life with lip-sync animation</li>
+                      </ul>
+                    </div>
+                    
+                    <ul className="space-y-2">
+                      <li className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
+                        <span>Review the generated scene images and regenerate any you'd like to change</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
+                        <span>Choose between horizontal (16:9) for YouTube or vertical (9:16) for TikTok/Instagram</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
+                        <span>Enable lip-sync for your character to make them sing along!</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
+                        <span>Sit back and watch as your video is generated - it typically takes just a few minutes</span>
+                      </li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              </section>
+
+              {/* Step 4: Send or Schedule the Postcard */}
+              <section className="mb-12">
+                <Card className="bg-gradient-to-r from-pink-950/50 to-pink-900/30 border-pink-500/30">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-pink-500 flex items-center justify-center text-white font-bold">4</div>
+                      <Gift className="h-6 w-6 text-pink-400" />
+                      Send or Schedule Your Postcard
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-gray-300">
+                    <p className="mb-4">
+                      Once your video is ready, it's time to share the holiday joy! Use our new "Send as Greeting Card" feature to email your video postcard directly to your loved ones.
+                    </p>
+                    
+                    <div className="grid md:grid-cols-2 gap-4 mb-4">
+                      <div className="bg-black/40 rounded-lg p-4 border border-pink-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Send className="h-5 w-5 text-pink-400" />
+                          <span className="font-semibold text-white">Send Now</span>
+                        </div>
+                        <p className="text-sm text-gray-400">
+                          Instantly deliver your video postcard to the recipient's inbox. Perfect for last-minute greetings!
+                        </p>
+                      </div>
+                      <div className="bg-black/40 rounded-lg p-4 border border-pink-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Calendar className="h-5 w-5 text-pink-400" />
+                          <span className="font-semibold text-white">Schedule Delivery</span>
+                        </div>
+                        <p className="text-sm text-gray-400">
+                          Pick the perfect date - like Christmas morning! - for your greeting to arrive.
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <ul className="space-y-2">
+                      <li className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-pink-400 mt-0.5 flex-shrink-0" />
+                        <span>Click the "Gift" button on your completed video</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-pink-400 mt-0.5 flex-shrink-0" />
+                        <span>Enter the recipient's email address and your email</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-pink-400 mt-0.5 flex-shrink-0" />
+                        <span>Add a personal message like "Merry Christmas! Wishing you joy and happiness!"</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-pink-400 mt-0.5 flex-shrink-0" />
+                        <span>Choose to send immediately or schedule for Christmas Day</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-pink-400 mt-0.5 flex-shrink-0" />
+                        <span>The recipient receives a beautifully formatted email with a link to view their special video</span>
+                      </li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              </section>
+
+              {/* Call to Action */}
+              <section className="text-center py-8">
+                <div className="bg-gradient-to-r from-red-950/50 via-green-950/50 to-red-950/50 rounded-xl p-8 border border-red-500/30">
+                  <Sparkles className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
+                  <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+                    Ready to Spread Holiday Cheer?
+                  </h2>
+                  <p className="text-gray-300 mb-6 max-w-xl mx-auto">
+                    Create your personalized Christmas postcard video today and surprise your loved ones with a gift they'll never forget!
+                  </p>
+                  <Link href="/create">
+                    <Button 
+                      size="lg" 
+                      className="bg-gradient-to-r from-red-500 to-green-600 hover:from-red-600 hover:to-green-700 text-white px-8"
+                      data-testid="button-create-christmas-video"
+                    >
+                      <TreePine className="mr-2 h-5 w-5" />
+                      Create Your Christmas Video
+                    </Button>
+                  </Link>
+                </div>
+              </section>
+            </div>
+          </article>
+        </main>
+        
+        <Footer />
+      </div>
+    </>
+  );
+}
