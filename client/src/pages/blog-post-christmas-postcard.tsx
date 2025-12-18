@@ -4,7 +4,7 @@ import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Music, User, Video, Gift, Sparkles, TreePine, Send, Calendar, Play } from "lucide-react";
+import { ArrowLeft, Music, User, Video, Gift, Sparkles, TreePine, Send, Calendar } from "lucide-react";
 
 export default function ChristmasPostcardBlogPost() {
   return (
@@ -48,17 +48,19 @@ export default function ChristmasPostcardBlogPost() {
                 This holiday season, surprise your friends and family with a personalized AI-generated Christmas video postcard! In just a few minutes, you can create a magical, festive video greeting complete with custom music, animated characters, and heartfelt messages. Here's how to do it.
               </p>
 
-              {/* Demo Video Placeholder */}
-              <div className="rounded-lg overflow-hidden border border-red-500/30 mb-8 bg-gradient-to-br from-red-950/50 to-green-950/50">
-                <div className="aspect-video flex items-center justify-center">
-                  <div className="text-center p-8">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-red-500 to-green-600 flex items-center justify-center mx-auto mb-4">
-                      <Play className="w-10 h-10 text-white ml-1" fill="white" />
-                    </div>
-                    <p className="text-gray-400 text-lg">Demo Video Coming Soon</p>
-                    <p className="text-gray-500 text-sm mt-2">Watch how to create your Christmas postcard video</p>
-                  </div>
-                </div>
+              {/* Demo Video */}
+              <div className="rounded-lg overflow-hidden border border-red-500/30 mb-8">
+                <video 
+                  src="https://res.cloudinary.com/dqemas8ht/video/upload/v1766075737/xmas2_cnuqud.mp4" 
+                  controls
+                  autoPlay
+                  muted
+                  loop
+                  className="w-full h-auto"
+                  data-testid="video-christmas-demo"
+                >
+                  Your browser does not support the video tag.
+                </video>
               </div>
             </header>
 
