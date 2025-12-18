@@ -108,13 +108,15 @@ export default function ChristmasPostcardBlogPost() {
                       <p className="text-green-300">"A cute cartoon elf with a red hat and pointy ears, wearing a cozy green sweater, standing in a snowy winter wonderland"</p>
                     </div>
                     
-                    <div className="mt-4 rounded-lg overflow-hidden border border-green-500/20">
-                      <img 
-                        src="https://res.cloudinary.com/dqemas8ht/image/upload/v1766076165/xmascat_u6elsh.jpg" 
-                        alt="Sample Christmas character - a festive cat" 
-                        className="w-full h-auto"
-                        data-testid="img-christmas-character-sample"
-                      />
+                    <div className="mt-4 flex justify-center">
+                      <div className="w-32 h-32 rounded-lg overflow-hidden border border-green-500/20">
+                        <img 
+                          src="https://res.cloudinary.com/dqemas8ht/image/upload/v1766076165/xmascat_u6elsh.jpg" 
+                          alt="Sample Christmas character - a festive cat" 
+                          className="w-full h-full object-cover"
+                          data-testid="img-christmas-character-sample"
+                        />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
