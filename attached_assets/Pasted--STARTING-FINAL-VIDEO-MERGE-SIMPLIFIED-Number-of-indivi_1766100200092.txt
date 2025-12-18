@@ -1,0 +1,19 @@
+=== STARTING FINAL VIDEO MERGE (SIMPLIFIED) ===
+Number of individual videos to merge: 3
+Individual video URLs to merge: [
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/2bd8ee20ee2f45628d7c88dc16152696/1.mp4',
+  'https://d2p7pge43lyniu.cloudfront.net/output/24b4fda8-a7b0-413f-948e-01c7f2be53cd-u2_4383e705-7a5c-4b6b-abc9-0f3bfc161369.mp4',
+  'https://d2p7pge43lyniu.cloudfront.net/output/089db26f-d65d-41cf-bed6-8978e77c2c4d-u2_ef858616-f3b8-4ec6-a199-bc605cf2650e.mp4'
+]
+Using external URL for segment 1: https://d1q70pf5vjeyhc.cloudfront.net/predictions/2bd8ee20ee2f45628d7c88dc16152696/1.mp4
+Using external URL for segment 2: https://d2p7pge43lyniu.cloudfront.net/output/24b4fda8-a7b0-413f-948e-01c7f2be53cd-u2_4383e705-7a5c-4b6b-abc9-0f3bfc161369.mp4
+Using external URL for segment 3: https://d2p7pge43lyniu.cloudfront.net/output/089db26f-d65d-41cf-bed6-8978e77c2c4d-u2_ef858616-f3b8-4ec6-a199-bc605cf2650e.mp4
+Successfully converted 3 video segments to signed URLs
+Found outro.mp4 in object storage, generating signed URL...
+Added outro video to merge with signed URL from object storage: https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/public/outro.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20251218%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20251218T230932Z&X-Goog-Expires=7199&X-Goog-Signature=86615b60159ce1da88d581c69dea1bd4c3116af6c8e9b6aff85d9198e1e40d23471cdfb6247f1a9c04b0eacddb9b4ff45ab937ad89540d577f632496ef0f900fbb95b6117c56176d379f967956ea06144f54841174503355191df7793155ffc0784ec7c61ba293e10f22929315e727c9926315bd6f6c904ff6e2b3dffe50db3f6eceed907b079ea42c0f65bee41ca54cce58ac5b1cfa73863670da6df9b854760e5e7c73bf34e24ee253a788b7ad49e442fc31f19fd37553cf32a90b03b40a1ecbfaf06a4a29318a4abad055e16ed786da6b99cf72cc5c8efb5e4d97044a5a73f6c43cd4388038d05e326d10deb5e5f3ed279a4150f7ce5523d6b855de12c3d5&X-Goog-SignedHeaders=host
+Signed video URLs for FFMPEG merge (including outro): [
+  'https://d1q70pf5vjeyhc.cloudfront.net/predictions/2bd8ee20ee2f45628d7c88dc16152696/1.mp4',
+  'https://d2p7pge43lyniu.cloudfront.net/output/24b4fda8-a7b0-413f-948e-01c7f2be53cd-u2_4383e705-7a5c-4b6b-abc9-0f3bfc161369.mp4',
+  'https://d2p7pge43lyniu.cloudfront.net/output/089db26f-d65d-41cf-bed6-8978e77c2c4d-u2_ef858616-f3b8-4ec6-a199-bc605cf2650e.mp4',
+  'https://storage.googleapis.com/replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/public/outro.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=heimdall-production%40replit-user-deployments.iam.gserviceaccount.com%2F20251218%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20251218T230932Z&X-Goog-Expires=7199&X-Goog-Signature=86615b60159ce1da88d581c69dea1bd4c3116af6c8e9b6aff85d9198e1e40d23471cdfb6247f1a9c04b0eacddb9b4ff45ab937ad89540d577f632496ef0f900fbb95b6117c56176d379f967956ea06144f54841174503355191df7793155ffc0784ec7c61ba293e10f22929315e727c9926315bd6f6c904ff6e2b3dffe50db3f6eceed907b079ea42c0f65bee41ca54cce58ac5b1cfa73863670da6df9b854760e5e7c73bf34e24ee253a788b7ad49e442fc31f19fd37553cf32a90b03b40a1ecbfaf06a4a29318a4abad055e16ed786da6b99cf72cc5c8efb5e4d97044a5a73f6c43cd4388038d05e326d10deb5e5f3ed279a4150f7ce5523d6b855de12c3d5&X-Goog-SignedHeaders=host'
+]
