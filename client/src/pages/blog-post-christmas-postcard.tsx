@@ -105,7 +105,7 @@ export default function ChristmasPostcardBlogPost() {
                     
                     <div className="bg-black/40 rounded-lg p-4 border border-green-500/20">
                       <p className="text-sm text-gray-400 mb-2">Example prompt:</p>
-                      <p className="text-green-300">"A cute cartoon elf with a red hat and pointy ears, wearing a cozy green sweater, standing in a snowy winter wonderland"</p>
+                      <p className="text-green-300">"A cute 3d animated cat dressed in Santa Claus clothes."</p>
                     </div>
                     
                     <div className="mt-4 flex justify-center">
