@@ -109,14 +109,12 @@ export default function ChristmasPostcardBlogPost() {
                     </div>
                     
                     <div className="mt-4 flex justify-center">
-                      <div className="w-32 h-32 rounded-lg overflow-hidden border border-green-500/20">
-                        <img 
-                          src="https://res.cloudinary.com/dqemas8ht/image/upload/v1766076165/xmascat_u6elsh.jpg" 
-                          alt="Sample Christmas character - a festive cat" 
-                          className="w-full h-full object-cover"
-                          data-testid="img-christmas-character-sample"
-                        />
-                      </div>
+                      <img 
+                        src="https://res.cloudinary.com/dqemas8ht/image/upload/v1766076165/xmascat_u6elsh.jpg" 
+                        alt="Sample Christmas character - a festive cat" 
+                        className="w-40 h-auto rounded-lg border border-green-500/20"
+                        data-testid="img-christmas-character-sample"
+                      />
                     </div>
                   </CardContent>
                 </Card>
