@@ -211,33 +211,48 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
         
         // Skip the first invoice from checkout.session.completed
         if (invoice.billing_reason === 'subscription_create') {
+          console.log(`Skipping invoice for new subscription creation (handled by checkout.session.completed)`);
           break;
         }
         
         const customerId = invoice.customer;
         const user = await storage.getUserByStripeCustomerId(customerId);
         
+        console.log(`Invoice payment succeeded - Customer: ${customerId}, User found: ${!!user}, Subscription: ${invoice.subscription}, Billing reason: ${invoice.billing_reason}`);
+        
         if (user && invoice.subscription) {
-          // Get subscription to find the plan
-          const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
-          const priceId = subscription.items.data[0]?.price.id;
+          // Reset credits for subscription renewal - this is the key action
+          // We reset credits regardless of whether we can match the plan,
+          // since any successful subscription payment should refresh credits
+          await storage.updateUser(user.id, {
+            creditsUsed: 0
+          });
           
-          if (priceId) {
-            // Find plan by price ID
-            const plans = await storage.getAllPlans();
-            const plan = plans.find(p => 
-              p.stripeMonthlyPriceId === priceId || 
-              p.stripeYearlyPriceId === priceId
-            );
+          // Try to find and log the plan for informational purposes
+          try {
+            const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+            const priceId = subscription.items.data[0]?.price.id;
             
-            if (plan) {
-              // Reset credits used for renewal (gives fresh credits)
-              await storage.updateUser(user.id, {
-                creditsUsed: 0
-              });
-              console.log(`Reset credits for user ${user.id} for subscription renewal (plan: ${plan.name})`);
+            if (priceId) {
+              const plans = await storage.getAllPlans();
+              const plan = plans.find(p => 
+                p.stripeMonthlyPriceId === priceId || 
+                p.stripeYearlyPriceId === priceId
+              );
+              
+              if (plan) {
+                console.log(`Reset credits for user ${user.id} for subscription renewal (plan: ${plan.name})`);
+              } else {
+                console.log(`Reset credits for user ${user.id} for subscription renewal (plan not found by priceId: ${priceId})`);
+              }
+            } else {
+              console.log(`Reset credits for user ${user.id} for subscription renewal (no priceId found)`);
             }
+          } catch (subscriptionError) {
+            console.log(`Reset credits for user ${user.id} for subscription renewal (could not retrieve subscription details: ${subscriptionError})`);
           }
+        } else if (!user) {
+          console.error(`Invoice payment succeeded but user not found for Stripe customer: ${customerId}`);
         }
         break;
       }
