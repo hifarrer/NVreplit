@@ -2074,6 +2074,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin endpoint to update credits used for a user
+  app.put("/api/admin/users/:userId/credits-used", authenticateAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Validate request body using Zod schema
+      const creditsUsedSchema = z.object({
+        creditsUsed: z.number()
+          .int("Credits used must be an integer")
+          .min(0, "Credits used cannot be negative")
+          .max(10000000, "Credits used cannot exceed 10,000,000")
+          .finite("Credits used must be a finite number")
+      });
+      
+      const validation = creditsUsedSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          error: "Invalid credits used amount", 
+          details: validation.error.errors.map(e => e.message).join(", ")
+        });
+      }
+      
+      const { creditsUsed } = validation.data;
+      
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Update user's credits used
+      await storage.updateUser(userId, { creditsUsed });
+      
+      res.json({ 
+        success: true, 
+        message: `Successfully updated credits used to ${creditsUsed} for user ${user.username}` 
+      });
+    } catch (error) {
+      console.error("Admin update credits used error:", error);
+      res.status(500).json({ error: "Failed to update credits used" });
+    }
+  });
+
   app.get("/api/admin/plans", authenticateAdmin, async (req, res) => {
     try {
       const plans = await storage.getAllPlans();

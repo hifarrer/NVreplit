@@ -66,6 +66,7 @@ export function UserManagement() {
   const [isExporting, setIsExporting] = useState(false);
   const [bonusCreditsUser, setBonusCreditsUser] = useState<UserWithStats | null>(null);
   const [bonusCreditsAmount, setBonusCreditsAmount] = useState<number>(0);
+  const [creditsUsedAmount, setCreditsUsedAmount] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
   const [planFilter, setPlanFilter] = useState<string>("all");
@@ -302,6 +303,39 @@ export function UserManagement() {
     },
   });
 
+  // Credits used mutation
+  const creditsUsedMutation = useMutation({
+    mutationFn: async ({ userId, creditsUsed }: { userId: string; creditsUsed: number }) => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(`/api/admin/users/${userId}/credits-used`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ creditsUsed }),
+      });
+      if (!res.ok) throw new Error("Failed to update credits used");
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setBonusCreditsUser(null);
+      setCreditsUsedAmount(0);
+      toast({
+        title: "Credits Used Updated",
+        description: `Successfully updated credits used to ${variables.creditsUsed}`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update credits used",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Fetch banned users
   const { data: bannedUsers = [] } = useQuery<BannedUser[]>({
     queryKey: ["/api/admin/banned-users"],
@@ -422,6 +456,7 @@ export function UserManagement() {
   const handleBonusCredits = (user: UserWithStats) => {
     setBonusCreditsUser(user);
     setBonusCreditsAmount(0);
+    setCreditsUsedAmount(user.creditsUsed || 0);
   };
 
   const confirmBonusCredits = () => {
@@ -429,6 +464,14 @@ export function UserManagement() {
     bonusCreditsMutation.mutate({
       userId: bonusCreditsUser.id,
       bonusCredits: bonusCreditsAmount,
+    });
+  };
+
+  const confirmCreditsUsed = () => {
+    if (!bonusCreditsUser) return;
+    creditsUsedMutation.mutate({
+      userId: bonusCreditsUser.id,
+      creditsUsed: creditsUsedAmount,
     });
   };
 
@@ -1002,99 +1045,141 @@ export function UserManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Bonus Credits Dialog */}
+      {/* Credits Management Dialog */}
       <Dialog open={!!bonusCreditsUser} onOpenChange={() => setBonusCreditsUser(null)}>
-        <DialogContent className="bg-gray-900 border-purple-500/20">
+        <DialogContent className="bg-gray-900 border-purple-500/20 max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-white">Give Bonus Credits</DialogTitle>
+            <DialogTitle className="text-white">Manage Credits</DialogTitle>
             <DialogDescription className="text-gray-300">
-              Award bonus credits to {bonusCreditsUser?.username}
+              Manage credits for {bonusCreditsUser?.username}
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-white">Bonus Credits Amount</Label>
-              <Input
-                type="number"
-                min="0"
-                max="1000000"
-                step="1"
-                value={bonusCreditsAmount}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value) || 0;
-                  setBonusCreditsAmount(Math.max(0, Math.min(1000000, value)));
-                }}
-                className="bg-gray-800 border-purple-500/30 text-white"
-                placeholder="Enter bonus credits amount (0-1,000,000)"
-                data-testid="input-bonus-credits-amount"
-              />
-              {bonusCreditsAmount < 0 && (
-                <p className="text-red-400 text-sm">Bonus credits cannot be negative</p>
-              )}
-              {bonusCreditsAmount > 1000000 && (
-                <p className="text-red-400 text-sm">Bonus credits cannot exceed 1,000,000</p>
-              )}
-            </div>
-            
+          <div className="space-y-6">
             {bonusCreditsUser && (
               <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
-                <h4 className="text-white font-medium mb-2">User Credits Summary</h4>
+                <h4 className="text-white font-medium mb-2">Current Credits Summary</h4>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between text-gray-300">
                     <span>Plan Credits:</span>
                     <span>{bonusCreditsUser.creditsLimit?.toLocaleString() || 0}</span>
                   </div>
                   <div className="flex justify-between text-gray-300">
+                    <span>Current Bonus Credits:</span>
+                    <span>{bonusCreditsUser.bonusCredits?.toLocaleString() || 0}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-300">
                     <span>Credits Used:</span>
                     <span>{bonusCreditsUser.creditsUsed?.toLocaleString() || 0}</span>
                   </div>
-                  <div className="flex justify-between text-yellow-300 font-medium">
-                    <span>Bonus Credits (New):</span>
-                    <span>+{bonusCreditsAmount.toLocaleString()}</span>
-                  </div>
-                  <hr className="border-purple-500/30" />
+                  <hr className="border-purple-500/30 my-2" />
                   <div className="flex justify-between text-green-300 font-medium">
-                    <span>Total Available Credits:</span>
-                    <span>{((bonusCreditsUser.creditsLimit || 0) + bonusCreditsAmount - (bonusCreditsUser.creditsUsed || 0)).toLocaleString()}</span>
+                    <span>Available Credits:</span>
+                    <span>{((bonusCreditsUser.creditsLimit || 0) + (bonusCreditsUser.bonusCredits || 0) - (bonusCreditsUser.creditsUsed || 0)).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
             )}
+
+            {/* Credits Used Section */}
+            <div className="space-y-3 p-4 border border-blue-500/30 rounded-lg bg-blue-500/5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-white font-medium">Credits Used</Label>
+                  <p className="text-gray-400 text-xs mt-1">Set to 0 to reset user's credits for a new billing period</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min="0"
+                  max="10000000"
+                  step="1"
+                  value={creditsUsedAmount}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0;
+                    setCreditsUsedAmount(Math.max(0, Math.min(10000000, value)));
+                  }}
+                  className="bg-gray-800 border-blue-500/30 text-white flex-1"
+                  placeholder="Enter credits used"
+                  data-testid="input-credits-used-amount"
+                />
+                <Button
+                  onClick={confirmCreditsUsed}
+                  disabled={
+                    creditsUsedMutation.isPending || 
+                    creditsUsedAmount < 0 || 
+                    creditsUsedAmount > 10000000 ||
+                    !Number.isInteger(creditsUsedAmount) ||
+                    !Number.isFinite(creditsUsedAmount)
+                  }
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                  data-testid="button-update-credits-used"
+                >
+                  {creditsUsedMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Update"
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Bonus Credits Section */}
+            <div className="space-y-3 p-4 border border-yellow-500/30 rounded-lg bg-yellow-500/5">
+              <div>
+                <Label className="text-white font-medium">Add Bonus Credits</Label>
+                <p className="text-gray-400 text-xs mt-1">Award extra credits on top of plan credits</p>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min="0"
+                  max="1000000"
+                  step="1"
+                  value={bonusCreditsAmount}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0;
+                    setBonusCreditsAmount(Math.max(0, Math.min(1000000, value)));
+                  }}
+                  className="bg-gray-800 border-yellow-500/30 text-white flex-1"
+                  placeholder="Enter new bonus credits total"
+                  data-testid="input-bonus-credits-amount"
+                />
+                <Button
+                  onClick={confirmBonusCredits}
+                  disabled={
+                    bonusCreditsMutation.isPending || 
+                    bonusCreditsAmount < 0 || 
+                    bonusCreditsAmount > 1000000 ||
+                    !Number.isInteger(bonusCreditsAmount) ||
+                    !Number.isFinite(bonusCreditsAmount)
+                  }
+                  className="bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50"
+                  data-testid="button-confirm-bonus-credits"
+                >
+                  {bonusCreditsMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Update"
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
           
-          <div className="flex justify-end space-x-2 pt-4">
+          <div className="flex justify-end pt-4">
             <Button
               variant="outline"
               onClick={() => {
                 setBonusCreditsUser(null);
                 setBonusCreditsAmount(0);
+                setCreditsUsedAmount(0);
               }}
               className="border-gray-600 text-gray-300"
-              data-testid="button-cancel-bonus-credits"
+              data-testid="button-close-credits-dialog"
             >
-              Cancel
-            </Button>
-            <Button
-              onClick={confirmBonusCredits}
-              disabled={
-                bonusCreditsMutation.isPending || 
-                bonusCreditsAmount < 0 || 
-                bonusCreditsAmount > 1000000 ||
-                !Number.isInteger(bonusCreditsAmount) ||
-                !Number.isFinite(bonusCreditsAmount)
-              }
-              className="bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              data-testid="button-confirm-bonus-credits"
-            >
-              {bonusCreditsMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                "Give Bonus Credits"
-              )}
+              Close
             </Button>
           </div>
         </DialogContent>
