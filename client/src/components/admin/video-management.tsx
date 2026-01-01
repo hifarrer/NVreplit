@@ -8,10 +8,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Share2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Share2, Images, Film, Clock, Mic } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Project } from "@shared/schema";
+import type { SceneData } from "@/lib/types";
 
 interface VideoWithUser extends Project {
   username?: string;
@@ -37,6 +39,7 @@ export function VideoManagement() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [editingVideo, setEditingVideo] = useState<VideoWithUser | null>(null);
   const [deletingVideo, setDeletingVideo] = useState<VideoWithUser | null>(null);
+  const [viewingScenesVideo, setViewingScenesVideo] = useState<VideoWithUser | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(50);
 
@@ -231,6 +234,51 @@ export function VideoManagement() {
     return "bg-gray-500";
   };
 
+  const parseSceneData = (video: VideoWithUser): SceneData[] => {
+    const prompts = (video.scenePrompts as string[] | undefined) || [];
+    const images = (video.sceneImages as string[] | undefined) || [];
+    
+    if (prompts.length === 0 && images.length === 0) return [];
+    
+    const maxLength = Math.max(prompts.length, images.length);
+    const scenes: SceneData[] = [];
+    
+    for (let i = 0; i < maxLength; i++) {
+      scenes.push({
+        prompt: prompts[i] || '',
+        imageUrl: images[i] || ''
+      });
+    }
+    
+    return scenes;
+  };
+
+  const getSceneOrder = (video: VideoWithUser): number[] => {
+    if (!video.sceneOrder) return [];
+    try {
+      if (typeof video.sceneOrder === 'string') {
+        return JSON.parse(video.sceneOrder);
+      }
+      return video.sceneOrder;
+    } catch {
+      return [];
+    }
+  };
+
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const isLipsyncScene = (index: number, audioDuration?: number): boolean => {
+    if (!audioDuration) return false;
+    if (audioDuration <= 30) {
+      return index === 1 || index === 2;
+    }
+    return index % 2 === 1;
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -369,6 +417,18 @@ export function VideoManagement() {
                   </div>
                   
                   <div className="flex items-center gap-2 ml-4">
+                    {parseSceneData(video).length > 0 && (
+                      <Button
+                        onClick={() => setViewingScenesVideo(video)}
+                        variant="outline"
+                        size="sm"
+                        className="border-cyan-500/30 text-cyan-300 hover:bg-cyan-600/20"
+                        data-testid={`view-scenes-${video.id}`}
+                        title="View scene images and timeline"
+                      >
+                        <Images className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       onClick={() => setEditingVideo(video)}
                       variant="outline"
@@ -606,6 +666,167 @@ export function VideoManagement() {
               disabled={deleteVideoMutation.isPending}
             >
               Delete Video
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Scenes Dialog */}
+      <Dialog open={!!viewingScenesVideo} onOpenChange={() => setViewingScenesVideo(null)}>
+        <DialogContent className="bg-gray-900 border-purple-500/20 text-white max-w-5xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Images className="h-5 w-5 text-cyan-400" />
+              Scene Images - {viewingScenesVideo?.title}
+            </DialogTitle>
+          </DialogHeader>
+          {viewingScenesVideo && (() => {
+            const scenes = parseSceneData(viewingScenesVideo);
+            const sceneOrder = getSceneOrder(viewingScenesVideo);
+            const audioDuration = viewingScenesVideo.audioDuration || 0;
+            const effectiveOrder = sceneOrder.length > 0 ? sceneOrder : scenes.map((_, i) => i);
+            const sceneCount = scenes.length;
+            const sceneDuration = sceneCount > 0 ? Math.ceil(audioDuration / sceneCount) : 10;
+
+            return (
+              <ScrollArea className="max-h-[70vh]">
+                <div className="space-y-6 pr-4">
+                  {/* Video Info */}
+                  <div className="bg-black/30 rounded-lg p-4 space-y-2">
+                    <div className="flex items-center gap-4 text-sm text-gray-400">
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        <span>{viewingScenesVideo.username || 'Unknown User'}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        <span>Duration: {formatDuration(audioDuration)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Film className="h-3 w-3" />
+                        <span>{scenes.length} scenes</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Timeline View */}
+                  <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-xl p-4 border border-slate-700">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Film className="w-5 h-5 text-cyan-400" />
+                      <h4 className="text-lg font-semibold text-white">Timeline</h4>
+                    </div>
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-purple-500 to-cyan-500 rounded-t-xl opacity-60"></div>
+                    
+                    <div className="flex items-center gap-1 overflow-x-auto pb-2">
+                      <div className="w-1 h-16 bg-cyan-500 rounded-full flex-shrink-0"></div>
+                      
+                      {effectiveOrder.map((originalIndex, orderPosition) => {
+                        const scene = scenes[originalIndex];
+                        if (!scene) return null;
+                        
+                        const isLipsync = isLipsyncScene(originalIndex, audioDuration);
+                        const startTime = orderPosition * sceneDuration;
+                        const endTime = Math.min((orderPosition + 1) * sceneDuration, audioDuration);
+                        
+                        return (
+                          <div
+                            key={`timeline-${originalIndex}-${orderPosition}`}
+                            className="relative flex-shrink-0"
+                            style={{ minWidth: '100px', maxWidth: '140px' }}
+                          >
+                            <div className={`relative rounded-lg overflow-hidden border-2 border-slate-600 ${isLipsync ? 'ring-2 ring-pink-500/30' : ''}`}>
+                              <div className="absolute top-1 right-1 z-20 bg-black/60 backdrop-blur-sm rounded px-1.5 py-0.5 text-[10px] font-medium text-white">
+                                {orderPosition + 1}
+                              </div>
+                              
+                              {isLipsync && (
+                                <div className="absolute top-1 left-1 z-20">
+                                  <Mic className="w-3 h-3 text-pink-400" />
+                                </div>
+                              )}
+                              
+                              <div className="w-full h-16 bg-gradient-to-br from-slate-700 to-slate-800">
+                                {scene.imageUrl ? (
+                                  <img 
+                                    src={scene.imageUrl}
+                                    alt={`Scene ${originalIndex + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Film className="w-6 h-6 text-slate-500" />
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
+                                <div className="text-[9px] text-white/80 font-mono tracking-wide">
+                                  {formatDuration(startTime)} - {formatDuration(endTime)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      <div className="w-1 h-16 bg-cyan-500 rounded-full flex-shrink-0"></div>
+                    </div>
+                    
+                    <div className="mt-3 flex justify-between text-[10px] text-slate-400 font-mono px-1">
+                      <span>0:00</span>
+                      <span>{formatDuration(Math.floor(audioDuration / 2))}</span>
+                      <span>{formatDuration(audioDuration)}</span>
+                    </div>
+                  </div>
+
+                  {/* Scene Images Grid */}
+                  <div>
+                    <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                      <Images className="h-5 w-5 text-cyan-400" />
+                      All Scene Images
+                    </h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {scenes.map((scene, index) => (
+                        <div key={index} className="bg-black/30 rounded-lg p-3 border border-slate-600">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge className="bg-cyan-600 text-white text-xs">
+                              Scene {index + 1}
+                            </Badge>
+                            {isLipsyncScene(index, audioDuration) && (
+                              <Mic className="w-3 h-3 text-pink-400" />
+                            )}
+                          </div>
+                          <div className="aspect-square bg-slate-800 rounded-lg overflow-hidden mb-2">
+                            {scene.imageUrl ? (
+                              <img
+                                src={scene.imageUrl}
+                                alt={`Scene ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Film className="w-8 h-8 text-slate-500" />
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-400 line-clamp-3" title={scene.prompt}>
+                            {scene.prompt || 'No prompt available'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </ScrollArea>
+            );
+          })()}
+          <DialogFooter>
+            <Button
+              onClick={() => setViewingScenesVideo(null)}
+              variant="outline"
+              className="border-purple-500/30 text-purple-300 hover:bg-purple-600/20"
+            >
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
