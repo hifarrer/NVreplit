@@ -17,6 +17,7 @@ interface SceneTimelineProps {
   subtitleFileUrl?: string;
   onReorder: (newOrder: number[]) => void;
   onSceneClick?: (sceneIndex: number) => void;
+  onToggleLipsync?: (sceneIndex: number) => void;
 }
 
 export function SceneTimeline({ 
@@ -27,7 +28,8 @@ export function SceneTimeline({
   lyrics,
   subtitleFileUrl,
   onReorder,
-  onSceneClick 
+  onSceneClick,
+  onToggleLipsync
 }: SceneTimelineProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -226,6 +228,10 @@ export function SceneTimeline({
   const sceneDuration = sceneCount > 0 ? Math.ceil(audioDuration / sceneCount) : 10;
   
   const isLipsyncScene = (originalIndex: number): boolean => {
+    const scene = scenes[originalIndex];
+    if (scene?.lipsync !== undefined) {
+      return scene.lipsync;
+    }
     if (!audioDuration) return false;
     if (audioDuration <= 30) {
       return originalIndex === 1 || originalIndex === 2;
@@ -442,11 +448,25 @@ export function SceneTimeline({
                           {orderPosition + 1}
                         </div>
                         
-                        {isLipsync && (
-                          <div className="absolute top-1 left-6 z-20">
-                            <Mic className="w-3 h-3 text-pink-400 drop-shadow-lg" />
-                          </div>
-                        )}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                className="absolute top-1 left-6 z-20 p-0.5 rounded hover:bg-black/30 transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onToggleLipsync?.(originalIndex);
+                                }}
+                                data-testid={`timeline-lipsync-toggle-${orderPosition + 1}`}
+                              >
+                                <Mic className={`w-3 h-3 drop-shadow-lg ${isLipsync ? 'text-pink-400' : 'text-gray-400'}`} />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              <p>{isLipsync ? 'Lipsync enabled - click to disable' : 'Lipsync disabled - click to enable'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         
                         <div className="w-full h-16 bg-gradient-to-br from-slate-700 to-slate-800">
                           {scene.imageUrl ? (

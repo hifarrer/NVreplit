@@ -6,6 +6,7 @@ export interface AudioSegment {
 export interface SceneData {
   prompt: string;
   imageUrl: string;
+  lipsync?: boolean;
 }
 
 export interface GenerationLog {

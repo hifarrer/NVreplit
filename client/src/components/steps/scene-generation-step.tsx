@@ -50,18 +50,32 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   const hasGeneratedRef = useRef(false);
   const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
 
-  // Determine if a scene uses lipsync based on video duration and scene index
-  const isLipsyncScene = (index: number): boolean => {
+  const getDefaultLipsync = (index: number): boolean => {
     if (!audioDuration) return false;
-    
-    // For 30 second videos: Scene 1 (index 0) is seedance, Scenes 2-3 (indices 1-2) are lipsync
     if (audioDuration <= 30) {
       return index === 1 || index === 2;
     }
-    
-    // For 60+ second videos: Alternating pattern - Scene 1 seedance, Scene 2 lipsync, etc.
-    // Odd indices (1, 3, 5, 7) are lipsync
     return index % 2 === 1;
+  };
+
+  const isLipsyncScene = (index: number): boolean => {
+    const scene = generatedScenes[index];
+    if (scene?.lipsync !== undefined) {
+      return scene.lipsync;
+    }
+    return getDefaultLipsync(index);
+  };
+
+  const toggleLipsync = (index: number) => {
+    setGeneratedScenes(prev => 
+      prev.map((scene, i) => {
+        if (i === index) {
+          const currentLipsync = scene.lipsync !== undefined ? scene.lipsync : getDefaultLipsync(i);
+          return { ...scene, lipsync: !currentLipsync };
+        }
+        return scene;
+      })
+    );
   };
 
   const generateScenesMutation = useMutation({
@@ -467,6 +481,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
             subtitleFileUrl={subtitleFileUrl}
             onReorder={handleSceneReorder}
             onSceneClick={scrollToScene}
+            onToggleLipsync={toggleLipsync}
           />
         )}
 
@@ -500,23 +515,24 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <h5 className="font-semibold">Scene {index + 1}</h5>
-                        {isLipsyncScene(index) && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button 
-                                  className="focus:outline-none"
-                                  data-testid={`lipsync-indicator-${index + 1}`}
-                                >
-                                  <Mic className="w-4 h-4 text-pink-500" />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Lipsync scenes need to be a closeup of the character</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button 
+                                className="focus:outline-none p-1 rounded hover:bg-muted/50 transition-colors"
+                                onClick={() => toggleLipsync(index)}
+                                data-testid={`lipsync-toggle-${index + 1}`}
+                              >
+                                <Mic className={`w-4 h-4 ${isLipsyncScene(index) ? 'text-pink-500' : 'text-gray-400'}`} />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{isLipsyncScene(index) 
+                                ? 'Lipsync enabled - uses AI lipsync model (click to disable)' 
+                                : 'Lipsync disabled - uses regular AI video model (click to enable)'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
