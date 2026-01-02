@@ -171,7 +171,9 @@ export function SceneTimeline({
         audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
         if (cancelled) {
-          audioContext.close();
+          if (audioContext.state !== 'closed') {
+            audioContext.close();
+          }
           return;
         }
         
@@ -197,7 +199,9 @@ export function SceneTimeline({
         if (!cancelled) {
           setWaveformData(normalizedData);
         }
-        audioContext.close();
+        if (audioContext.state !== 'closed') {
+          audioContext.close();
+        }
       } catch (error) {
         if (!cancelled) {
           console.error('Error generating waveform:', error);
@@ -211,7 +215,7 @@ export function SceneTimeline({
     
     return () => {
       cancelled = true;
-      if (audioContext) {
+      if (audioContext && audioContext.state !== 'closed') {
         audioContext.close();
       }
     };
