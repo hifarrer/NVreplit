@@ -199,6 +199,7 @@ export default function Home() {
           <SceneGenerationStep
             projectId={projectId}
             audioDuration={project?.audioDuration}
+            audioUrl={project?.audioUrl}
             characterImageUrl={project?.characterImageUrl}
             scenes={project?.scenePrompts?.map((prompt, index) => ({
               prompt,
