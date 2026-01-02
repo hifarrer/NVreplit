@@ -194,7 +194,9 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
               <img 
                 src="https://res.cloudinary.com/dqemas8ht/image/upload/v1767383314/characters_bsaw13.png" 
                 alt="Character Library" 
-                className="w-48 h-auto mx-auto mb-4 rounded-lg"
+                className="w-48 sm:w-96 h-auto mx-auto mb-4 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => setShowLibraryModal(true)}
+                data-testid="image-character-library"
               />
               <h4 className="text-lg font-semibold mb-2">Character Library</h4>
               <p className="text-muted-foreground mb-6 text-sm">Choose from public or your saved characters</p>
