@@ -39,55 +39,51 @@ export function SceneTimeline({
   const sceneCount = scenes.length;
   const sceneDurationCalc = sceneCount > 0 ? audioDuration / sceneCount : 10;
   
-  const sceneLyrics = useMemo(() => {
-    if (!lyrics || sceneCount === 0 || audioDuration === 0) {
-      return Array(sceneCount).fill(null);
+  interface LyricSegment {
+    start: number;
+    end: number;
+    text: string;
+  }
+  
+  const lyricSegments = useMemo((): LyricSegment[] | null => {
+    if (!lyrics || audioDuration === 0) {
+      return null;
     }
-    
-    const sceneDur = audioDuration / sceneCount;
-    const sceneLines: string[][] = Array.from({ length: sceneCount }, () => []);
     
     const lines = lyrics.split('\n');
     const timestampRegex = /^\[(\d{1,2}):(\d{2})(?:[.:]\d{1,3})?\]\s*/;
-    let hasTimestamps = false;
+    const parsed: { time: number; text: string }[] = [];
     
     for (const line of lines) {
       const match = line.match(timestampRegex);
       if (match) {
-        hasTimestamps = true;
         const minutes = parseInt(match[1], 10);
         const seconds = parseInt(match[2], 10);
         const timeInSeconds = minutes * 60 + seconds;
-        
-        const sceneIndex = Math.min(Math.floor(timeInSeconds / sceneDur), sceneCount - 1);
         const lyricText = line.replace(timestampRegex, '').trim();
         if (lyricText) {
-          sceneLines[sceneIndex].push(lyricText);
+          parsed.push({ time: timeInSeconds, text: lyricText });
         }
       }
     }
     
-    if (hasTimestamps) {
-      return sceneLines.map(lines => lines.length > 0 ? lines.join('\n') : null);
+    if (parsed.length === 0) {
+      return null;
     }
     
-    const plainLines = lines.filter(line => line.trim() && !line.trim().startsWith('['));
-    if (plainLines.length === 0) {
-      return Array(sceneCount).fill(null);
+    parsed.sort((a, b) => a.time - b.time);
+    
+    const segments: LyricSegment[] = [];
+    for (let i = 0; i < parsed.length; i++) {
+      const start = parsed[i].time;
+      const end = i < parsed.length - 1 ? parsed[i + 1].time : audioDuration;
+      segments.push({ start, end, text: parsed[i].text });
     }
     
-    const linesPerScene = Math.max(1, Math.ceil(plainLines.length / sceneCount));
-    const result: (string | null)[] = [];
-    
-    for (let i = 0; i < sceneCount; i++) {
-      const start = i * linesPerScene;
-      const end = Math.min(start + linesPerScene, plainLines.length);
-      const chunk = plainLines.slice(start, end);
-      result.push(chunk.length > 0 ? chunk.join('\n') : null);
-    }
-    
-    return result;
-  }, [lyrics, sceneCount, audioDuration]);
+    return segments;
+  }, [lyrics, audioDuration]);
+  
+  const hasTimestampedLyrics = lyricSegments !== null && lyricSegments.length > 0;
 
   useEffect(() => {
     if (!audioUrl) return;
@@ -407,61 +403,54 @@ export function SceneTimeline({
                 <div className="w-1 h-16 bg-primary rounded-full flex-shrink-0 shadow-[0_0_10px_rgba(168,85,247,0.5)]"></div>
               </div>
               
-              {/* Lyrics track - same container, scrolls together */}
+              {/* Lyrics track - positioned by timestamp */}
               <TooltipProvider delayDuration={100}>
                 <div 
-                  className="flex items-center gap-0.5"
+                  className="relative h-8 bg-slate-800/30 rounded-lg"
                   style={{ width: `${sceneCount * 100 + 4}px` }}
                   data-testid="lyrics-track"
                 >
-                  <div className="w-1 h-8 bg-amber-500/50 rounded-full flex-shrink-0"></div>
-                  
-                  {sceneOrder.map((originalIndex, orderPosition) => {
-                    const lyricsForScene = sceneLyrics[orderPosition];
-                    const hasLyrics = lyricsForScene !== null && lyricsForScene.trim() !== '';
-                    
-                    return (
-                      <Tooltip key={`lyrics-${orderPosition}`}>
-                        <TooltipTrigger asChild>
-                          <div
-                            className={`
-                              h-8 flex-shrink-0 rounded cursor-pointer
-                              transition-all duration-200 hover:scale-[1.02]
-                              ${hasLyrics 
-                                ? 'bg-gradient-to-r from-amber-500/30 to-amber-600/30 border border-amber-500/40 hover:border-amber-400/60' 
-                                : 'bg-slate-700/30 border border-slate-600/30 hover:border-slate-500/50'}
-                            `}
-                            style={{ width: '100px' }}
-                            data-testid={`lyrics-block-${orderPosition + 1}`}
+                  {hasTimestampedLyrics && lyricSegments ? (
+                    lyricSegments.map((segment, index) => {
+                      const leftPercent = (segment.start / audioDuration) * 100;
+                      const duration = segment.end - segment.start;
+                      const widthPercent = Math.max((duration / audioDuration) * 100, 3);
+                      
+                      return (
+                        <Tooltip key={`lyrics-${index}`}>
+                          <TooltipTrigger asChild>
+                            <div
+                              className="absolute top-0 bottom-0 rounded cursor-pointer transition-all duration-200 hover:scale-y-110 bg-gradient-to-r from-amber-500/40 to-amber-600/40 border border-amber-500/50 hover:border-amber-400/70"
+                              style={{ 
+                                left: `${leftPercent}%`, 
+                                width: `${widthPercent}%`,
+                                minWidth: '20px'
+                              }}
+                              data-testid={`lyrics-block-${index + 1}`}
+                            >
+                              <div className="flex items-center justify-center h-full overflow-hidden px-0.5">
+                                <Type className="w-3 h-3 text-amber-400/80 flex-shrink-0" />
+                              </div>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent 
+                            side="top" 
+                            className="max-w-[250px] bg-slate-900 border-slate-700 text-slate-200"
                           >
-                            <div className="flex items-center justify-center h-full px-1">
-                              {hasLyrics ? (
-                                <Type className="w-3 h-3 text-amber-400/70" />
-                              ) : (
-                                <span className="text-[8px] text-slate-500">—</span>
-                              )}
+                            <div className="text-xs leading-relaxed">
+                              <span className="text-amber-400 font-mono text-[10px]">{formatDuration(Math.floor(segment.start))}</span>
+                              <span className="mx-1.5 text-slate-500">|</span>
+                              {segment.text}
                             </div>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent 
-                          side="top" 
-                          className="max-w-[250px] bg-slate-900 border-slate-700 text-slate-200"
-                        >
-                          {hasLyrics ? (
-                            <div className="text-xs whitespace-pre-line leading-relaxed">
-                              {lyricsForScene}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-slate-400 italic">
-                              no lyrics
-                            </div>
-                          )}
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  })}
-                  
-                  <div className="w-1 h-8 bg-amber-500/50 rounded-full flex-shrink-0"></div>
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-slate-500 text-xs">
+                      No timestamped lyrics
+                    </div>
+                  )}
                 </div>
               </TooltipProvider>
               
