@@ -47,7 +47,8 @@ export function SceneTimeline({
         const response = await fetch(subtitleFileUrl);
         const content = await response.text();
         
-        const dialogueRegex = /Dialogue:\s*\d+,(\d+):(\d+):(\d+)\.(\d+),(\d+):(\d+):(\d+)\.(\d+),[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,(.+)/g;
+        // Match format: Dialogue: Marked=0,0:00:11.63,0:00:11.81,Default,,0000,0000,0000,,Text
+        const dialogueRegex = /Dialogue:\s*(?:Marked=\d+,)?(\d+):(\d+):(\d+)\.(\d+),(\d+):(\d+):(\d+)\.(\d+),[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,,(.+)/g;
         const subtitles: { start: number; end: number; text: string }[] = [];
         
         let match;
@@ -71,6 +72,7 @@ export function SceneTimeline({
         }
         
         subtitles.sort((a, b) => a.start - b.start);
+        console.log('Parsed ASS subtitles:', subtitles.slice(0, 5));
         setAssSubtitles(subtitles);
       } catch (error) {
         console.error('Error fetching subtitle file:', error);
