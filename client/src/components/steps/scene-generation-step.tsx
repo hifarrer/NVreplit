@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,7 +12,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SceneData } from "@/lib/types";
-import { RotateCcw, RefreshCw, Mic, Upload, Loader2 } from "lucide-react";
+import { RotateCcw, RefreshCw, Mic, Upload, Loader2, AlertTriangle } from "lucide-react";
 import { SceneTimeline } from "@/components/scene-timeline";
 
 interface SceneGenerationStepProps {
@@ -76,6 +76,74 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
         return scene;
       })
     );
+  };
+
+  const lyricSegments = useMemo(() => {
+    if (!audioLyrics || !audioDuration) return null;
+    
+    const lines = audioLyrics.split('\n');
+    const timestampRegex = /^\[(\d{1,2}):(\d{2})(?:[.:]\d{1,3})?\]\s*/;
+    const sectionHeaderRegex = /^\[(?:Verse|Chorus|Bridge|Intro|Outro|Hook|Pre-Chorus|Post-Chorus).*\]$/i;
+    const parsed: { time: number; text: string }[] = [];
+    let hasRealTimestamps = false;
+    
+    for (const line of lines) {
+      const match = line.match(timestampRegex);
+      if (match) {
+        hasRealTimestamps = true;
+        const minutes = parseInt(match[1], 10);
+        const seconds = parseInt(match[2], 10);
+        const timeInSeconds = minutes * 60 + seconds;
+        const lyricText = line.replace(timestampRegex, '').trim();
+        if (lyricText) {
+          parsed.push({ time: timeInSeconds, text: lyricText });
+        }
+      }
+    }
+    
+    if (hasRealTimestamps && parsed.length > 0) {
+      parsed.sort((a, b) => a.time - b.time);
+      return parsed.map((item, i) => ({
+        start: item.time,
+        end: i < parsed.length - 1 ? parsed[i + 1].time : audioDuration,
+        text: item.text
+      }));
+    }
+    
+    const plainLines = lines.filter(line => {
+      const trimmed = line.trim();
+      return trimmed && !sectionHeaderRegex.test(trimmed);
+    });
+    
+    if (plainLines.length === 0) return null;
+    
+    const segmentDuration = audioDuration / plainLines.length;
+    return plainLines.map((text, index) => ({
+      start: index * segmentDuration,
+      end: (index + 1) * segmentDuration,
+      text: text.trim()
+    }));
+  }, [audioLyrics, audioDuration]);
+
+  const hasLyricsForScene = useCallback((sceneIndex: number): boolean => {
+    if (!lyricSegments || lyricSegments.length === 0 || !audioDuration) return false;
+    
+    const orderPosition = sceneOrder.indexOf(sceneIndex);
+    if (orderPosition === -1) return false;
+    
+    const sceneCount = generatedScenes.length;
+    const sceneDuration = audioDuration / sceneCount;
+    const startTime = orderPosition * sceneDuration;
+    const endTime = Math.min((orderPosition + 1) * sceneDuration, audioDuration);
+    
+    return lyricSegments.some(segment => 
+      segment.start < endTime && segment.end > startTime
+    );
+  }, [lyricSegments, audioDuration, sceneOrder, generatedScenes.length]);
+
+  const showLipsyncWarning = (index: number): boolean => {
+    if (!lyricSegments || lyricSegments.length === 0) return false;
+    return isLipsyncScene(index) && !hasLyricsForScene(index);
   };
 
   const generateScenesMutation = useMutation({
@@ -533,6 +601,23 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
+                        {showLipsyncWarning(index) && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div 
+                                  className="p-1 rounded bg-amber-500/20 border border-amber-500/50 animate-pulse"
+                                  data-testid={`lipsync-warning-${index + 1}`}
+                                >
+                                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-[250px] bg-amber-900 border-amber-700">
+                                <p>Lipsync is enabled but there are no lyrics during this scene. Consider disabling lipsync or reordering scenes.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <Button

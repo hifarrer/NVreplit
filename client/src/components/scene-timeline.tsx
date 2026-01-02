@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { SceneData } from "@/lib/types";
-import { Film, GripVertical, Clock, Mic, Music, Type, Play, Pause } from "lucide-react";
+import { Film, GripVertical, Clock, Mic, Music, Type, Play, Pause, AlertTriangle } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -157,6 +157,13 @@ export function SceneTimeline({
   }, [lyrics, audioDuration, assSubtitles]);
   
   const hasTimestampedLyrics = lyricSegments !== null && lyricSegments.length > 0;
+
+  const hasLyricsInTimeWindow = useCallback((startTime: number, endTime: number): boolean => {
+    if (!lyricSegments || lyricSegments.length === 0) return false;
+    return lyricSegments.some(segment => 
+      segment.start < endTime && segment.end > startTime
+    );
+  }, [lyricSegments]);
 
   useEffect(() => {
     if (!audioUrl) return;
@@ -409,6 +416,8 @@ export function SceneTimeline({
                   const isLipsync = isLipsyncScene(originalIndex);
                   const startTime = orderPosition * sceneDuration;
                   const endTime = Math.min((orderPosition + 1) * sceneDuration, audioDuration);
+                  const hasLyrics = hasLyricsInTimeWindow(startTime, endTime);
+                  const showLipsyncWarning = isLipsync && !hasLyrics && hasTimestampedLyrics;
                   
                   return (
                     <div
@@ -467,6 +476,24 @@ export function SceneTimeline({
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
+                        
+                        {showLipsyncWarning && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div 
+                                  className="absolute bottom-6 left-1 z-20 p-0.5 rounded bg-amber-500/80 animate-pulse"
+                                  data-testid={`timeline-lipsync-warning-${orderPosition + 1}`}
+                                >
+                                  <AlertTriangle className="w-3 h-3 text-white drop-shadow-lg" />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="text-xs max-w-[200px] bg-amber-900 border-amber-700">
+                                <p>Lipsync enabled but no lyrics in this section. Consider disabling lipsync for this scene.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                         
                         <div className="w-full h-16 bg-gradient-to-br from-slate-700 to-slate-800">
                           {scene.imageUrl ? (
