@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Share2, Images, Film, Clock, Mic } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Share2, Images, Film, Clock, Mic, Type, Play, Pause, Music } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Project } from "@shared/schema";
@@ -32,6 +33,12 @@ interface VideosResponse {
   };
 }
 
+interface LyricSegment {
+  start: number;
+  end: number;
+  text: string;
+}
+
 export function VideoManagement() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
@@ -42,6 +49,233 @@ export function VideoManagement() {
   const [viewingScenesVideo, setViewingScenesVideo] = useState<VideoWithUser | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(50);
+  
+  const [waveformData, setWaveformData] = useState<number[]>([]);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [assSubtitles, setAssSubtitles] = useState<{ start: number; end: number; text: string }[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (!viewingScenesVideo?.subtitleFileUrl) {
+      setAssSubtitles([]);
+      return;
+    }
+    
+    const fetchSubtitles = async () => {
+      try {
+        const response = await fetch(viewingScenesVideo.subtitleFileUrl!);
+        const content = await response.text();
+        
+        const dialogueRegex = /Dialogue:\s*(?:Marked=\d+,)?(\d+):(\d+):(\d+)\.(\d+),(\d+):(\d+):(\d+)\.(\d+),[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,,(.+)/g;
+        const subtitles: { start: number; end: number; text: string }[] = [];
+        
+        let match;
+        while ((match = dialogueRegex.exec(content)) !== null) {
+          const startH = parseInt(match[1], 10);
+          const startM = parseInt(match[2], 10);
+          const startS = parseInt(match[3], 10);
+          const startCs = parseInt(match[4], 10);
+          const endH = parseInt(match[5], 10);
+          const endM = parseInt(match[6], 10);
+          const endS = parseInt(match[7], 10);
+          const endCs = parseInt(match[8], 10);
+          const text = match[9].replace(/\\N/g, ' ').replace(/\{[^}]*\}/g, '').trim();
+          
+          const start = startH * 3600 + startM * 60 + startS + startCs / 100;
+          const end = endH * 3600 + endM * 60 + endS + endCs / 100;
+          
+          if (text) {
+            subtitles.push({ start, end, text });
+          }
+        }
+        
+        subtitles.sort((a, b) => a.start - b.start);
+        setAssSubtitles(subtitles);
+      } catch (error) {
+        console.error('Error fetching subtitle file:', error);
+      }
+    };
+    
+    fetchSubtitles();
+  }, [viewingScenesVideo?.subtitleFileUrl]);
+
+  useEffect(() => {
+    if (!viewingScenesVideo?.audioUrl) {
+      setWaveformData([]);
+      return;
+    }
+    
+    let cancelled = false;
+    let audioContext: AudioContext | null = null;
+    
+    const fetchWaveform = async () => {
+      try {
+        const response = await fetch(viewingScenesVideo.audioUrl!);
+        if (cancelled) return;
+        
+        const arrayBuffer = await response.arrayBuffer();
+        if (cancelled) return;
+        
+        audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        if (cancelled) {
+          if (audioContext.state !== 'closed') {
+            audioContext.close();
+          }
+          return;
+        }
+        
+        const rawData = audioBuffer.getChannelData(0);
+        const samples = 200;
+        const blockSize = Math.floor(rawData.length / samples) || 1;
+        const filteredData: number[] = [];
+        
+        for (let i = 0; i < samples; i++) {
+          let sum = 0;
+          for (let j = 0; j < blockSize; j++) {
+            const idx = i * blockSize + j;
+            if (idx < rawData.length) {
+              sum += Math.abs(rawData[idx]);
+            }
+          }
+          filteredData.push(sum / blockSize);
+        }
+        
+        const maxAmplitude = Math.max(...filteredData);
+        const normalizedData = filteredData.map(n => maxAmplitude > 0 ? n / maxAmplitude : 0.3);
+        
+        if (!cancelled) {
+          setWaveformData(normalizedData);
+        }
+        if (audioContext.state !== 'closed') {
+          audioContext.close();
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Error generating waveform:', error);
+          const fallbackData = Array.from({ length: 200 }, () => Math.random() * 0.5 + 0.2);
+          setWaveformData(fallbackData);
+        }
+      }
+    };
+    
+    fetchWaveform();
+    
+    return () => {
+      cancelled = true;
+      if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close();
+      }
+    };
+  }, [viewingScenesVideo?.audioUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setIsPlaying(false);
+    setCurrentTime(0);
+  }, [viewingScenesVideo?.id]);
+
+  const lyricSegments = useMemo((): LyricSegment[] | null => {
+    if (assSubtitles.length > 0) {
+      return assSubtitles.map(sub => ({
+        start: sub.start,
+        end: sub.end,
+        text: sub.text
+      }));
+    }
+    
+    const lyrics = viewingScenesVideo?.audioLyrics;
+    const audioDuration = viewingScenesVideo?.audioDuration || 0;
+    
+    if (!lyrics || audioDuration === 0) {
+      return null;
+    }
+    
+    const lines = lyrics.split('\n');
+    const timestampRegex = /^\[(\d{1,2}):(\d{2})(?:[.:]\d{1,3})?\]\s*/;
+    const sectionHeaderRegex = /^\[(?:Verse|Chorus|Bridge|Intro|Outro|Hook|Pre-Chorus|Post-Chorus).*\]$/i;
+    const parsed: { time: number; text: string }[] = [];
+    let hasRealTimestamps = false;
+    
+    for (const line of lines) {
+      const match = line.match(timestampRegex);
+      if (match) {
+        hasRealTimestamps = true;
+        const minutes = parseInt(match[1], 10);
+        const seconds = parseInt(match[2], 10);
+        const timeInSeconds = minutes * 60 + seconds;
+        const lyricText = line.replace(timestampRegex, '').trim();
+        if (lyricText) {
+          parsed.push({ time: timeInSeconds, text: lyricText });
+        }
+      }
+    }
+    
+    if (hasRealTimestamps && parsed.length > 0) {
+      parsed.sort((a, b) => a.time - b.time);
+      const segments: LyricSegment[] = [];
+      for (let i = 0; i < parsed.length; i++) {
+        const start = parsed[i].time;
+        const end = i < parsed.length - 1 ? parsed[i + 1].time : audioDuration;
+        segments.push({ start, end, text: parsed[i].text });
+      }
+      return segments;
+    }
+    
+    const plainLines = lines.filter(line => {
+      const trimmed = line.trim();
+      return trimmed && !sectionHeaderRegex.test(trimmed);
+    });
+    
+    if (plainLines.length === 0) {
+      return null;
+    }
+    
+    const segmentDuration = audioDuration / plainLines.length;
+    const segments: LyricSegment[] = plainLines.map((text, index) => ({
+      start: index * segmentDuration,
+      end: (index + 1) * segmentDuration,
+      text: text.trim()
+    }));
+    
+    return segments;
+  }, [viewingScenesVideo?.audioLyrics, viewingScenesVideo?.audioDuration, assSubtitles]);
+
+  const togglePlayback = useCallback(() => {
+    if (!viewingScenesVideo?.audioUrl) return;
+    
+    if (!audioRef.current) {
+      audioRef.current = new Audio(viewingScenesVideo.audioUrl);
+      audioRef.current.addEventListener('timeupdate', () => {
+        setCurrentTime(audioRef.current?.currentTime || 0);
+      });
+      audioRef.current.addEventListener('ended', () => {
+        setIsPlaying(false);
+        setCurrentTime(0);
+      });
+    }
+    
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
+  }, [viewingScenesVideo?.audioUrl, isPlaying]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -710,66 +944,206 @@ export function VideoManagement() {
                   </div>
 
                   {/* Timeline View */}
-                  <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-xl p-4 border border-slate-700">
+                  <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-xl p-4 border border-slate-700">
                     <div className="flex items-center gap-2 mb-3">
                       <Film className="w-5 h-5 text-cyan-400" />
                       <h4 className="text-lg font-semibold text-white">Timeline</h4>
                     </div>
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-purple-500 to-cyan-500 rounded-t-xl opacity-60"></div>
                     
-                    <div className="flex items-center gap-1 overflow-x-auto pb-2">
-                      <div className="w-1 h-16 bg-cyan-500 rounded-full flex-shrink-0"></div>
+                    {/* Track labels and tracks container */}
+                    <div className="flex gap-2">
+                      {/* Labels column */}
+                      <div className="flex flex-col flex-shrink-0" style={{ width: '80px' }}>
+                        <div className="h-16 flex items-center">
+                          <div className="flex items-center gap-1">
+                            <Film className="w-3 h-3 text-slate-400" />
+                            <span className="text-[10px] text-slate-400 font-medium">Scenes</span>
+                          </div>
+                        </div>
+                        <div className="h-8 mt-2 flex items-center">
+                          <div className="flex items-center gap-1">
+                            <Type className="w-3 h-3 text-amber-400" />
+                            <span className="text-[10px] text-slate-400 font-medium">Lyrics</span>
+                          </div>
+                        </div>
+                        <div className="h-10 mt-2 flex items-center">
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={togglePlayback}
+                              disabled={!viewingScenesVideo.audioUrl}
+                              className="p-1 rounded-full bg-cyan-500/20 hover:bg-cyan-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              data-testid="admin-audio-play-button"
+                            >
+                              {isPlaying ? (
+                                <Pause className="w-3 h-3 text-cyan-400" />
+                              ) : (
+                                <Play className="w-3 h-3 text-cyan-400" />
+                              )}
+                            </button>
+                            <span className="text-[10px] text-slate-400 font-medium">Audio</span>
+                          </div>
+                        </div>
+                      </div>
                       
-                      {effectiveOrder.map((originalIndex, orderPosition) => {
-                        const scene = scenes[originalIndex];
-                        if (!scene) return null;
-                        
-                        const isLipsync = isLipsyncScene(originalIndex, audioDuration);
-                        const startTime = orderPosition * sceneDuration;
-                        const endTime = Math.min((orderPosition + 1) * sceneDuration, audioDuration);
-                        
-                        return (
-                          <div
-                            key={`timeline-${originalIndex}-${orderPosition}`}
-                            className="relative flex-shrink-0"
-                            style={{ minWidth: '100px', maxWidth: '140px' }}
-                          >
-                            <div className={`relative rounded-lg overflow-hidden border-2 border-slate-600 ${isLipsync ? 'ring-2 ring-pink-500/30' : ''}`}>
-                              <div className="absolute top-1 right-1 z-20 bg-black/60 backdrop-blur-sm rounded px-1.5 py-0.5 text-[10px] font-medium text-white">
-                                {orderPosition + 1}
-                              </div>
+                      {/* Scrollable tracks container */}
+                      <div className="flex-1 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
+                        <div className="flex flex-col gap-2" style={{ width: 'max-content' }}>
+                          {/* Scene track */}
+                          <div className="flex items-center gap-0.5">
+                            <div className="w-1 h-16 bg-cyan-500 rounded-full flex-shrink-0"></div>
+                            
+                            {effectiveOrder.map((originalIndex, orderPosition) => {
+                              const scene = scenes[originalIndex];
+                              if (!scene) return null;
                               
-                              {isLipsync && (
-                                <div className="absolute top-1 left-1 z-20">
-                                  <Mic className="w-3 h-3 text-pink-400" />
+                              const isLipsync = isLipsyncScene(originalIndex, audioDuration);
+                              const startTime = orderPosition * sceneDuration;
+                              const endTime = Math.min((orderPosition + 1) * sceneDuration, audioDuration);
+                              
+                              return (
+                                <div
+                                  key={`timeline-${originalIndex}-${orderPosition}`}
+                                  className="relative flex-shrink-0"
+                                  style={{ width: '100px' }}
+                                >
+                                  <div className={`relative rounded-lg overflow-hidden border-2 border-slate-600 ${isLipsync ? 'ring-2 ring-pink-500/30' : ''}`}>
+                                    <div className="absolute top-1 right-1 z-20 bg-black/60 backdrop-blur-sm rounded px-1.5 py-0.5 text-[10px] font-medium text-white">
+                                      {orderPosition + 1}
+                                    </div>
+                                    
+                                    {isLipsync && (
+                                      <div className="absolute top-1 left-1 z-20">
+                                        <Mic className="w-3 h-3 text-pink-400" />
+                                      </div>
+                                    )}
+                                    
+                                    <div className="w-full h-16 bg-gradient-to-br from-slate-700 to-slate-800">
+                                      {scene.imageUrl ? (
+                                        <img 
+                                          src={scene.imageUrl}
+                                          alt={`Scene ${originalIndex + 1}`}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                          <Film className="w-6 h-6 text-slate-500" />
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
+                                      <div className="text-[9px] text-white/80 font-mono tracking-wide">
+                                        {formatDuration(startTime)} - {formatDuration(endTime)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            
+                            <div className="w-1 h-16 bg-cyan-500 rounded-full flex-shrink-0"></div>
+                          </div>
+                          
+                          {/* Lyrics track */}
+                          <TooltipProvider delayDuration={100}>
+                            <div 
+                              className="relative h-8 bg-slate-800/30 rounded-lg"
+                              style={{ width: `${sceneCount * 100 + 4}px` }}
+                              data-testid="admin-lyrics-track"
+                            >
+                              {lyricSegments && lyricSegments.length > 0 ? (
+                                lyricSegments.map((segment, index) => {
+                                  const leftPercent = (segment.start / audioDuration) * 100;
+                                  const duration = segment.end - segment.start;
+                                  const widthPercent = Math.max((duration / audioDuration) * 100, 3);
+                                  
+                                  return (
+                                    <Tooltip key={`lyrics-${index}`}>
+                                      <TooltipTrigger asChild>
+                                        <div
+                                          className="absolute top-0 bottom-0 rounded cursor-pointer transition-all duration-200 hover:scale-y-110 bg-gradient-to-r from-amber-500/40 to-amber-600/40 border border-amber-500/50 hover:border-amber-400/70"
+                                          style={{ 
+                                            left: `${leftPercent}%`, 
+                                            width: `${widthPercent}%`,
+                                            minWidth: '20px'
+                                          }}
+                                          data-testid={`admin-lyrics-block-${index + 1}`}
+                                        >
+                                          <div className="flex items-center justify-center h-full overflow-hidden px-0.5">
+                                            <Type className="w-3 h-3 text-amber-400/80 flex-shrink-0" />
+                                          </div>
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent 
+                                        side="top" 
+                                        className="max-w-[250px] bg-slate-900 border-slate-700 text-slate-200"
+                                      >
+                                        <div className="text-xs leading-relaxed">
+                                          <span className="text-amber-400 font-mono text-[10px]">{formatDuration(Math.floor(segment.start))}</span>
+                                          <span className="mx-1.5 text-slate-500">|</span>
+                                          {segment.text}
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  );
+                                })
+                              ) : (
+                                <div className="flex items-center justify-center h-full text-xs text-slate-500">
+                                  No lyrics available
                                 </div>
                               )}
                               
-                              <div className="w-full h-16 bg-gradient-to-br from-slate-700 to-slate-800">
-                                {scene.imageUrl ? (
-                                  <img 
-                                    src={scene.imageUrl}
-                                    alt={`Scene ${originalIndex + 1}`}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <Film className="w-6 h-6 text-slate-500" />
-                                  </div>
-                                )}
-                              </div>
-                              
-                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
-                                <div className="text-[9px] text-white/80 font-mono tracking-wide">
-                                  {formatDuration(startTime)} - {formatDuration(endTime)}
-                                </div>
-                              </div>
+                              {/* Playhead for lyrics track */}
+                              {isPlaying && audioDuration > 0 && (
+                                <div 
+                                  className="absolute top-0 bottom-0 w-0.5 bg-cyan-400 z-10"
+                                  style={{ left: `${(currentTime / audioDuration) * 100}%` }}
+                                />
+                              )}
                             </div>
+                          </TooltipProvider>
+                          
+                          {/* Audio waveform track */}
+                          <div 
+                            className="relative h-10 bg-slate-800/30 rounded-lg flex items-center"
+                            style={{ width: `${sceneCount * 100 + 4}px` }}
+                            data-testid="admin-audio-track"
+                          >
+                            {waveformData.length > 0 ? (
+                              <div className="flex items-center justify-around h-full w-full px-1">
+                                {waveformData.map((amplitude, index) => (
+                                  <div
+                                    key={`wave-${index}`}
+                                    className="w-0.5 bg-gradient-to-t from-cyan-600 to-cyan-400 rounded-full transition-all duration-75"
+                                    style={{ 
+                                      height: `${Math.max(amplitude * 100, 10)}%`,
+                                      opacity: currentTime > 0 && audioDuration > 0 && (index / waveformData.length) < (currentTime / audioDuration) ? 1 : 0.5
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                            ) : viewingScenesVideo.audioUrl ? (
+                              <div className="flex items-center justify-center h-full w-full text-xs text-slate-500">
+                                <Music className="w-4 h-4 mr-1 animate-pulse" />
+                                Loading waveform...
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center h-full w-full text-xs text-slate-500">
+                                No audio available
+                              </div>
+                            )}
+                            
+                            {/* Playhead for audio track */}
+                            {isPlaying && audioDuration > 0 && (
+                              <div 
+                                className="absolute top-0 bottom-0 w-0.5 bg-cyan-400 z-10"
+                                style={{ left: `${(currentTime / audioDuration) * 100}%` }}
+                              />
+                            )}
                           </div>
-                        );
-                      })}
-                      
-                      <div className="w-1 h-16 bg-cyan-500 rounded-full flex-shrink-0"></div>
+                        </div>
+                      </div>
                     </div>
                     
                     <div className="mt-3 flex justify-between text-[10px] text-slate-400 font-mono px-1">
