@@ -45,15 +45,16 @@ export function SceneTimeline({
     }
     
     const sceneDur = audioDuration / sceneCount;
-    const result: (string | null)[] = Array(sceneCount).fill(null);
     const sceneLines: string[][] = Array.from({ length: sceneCount }, () => []);
     
     const lines = lyrics.split('\n');
-    const timestampRegex = /^\[(\d{1,2}):(\d{2})(?:[.:]\d{1,3})?\]/;
+    const timestampRegex = /^\[(\d{1,2}):(\d{2})(?:[.:]\d{1,3})?\]\s*/;
+    let hasTimestamps = false;
     
     for (const line of lines) {
       const match = line.match(timestampRegex);
       if (match) {
+        hasTimestamps = true;
         const minutes = parseInt(match[1], 10);
         const seconds = parseInt(match[2], 10);
         const timeInSeconds = minutes * 60 + seconds;
@@ -66,8 +67,23 @@ export function SceneTimeline({
       }
     }
     
+    if (hasTimestamps) {
+      return sceneLines.map(lines => lines.length > 0 ? lines.join('\n') : null);
+    }
+    
+    const plainLines = lines.filter(line => line.trim() && !line.trim().startsWith('['));
+    if (plainLines.length === 0) {
+      return Array(sceneCount).fill(null);
+    }
+    
+    const linesPerScene = Math.max(1, Math.ceil(plainLines.length / sceneCount));
+    const result: (string | null)[] = [];
+    
     for (let i = 0; i < sceneCount; i++) {
-      result[i] = sceneLines[i].length > 0 ? sceneLines[i].join('\n') : null;
+      const start = i * linesPerScene;
+      const end = Math.min(start + linesPerScene, plainLines.length);
+      const chunk = plainLines.slice(start, end);
+      result.push(chunk.length > 0 ? chunk.join('\n') : null);
     }
     
     return result;
