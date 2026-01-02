@@ -131,6 +131,15 @@ export default function Version241Release() {
                     </CardContent>
                   </Card>
 
+                  <div className="rounded-lg overflow-hidden border border-purple-500/20">
+                    <img 
+                      src="https://res.cloudinary.com/dqemas8ht/image/upload/v1767383894/timeline_lvy1s5.png" 
+                      alt="New Timeline with Audio and Lyrics Tracks in NeonVideo.ai"
+                      className="w-full h-auto"
+                      data-testid="img-timeline-showcase"
+                    />
+                  </div>
+
                   <Card className="bg-purple-950/30 border-purple-500/20">
                     <CardHeader>
                       <CardTitle className="text-white flex items-center gap-2">
