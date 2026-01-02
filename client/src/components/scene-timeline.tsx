@@ -52,11 +52,14 @@ export function SceneTimeline({
     
     const lines = lyrics.split('\n');
     const timestampRegex = /^\[(\d{1,2}):(\d{2})(?:[.:]\d{1,3})?\]\s*/;
+    const sectionHeaderRegex = /^\[(?:Verse|Chorus|Bridge|Intro|Outro|Hook|Pre-Chorus|Post-Chorus).*\]$/i;
     const parsed: { time: number; text: string }[] = [];
+    let hasRealTimestamps = false;
     
     for (const line of lines) {
       const match = line.match(timestampRegex);
       if (match) {
+        hasRealTimestamps = true;
         const minutes = parseInt(match[1], 10);
         const seconds = parseInt(match[2], 10);
         const timeInSeconds = minutes * 60 + seconds;
@@ -67,18 +70,32 @@ export function SceneTimeline({
       }
     }
     
-    if (parsed.length === 0) {
+    if (hasRealTimestamps && parsed.length > 0) {
+      parsed.sort((a, b) => a.time - b.time);
+      const segments: LyricSegment[] = [];
+      for (let i = 0; i < parsed.length; i++) {
+        const start = parsed[i].time;
+        const end = i < parsed.length - 1 ? parsed[i + 1].time : audioDuration;
+        segments.push({ start, end, text: parsed[i].text });
+      }
+      return segments;
+    }
+    
+    const plainLines = lines.filter(line => {
+      const trimmed = line.trim();
+      return trimmed && !sectionHeaderRegex.test(trimmed);
+    });
+    
+    if (plainLines.length === 0) {
       return null;
     }
     
-    parsed.sort((a, b) => a.time - b.time);
-    
-    const segments: LyricSegment[] = [];
-    for (let i = 0; i < parsed.length; i++) {
-      const start = parsed[i].time;
-      const end = i < parsed.length - 1 ? parsed[i + 1].time : audioDuration;
-      segments.push({ start, end, text: parsed[i].text });
-    }
+    const segmentDuration = audioDuration / plainLines.length;
+    const segments: LyricSegment[] = plainLines.map((text, index) => ({
+      start: index * segmentDuration,
+      end: (index + 1) * segmentDuration,
+      text: text.trim()
+    }));
     
     return segments;
   }, [lyrics, audioDuration]);
