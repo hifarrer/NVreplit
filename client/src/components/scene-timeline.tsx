@@ -425,10 +425,16 @@ export function SceneTimeline({
           </div>
         </div>
         
-        <div className="mt-3 flex justify-between text-[10px] text-slate-400 font-mono px-1">
-          <span>0:00</span>
-          <span>{formatDuration(Math.floor(audioDuration / 2))}</span>
-          <span>{formatDuration(audioDuration)}</span>
+        <div className="flex mt-3">
+          <div className="w-20 flex-shrink-0"></div>
+          <div 
+            className="flex justify-between text-[10px] text-slate-400 font-mono"
+            style={{ width: `${sceneCount * 100 + 4}px` }}
+          >
+            <span>0:00</span>
+            <span>{formatDuration(Math.floor(audioDuration / 2))}</span>
+            <span>{formatDuration(audioDuration)}</span>
+          </div>
         </div>
       </div>
       
