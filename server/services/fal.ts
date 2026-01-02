@@ -1,7 +1,5 @@
-const FAL_KEY =
-  process.env.FAL_KEY ||
-  "b479bcce-ae9a-439a-a9d6-3bf0ab5cf8f0:d9afcc34d42d7e0f0dc04607a81c60a0";
-const KIE_API_TOKEN = "f27547e627af203de39b3345de70c32b";
+const FAL_KEY = process.env.FAL_KEY;
+const KIE_API_TOKEN = process.env.KIE_API_TOKEN;
 
 /**
  * Helper function to ensure character image URLs are always converted to signed URLs
@@ -415,6 +413,10 @@ export async function generateCharacterImagesKIE(
   prompt: string,
   aspectRatio: string = "16:9",
 ): Promise<string[]> {
+  if (!KIE_API_TOKEN) {
+    throw new Error("KIE_API_TOKEN environment variable is required");
+  }
+
   // Always prepend "A front shot of " to ensure we get a front-facing character image
   const enhancedPrompt = `A front face shot of ${prompt} `;
 
