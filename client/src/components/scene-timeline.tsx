@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { SceneData } from "@/lib/types";
-import { Film, GripVertical, Clock, Mic, Music, Type } from "lucide-react";
+import { Film, GripVertical, Clock, Mic, Music, Type, Play, Pause } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -30,8 +30,11 @@ export function SceneTimeline({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [waveformData, setWaveformData] = useState<number[]>([]);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
   const timelineRef = useRef<HTMLDivElement>(null);
   const waveformContainerRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   const sceneCount = scenes.length;
   const sceneDurationCalc = sceneCount > 0 ? audioDuration / sceneCount : 10;
@@ -185,6 +188,40 @@ export function SceneTimeline({
     setDraggedIndex(null);
   }, [sceneOrder, onReorder]);
 
+  const togglePlayback = useCallback(() => {
+    if (!audioRef.current && audioUrl) {
+      audioRef.current = new Audio(audioUrl);
+      audioRef.current.addEventListener('timeupdate', () => {
+        setCurrentTime(audioRef.current?.currentTime || 0);
+      });
+      audioRef.current.addEventListener('ended', () => {
+        setIsPlaying(false);
+        setCurrentTime(0);
+      });
+    }
+    
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        audioRef.current.play();
+        setIsPlaying(true);
+      }
+    }
+  }, [audioUrl, isPlaying]);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  const playheadPosition = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0;
+
   if (scenes.length === 0) {
     return null;
   }
@@ -223,16 +260,27 @@ export function SceneTimeline({
                 <span className="text-[10px] text-slate-400 font-medium">Scenes</span>
               </div>
             </div>
-            <div className="h-10 mt-2 flex items-center">
-              <div className="flex items-center gap-1">
-                <Music className="w-3 h-3 text-cyan-400" />
-                <span className="text-[10px] text-slate-400 font-medium">Audio</span>
-              </div>
-            </div>
             <div className="h-8 mt-2 flex items-center">
               <div className="flex items-center gap-1">
                 <Type className="w-3 h-3 text-amber-400" />
                 <span className="text-[10px] text-slate-400 font-medium">Lyrics</span>
+              </div>
+            </div>
+            <div className="h-10 mt-2 flex items-center">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={togglePlayback}
+                  disabled={!audioUrl}
+                  className="p-1 rounded-full bg-cyan-500/20 hover:bg-cyan-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  data-testid="audio-play-button"
+                >
+                  {isPlaying ? (
+                    <Pause className="w-3 h-3 text-cyan-400" />
+                  ) : (
+                    <Play className="w-3 h-3 text-cyan-400" />
+                  )}
+                </button>
+                <span className="text-[10px] text-slate-400 font-medium">Audio</span>
               </div>
             </div>
           </div>
@@ -332,38 +380,6 @@ export function SceneTimeline({
                 <div className="w-1 h-16 bg-primary rounded-full flex-shrink-0 shadow-[0_0_10px_rgba(168,85,247,0.5)]"></div>
               </div>
               
-              {/* Waveform track - same container, scrolls together */}
-              <div 
-                className="relative h-10 bg-slate-800/50 rounded-lg flex items-center overflow-hidden"
-                style={{ width: `${sceneCount * 100 + 4}px` }}
-                data-testid="audio-waveform"
-              >
-                {waveformData.length > 0 ? (
-                  <div className="w-full h-full flex items-center gap-[1px] px-1 py-1">
-                    {waveformData.map((amplitude, index) => (
-                      <div
-                        key={index}
-                        className="flex-1 bg-gradient-to-t from-cyan-500/60 to-cyan-400/80 rounded-sm"
-                        style={{
-                          height: `${Math.max(amplitude * 100, 10)}%`,
-                          minWidth: '2px',
-                        }}
-                      />
-                    ))}
-                  </div>
-                ) : audioUrl ? (
-                  <div className="flex items-center justify-center w-full gap-2 text-slate-500">
-                    <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-xs">Loading waveform...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center w-full">
-                    <span className="text-xs text-slate-500">No audio available</span>
-                  </div>
-                )}
-                <div className="absolute top-0 left-0 w-full h-full pointer-events-none bg-gradient-to-r from-slate-900/20 via-transparent to-slate-900/20 rounded-lg" />
-              </div>
-              
               {/* Lyrics track - same container, scrolls together */}
               <TooltipProvider delayDuration={100}>
                 <div 
@@ -421,6 +437,47 @@ export function SceneTimeline({
                   <div className="w-1 h-8 bg-amber-500/50 rounded-full flex-shrink-0"></div>
                 </div>
               </TooltipProvider>
+              
+              {/* Waveform track - same container, scrolls together */}
+              <div 
+                className="relative h-10 bg-slate-800/50 rounded-lg flex items-center overflow-hidden"
+                style={{ width: `${sceneCount * 100 + 4}px` }}
+                data-testid="audio-waveform"
+              >
+                {waveformData.length > 0 ? (
+                  <div className="w-full h-full flex items-center gap-[1px] px-1 py-1">
+                    {waveformData.map((amplitude, index) => (
+                      <div
+                        key={index}
+                        className="flex-1 bg-gradient-to-t from-cyan-500/60 to-cyan-400/80 rounded-sm"
+                        style={{
+                          height: `${Math.max(amplitude * 100, 10)}%`,
+                          minWidth: '2px',
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : audioUrl ? (
+                  <div className="flex items-center justify-center w-full gap-2 text-slate-500">
+                    <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-xs">Loading waveform...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center w-full">
+                    <span className="text-xs text-slate-500">No audio available</span>
+                  </div>
+                )}
+                <div className="absolute top-0 left-0 w-full h-full pointer-events-none bg-gradient-to-r from-slate-900/20 via-transparent to-slate-900/20 rounded-lg" />
+                
+                {/* Playhead indicator */}
+                {isPlaying && (
+                  <div 
+                    className="absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] z-10 transition-none"
+                    style={{ left: `${playheadPosition}%` }}
+                    data-testid="audio-playhead"
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
