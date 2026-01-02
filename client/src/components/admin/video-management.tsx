@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Share2, Images, Film, Clock, Mic, Type, Play, Pause, Music } from "lucide-react";
+import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Share2, Images, Film, Clock, Mic, Type, Play, Pause, Music, Upload, Sparkles } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Project } from "@shared/schema";
@@ -611,7 +611,7 @@ export function VideoManagement() {
                       <p className="text-gray-300 text-sm">{video.description}</p>
                     )}
                     
-                      <div className="flex items-center gap-6 text-sm text-gray-400">
+                      <div className="flex items-center gap-4 text-sm text-gray-400 flex-wrap">
                         <div className="flex items-center gap-1">
                           <User className="h-3 w-3" />
                           {video.username ? (
@@ -630,7 +630,31 @@ export function VideoManagement() {
                         </div>
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          <span>Created: {new Date(video.createdAt).toLocaleDateString()}</span>
+                          <span>{new Date(video.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        {video.audioDuration && (
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            <span>{formatDuration(video.audioDuration)}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1">
+                          {video.audioType === 'generated' ? (
+                            <>
+                              <Sparkles className="h-3 w-3 text-pink-400" />
+                              <span className="text-pink-400">AI Song</span>
+                            </>
+                          ) : video.audioType === 'uploaded' ? (
+                            <>
+                              <Upload className="h-3 w-3 text-blue-400" />
+                              <span className="text-blue-400">Uploaded</span>
+                            </>
+                          ) : (
+                            <>
+                              <Music className="h-3 w-3" />
+                              <span>Unknown</span>
+                            </>
+                          )}
                         </div>
                       </div>
 
