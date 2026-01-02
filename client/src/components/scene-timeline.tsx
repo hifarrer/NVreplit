@@ -40,27 +40,38 @@ export function SceneTimeline({
   const sceneDurationCalc = sceneCount > 0 ? audioDuration / sceneCount : 10;
   
   const sceneLyrics = useMemo(() => {
-    if (!lyrics || sceneCount === 0) {
+    if (!lyrics || sceneCount === 0 || audioDuration === 0) {
       return Array(sceneCount).fill(null);
     }
     
-    const lines = lyrics.split('\n').filter(line => line.trim() && !line.trim().startsWith('['));
-    if (lines.length === 0) {
-      return Array(sceneCount).fill(null);
-    }
+    const sceneDur = audioDuration / sceneCount;
+    const result: (string | null)[] = Array(sceneCount).fill(null);
+    const sceneLines: string[][] = Array.from({ length: sceneCount }, () => []);
     
-    const linesPerScene = Math.max(1, Math.ceil(lines.length / sceneCount));
-    const result: (string | null)[] = [];
+    const lines = lyrics.split('\n');
+    const timestampRegex = /^\[(\d{1,2}):(\d{2})(?:[.:]\d{1,3})?\]/;
+    
+    for (const line of lines) {
+      const match = line.match(timestampRegex);
+      if (match) {
+        const minutes = parseInt(match[1], 10);
+        const seconds = parseInt(match[2], 10);
+        const timeInSeconds = minutes * 60 + seconds;
+        
+        const sceneIndex = Math.min(Math.floor(timeInSeconds / sceneDur), sceneCount - 1);
+        const lyricText = line.replace(timestampRegex, '').trim();
+        if (lyricText) {
+          sceneLines[sceneIndex].push(lyricText);
+        }
+      }
+    }
     
     for (let i = 0; i < sceneCount; i++) {
-      const start = i * linesPerScene;
-      const end = Math.min(start + linesPerScene, lines.length);
-      const sceneLines = lines.slice(start, end);
-      result.push(sceneLines.length > 0 ? sceneLines.join('\n') : null);
+      result[i] = sceneLines[i].length > 0 ? sceneLines[i].join('\n') : null;
     }
     
     return result;
-  }, [lyrics, sceneCount]);
+  }, [lyrics, sceneCount, audioDuration]);
 
   useEffect(() => {
     if (!audioUrl) return;
