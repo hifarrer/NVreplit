@@ -1,12 +1,19 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { SceneData } from "@/lib/types";
-import { Film, GripVertical, Clock, Mic, Music } from "lucide-react";
+import { Film, GripVertical, Clock, Mic, Music, Type } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SceneTimelineProps {
   scenes: SceneData[];
   sceneOrder: number[];
   audioDuration?: number;
   audioUrl?: string;
+  lyrics?: string;
   onReorder: (newOrder: number[]) => void;
   onSceneClick?: (sceneIndex: number) => void;
 }
@@ -16,6 +23,7 @@ export function SceneTimeline({
   sceneOrder, 
   audioDuration = 0,
   audioUrl,
+  lyrics,
   onReorder,
   onSceneClick 
 }: SceneTimelineProps) {
@@ -24,6 +32,32 @@ export function SceneTimeline({
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const timelineRef = useRef<HTMLDivElement>(null);
   const waveformContainerRef = useRef<HTMLDivElement>(null);
+  
+  const sceneCount = scenes.length;
+  const sceneDurationCalc = sceneCount > 0 ? audioDuration / sceneCount : 10;
+  
+  const sceneLyrics = useMemo(() => {
+    if (!lyrics || sceneCount === 0) {
+      return Array(sceneCount).fill(null);
+    }
+    
+    const lines = lyrics.split('\n').filter(line => line.trim() && !line.trim().startsWith('['));
+    if (lines.length === 0) {
+      return Array(sceneCount).fill(null);
+    }
+    
+    const linesPerScene = Math.max(1, Math.ceil(lines.length / sceneCount));
+    const result: (string | null)[] = [];
+    
+    for (let i = 0; i < sceneCount; i++) {
+      const start = i * linesPerScene;
+      const end = Math.min(start + linesPerScene, lines.length);
+      const sceneLines = lines.slice(start, end);
+      result.push(sceneLines.length > 0 ? sceneLines.join('\n') : null);
+    }
+    
+    return result;
+  }, [lyrics, sceneCount]);
 
   useEffect(() => {
     if (!audioUrl) return;
@@ -88,7 +122,6 @@ export function SceneTimeline({
     };
   }, [audioUrl]);
   
-  const sceneCount = scenes.length;
   const sceneDuration = sceneCount > 0 ? Math.ceil(audioDuration / sceneCount) : 10;
   
   const isLipsyncScene = (originalIndex: number): boolean => {
@@ -194,6 +227,12 @@ export function SceneTimeline({
               <div className="flex items-center gap-1">
                 <Music className="w-3 h-3 text-cyan-400" />
                 <span className="text-[10px] text-slate-400 font-medium">Audio</span>
+              </div>
+            </div>
+            <div className="h-8 mt-2 flex items-center">
+              <div className="flex items-center gap-1">
+                <Type className="w-3 h-3 text-amber-400" />
+                <span className="text-[10px] text-slate-400 font-medium">Lyrics</span>
               </div>
             </div>
           </div>
@@ -324,6 +363,64 @@ export function SceneTimeline({
                 )}
                 <div className="absolute top-0 left-0 w-full h-full pointer-events-none bg-gradient-to-r from-slate-900/20 via-transparent to-slate-900/20 rounded-lg" />
               </div>
+              
+              {/* Lyrics track - same container, scrolls together */}
+              <TooltipProvider delayDuration={100}>
+                <div 
+                  className="flex items-center gap-0.5"
+                  style={{ width: `${sceneCount * 100 + 4}px` }}
+                  data-testid="lyrics-track"
+                >
+                  <div className="w-1 h-8 bg-amber-500/50 rounded-full flex-shrink-0"></div>
+                  
+                  {sceneOrder.map((originalIndex, orderPosition) => {
+                    const lyricsForScene = sceneLyrics[orderPosition];
+                    const hasLyrics = lyricsForScene !== null && lyricsForScene.trim() !== '';
+                    
+                    return (
+                      <Tooltip key={`lyrics-${orderPosition}`}>
+                        <TooltipTrigger asChild>
+                          <div
+                            className={`
+                              h-8 flex-shrink-0 rounded cursor-pointer
+                              transition-all duration-200 hover:scale-[1.02]
+                              ${hasLyrics 
+                                ? 'bg-gradient-to-r from-amber-500/30 to-amber-600/30 border border-amber-500/40 hover:border-amber-400/60' 
+                                : 'bg-slate-700/30 border border-slate-600/30 hover:border-slate-500/50'}
+                            `}
+                            style={{ width: '100px' }}
+                            data-testid={`lyrics-block-${orderPosition + 1}`}
+                          >
+                            <div className="flex items-center justify-center h-full px-1">
+                              {hasLyrics ? (
+                                <Type className="w-3 h-3 text-amber-400/70" />
+                              ) : (
+                                <span className="text-[8px] text-slate-500">—</span>
+                              )}
+                            </div>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent 
+                          side="top" 
+                          className="max-w-[250px] bg-slate-900 border-slate-700 text-slate-200"
+                        >
+                          {hasLyrics ? (
+                            <div className="text-xs whitespace-pre-line leading-relaxed">
+                              {lyricsForScene}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-slate-400 italic">
+                              no lyrics
+                            </div>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
+                  
+                  <div className="w-1 h-8 bg-amber-500/50 rounded-full flex-shrink-0"></div>
+                </div>
+              </TooltipProvider>
             </div>
           </div>
         </div>
@@ -351,6 +448,10 @@ export function SceneTimeline({
         <div className="flex items-center gap-1.5">
           <Music className="w-3 h-3 text-cyan-400" />
           <span>Audio waveform</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Type className="w-3 h-3 text-amber-400" />
+          <span>Lyrics (hover to view)</span>
         </div>
       </div>
     </div>
