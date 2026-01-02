@@ -4450,8 +4450,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstSongUrl: elevenLabsSong.audioUrl
       };
       
-      // Generate subtitles using ElevenLabs forced alignment if requested
-      if (addSubtitles && lyrics) {
+      // Always generate subtitles using ElevenLabs forced alignment when lyrics are available
+      // (needed for timeline lyrics display, even if subtitles won't be shown in final video)
+      if (lyrics) {
         console.log("Generating subtitles using ElevenLabs forced alignment...");
         
         try {
@@ -4517,7 +4518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // If subtitles were generated but we have the song ID now, 
         // re-store the subtitle file with the song ID as the filename
-        if (addSubtitles && generatedSubtitlesContent && savedSong.id) {
+        if (generatedSubtitlesContent && savedSong.id) {
           try {
             console.log("Re-storing ElevenLabs subtitle file with song ID...");
             const namedSubtitleUrl = await storeElevenLabsSubtitleFile(generatedSubtitlesContent, savedSong.id);
@@ -5886,9 +5887,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.log("Final audio URL for FFMPEG merge:", finalAudioUrl);
       
-      // Get subtitle URL from project
+      // Get subtitle URL from project - only include if addSubtitles is enabled
+      // (subtitleFileUrl is always generated for timeline display, but only shown in video when addSubtitles is true)
       let subtitleUrl: string | undefined;
-      if (project.subtitleFileUrl) {
+      if (project.addSubtitles && project.subtitleFileUrl) {
         if (project.subtitleFileUrl.startsWith('/public-objects/')) {
           // Public object URL - convert to full URL accessible by FFMPEG
           const host = req.get('host') || 'localhost:5000';
@@ -5903,8 +5905,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           subtitleUrl = project.subtitleFileUrl;
           console.log("Using external subtitle URL:", subtitleUrl);
         }
+      } else if (!project.addSubtitles) {
+        console.log("Subtitles disabled by user - not including in final video");
       }
-      console.log("Subtitle URL for FFMPEG merge:", subtitleUrl || "Not provided");
+      console.log("Subtitle URL for FFMPEG merge:", subtitleUrl || "Not provided (disabled or no file)");
       
       let finalVideo;
       let savedFinalVideoUrl: string;
