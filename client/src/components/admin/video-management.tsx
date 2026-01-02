@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Share2, Images, Film, Clock, Mic, Type, Play, Pause, Music, Upload, Sparkles } from "lucide-react";
+import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Share2, Images, Film, Clock, Mic, Type, Play, Pause, Music, Upload, Sparkles, Download } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Project } from "@shared/schema";
@@ -675,6 +675,26 @@ export function VideoManagement() {
                   </div>
                   
                   <div className="flex items-center gap-2 ml-4">
+                    {video.audioUrl && (
+                      <Button
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = video.audioUrl!;
+                          link.download = `${video.title.replace(/[^a-z0-9]/gi, '_')}_audio.mp3`;
+                          link.target = '_blank';
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="border-green-500/30 text-green-300 hover:bg-green-600/20"
+                        data-testid={`download-audio-${video.id}`}
+                        title="Download song audio"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    )}
                     {parseSceneData(video).length > 0 && (
                       <Button
                         onClick={() => setViewingScenesVideo(video)}
