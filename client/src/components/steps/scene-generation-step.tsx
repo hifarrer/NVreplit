@@ -20,6 +20,7 @@ interface SceneGenerationStepProps {
   audioDuration?: number;
   audioUrl?: string;
   audioLyrics?: string;
+  subtitleFileUrl?: string;
   characterImageUrl?: string;
   scenes?: SceneData[];
   sceneOrder?: number[];
@@ -31,7 +32,7 @@ interface SceneGenerationStepProps {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
 
-export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioLyrics, characterImageUrl, scenes = [], sceneOrder: initialSceneOrder, isEditMode = false, onNext, onBack, onReset }: SceneGenerationStepProps) {
+export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioLyrics, subtitleFileUrl, characterImageUrl, scenes = [], sceneOrder: initialSceneOrder, isEditMode = false, onNext, onBack, onReset }: SceneGenerationStepProps) {
   // Defensively copy scenes array to avoid mutating the original project data
   const [generatedScenes, setGeneratedScenes] = useState<SceneData[]>(() => 
     scenes.map(scene => ({ ...scene }))
@@ -463,6 +464,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
             audioDuration={audioDuration}
             audioUrl={audioUrl}
             lyrics={audioLyrics}
+            subtitleFileUrl={subtitleFileUrl}
             onReorder={handleSceneReorder}
             onSceneClick={scrollToScene}
           />

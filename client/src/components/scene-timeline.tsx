@@ -14,6 +14,7 @@ interface SceneTimelineProps {
   audioDuration?: number;
   audioUrl?: string;
   lyrics?: string;
+  subtitleFileUrl?: string;
   onReorder: (newOrder: number[]) => void;
   onSceneClick?: (sceneIndex: number) => void;
 }
@@ -24,6 +25,7 @@ export function SceneTimeline({
   audioDuration = 0,
   audioUrl,
   lyrics,
+  subtitleFileUrl,
   onReorder,
   onSceneClick 
 }: SceneTimelineProps) {
@@ -32,9 +34,51 @@ export function SceneTimeline({
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [assSubtitles, setAssSubtitles] = useState<{ start: number; end: number; text: string }[]>([]);
   const timelineRef = useRef<HTMLDivElement>(null);
   const waveformContainerRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  useEffect(() => {
+    if (!subtitleFileUrl) return;
+    
+    const fetchSubtitles = async () => {
+      try {
+        const response = await fetch(subtitleFileUrl);
+        const content = await response.text();
+        
+        const dialogueRegex = /Dialogue:\s*\d+,(\d+):(\d+):(\d+)\.(\d+),(\d+):(\d+):(\d+)\.(\d+),[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,(.+)/g;
+        const subtitles: { start: number; end: number; text: string }[] = [];
+        
+        let match;
+        while ((match = dialogueRegex.exec(content)) !== null) {
+          const startH = parseInt(match[1], 10);
+          const startM = parseInt(match[2], 10);
+          const startS = parseInt(match[3], 10);
+          const startCs = parseInt(match[4], 10);
+          const endH = parseInt(match[5], 10);
+          const endM = parseInt(match[6], 10);
+          const endS = parseInt(match[7], 10);
+          const endCs = parseInt(match[8], 10);
+          const text = match[9].replace(/\\N/g, ' ').replace(/\{[^}]*\}/g, '').trim();
+          
+          const start = startH * 3600 + startM * 60 + startS + startCs / 100;
+          const end = endH * 3600 + endM * 60 + endS + endCs / 100;
+          
+          if (text) {
+            subtitles.push({ start, end, text });
+          }
+        }
+        
+        subtitles.sort((a, b) => a.start - b.start);
+        setAssSubtitles(subtitles);
+      } catch (error) {
+        console.error('Error fetching subtitle file:', error);
+      }
+    };
+    
+    fetchSubtitles();
+  }, [subtitleFileUrl]);
   
   const sceneCount = scenes.length;
   const sceneDurationCalc = sceneCount > 0 ? audioDuration / sceneCount : 10;
@@ -46,6 +90,14 @@ export function SceneTimeline({
   }
   
   const lyricSegments = useMemo((): LyricSegment[] | null => {
+    if (assSubtitles.length > 0) {
+      return assSubtitles.map(sub => ({
+        start: sub.start,
+        end: sub.end,
+        text: sub.text
+      }));
+    }
+    
     if (!lyrics || audioDuration === 0) {
       return null;
     }
@@ -98,7 +150,7 @@ export function SceneTimeline({
     }));
     
     return segments;
-  }, [lyrics, audioDuration]);
+  }, [lyrics, audioDuration, assSubtitles]);
   
   const hasTimestampedLyrics = lyricSegments !== null && lyricSegments.length > 0;
 

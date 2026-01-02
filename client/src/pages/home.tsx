@@ -201,6 +201,7 @@ export default function Home() {
             audioDuration={project?.audioDuration}
             audioUrl={project?.audioUrl}
             audioLyrics={(project as any)?.audioLyrics}
+            subtitleFileUrl={(project as any)?.subtitleFileUrl}
             characterImageUrl={project?.characterImageUrl}
             scenes={project?.scenePrompts?.map((prompt, index) => ({
               prompt,
