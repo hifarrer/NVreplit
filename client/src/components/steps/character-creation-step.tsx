@@ -191,9 +191,13 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
 
           <TabsContent value="library" className="mt-0">
             <div className="text-center py-8">
-              <Images className="w-16 h-16 text-primary mb-4 mx-auto" />
-              <h4 className="text-lg font-semibold mb-2">My Character Library</h4>
-              <p className="text-muted-foreground mb-6 text-sm">Choose from your saved characters</p>
+              <img 
+                src="https://res.cloudinary.com/dqemas8ht/image/upload/v1767383314/characters_bsaw13.png" 
+                alt="Character Library" 
+                className="w-48 h-auto mx-auto mb-4 rounded-lg"
+              />
+              <h4 className="text-lg font-semibold mb-2">Character Library</h4>
+              <p className="text-muted-foreground mb-6 text-sm">Choose from public or your saved characters</p>
               <Button 
                 onClick={() => setShowLibraryModal(true)}
                 className="floating-button px-8"
