@@ -78,6 +78,8 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, onNext, on
   const [uploadStatus, setUploadStatus] = useState(""); // Status message for upload progress
   const [uploadSongTitle, setUploadSongTitle] = useState(""); // Song title for upload tab
   const [uploadSongDescription, setUploadSongDescription] = useState(""); // Song description for upload tab
+  const [uploadLyrics, setUploadLyrics] = useState(""); // Lyrics for upload tab
+  const [uploadAddSubtitles, setUploadAddSubtitles] = useState(true); // Subtitle toggle for uploaded songs - enabled by default
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Generate tab state
@@ -139,6 +141,10 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, onNext, on
         if (uploadSongDescription.trim()) {
           formData.append('description', uploadSongDescription.trim());
         }
+        if (uploadLyrics.trim()) {
+          formData.append('lyrics', uploadLyrics.trim());
+        }
+        formData.append('addSubtitles', uploadAddSubtitles ? 'true' : 'false');
         formData.append('aspectRatio', isVertical ? "3:4" : "16:9");
         
         const xhr = new XMLHttpRequest();
@@ -218,7 +224,10 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, onNext, on
       setUploadStatus("");
       const sceneCount = Math.ceil(data.duration / 10);
       
-      const description = `Audio uploaded successfully! Duration: ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')} (${sceneCount} scenes will be generated)`;
+      let description = `Audio uploaded successfully! Duration: ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')} (${sceneCount} scenes will be generated)`;
+      if (data.hasSubtitles) {
+        description += ` Subtitles generated!`;
+      }
       
       toast({
         title: "Success",
@@ -958,6 +967,43 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, onNext, on
               <p className="text-xs text-muted-foreground mt-1">
                 Give your uploaded song a memorable title
               </p>
+            </div>
+            
+            {/* Lyrics for Upload */}
+            <div>
+              <Label className="flex items-center text-sm font-semibold mb-2">
+                <PenTool className="w-4 h-4 text-accent mr-2" />
+                Lyrics (Optional)
+              </Label>
+              <Textarea
+                value={uploadLyrics}
+                onChange={(e) => setUploadLyrics(e.target.value)}
+                placeholder="Paste your song lyrics here to enable timestamped lyrics in the video timeline..."
+                rows={5}
+                className="resize-none font-mono text-sm"
+                data-testid="upload-lyrics-input"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Provide lyrics to enable synchronized subtitles and lyrics timeline. Leave empty to auto-transcribe the audio.
+              </p>
+            </div>
+            
+            {/* Subtitles Toggle for Upload */}
+            <div className="flex items-center justify-between py-3 px-4 bg-muted/30 rounded-lg">
+              <div className="flex items-center gap-3">
+                <Subtitles className="w-5 h-5 text-accent" />
+                <div>
+                  <Label className="text-sm font-semibold cursor-pointer">Enable Subtitles</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Generate timestamped lyrics for the video timeline
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={uploadAddSubtitles}
+                onCheckedChange={setUploadAddSubtitles}
+                data-testid="upload-subtitles-toggle"
+              />
             </div>
             
             <input
