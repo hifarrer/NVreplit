@@ -5809,8 +5809,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Final audio URL for FFMPEG:", audioUrl);
       console.log("=== END DEBUG ===");
       // Split audio into 10-second segments by passing totalDurationSeconds
-      const audioSegments = await splitAudio(audioUrl, numberOfAudioParts, audioDuration);
-      console.log("Audio segments result:", JSON.stringify(audioSegments, null, 2));
+      const allAudioSegments = await splitAudio(audioUrl, numberOfAudioParts, audioDuration);
+      console.log("Audio segments result:", JSON.stringify(allAudioSegments, null, 2));
+      
+      // IMPORTANT: The FFMPEG API may return more segments than expected if the audio is slightly longer
+      // (e.g., 31 seconds returns 4 segments: 10+10+10+1). Truncate to match scene images count.
+      const audioSegments = allAudioSegments.slice(0, sceneImagesCount);
+      if (allAudioSegments.length > sceneImagesCount) {
+        console.log(`Truncating audio segments from ${allAudioSegments.length} to ${sceneImagesCount} to match scene images`);
+      }
       
       const audioUrls = audioSegments.map(segment => segment.download_url);
       const segmentDurations = audioSegments.map(segment => segment.duration);
