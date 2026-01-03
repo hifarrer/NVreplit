@@ -75,11 +75,12 @@ export async function splitAudio(audioUrl: string, parts: number = 4, totalDurat
     // This ensures both lipsync (infinitetalk-fast) and non-lipsync (bytedance/seedance) models
     // work with 10-second segments as required by the non-lipsync model's limit
     const segmentDuration = 10; // 10 seconds per segment
-    const calculatedParts = totalDurationSeconds ? Math.ceil(totalDurationSeconds / segmentDuration) : parts;
     
-    console.log(`Splitting audio into ${calculatedParts} parts (total duration: ${totalDurationSeconds || 'unknown'}s)`);
+    console.log(`Splitting audio into ${segmentDuration}-second segments (total duration: ${totalDurationSeconds || 'unknown'}s)`);
     
-    // Use the correct /api/split_audio endpoint
+    // Use segment_duration parameter to ensure fixed 10-second segments
+    // This is critical for proper video sync - using parts count would create equal-length
+    // segments that don't match the 10-second video generation requirement
     const response = await fetch("https://ffmpegapi.net/api/split_audio", {
       method: "POST",
       headers: {
@@ -88,7 +89,7 @@ export async function splitAudio(audioUrl: string, parts: number = 4, totalDurat
       },
       body: JSON.stringify({
         audio_url: audioUrl,
-        parts: calculatedParts
+        segment_duration: segmentDuration
       }),
     });
 
@@ -103,27 +104,33 @@ export async function splitAudio(audioUrl: string, parts: number = 4, totalDurat
       throw new Error(`Audio splitting failed: ${result.message || "Unknown error"}`);
     }
 
-    // Calculate the duration of each segment
-    // For a song of totalDurationSeconds, we have (N-1) segments of 10 seconds + 1 final segment
+    // Parse audio parts from API response
+    // When using segment_duration, the API returns fixed-length segments (10s each)
+    // with the last segment being the remainder
     const audioParts = result.audio_parts || [];
     const segmentsWithDurations: AudioSegment[] = [];
     
+    console.log(`API returned ${audioParts.length} audio segments`);
+    
     for (let i = 0; i < audioParts.length; i++) {
       let segDuration: number;
-      if (totalDurationSeconds) {
+      
+      // Prefer API-provided duration if available (some FFMPEG API versions return this)
+      if (audioParts[i].duration !== undefined) {
+        segDuration = audioParts[i].duration;
+      } else if (totalDurationSeconds) {
+        // Calculate duration: all segments except last are 10 seconds
         if (i < audioParts.length - 1) {
-          // All segments except the last are 10 seconds
           segDuration = segmentDuration;
         } else {
-          // Last segment gets the remainder - use actual value for proper sync
+          // Last segment gets the remainder
           const usedDuration = (audioParts.length - 1) * segmentDuration;
           segDuration = totalDurationSeconds - usedDuration;
-          // Cap at 10 seconds max, minimum 1 second (handle edge cases)
-          // For exact multiples of 10, the remainder calculation gives the correct value
-          segDuration = Math.min(segmentDuration, Math.max(1, segDuration));
+          // Minimum 1 second for edge cases
+          segDuration = Math.max(1, segDuration);
         }
       } else {
-        // If no total duration provided, assume 10 seconds per segment
+        // Fallback: assume 10 seconds per segment
         segDuration = segmentDuration;
       }
       
@@ -133,7 +140,7 @@ export async function splitAudio(audioUrl: string, parts: number = 4, totalDurat
         duration: segDuration
       });
       
-      console.log(`Segment ${i + 1}: ${segDuration} seconds`);
+      console.log(`Segment ${i + 1}: ${segDuration} seconds (API url: ${audioParts[i].download_url})`);
     }
 
     console.log(`Successfully split audio into ${segmentsWithDurations.length} parts with calculated durations`);
