@@ -74,6 +74,7 @@ export async function generateVideoSegment(
   imageUrl: string,
   prompt: string,
   model: "infinitetalk" | "seedance" = "infinitetalk",
+  segmentDuration: number = 10,
 ): Promise<string> {
   try {
     console.log("=== GENERATING VIDEO SEGMENT ===");
@@ -81,8 +82,10 @@ export async function generateVideoSegment(
     console.log("Image URL:", imageUrl);
     console.log("Prompt:", prompt);
     console.log("Model:", model);
+    console.log("Segment Duration:", segmentDuration, "seconds");
 
     // Submit video generation request
+    // For seedance, use the provided segmentDuration (important for last segment which may be shorter)
     const requestBody =
       model === "infinitetalk"
         ? {
@@ -93,7 +96,7 @@ export async function generateVideoSegment(
           }
         : {
             camera_fixed: false,
-            duration: 10,
+            duration: segmentDuration,
             image: imageUrl,
             prompt: prompt,
             seed: -1,
@@ -194,7 +197,8 @@ export async function generateAllVideoSegmentsDynamic(
   subtitleData?: {
     assContent?: string;
     totalDuration?: number;
-  }
+  },
+  segmentDurations?: number[] // Duration of each segment in seconds (important for last segment)
 ): Promise<{
   videoUrls: string[];
   segmentPairs: Array<{ a: string; b: string }>;
@@ -208,6 +212,7 @@ export async function generateAllVideoSegmentsDynamic(
   console.log(`- Lipsync videos (infinitetalk): ${config.numberOfVideosLipsync}`);
   console.log(`- Make character sing: ${config.makeCharacterSing}`);
   console.log(`- Has subtitle data: ${!!subtitleData?.assContent}`);
+  console.log(`- Segment durations provided: ${segmentDurations ? segmentDurations.join(', ') + 's' : 'using defaults'}`);
 
   const totalVideos =
     config.numberOfVideosRegularApi +
@@ -231,9 +236,34 @@ export async function generateAllVideoSegmentsDynamic(
     console.log("No subtitle data available - will not use lipsync for segments without detected lyrics");
   }
   
-  // Calculate segment durations (assuming equal length segments)
-  const totalDuration = subtitleData?.totalDuration || (audioSegments.length * 10); // Default 10 seconds per segment
-  const segmentDuration = totalDuration / audioSegments.length;
+  // Use provided segment durations or calculate from total duration
+  // For proper sync, each segment should be 10 seconds except potentially the last one
+  const totalDuration = subtitleData?.totalDuration || (audioSegments.length * 10);
+  
+  // Helper to get segment duration for a given index
+  const getSegmentDuration = (index: number): number => {
+    if (segmentDurations && segmentDurations[index] !== undefined) {
+      // Use provided segment duration, but ensure minimum of 1 second
+      return Math.max(1, segmentDurations[index]);
+    }
+    // Fallback: calculate based on total duration
+    const defaultDuration = 10;
+    if (index < audioSegments.length - 1) {
+      return defaultDuration;
+    }
+    // Last segment gets remainder - use actual remainder value for proper sync
+    // For exact multiples of 10, the remainder is 0 but the segment still exists,
+    // so default to 10 seconds in that case
+    const usedDuration = (audioSegments.length - 1) * defaultDuration;
+    const remainder = totalDuration - usedDuration;
+    // Cap at 10, minimum of 1 second (handle edge case of exact multiples)
+    return Math.min(defaultDuration, Math.max(1, remainder));
+  };
+  
+  // Log calculated segment durations
+  for (let i = 0; i < audioSegments.length; i++) {
+    console.log(`Segment ${i + 1} duration: ${getSegmentDuration(i)}s`);
+  }
   
   // Generate videos using intercalated pattern when makeCharacterSing is enabled
   const videoPromises: Promise<string>[] = [];
@@ -247,34 +277,36 @@ export async function generateAllVideoSegmentsDynamic(
       console.log("Using 30-second video pattern: Scene 1=REGULAR, Scenes 2-3=LIPSYNC");
       for (let i = 0; i < audioSegments.length; i++) {
         let model: "seedance" | "infinitetalk";
+        const segDuration = getSegmentDuration(i);
         
         // Follow the exact scene generation pattern
         if (i === 0) {
           // Scene 1 (index 0): REGULAR = seedance
           model = "seedance";
-          console.log(`Segment ${i + 1} (Scene ${i + 1}): REGULAR scene → using seedance`);
+          console.log(`Segment ${i + 1} (Scene ${i + 1}): REGULAR scene → using seedance (${segDuration}s)`);
         } else {
           // Scenes 2-3 (indices 1-2): LIPSYNC = infinitetalk
           model = "infinitetalk";
-          console.log(`Segment ${i + 1} (Scene ${i + 1}): LIPSYNC scene → using infinitetalk`);
+          console.log(`Segment ${i + 1} (Scene ${i + 1}): LIPSYNC scene → using infinitetalk (${segDuration}s)`);
         }
         
         videoTypes.push(model);
         
         if (model === "infinitetalk") {
-          // Infinitetalk requires audio for lipsync
+          // Infinitetalk requires audio for lipsync (duration comes from audio)
           videoPromises.push(
             generateVideoSegment(
               audioSegments[i],
               imageUrls[i],
               prompts[i],
               "infinitetalk",
+              segDuration,
             ),
           );
         } else {
-          // Seedance doesn't use audio
+          // Seedance uses explicit duration parameter
           videoPromises.push(
-            generateVideoSegment("", imageUrls[i], prompts[i], "seedance"),
+            generateVideoSegment("", imageUrls[i], prompts[i], "seedance", segDuration),
           );
         }
       }
@@ -285,15 +317,28 @@ export async function generateAllVideoSegmentsDynamic(
       for (let i = 0; i < audioSegments.length; i++) {
         let model: "seedance" | "infinitetalk";
         const sceneNumber = i + 1; // 1-indexed scene number
+        const segDuration = getSegmentDuration(i);
         
         // Calculate time range for logging
-        const segmentStart = i * segmentDuration;
-        const segmentEnd = (i + 1) * segmentDuration;
+        let cumulativeStart = 0;
+        for (let j = 0; j < i; j++) {
+          cumulativeStart += getSegmentDuration(j);
+        }
+        const segmentEnd = cumulativeStart + segDuration;
         
-        console.log(`\n=== SEGMENT ${i + 1} (${segmentStart.toFixed(1)}s-${segmentEnd.toFixed(1)}s) ===`);
+        console.log(`\n=== SEGMENT ${i + 1} (${cumulativeStart.toFixed(1)}s-${segmentEnd.toFixed(1)}s, duration: ${segDuration}s) ===`);
         console.log(`  - Scene ${sceneNumber} (index ${i})`);
         
-        if (sceneNumber % 2 === 1) {
+        // Seedance requires minimum 10 seconds, so for shorter segments use infinitetalk
+        // which derives its duration from the audio segment length
+        const isLastSegment = i === audioSegments.length - 1;
+        const shouldForceLipsync = isLastSegment && segDuration < 10;
+        
+        if (shouldForceLipsync) {
+          // Last segment with duration < 10s: force infinitetalk to match audio length
+          model = "infinitetalk";
+          console.log(`  - Last segment with ${segDuration}s < 10s → forcing infinitetalk for proper sync`);
+        } else if (sceneNumber % 2 === 1) {
           // ODD scene numbers (1, 3, 5...) = REGULAR = seedance
           model = "seedance";
           console.log(`  - ODD scene → REGULAR → using seedance`);
@@ -306,7 +351,7 @@ export async function generateAllVideoSegmentsDynamic(
         videoTypes.push(model);
 
         if (model === "infinitetalk") {
-          // Infinitetalk requires audio for lipsync
+          // Infinitetalk requires audio for lipsync (duration comes from audio)
           console.log(`  → Audio URL: ${audioSegments[i].substring(0, 50)}...`);
           videoPromises.push(
             generateVideoSegment(
@@ -314,26 +359,33 @@ export async function generateAllVideoSegmentsDynamic(
               imageUrls[i],
               prompts[i],
               "infinitetalk",
+              segDuration,
             ),
           );
         } else {
-          // Seedance doesn't use audio
-          console.log(`  → No audio (seedance doesn't require it)`);
+          // Seedance uses explicit duration parameter (always >= 10s at this point)
+          console.log(`  → Using seedance with duration: ${segDuration}s`);
           videoPromises.push(
-            generateVideoSegment("", imageUrls[i], prompts[i], "seedance"),
+            generateVideoSegment("", imageUrls[i], prompts[i], "seedance", segDuration),
           );
         }
       }
     }
   } else {
     // Only use seedance model when makeCharacterSing is disabled
+    // Note: For the last segment with duration < 10s, seedance will still generate 10s
+    // but since there's no lipsync, sync issues are not a concern - the audio simply ends first
     for (let i = 0; i < audioSegments.length; i++) {
+      const segDuration = getSegmentDuration(i);
+      // Seedance requires minimum 10 seconds, use full 10s for short last segment
+      const effectiveDuration = Math.max(10, segDuration);
+      
       console.log(
-        `Generating video segment ${i + 1} using seedance model (no lipsync)`,
+        `Generating video segment ${i + 1} using seedance model (no lipsync, ${effectiveDuration}s)`,
       );
       videoTypes.push("seedance");
       videoPromises.push(
-        generateVideoSegment("", imageUrls[i], prompts[i], "seedance"),
+        generateVideoSegment("", imageUrls[i], prompts[i], "seedance", effectiveDuration),
       );
     }
   }

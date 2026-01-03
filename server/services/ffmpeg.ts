@@ -11,7 +11,8 @@ export async function getAudioDurationFromFile(filePath: string): Promise<number
     console.log(`Getting audio duration from file: ${filePath}`);
     
     const metadata = await parseFile(filePath);
-    const duration = Math.floor(metadata.format.duration || 0);
+    // Use Math.ceil to ensure we don't lose any audio content
+    const duration = Math.ceil(metadata.format.duration || 0);
     
     console.log(`Audio duration: ${duration} seconds`);
     return duration;
@@ -62,7 +63,13 @@ export async function trimAudio(audioUrl: string, desiredLength: number): Promis
   }
 }
 
-export async function splitAudio(audioUrl: string, parts: number = 4, totalDurationSeconds?: number): Promise<{ part: string; download_url: string }[]> {
+export interface AudioSegment {
+  part: string;
+  download_url: string;
+  duration: number; // Duration of this specific segment in seconds
+}
+
+export async function splitAudio(audioUrl: string, parts: number = 4, totalDurationSeconds?: number): Promise<AudioSegment[]> {
   try {
     // Split audio into fixed 10-second segments for consistent video generation
     // This ensures both lipsync (infinitetalk-fast) and non-lipsync (bytedance/seedance) models
@@ -96,8 +103,41 @@ export async function splitAudio(audioUrl: string, parts: number = 4, totalDurat
       throw new Error(`Audio splitting failed: ${result.message || "Unknown error"}`);
     }
 
-    console.log(`Successfully split audio into ${result.audio_parts?.length || 0} parts`);
-    return result.audio_parts || [];
+    // Calculate the duration of each segment
+    // For a song of totalDurationSeconds, we have (N-1) segments of 10 seconds + 1 final segment
+    const audioParts = result.audio_parts || [];
+    const segmentsWithDurations: AudioSegment[] = [];
+    
+    for (let i = 0; i < audioParts.length; i++) {
+      let segDuration: number;
+      if (totalDurationSeconds) {
+        if (i < audioParts.length - 1) {
+          // All segments except the last are 10 seconds
+          segDuration = segmentDuration;
+        } else {
+          // Last segment gets the remainder - use actual value for proper sync
+          const usedDuration = (audioParts.length - 1) * segmentDuration;
+          segDuration = totalDurationSeconds - usedDuration;
+          // Cap at 10 seconds max, minimum 1 second (handle edge cases)
+          // For exact multiples of 10, the remainder calculation gives the correct value
+          segDuration = Math.min(segmentDuration, Math.max(1, segDuration));
+        }
+      } else {
+        // If no total duration provided, assume 10 seconds per segment
+        segDuration = segmentDuration;
+      }
+      
+      segmentsWithDurations.push({
+        part: audioParts[i].part,
+        download_url: audioParts[i].download_url,
+        duration: segDuration
+      });
+      
+      console.log(`Segment ${i + 1}: ${segDuration} seconds`);
+    }
+
+    console.log(`Successfully split audio into ${segmentsWithDurations.length} parts with calculated durations`);
+    return segmentsWithDurations;
   } catch (error) {
     console.error("Audio splitting error:", error);
     throw new Error("Failed to split audio: " + (error as Error).message);

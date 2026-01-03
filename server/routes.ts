@@ -5630,9 +5630,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Calculate credits needed for video generation based on duration
-      // New pricing: 1000 credits for every 30 seconds
+      // Pricing: 1000 credits per 30 seconds, rounded up to the nearest minute
       const audioDuration = project.audioDuration || 120; // Default to 2 minutes
-      const VIDEO_GENERATION_CREDITS = Math.ceil(audioDuration / 30) * 1000;
+      // Round up to nearest minute (60 seconds) first, then calculate credits
+      const roundedMinutes = Math.ceil(audioDuration / 60);
+      const VIDEO_GENERATION_CREDITS = roundedMinutes * 2 * 1000; // 2 x 1000 credits per minute (which is 2 x 30-second blocks)
       
       // Check if user has enough credits for video generation
       const canAfford = await storage.canUserAffordCredits(project.userId, VIDEO_GENERATION_CREDITS);
@@ -5805,7 +5807,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Audio segments result:", JSON.stringify(audioSegments, null, 2));
       
       const audioUrls = audioSegments.map(segment => segment.download_url);
+      const segmentDurations = audioSegments.map(segment => segment.duration);
       console.log("Audio URLs for video generation:", audioUrls);
+      console.log("Segment durations for video generation:", segmentDurations);
 
       await storage.updateProject(req.params.id, {
         audioSegments: audioSegments
@@ -5947,7 +5951,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           numberOfVideosLipsync,
           makeCharacterSing: makeCharacterSing
         },
-        subtitleData
+        subtitleData,
+        segmentDurations // Pass segment durations for proper video length matching
       );
 
       await storage.updateProject(req.params.id, {
