@@ -107,28 +107,24 @@ export async function splitAudio(audioUrl: string, parts: number = 4, totalDurat
       throw new Error(`Audio splitting failed: ${result.message || "Unknown error"}`);
     }
 
-    // Parse audio parts from API response - try multiple possible field names
-    // The new endpoint returns fixed-length segments (10s each) with the last segment being the remainder
-    const audioParts = result.audio_parts || result.segments || result.parts || result.audio_segments || [];
+    // Parse audio segments from API response
+    // The new /api/split_audio_segments endpoint returns:
+    // { segments: [{ segment: "segment_01.mp3", download_url: "..." }, ...], total_segments: 7 }
+    const segments = result.segments || [];
     const segmentsWithDurations: AudioSegment[] = [];
     
-    console.log(`Found ${audioParts.length} audio parts in response`);
+    console.log(`API returned ${segments.length} audio segments (total_segments: ${result.total_segments})`);
     
-    console.log(`API returned ${audioParts.length} audio segments`);
-    
-    for (let i = 0; i < audioParts.length; i++) {
+    for (let i = 0; i < segments.length; i++) {
       let segDuration: number;
       
-      // Prefer API-provided duration if available
-      if (audioParts[i].duration !== undefined) {
-        segDuration = audioParts[i].duration;
-      } else if (totalDurationSeconds) {
-        // Calculate duration: all segments except last are 10 seconds
-        if (i < audioParts.length - 1) {
+      // Calculate duration: all segments except last are 10 seconds
+      if (totalDurationSeconds) {
+        if (i < segments.length - 1) {
           segDuration = segmentDuration;
         } else {
           // Last segment gets the remainder
-          const usedDuration = (audioParts.length - 1) * segmentDuration;
+          const usedDuration = (segments.length - 1) * segmentDuration;
           segDuration = totalDurationSeconds - usedDuration;
           // Minimum 1 second for edge cases
           segDuration = Math.max(1, segDuration);
@@ -139,12 +135,12 @@ export async function splitAudio(audioUrl: string, parts: number = 4, totalDurat
       }
       
       segmentsWithDurations.push({
-        part: audioParts[i].part,
-        download_url: audioParts[i].download_url,
+        part: segments[i].segment,
+        download_url: segments[i].download_url,
         duration: segDuration
       });
       
-      console.log(`Segment ${i + 1}: ${segDuration} seconds (API url: ${audioParts[i].download_url})`);
+      console.log(`Segment ${i + 1}: ${segDuration} seconds (API url: ${segments[i].download_url})`);
     }
 
     console.log(`Successfully split audio into ${segmentsWithDurations.length} parts with calculated durations`);
