@@ -69,6 +69,67 @@ export interface AudioSegment {
   duration: number; // Duration of this specific segment in seconds
 }
 
+// Split audio into equal parts using /api/split_audio (for AI-generated songs)
+export async function splitAudioByParts(audioUrl: string, parts: number, totalDurationSeconds?: number): Promise<AudioSegment[]> {
+  try {
+    console.log(`Splitting audio into ${parts} equal parts using /api/split_audio (total duration: ${totalDurationSeconds || 'unknown'}s)`);
+    
+    const response = await fetch("https://ffmpegapi.net/api/split_audio", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": FFMPEG_API_KEY,
+      },
+      body: JSON.stringify({
+        audio_url: audioUrl,
+        parts: parts
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`FFMPEG API error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    
+    console.log("=== FFMPEG SPLIT AUDIO BY PARTS RESPONSE ===");
+    console.log("Full response:", JSON.stringify(result, null, 2));
+    
+    if (!result.success) {
+      throw new Error(`Audio splitting failed: ${result.message || "Unknown error"}`);
+    }
+
+    // Parse audio parts from API response
+    // The /api/split_audio endpoint returns:
+    // { audio_parts: [{ part: "split_part_01.mp3", download_url: "..." }, ...], parts: 4 }
+    const audioParts = result.audio_parts || [];
+    const segmentsWithDurations: AudioSegment[] = [];
+    
+    // Calculate duration per segment (equal parts)
+    const durationPerPart = totalDurationSeconds ? totalDurationSeconds / parts : 10;
+    
+    console.log(`API returned ${audioParts.length} audio parts (requested: ${parts})`);
+    
+    for (let i = 0; i < audioParts.length; i++) {
+      segmentsWithDurations.push({
+        part: audioParts[i].part,
+        download_url: audioParts[i].download_url,
+        duration: durationPerPart
+      });
+      
+      console.log(`Part ${i + 1}: ${durationPerPart.toFixed(2)} seconds (API url: ${audioParts[i].download_url})`);
+    }
+
+    console.log(`Successfully split audio into ${segmentsWithDurations.length} equal parts`);
+    return segmentsWithDurations;
+  } catch (error) {
+    console.error("Audio splitting by parts error:", error);
+    throw new Error("Failed to split audio by parts: " + (error as Error).message);
+  }
+}
+
+// Split audio into fixed 10-second segments using /api/split_audio_segments (for user-uploaded songs)
 export async function splitAudio(audioUrl: string, parts: number = 4, totalDurationSeconds?: number): Promise<AudioSegment[]> {
   try {
     // Split audio into fixed 10-second segments for consistent video generation

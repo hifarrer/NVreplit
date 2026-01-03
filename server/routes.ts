@@ -16,7 +16,7 @@ import { nanoid } from "nanoid";
 import { createForcedAlignment, convertElevenLabsAlignmentToASS, storeElevenLabsSubtitleFile } from "./services/elevenlabs";
 import { generateCharacterImage, generateCharacterImages, generateSceneImages, generateSingleSceneImage } from "./services/fal";
 import { generateAllVideoSegments, generateAllVideoSegmentsDynamic } from "./services/wavespeed";
-import { splitAudio, mergeVideos, pictureInPicture, getWatermarkUrl } from "./services/ffmpeg";
+import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { emailService } from "./services/email";
@@ -5807,17 +5807,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("REPLIT_DEV_DOMAIN:", process.env.REPLIT_DEV_DOMAIN);
       console.log("Host:", req.get('host'));
       console.log("Final audio URL for FFMPEG:", audioUrl);
+      console.log("Audio type:", project.audioType);
       console.log("=== END DEBUG ===");
-      // Split audio into 10-second segments by passing totalDurationSeconds
-      const allAudioSegments = await splitAudio(audioUrl, numberOfAudioParts, audioDuration);
-      console.log("Audio segments result:", JSON.stringify(allAudioSegments, null, 2));
       
-      // IMPORTANT: The FFMPEG API may return more segments than expected if the audio is slightly longer
-      // (e.g., 31 seconds returns 4 segments: 10+10+10+1). Truncate to match scene images count.
-      const audioSegments = allAudioSegments.slice(0, sceneImagesCount);
-      if (allAudioSegments.length > sceneImagesCount) {
-        console.log(`Truncating audio segments from ${allAudioSegments.length} to ${sceneImagesCount} to match scene images`);
+      // Split audio using different methods based on audio type:
+      // - AI-generated songs: Use /api/split_audio which splits into equal parts (guarantees exact number of parts)
+      // - User-uploaded songs: Use /api/split_audio_segments which splits by 10-second segments
+      let audioSegments;
+      if (project.audioType === 'generated') {
+        console.log("Using splitAudioByParts for AI-generated song (equal parts)");
+        audioSegments = await splitAudioByParts(audioUrl, numberOfAudioParts, audioDuration);
+      } else {
+        console.log("Using splitAudio for user-uploaded song (10-second segments)");
+        audioSegments = await splitAudio(audioUrl, numberOfAudioParts, audioDuration);
       }
+      console.log("Audio segments result:", JSON.stringify(audioSegments, null, 2));
       
       const audioUrls = audioSegments.map(segment => segment.download_url);
       const segmentDurations = audioSegments.map(segment => segment.duration);
