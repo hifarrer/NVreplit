@@ -100,14 +100,19 @@ export async function splitAudio(audioUrl: string, parts: number = 4, totalDurat
 
     const result = await response.json();
     
+    console.log("=== FFMPEG SPLIT AUDIO SEGMENTS RESPONSE ===");
+    console.log("Full response:", JSON.stringify(result, null, 2));
+    
     if (!result.success) {
       throw new Error(`Audio splitting failed: ${result.message || "Unknown error"}`);
     }
 
-    // Parse audio parts from API response
+    // Parse audio parts from API response - try multiple possible field names
     // The new endpoint returns fixed-length segments (10s each) with the last segment being the remainder
-    const audioParts = result.audio_parts || [];
+    const audioParts = result.audio_parts || result.segments || result.parts || result.audio_segments || [];
     const segmentsWithDurations: AudioSegment[] = [];
+    
+    console.log(`Found ${audioParts.length} audio parts in response`);
     
     console.log(`API returned ${audioParts.length} audio segments`);
     
