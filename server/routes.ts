@@ -5745,9 +5745,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Using audio duration: ${audioDuration} seconds for video generation`);
       
-      // Calculate video generation parameters dynamically based on 10-second segments
-      const numberOfAudioParts = Math.ceil(audioDuration / 10);
-      const numberOfScenes = Math.ceil(audioDuration / 10);
+      // IMPORTANT: Use the number of scene images as the source of truth for audio parts
+      // This ensures audio segments match scene images, avoiding mismatch errors
+      // The sceneImages were generated earlier based on audioDuration at that time
+      const sceneImagesCount = (project.sceneImages as string[])?.length || Math.ceil(audioDuration / 10);
+      const numberOfAudioParts = sceneImagesCount;
+      const numberOfScenes = sceneImagesCount;
+      
+      console.log(`Scene images count from project: ${sceneImagesCount}`);
+      console.log(`Calculated from duration would be: ${Math.ceil(audioDuration / 10)}`);
       
       // Split roughly 50/50 between regular and lipsync videos
       const numberOfVideosLipsync = Math.floor(numberOfScenes / 2);
