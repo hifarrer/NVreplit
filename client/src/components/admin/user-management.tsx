@@ -25,6 +25,8 @@ interface UserWithStats {
   planId: string;
   creditsUsed: number;
   creditsLimit: number;
+  planCredits: number;
+  bonusCredits: number;
 }
 
 interface BannedUser {
@@ -1062,7 +1064,7 @@ export function UserManagement() {
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between text-gray-300">
                     <span>Plan Credits:</span>
-                    <span>{bonusCreditsUser.creditsLimit?.toLocaleString() || 0}</span>
+                    <span>{bonusCreditsUser.planCredits?.toLocaleString() || 0}</span>
                   </div>
                   <div className="flex justify-between text-gray-300">
                     <span>Current Bonus Credits:</span>
@@ -1075,7 +1077,7 @@ export function UserManagement() {
                   <hr className="border-purple-500/30 my-2" />
                   <div className="flex justify-between text-green-300 font-medium">
                     <span>Available Credits:</span>
-                    <span>{((bonusCreditsUser.creditsLimit || 0) + (bonusCreditsUser.bonusCredits || 0) - (bonusCreditsUser.creditsUsed || 0)).toLocaleString()}</span>
+                    <span>{((bonusCreditsUser.planCredits || 0) + (bonusCreditsUser.bonusCredits || 0) - (bonusCreditsUser.creditsUsed || 0)).toLocaleString()}</span>
                   </div>
                 </div>
               </div>

@@ -100,6 +100,8 @@ export interface IStorage {
       planId: string;
       creditsUsed: number;
       creditsLimit: number;
+      planCredits: number;
+      bonusCredits: number;
     }>;
     totalCount: number;
   }>;
@@ -739,6 +741,8 @@ export class MemStorage implements IStorage {
       planId: string;
       creditsUsed: number;
       creditsLimit: number;
+      planCredits: number;
+      bonusCredits: number;
     }>;
     totalCount: number;
   }> {
@@ -770,6 +774,9 @@ export class MemStorage implements IStorage {
       const songs = await this.getSongs(user.id);
       const userWithPlan = await this.getUserWithPlan(user.id);
       
+      const planCredits = userWithPlan?.plan?.credits || 0;
+      const bonusCredits = userWithPlan?.bonusCredits || 0;
+      
       return {
         id: user.id,
         username: user.username,
@@ -782,7 +789,9 @@ export class MemStorage implements IStorage {
         planName: userWithPlan?.plan?.name || "Free",
         planId: userWithPlan?.planId || "",
         creditsUsed: userWithPlan?.creditsUsed || 0,
-        creditsLimit: userWithPlan?.plan?.credits || 0
+        creditsLimit: planCredits + bonusCredits,
+        planCredits: planCredits,
+        bonusCredits: bonusCredits
       };
     }));
     
@@ -2037,6 +2046,8 @@ export class DbStorage implements IStorage {
       planId: string;
       creditsUsed: number;
       creditsLimit: number;
+      planCredits: number;
+      bonusCredits: number;
     }>;
     totalCount: number;
   }> {
@@ -2089,6 +2100,9 @@ export class DbStorage implements IStorage {
       
       const userPlan = user.planId ? planMap.get(user.planId) : freePlan;
       
+      const planCredits = userPlan?.credits || 0;
+      const bonusCredits = user.bonusCredits || 0;
+      
       return {
         id: user.id,
         username: user.username,
@@ -2101,7 +2115,9 @@ export class DbStorage implements IStorage {
         planName: userPlan?.name || "Free",
         planId: user.planId || "",
         creditsUsed: user.creditsUsed || 0,
-        creditsLimit: userPlan?.credits || 0
+        creditsLimit: planCredits + bonusCredits,
+        planCredits: planCredits,
+        bonusCredits: bonusCredits
       };
     }));
     
