@@ -81,7 +81,6 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   const [uploadStatus, setUploadStatus] = useState(""); // Status message for upload progress
   const [uploadSongTitle, setUploadSongTitle] = useState(""); // Song title for upload tab
   const [uploadSongDescription, setUploadSongDescription] = useState(""); // Song description for upload tab
-  const [uploadLyrics, setUploadLyrics] = useState(""); // Lyrics for upload tab
   const [uploadAddSubtitles, setUploadAddSubtitles] = useState(true); // Subtitle toggle for uploaded songs - enabled by default
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -155,9 +154,6 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         }
         if (uploadSongDescription.trim()) {
           formData.append('description', uploadSongDescription.trim());
-        }
-        if (uploadLyrics.trim()) {
-          formData.append('lyrics', uploadLyrics.trim());
         }
         formData.append('addSubtitles', uploadAddSubtitles ? 'true' : 'false');
         formData.append('aspectRatio', isVertical ? "3:4" : "16:9");
@@ -989,24 +985,6 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
               </p>
             </div>
             
-            {/* Lyrics for Upload */}
-            <div>
-              <Label className="flex items-center text-sm font-semibold mb-2">
-                <PenTool className="w-4 h-4 text-accent mr-2" />
-                Lyrics (Optional)
-              </Label>
-              <Textarea
-                value={uploadLyrics}
-                onChange={(e) => setUploadLyrics(e.target.value)}
-                placeholder="Paste your song lyrics here to enable timestamped lyrics in the video timeline..."
-                rows={5}
-                className="resize-none font-mono text-sm"
-                data-testid="upload-lyrics-input"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Provide lyrics to enable synchronized subtitles and lyrics timeline. Leave empty to auto-transcribe the audio.
-              </p>
-            </div>
             
             {/* Video Settings Toggles for Upload */}
             <div className="flex flex-wrap gap-6 py-3 px-4 bg-muted/30 rounded-lg">
