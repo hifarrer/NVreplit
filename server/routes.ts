@@ -4057,6 +4057,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const songLyrics = req.body.lyrics || "";
       const addSubtitles = req.body.addSubtitles === 'true' || req.body.addSubtitles === true;
       const aspectRatio = req.body.aspectRatio || "16:9"; // Default to horizontal
+      // Normalize boolean values - treat 'false' string as false, anything else defaults appropriately
+      const includeWatermark = req.body.includeWatermark === 'false' ? false : (req.body.includeWatermark === 'true' || req.body.includeWatermark === true || req.body.includeWatermark === undefined);
+      const isPublic = req.body.isPublic === 'false' ? false : (req.body.isPublic === 'true' || req.body.isPublic === true || req.body.isPublic === undefined);
 
       console.log(`Uploading audio file (user plan: ${isPaidUser ? 'paid' : 'free'}, max allowed: ${maxDuration}s, subtitles: ${addSubtitles})${songTitle ? `, title: "${songTitle}"` : ''}${songDescription ? `, description: "${songDescription.substring(0, 50)}..."` : ''}${songLyrics ? ', with lyrics' : ''}`);
 
@@ -4287,7 +4290,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audioLyrics: lyricsForProject, // Store lyrics for scene timeline
         addSubtitles: subtitlesEnabled, // Only true if subtitles were actually generated
         subtitleFileUrl: subtitleFileUrl, // Store subtitle file URL
-        aspectRatio: aspectRatio // Store aspect ratio ('16:9' or '3:4')
+        aspectRatio: aspectRatio, // Store aspect ratio ('16:9' or '3:4')
+        includeWatermark: includeWatermark,
+        isPublic: isPublic
       };
       
       // Only update title if user provided one
@@ -4874,7 +4879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Select song for project (handles both generated songs and library songs)
   app.post("/api/projects/:id/select-song", authenticateToken, async (req, res) => {
     try {
-      const { audioUrl, audioTags, audioLyrics, audioType, duration, subtitleFileUrl, kieTaskId, kieAudioId, title, aspectRatio } = req.body;
+      const { audioUrl, audioTags, audioLyrics, audioType, duration, subtitleFileUrl, kieTaskId, kieAudioId, title, aspectRatio, addSubtitles, includeWatermark, isPublic } = req.body;
       
       console.log("=== SELECT-SONG REQUEST ===");
       console.log("Request body:", JSON.stringify(req.body, null, 2));
@@ -4893,6 +4898,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (duration) updateData.audioDuration = duration;
       if (title && title.trim()) updateData.title = title.trim();
       if (aspectRatio) updateData.aspectRatio = aspectRatio; // Store aspect ratio ('16:9' or '3:4')
+      // Handle boolean values that might come as strings from JSON or form data
+      if (addSubtitles !== undefined) updateData.addSubtitles = addSubtitles === true || addSubtitles === 'true';
+      if (includeWatermark !== undefined) updateData.includeWatermark = includeWatermark === true || includeWatermark === 'true';
+      if (isPublic !== undefined) updateData.isPublic = isPublic === true || isPublic === 'true';
       if (subtitleFileUrl) {
         updateData.addSubtitles = true;
         updateData.subtitleFileUrl = subtitleFileUrl;

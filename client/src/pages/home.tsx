@@ -179,6 +179,9 @@ export default function Home() {
             projectId={projectId}
             audioUrl={project?.audioUrl}
             aspectRatio={project?.aspectRatio}
+            projectAddSubtitles={(project as any)?.addSubtitles}
+            projectIncludeWatermark={(project as any)?.includeWatermark}
+            projectIsPublic={(project as any)?.isPublic}
             onNext={() => handleStepChange(2)}
             onReset={resetProject}
           />

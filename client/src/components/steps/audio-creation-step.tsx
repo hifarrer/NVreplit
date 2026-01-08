@@ -22,6 +22,9 @@ interface AudioCreationStepProps {
   projectId: string;
   audioUrl?: string;
   aspectRatio?: string;
+  projectAddSubtitles?: boolean;
+  projectIncludeWatermark?: boolean;
+  projectIsPublic?: boolean;
   onNext: () => void;
   onReset: () => void;
 }
@@ -42,7 +45,7 @@ interface GeneratedSong {
 
 const suggestedTags = ["pop", "electronic", "rock", "upbeat", "hip-hop", "country", "reggae", "synthwave", "kpop", "female singer", "male singer"];
 
-export function AudioCreationStep({ projectId, audioUrl, aspectRatio, onNext, onReset }: AudioCreationStepProps) {
+export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAddSubtitles, projectIncludeWatermark, projectIsPublic, onNext, onReset }: AudioCreationStepProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -88,16 +91,28 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, onNext, on
   const [lyrics, setLyrics] = useState("");
   const [songTitle, setSongTitle] = useState(""); // Song title for generate tab
   const [duration, setDuration] = useState([isPaidUser ? 60 : 30]); // Default: 30s for free, 60s for paid
-  const [addSubtitles, setAddSubtitles] = useState(true); // Subtitle toggle - enabled by default
-  const [includeWatermark, setIncludeWatermark] = useState(true); // Watermark toggle - enabled by default
-  const [isPublic, setIsPublic] = useState(true); // Privacy toggle - public by default (Premium users can make private)
+  const [addSubtitles, setAddSubtitles] = useState(projectAddSubtitles ?? true); // Subtitle toggle - hydrated from project or default to enabled
+  const [includeWatermark, setIncludeWatermark] = useState(projectIncludeWatermark ?? true); // Watermark toggle - hydrated from project or default to enabled
+  const [isPublic, setIsPublic] = useState(projectIsPublic ?? true); // Privacy toggle - hydrated from project or default to public
   const [isVertical, setIsVertical] = useState(aspectRatio === "3:4"); // Aspect ratio toggle - hydrated from project data, defaults to horizontal (16:9)
   const [progress, setProgress] = useState(0);
   
-  // Hydrate isVertical state from aspectRatio prop when component mounts or aspectRatio changes
+  // Hydrate state from project props when component mounts or props change
   useEffect(() => {
     setIsVertical(aspectRatio === "3:4");
   }, [aspectRatio]);
+  
+  useEffect(() => {
+    if (projectAddSubtitles !== undefined) setAddSubtitles(projectAddSubtitles);
+  }, [projectAddSubtitles]);
+  
+  useEffect(() => {
+    if (projectIncludeWatermark !== undefined) setIncludeWatermark(projectIncludeWatermark);
+  }, [projectIncludeWatermark]);
+  
+  useEffect(() => {
+    if (projectIsPublic !== undefined) setIsPublic(projectIsPublic);
+  }, [projectIsPublic]);
   const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(null); // For debugging display
   const [profanityCheck, setProfanityCheck] = useState<ProfanityCheckResult | null>(null);
   const [descriptionProfanityCheck, setDescriptionProfanityCheck] = useState<ProfanityCheckResult | null>(null);
@@ -146,6 +161,8 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, onNext, on
         }
         formData.append('addSubtitles', uploadAddSubtitles ? 'true' : 'false');
         formData.append('aspectRatio', isVertical ? "3:4" : "16:9");
+        formData.append('includeWatermark', includeWatermark ? 'true' : 'false');
+        formData.append('isPublic', isPublic ? 'true' : 'false');
         
         const xhr = new XMLHttpRequest();
         let transcribeInterval: NodeJS.Timeout | null = null;
@@ -390,7 +407,10 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, onNext, on
         subtitleFileUrl: song.subtitleFileUrl,
         kieTaskId: song.kieTaskId,
         kieAudioId: song.kieAudioId,
-        aspectRatio: isVertical ? "3:4" : "16:9"
+        aspectRatio: isVertical ? "3:4" : "16:9",
+        addSubtitles,
+        includeWatermark,
+        isPublic
       };
       
       // Include custom title if provided
@@ -988,22 +1008,57 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, onNext, on
               </p>
             </div>
             
-            {/* Subtitles Toggle for Upload */}
-            <div className="flex items-center justify-between py-3 px-4 bg-muted/30 rounded-lg">
-              <div className="flex items-center gap-3">
-                <Subtitles className="w-5 h-5 text-accent" />
-                <div>
-                  <Label className="text-sm font-semibold cursor-pointer">Enable Subtitles</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Generate timestamped lyrics for the video timeline
-                  </p>
-                </div>
+            {/* Video Settings Toggles for Upload */}
+            <div className="flex flex-wrap gap-6 py-3 px-4 bg-muted/30 rounded-lg">
+              {/* Add Subtitles Toggle */}
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={uploadAddSubtitles}
+                  onCheckedChange={setUploadAddSubtitles}
+                  data-testid="upload-subtitles-toggle"
+                />
+                <Label className="text-sm font-medium cursor-pointer" onClick={() => setUploadAddSubtitles(!uploadAddSubtitles)}>
+                  Add Subtitles
+                </Label>
               </div>
-              <Switch
-                checked={uploadAddSubtitles}
-                onCheckedChange={setUploadAddSubtitles}
-                data-testid="upload-subtitles-toggle"
-              />
+
+              {/* Watermark Toggle */}
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={includeWatermark}
+                  onCheckedChange={setIncludeWatermark}
+                  data-testid="upload-watermark-toggle"
+                  disabled={!isPremiumUser}
+                />
+                <Label className="text-sm font-medium cursor-pointer" onClick={() => isPremiumUser && setIncludeWatermark(!includeWatermark)}>
+                  Watermark
+                </Label>
+              </div>
+
+              {/* Public Toggle */}
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={isPublic}
+                  onCheckedChange={setIsPublic}
+                  data-testid="upload-privacy-toggle"
+                  disabled={!isPremiumUser}
+                />
+                <Label className="text-sm font-medium cursor-pointer" onClick={() => isPremiumUser && setIsPublic(!isPublic)}>
+                  Public
+                </Label>
+              </div>
+
+              {/* Aspect Ratio Toggle */}
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={isVertical}
+                  onCheckedChange={setIsVertical}
+                  data-testid="upload-aspect-ratio-toggle"
+                />
+                <Label className="text-sm font-medium cursor-pointer" onClick={() => setIsVertical(!isVertical)}>
+                  {isVertical ? "Vertical (3:4)" : "Horizontal (16:9)"}
+                </Label>
+              </div>
             </div>
             
             <input
@@ -1119,6 +1174,59 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, onNext, on
                     </p>
                   </div>
                 )}
+                
+                {/* Video Settings Toggles for Library */}
+                <div className="flex flex-wrap gap-6 py-3 px-4 bg-muted/30 rounded-lg">
+                  {/* Add Subtitles Toggle */}
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={addSubtitles}
+                      onCheckedChange={setAddSubtitles}
+                      data-testid="library-subtitles-toggle"
+                    />
+                    <Label className="text-sm font-medium cursor-pointer" onClick={() => setAddSubtitles(!addSubtitles)}>
+                      Add Subtitles
+                    </Label>
+                  </div>
+
+                  {/* Watermark Toggle */}
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={includeWatermark}
+                      onCheckedChange={setIncludeWatermark}
+                      data-testid="library-watermark-toggle"
+                      disabled={!isPremiumUser}
+                    />
+                    <Label className="text-sm font-medium cursor-pointer" onClick={() => isPremiumUser && setIncludeWatermark(!includeWatermark)}>
+                      Watermark
+                    </Label>
+                  </div>
+
+                  {/* Public Toggle */}
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={isPublic}
+                      onCheckedChange={setIsPublic}
+                      data-testid="library-privacy-toggle"
+                      disabled={!isPremiumUser}
+                    />
+                    <Label className="text-sm font-medium cursor-pointer" onClick={() => isPremiumUser && setIsPublic(!isPublic)}>
+                      Public
+                    </Label>
+                  </div>
+
+                  {/* Aspect Ratio Toggle */}
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={isVertical}
+                      onCheckedChange={setIsVertical}
+                      data-testid="library-aspect-ratio-toggle"
+                    />
+                    <Label className="text-sm font-medium cursor-pointer" onClick={() => setIsVertical(!isVertical)}>
+                      {isVertical ? "Vertical (3:4)" : "Horizontal (16:9)"}
+                    </Label>
+                  </div>
+                </div>
                 
                 <Button 
                   onClick={handleSelectSong} 
