@@ -104,6 +104,13 @@ async function submitAndPollSceneGeneration(
   sceneLabel: string = "scene",
   aspectRatio: string = "16:9",
 ): Promise<string> {
+  const sceneRequestId = `SCENE-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const sceneStartTime = Date.now();
+  
+  console.log(`[WAVESPEED-API ${new Date().toISOString()}] ${sceneLabel} API call started`);
+  console.log(`[WAVESPEED-API] Request ID: ${sceneRequestId}`);
+  console.log(`[WAVESPEED-API] Model: ${model.name}`);
+  
   const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
   if (!WAVESPEED_API_KEY) {
     throw new Error("WAVESPEED_API_KEY environment variable is required");
@@ -177,6 +184,8 @@ async function submitAndPollSceneGeneration(
     const statusResult = await statusResponse.json();
 
     if (statusResult.data?.status === "completed") {
+      const sceneDuration = Date.now() - sceneStartTime;
+      console.log(`[WAVESPEED-API ${sceneRequestId}] ${sceneLabel} generation COMPLETED in ${sceneDuration}ms`);
       console.log(`[${model.name}] ${sceneLabel} generation completed!`);
 
       if (statusResult.data.outputs && statusResult.data.outputs.length > 0) {
@@ -595,6 +604,17 @@ export async function generateSceneImages(
   characterImageUrl: string,
   aspectRatio: string = "16:9",
 ): Promise<string[]> {
+  const batchId = `BATCH-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const batchStartTime = Date.now();
+  
+  console.log(`\n========================================`);
+  console.log(`[FAL-SERVICE ${new Date().toISOString()}] SCENE BATCH STARTED`);
+  console.log(`[FAL-SERVICE] Batch ID: ${batchId}`);
+  console.log(`[FAL-SERVICE] Scene count: ${prompts.length}`);
+  console.log(`[FAL-SERVICE] Character Image: ${characterImageUrl?.substring(0, 80)}...`);
+  console.log(`[FAL-SERVICE] Aspect Ratio: ${aspectRatio}`);
+  console.log(`========================================\n`);
+  
   console.log(
     `Starting parallel scene generation for ${prompts.length} scenes`,
   );
@@ -661,18 +681,25 @@ export async function generateSceneImages(
   );
   
   // Download and store all scene images permanently
-  console.log(`Downloading and storing ${successfulScenes.length} scene images permanently...`);
+  console.log(`[FAL-SERVICE ${batchId}] Downloading and storing ${successfulScenes.length} scene images permanently...`);
   const { downloadAndStoreImage } = await import("./imageStorage");
   
   const storePromises = successfulScenes.map(async (sceneUrl, index) => {
-    console.log(`Storing scene ${index + 1}...`);
+    console.log(`[FAL-SERVICE ${batchId}] Storing scene ${index + 1}...`);
     const storedImage = await downloadAndStoreImage(sceneUrl, "scenes");
-    console.log(`Scene ${index + 1} stored permanently at: ${storedImage.storedUrl}`);
+    console.log(`[FAL-SERVICE ${batchId}] Scene ${index + 1} stored permanently at: ${storedImage.storedUrl}`);
     return storedImage.storedUrl;
   });
   
   const storedSceneUrls = await Promise.all(storePromises);
-  console.log(`✓ All ${storedSceneUrls.length} scene images stored permanently`);
+  
+  const batchDuration = Date.now() - batchStartTime;
+  console.log(`\n========================================`);
+  console.log(`[FAL-SERVICE ${new Date().toISOString()}] SCENE BATCH COMPLETED`);
+  console.log(`[FAL-SERVICE] Batch ID: ${batchId}`);
+  console.log(`[FAL-SERVICE] Duration: ${batchDuration}ms`);
+  console.log(`[FAL-SERVICE] Scenes stored: ${storedSceneUrls.length}`);
+  console.log(`========================================\n`);
   
   return storedSceneUrls;
 }

@@ -5056,20 +5056,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // In-memory lock for scene generation to prevent concurrent requests for the same project
+  const sceneGenerationLocks = new Map<string, { inProgress: boolean; startTime: number; requestId: string }>();
+  const SCENE_GEN_LOCK_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
+  const acquireSceneGenLock = (projectId: string, requestId: string): boolean => {
+    const existingLock = sceneGenerationLocks.get(projectId);
+    if (existingLock?.inProgress) {
+      // Check if lock is stale
+      const elapsed = Date.now() - existingLock.startTime;
+      if (elapsed < SCENE_GEN_LOCK_TIMEOUT_MS) {
+        console.log(`[SCENE-GEN-LOCK] Lock acquisition FAILED for project ${projectId} - already held by ${existingLock.requestId} (${elapsed}ms elapsed)`);
+        return false;
+      }
+      console.log(`[SCENE-GEN-LOCK] Stale lock detected for project ${projectId}, clearing (${elapsed}ms elapsed)`);
+    }
+    sceneGenerationLocks.set(projectId, { inProgress: true, startTime: Date.now(), requestId });
+    console.log(`[SCENE-GEN-LOCK] Lock acquired for project ${projectId} by request ${requestId}`);
+    return true;
+  };
+
+  const releaseSceneGenLock = (projectId: string, requestId: string) => {
+    const lock = sceneGenerationLocks.get(projectId);
+    if (lock && lock.requestId === requestId) {
+      lock.inProgress = false;
+      console.log(`[SCENE-GEN-LOCK] Lock released for project ${projectId} by request ${requestId}`);
+    } else {
+      console.log(`[SCENE-GEN-LOCK] Lock release skipped for project ${projectId} - lock held by different request`);
+    }
+  };
+
   // Generate scenes
   app.post("/api/projects/:id/generate-scenes", async (req, res) => {
+    const requestId = `REQ-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const startTime = Date.now();
+    const projectId = req.params.id;
+    
+    console.log(`\n========================================`);
+    console.log(`[SCENE-GEN-API ${new Date().toISOString()}] REQUEST RECEIVED`);
+    console.log(`[SCENE-GEN-API] Request ID: ${requestId}`);
+    console.log(`[SCENE-GEN-API] Project ID: ${projectId}`);
+    console.log(`========================================\n`);
+
+    // Try to acquire lock FIRST before any processing
+    if (!acquireSceneGenLock(projectId, requestId)) {
+      console.log(`[SCENE-GEN-API ${requestId}] BLOCKED: Another request is already generating scenes for this project`);
+      return res.status(409).json({ 
+        error: "Scene generation already in progress",
+        message: "Another request is currently generating scenes for this project. Please wait."
+      });
+    }
+    
     try {
-      const project = await storage.getProject(req.params.id);
-      console.log("Project data for scene generation:", JSON.stringify(project, null, 2));
+      const project = await storage.getProject(projectId);
+      console.log(`[SCENE-GEN-API ${requestId}] Project data for scene generation:`, JSON.stringify(project, null, 2));
       
       if (!project) {
         console.log("No project found for ID:", req.params.id);
+        releaseSceneGenLock(projectId, requestId);
         return res.status(400).json({ error: "Project not found" });
       }
       
       if (!project.characterImageUrl) {
         console.log("Missing characterImageUrl in project:", project.characterImageUrl);
+        releaseSceneGenLock(projectId, requestId);
         return res.status(400).json({ error: "Character image URL is required. Please create or select a character first." });
+      }
+
+      // Backend-side duplicate prevention: Check if scenes already exist
+      // This prevents duplicate API calls from generating scenes twice
+      if (project.sceneImages && Array.isArray(project.sceneImages) && project.sceneImages.length > 0) {
+        console.log(`[SCENE-GEN-API ${requestId}] BLOCKED: Project already has ${project.sceneImages.length} scene images`);
+        console.log(`[SCENE-GEN-API ${requestId}] Returning existing scenes instead of regenerating`);
+        releaseSceneGenLock(projectId, requestId);
+        return res.json({ 
+          scenePrompts: project.scenePrompts || [],
+          sceneImages: project.sceneImages,
+          alreadyGenerated: true
+        });
       }
 
       // Create a prompt based on what we have
@@ -5139,21 +5203,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
+      console.log(`[SCENE-GEN-API ${requestId}] Generating scene prompts...`);
       const scenePrompts = await generateScenePrompts(combinedPrompt, numberOfScenes, lyricsSections);
+      console.log(`[SCENE-GEN-API ${requestId}] Scene prompts generated: ${scenePrompts.length} prompts`);
       
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "scene_generation",
         message: `Generating ${numberOfScenes} scene images`,
         status: "progress",
-        metadata: { scenePrompts, numberOfScenes }
+        metadata: { scenePrompts, numberOfScenes, requestId }
       });
 
       // Use the aspect ratio from the project (set in step 1) - defaults to 16:9 for horizontal
       const aspectRatio = project.aspectRatio || "16:9";
-      console.log(`Using aspect ratio for scene generation: ${aspectRatio}`);
+      console.log(`[SCENE-GEN-API ${requestId}] Using aspect ratio for scene generation: ${aspectRatio}`);
+      console.log(`[SCENE-GEN-API ${requestId}] Calling generateSceneImages with ${scenePrompts.length} prompts...`);
       
       const sceneImages = await generateSceneImages(scenePrompts, project.characterImageUrl, aspectRatio);
+      
+      const duration = Date.now() - startTime;
+      console.log(`\n========================================`);
+      console.log(`[SCENE-GEN-API ${requestId}] REQUEST COMPLETED`);
+      console.log(`[SCENE-GEN-API ${requestId}] Duration: ${duration}ms`);
+      console.log(`[SCENE-GEN-API ${requestId}] Scenes generated: ${sceneImages.length}`);
+      console.log(`========================================\n`);
       
       await storage.updateProject(req.params.id, {
         scenePrompts: scenePrompts,
@@ -5166,19 +5240,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         step: "scene_generation",
         message: "Scene generation completed",
         status: "completed",
-        metadata: { scenePrompts, sceneImages }
+        metadata: { scenePrompts, sceneImages, requestId, durationMs: duration }
       });
 
+      // Release lock on success
+      releaseSceneGenLock(projectId, requestId);
       res.json({ scenePrompts, sceneImages });
     } catch (error) {
-      console.error("Generate scenes error:", error);
+      const duration = Date.now() - startTime;
+      console.error(`\n========================================`);
+      console.error(`[SCENE-GEN-API ${requestId}] REQUEST FAILED`);
+      console.error(`[SCENE-GEN-API ${requestId}] Duration: ${duration}ms`);
+      console.error(`[SCENE-GEN-API ${requestId}] Error:`, error);
+      console.error(`========================================\n`);
+      
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "scene_generation",
         message: `Scene generation failed: ${(error as Error).message}`,
         status: "error",
-        metadata: { error: (error as Error).message }
+        metadata: { error: (error as Error).message, requestId, durationMs: duration }
       });
+      
+      // Release lock on error
+      releaseSceneGenLock(projectId, requestId);
       res.status(500).json({ error: "Failed to generate scenes" });
     }
   });

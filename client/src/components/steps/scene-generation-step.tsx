@@ -32,6 +32,51 @@ interface SceneGenerationStepProps {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
 
+// Helper for logging with timestamps
+const logSceneGeneration = (message: string, data?: any) => {
+  const timestamp = new Date().toISOString();
+  const logPrefix = `[SCENE-GEN ${timestamp}]`;
+  if (data) {
+    console.log(`${logPrefix} ${message}`, data);
+  } else {
+    console.log(`${logPrefix} ${message}`);
+  }
+};
+
+// Module-level lock to persist across component remounts (React Strict Mode, navigation, etc.)
+// This ensures only ONE scene generation can run per project, regardless of component lifecycle
+const projectGenerationLocks = new Map<string, { inProgress: boolean; startTime: number }>();
+
+const getProjectLock = (projectId: string) => {
+  if (!projectGenerationLocks.has(projectId)) {
+    projectGenerationLocks.set(projectId, { inProgress: false, startTime: 0 });
+  }
+  return projectGenerationLocks.get(projectId)!;
+};
+
+const setProjectLockInProgress = (projectId: string, inProgress: boolean) => {
+  const lock = getProjectLock(projectId);
+  lock.inProgress = inProgress;
+  lock.startTime = inProgress ? Date.now() : 0;
+  logSceneGeneration(`Module-level lock updated`, { projectId, inProgress, startTime: lock.startTime });
+};
+
+const isProjectLockInProgress = (projectId: string): boolean => {
+  const lock = getProjectLock(projectId);
+  // Consider lock stale after 10 minutes (in case of abandoned requests)
+  const STALE_THRESHOLD_MS = 10 * 60 * 1000;
+  if (lock.inProgress && lock.startTime > 0) {
+    const elapsed = Date.now() - lock.startTime;
+    if (elapsed > STALE_THRESHOLD_MS) {
+      logSceneGeneration(`Module-level lock is stale, resetting`, { projectId, elapsed });
+      lock.inProgress = false;
+      lock.startTime = 0;
+      return false;
+    }
+  }
+  return lock.inProgress;
+};
+
 export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioLyrics, subtitleFileUrl, characterImageUrl, scenes = [], sceneOrder: initialSceneOrder, isEditMode = false, onNext, onBack, onReset }: SceneGenerationStepProps) {
   // Defensively copy scenes array to avoid mutating the original project data
   const [generatedScenes, setGeneratedScenes] = useState<SceneData[]>(() => 
@@ -47,8 +92,32 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   const [regeneratingScenes, setRegeneratingScenes] = useState<number[]>([]);
   const [uploadingScenes, setUploadingScenes] = useState<number[]>([]);
   const { toast } = useToast();
+  
+  // Refs to prevent duplicate API calls - using multiple guards for safety
   const hasGeneratedRef = useRef(false);
+  const apiCallInProgressRef = useRef(false);
+  const generationStartTimeRef = useRef<number | null>(null);
+  
   const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
+  
+  // Log component mount/unmount for debugging
+  useEffect(() => {
+    logSceneGeneration(`Component mounted`, { 
+      projectId, 
+      existingScenes: scenes.length,
+      isEditMode,
+      hasGeneratedRef: hasGeneratedRef.current,
+      apiCallInProgressRef: apiCallInProgressRef.current
+    });
+    
+    return () => {
+      logSceneGeneration(`Component unmounting`, { 
+        projectId,
+        hasGeneratedRef: hasGeneratedRef.current,
+        apiCallInProgressRef: apiCallInProgressRef.current
+      });
+    };
+  }, []);
 
   const getDefaultLipsync = (index: number): boolean => {
     if (!audioDuration) return false;
@@ -146,25 +215,67 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
     return isLipsyncScene(index) && !hasLyricsForScene(index);
   };
 
+  // Dedicated loading state tied to the ref for accurate UI feedback
+  const [isGenerating, setIsGenerating] = useState(false);
+
   const generateScenesMutation = useMutation({
     mutationFn: async () => {
-      const progressSteps = [25, 50, 75, 100];
-      const messages = [
-        "Analyzing song concept...",
-        "Generating scene prompts...",
-        "Creating scene images...",
-        "Scene generation complete!"
-      ];
+      // Locks are already set by triggerSceneGeneration - just log and proceed
+      logSceneGeneration(`Starting scene generation API call`, {
+        projectId,
+        startTime: generationStartTimeRef.current
+      });
 
-      for (let i = 0; i < progressSteps.length; i++) {
-        setProgress(progressSteps[i]);
-        await new Promise(resolve => setTimeout(resolve, 2500));
+      // Start fake progress in parallel with API call (don't wait for it)
+      const progressSimulation = (async () => {
+        const progressSteps = [25, 50, 75];
+        for (let i = 0; i < progressSteps.length; i++) {
+          // Only update progress if API call is still in progress
+          if (apiCallInProgressRef.current) {
+            setProgress(progressSteps[i]);
+          }
+          await new Promise(resolve => setTimeout(resolve, 2500));
+        }
+      })();
+
+      try {
+        logSceneGeneration(`Making POST request to /api/projects/${projectId}/generate-scenes`);
+        const response = await apiRequest("POST", `/api/projects/${projectId}/generate-scenes`, {});
+        const data = await response.json();
+        
+        // Wait for progress simulation to complete for better UX
+        await progressSimulation;
+        setProgress(100);
+        
+        logSceneGeneration(`API call completed successfully`, {
+          projectId,
+          duration: Date.now() - (generationStartTimeRef.current || 0),
+          sceneCount: data.scenePrompts?.length
+        });
+        
+        return data;
+      } catch (error) {
+        logSceneGeneration(`API call failed`, {
+          projectId,
+          error: error instanceof Error ? error.message : String(error),
+          duration: Date.now() - (generationStartTimeRef.current || 0)
+        });
+        throw error;
       }
-
-      const response = await apiRequest("POST", `/api/projects/${projectId}/generate-scenes`, {});
-      return response.json();
     },
     onSuccess: (data) => {
+      // Release all locks (both module-level and component-local)
+      setProjectLockInProgress(projectId, false);  // Module-level lock
+      apiCallInProgressRef.current = false;
+      // Keep hasGeneratedRef.current = true to prevent auto-trigger from useEffect
+      // This only blocks the useEffect auto-trigger, not manual regeneration
+      setIsGenerating(false);
+      logSceneGeneration(`onSuccess handler called`, { 
+        projectId,
+        sceneCount: data.scenePrompts?.length,
+        alreadyGenerated: data.alreadyGenerated
+      });
+      
       const sceneData: SceneData[] = data.scenePrompts.map((prompt: string, index: number) => ({
         prompt,
         imageUrl: data.sceneImages[index]
@@ -172,12 +283,38 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       setGeneratedScenes(sceneData);
       // Set default scene order when new scenes are generated
       setSceneOrder(sceneData.map((_, index) => index));
-      toast({
-        title: "Success",
-        description: "Scenes generated successfully!",
-      });
+      
+      // Only show toast if this was a new generation (not returning existing)
+      if (!data.alreadyGenerated) {
+        toast({
+          title: "Success",
+          description: "Scenes generated successfully!",
+        });
+      }
     },
     onError: (error) => {
+      // Check if this is a 409 Conflict (duplicate request blocked by backend)
+      const is409Conflict = error instanceof Error && 
+        (error.message.includes('409') || error.message.includes('already in progress'));
+      
+      logSceneGeneration(`onError handler called`, { 
+        projectId,
+        error: error instanceof Error ? error.message : String(error),
+        is409Conflict
+      });
+      
+      if (is409Conflict) {
+        // 409 means another request IS in progress - DO NOT release locks
+        // The original request will complete and release locks
+        logSceneGeneration(`409 Conflict detected - keeping locks active, original request will complete`);
+        return;
+      }
+      
+      // For all other errors, release locks
+      setProjectLockInProgress(projectId, false);  // Module-level lock
+      apiCallInProgressRef.current = false;
+      setIsGenerating(false);
+      
       setProgress(0);
       toast({
         title: "Error",
@@ -187,6 +324,41 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
     }
   });
 
+  // Safe wrapper to trigger scene generation with all guards
+  const triggerSceneGeneration = useCallback(() => {
+    // CRITICAL: Check module-level lock FIRST (persists across component remounts)
+    if (isProjectLockInProgress(projectId)) {
+      logSceneGeneration(`BLOCKED by triggerSceneGeneration: Module-level lock is active for project`, { projectId });
+      return;
+    }
+    
+    // Multiple component-local guards for additional safety
+    if (hasGeneratedRef.current) {
+      logSceneGeneration(`BLOCKED by triggerSceneGeneration: hasGeneratedRef is true`);
+      return;
+    }
+    
+    if (apiCallInProgressRef.current) {
+      logSceneGeneration(`BLOCKED by triggerSceneGeneration: apiCallInProgressRef is true`);
+      return;
+    }
+    
+    if (generateScenesMutation.isPending) {
+      logSceneGeneration(`BLOCKED by triggerSceneGeneration: mutation is already pending`);
+      return;
+    }
+    
+    // Set all locks BEFORE calling mutate (both module-level and component-local)
+    logSceneGeneration(`triggerSceneGeneration: Setting all locks and calling mutate`, { projectId });
+    setProjectLockInProgress(projectId, true);  // Module-level lock
+    hasGeneratedRef.current = true;
+    apiCallInProgressRef.current = true;
+    generationStartTimeRef.current = Date.now();
+    setIsGenerating(true);
+    
+    generateScenesMutation.mutate();
+  }, [projectId, generateScenesMutation]);
+
   useEffect(() => {
     // Only auto-generate scenes if:
     // 1. No scenes exist in the project (scenes prop)
@@ -194,18 +366,28 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
     // 3. Haven't already triggered generation (prevents React Strict Mode double-call and duplicate triggers)
     // This prevents re-generating scenes that already exist when component remounts
     
-    // Use ref as the single source of truth to prevent duplicate calls
-    // Do NOT check generatedScenes.length because state updates are async
-    if (hasGeneratedRef.current) {
-      return;
-    }
+    logSceneGeneration(`Auto-generation useEffect triggered`, {
+      projectId,
+      moduleLevelLock: isProjectLockInProgress(projectId),
+      hasGeneratedRef: hasGeneratedRef.current,
+      apiCallInProgressRef: apiCallInProgressRef.current,
+      isGenerating,
+      existingScenes: scenes.length,
+      isEditMode
+    });
     
+    // All guards are inside triggerSceneGeneration - just check basic conditions here
     const hasExistingScenes = scenes.length > 0;
     if (!hasExistingScenes && !isEditMode) {
-      hasGeneratedRef.current = true;
-      generateScenesMutation.mutate();
+      logSceneGeneration(`Conditions met, calling triggerSceneGeneration`, { projectId });
+      triggerSceneGeneration();
+    } else {
+      logSceneGeneration(`SKIPPED: conditions not met`, {
+        hasExistingScenes,
+        isEditMode
+      });
     }
-  }, [isEditMode, scenes.length]);
+  }, [isEditMode, scenes.length, triggerSceneGeneration]);
   
   // Sync with scenes prop when it changes (e.g., when project data loads in edit mode)
   useEffect(() => {
@@ -521,8 +703,8 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
           <p className="text-muted-foreground">AI will create 8 unique scenes for your music video based on your song concept</p>
         </div>
 
-        {/* Scene Generation Progress */}
-        {generateScenesMutation.isPending && (
+        {/* Scene Generation Progress - uses isGenerating state for accurate tracking */}
+        {isGenerating && (
           <div className="bg-muted/30 rounded-lg p-6 mb-8" data-testid="scene-generation-progress">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-lg font-semibold">Generating Scenes...</h4>
