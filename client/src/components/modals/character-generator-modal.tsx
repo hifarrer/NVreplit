@@ -33,7 +33,8 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
 
   const generateCharacterOptionsMutation = useMutation({
     mutationFn: async () => {
-      const fullPrompt = `${description} in ${selectedStyle} style`;
+      // Send only the description, backend will handle style-specific prompt formatting
+      const fullPrompt = description;
       
       // Simulate progress updates
       setProgress(0);
