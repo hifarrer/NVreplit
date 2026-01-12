@@ -407,14 +407,167 @@ export async function generateCharacterImageWavespeed(
   }
 }
 
-// Updated to use Wavespeed.ai for character generation
+// Realistic character generation using text-to-image-2512-lora model
+export async function generateCharacterImageRealistic(
+  prompt: string,
+  aspectRatio: string = "16:9",
+): Promise<string> {
+  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
+
+  // Enhanced prompt for realistic character
+  const enhancedPrompt = `front shot of a ${prompt}`;
+
+  // Determine image size based on aspect ratio
+  const imageSize = aspectRatio === "3:4" ? "720*960" : "1024*1024";
+
+  console.log(
+    "Starting Wavespeed.ai REALISTIC character generation with prompt:",
+    enhancedPrompt,
+  );
+  console.log(`Using aspect ratio: ${aspectRatio}, image size: ${imageSize}`);
+  console.log("Using model: text-to-image-2512-lora");
+
+  try {
+    // Submit generation request using text-to-image-2512-lora model
+    const response = await fetch(
+      "https://api.wavespeed.ai/api/v3/wavespeed-ai/qwen-image/text-to-image-2512-lora",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+        body: JSON.stringify({
+          enable_base64_output: false,
+          enable_sync_mode: false,
+          loras: [],
+          output_format: "jpeg",
+          prompt: enhancedPrompt,
+          seed: -1,
+          size: imageSize,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Wavespeed.ai realistic submission failed:", errorText);
+      throw new Error(
+        `Wavespeed.ai realistic submission error: ${response.status} - ${errorText}`,
+      );
+    }
+
+    const result = await response.json();
+    console.log(
+      "Wavespeed.ai realistic submission result:",
+      JSON.stringify(result, null, 2),
+    );
+
+    if (result.code !== 200) {
+      throw new Error(
+        `Wavespeed.ai API error: ${result.message || "Unknown error"}`,
+      );
+    }
+
+    const requestId = result.data?.id;
+    if (!requestId) {
+      console.error("No request ID in response:", result);
+      throw new Error("No request ID received from Wavespeed.ai");
+    }
+
+    console.log("Got request ID:", requestId);
+
+    // Poll for results
+    let attempts = 0;
+    const maxAttempts = 180; // 15 minutes with 5-second intervals
+
+    console.log("Starting polling for completion...");
+
+    while (attempts < maxAttempts) {
+      console.log(`Polling attempt ${attempts + 1}/${maxAttempts}...`);
+      await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
+
+      const statusUrl = `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`;
+      console.log("Checking status at:", statusUrl);
+
+      const statusResponse = await fetch(statusUrl, {
+        headers: {
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+      });
+
+      if (!statusResponse.ok) {
+        const errorText = await statusResponse.text();
+        console.error("Status check failed:", errorText);
+        throw new Error(
+          `Status check failed: ${statusResponse.status} - ${errorText}`,
+        );
+      }
+
+      const statusResult = await statusResponse.json();
+      console.log("Status result:", JSON.stringify(statusResult, null, 2));
+
+      if (
+        statusResult.code === 200 &&
+        statusResult.data?.status === "completed"
+      ) {
+        console.log("Realistic generation completed! Processing results...");
+
+        const outputs = statusResult.data?.outputs;
+        if (outputs && Array.isArray(outputs) && outputs.length > 0) {
+          const imageUrl = outputs[0];
+          console.log("Found image URL:", imageUrl);
+          return imageUrl;
+        } else {
+          console.error("No output URLs found:", statusResult);
+          throw new Error("No images in results");
+        }
+      } else if (statusResult.data?.status === "failed") {
+        console.error(
+          "Wavespeed.ai realistic generation failed:",
+          statusResult.data.error || "Unknown error",
+        );
+        throw new Error(
+          `Image generation failed: ${statusResult.data.error || "Unknown error"}`,
+        );
+      } else {
+        console.log(
+          `Task still in progress (status: ${statusResult.data?.status}), continuing to poll...`,
+        );
+      }
+
+      attempts++;
+    }
+
+    throw new Error("Image generation timed out");
+  } catch (error) {
+    console.error("Wavespeed.ai realistic character generation error:", error);
+    throw new Error(
+      "Failed to generate realistic character image: " + (error as Error).message,
+    );
+  }
+}
+
+// Updated to use Wavespeed.ai for character generation with style support
 export async function generateCharacterImages(
   prompt: string,
   aspectRatio: string = "16:9",
+  style: string = "3d",
 ): Promise<string[]> {
-  // Use Wavespeed.ai for character generation (returns single image)
-  const imageUrl = await generateCharacterImageWavespeed(prompt, aspectRatio);
-  return [imageUrl]; // Return as array for compatibility
+  // Use different models based on style
+  if (style === "realistic") {
+    console.log("Using REALISTIC model (text-to-image-2512-lora) for character generation");
+    const imageUrl = await generateCharacterImageRealistic(prompt, aspectRatio);
+    return [imageUrl];
+  } else {
+    // Default to 3D style using seedream-v4
+    console.log("Using 3D model (seedream-v4) for character generation");
+    const imageUrl = await generateCharacterImageWavespeed(prompt, aspectRatio);
+    return [imageUrl];
+  }
 }
 
 // Original KIE.ai implementation (kept for potential future use)
@@ -562,8 +715,9 @@ export async function generateCharacterImagesKIE(
 export async function generateCharacterImage(
   prompt: string,
   aspectRatio: string = "16:9",
+  style: string = "3d",
 ): Promise<string> {
-  const imageUrls = await generateCharacterImages(prompt, aspectRatio);
+  const imageUrls = await generateCharacterImages(prompt, aspectRatio, style);
   return imageUrls[0]; // Return the first image for backward compatibility
 }
 

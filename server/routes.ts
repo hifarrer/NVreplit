@@ -4790,9 +4790,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/projects/:id/generate-character-options", async (req, res) => {
     try {
       console.log("Character options generation route called with body:", req.body);
-      const { prompt, aspectRatio = "16:9" } = req.body;
+      const { prompt, aspectRatio = "16:9", style = "3d" } = req.body;
       console.log("Extracted prompt:", prompt);
       console.log("Aspect ratio:", aspectRatio);
+      console.log("Style:", style);
       
       if (!prompt || !prompt.trim()) {
         throw new Error("No prompt provided");
@@ -4803,11 +4804,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         step: "character_generation",
         message: "Starting character options generation",
         status: "started",
-        metadata: { prompt }
+        metadata: { prompt, style }
       });
 
-      console.log("About to call generateCharacterImages with aspect ratio:", aspectRatio);
-      const imageUrls = await generateCharacterImages(prompt, aspectRatio);
+      console.log("About to call generateCharacterImages with aspect ratio:", aspectRatio, "and style:", style);
+      const imageUrls = await generateCharacterImages(prompt, aspectRatio, style);
       console.log("generateCharacterImages returned:", imageUrls);
 
       await storage.addGenerationLog({
@@ -6325,16 +6326,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/characters/generate-options", authenticateToken, async (req, res) => {
     try {
       console.log("Standalone character options generation route called with body:", req.body);
-      const { prompt, aspectRatio = "16:9" } = req.body;
+      const { prompt, aspectRatio = "16:9", style = "3d" } = req.body;
       console.log("Extracted prompt:", prompt);
       console.log("Aspect ratio:", aspectRatio);
+      console.log("Style:", style);
       
       if (!prompt || !prompt.trim()) {
         throw new Error("No prompt provided");
       }
 
-      console.log("About to call generateCharacterImages with aspect ratio:", aspectRatio);
-      const imageUrls = await generateCharacterImages(prompt, aspectRatio);
+      console.log("About to call generateCharacterImages with aspect ratio:", aspectRatio, "and style:", style);
+      const imageUrls = await generateCharacterImages(prompt, aspectRatio, style);
       console.log("generateCharacterImages returned:", imageUrls);
 
       res.json({ imageUrls, prompt });
