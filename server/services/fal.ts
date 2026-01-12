@@ -563,8 +563,8 @@ export async function generateCharacterImages(
     const imageUrl = await generateCharacterImageRealistic(prompt, aspectRatio);
     return [imageUrl];
   } else {
-    // Default to 3D style using seedream-v4
-    console.log("Using 3D model (seedream-v4) for character generation");
+    // 3D and Cartoon styles both use seedream-v4
+    console.log(`Using ${style.toUpperCase()} model (seedream-v4) for character generation`);
     const imageUrl = await generateCharacterImageWavespeed(prompt, aspectRatio);
     return [imageUrl];
   }
