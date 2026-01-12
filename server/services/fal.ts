@@ -266,18 +266,20 @@ async function generateSceneWithFallback(
   }
 }
 
-// New Wavespeed.ai character generation function
+// New Wavespeed.ai character generation function (used for 3D and Cartoon styles)
 export async function generateCharacterImageWavespeed(
   prompt: string,
   aspectRatio: string = "16:9",
+  style: string = "3d",
 ): Promise<string> {
   const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
   if (!WAVESPEED_API_KEY) {
     throw new Error("WAVESPEED_API_KEY environment variable is required");
   }
 
-  // Enhanced prompt for Wavespeed.ai
-  const enhancedPrompt = `front shot of a ${prompt} `;
+  // Enhanced prompt with style-specific suffix
+  const styleDescription = style === "cartoon" ? "cartoon style" : "3D animation style";
+  const enhancedPrompt = `front shot of a ${prompt}, ${styleDescription}`;
 
   // Determine image size based on aspect ratio
   // 16:9 (horizontal) = 1280x720, 3:4 (vertical) = 720x960
@@ -417,8 +419,8 @@ export async function generateCharacterImageRealistic(
     throw new Error("WAVESPEED_API_KEY environment variable is required");
   }
 
-  // Enhanced prompt for realistic character
-  const enhancedPrompt = `front shot of a ${prompt}`;
+  // Enhanced prompt for realistic character with photorealistic style
+  const enhancedPrompt = `front shot of a ${prompt}, photorealistic style`;
 
   // Determine image size based on aspect ratio
   const imageSize = aspectRatio === "3:4" ? "720*960" : "1024*1024";
@@ -565,7 +567,7 @@ export async function generateCharacterImages(
   } else {
     // 3D and Cartoon styles both use seedream-v4
     console.log(`Using ${style.toUpperCase()} model (seedream-v4) for character generation`);
-    const imageUrl = await generateCharacterImageWavespeed(prompt, aspectRatio);
+    const imageUrl = await generateCharacterImageWavespeed(prompt, aspectRatio, style);
     return [imageUrl];
   }
 }
