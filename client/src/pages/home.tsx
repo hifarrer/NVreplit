@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { ProgressIndicator } from "@/components/ui/progress-indicator";
 import { AudioCreationStep } from "@/components/steps/audio-creation-step";
 import { CharacterCreationStep } from "@/components/steps/character-creation-step";
 import { SceneGenerationStep } from "@/components/steps/scene-generation-step";
@@ -172,7 +171,6 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <ProgressIndicator currentStep={currentStep} />
 
         {currentStep === 1 && (
           <AudioCreationStep

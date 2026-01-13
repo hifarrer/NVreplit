@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
 import { checkProfanity, getCategoryMessage, type ProfanityCheckResult } from "@/lib/profanity-filter";
+import { StepCircles } from "@/components/ui/step-circles";
 
 interface AudioCreationStepProps {
   projectId: string;
@@ -1228,11 +1229,12 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
 
 
         {/* Next Step Button */}
-        <div className="text-center mt-8 px-4">
+        <div className="flex items-center justify-end gap-4 mt-8 px-4">
+          <StepCircles currentStep={1} />
           <Button
             onClick={onNext}
             disabled={!currentAudioUrl}
-            className={`floating-button text-sm sm:text-lg py-3 px-6 sm:px-8 w-full sm:w-auto ${currentAudioUrl ? 'button-glow' : ''}`}
+            className={`floating-button text-sm sm:text-lg py-3 px-6 sm:px-8 ${currentAudioUrl ? 'button-glow' : ''}`}
             data-testid="continue-to-character-button"
           >
             Continue to Character

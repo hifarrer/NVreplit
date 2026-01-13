@@ -9,6 +9,7 @@ import { SaveCharacterModal } from "@/components/modals/save-character-modal";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { RotateCcw, Images, Image, User, Upload, Sparkles, Bot, UserCheck, Bookmark, ArrowLeft, ArrowRight, Music, Loader2 } from "lucide-react";
+import { StepCircles } from "@/components/ui/step-circles";
 
 interface CharacterCreationStepProps {
   projectId: string;
@@ -337,36 +338,39 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
         </div>
 
         <div className="mt-8">
-          <Button
-            onClick={async () => {
-              try {
-                await apiRequest('PATCH', `/api/projects/${projectId}`, {
-                  makeCharacterSing
-                });
-                onNext();
-              } catch (error) {
-                toast({
-                  title: "Error",
-                  description: "Failed to save preferences. Please try again.",
-                  variant: "destructive",
-                });
-              }
-            }}
-            disabled={!currentCharacterUrl}
-            className={`w-full floating-button py-4 text-base ${currentCharacterUrl ? 'button-glow' : ''}`}
-            data-testid="proceed-to-scenes-button"
-          >
-            Continue
-          </Button>
           <Button 
             variant="ghost"
             onClick={onBack}
-            className="w-full mt-3 text-muted-foreground"
+            className="w-full text-muted-foreground"
             data-testid="back-to-audio-button"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Audio
           </Button>
+          <div className="flex items-center justify-end gap-4 mt-3">
+            <StepCircles currentStep={2} />
+            <Button
+              onClick={async () => {
+                try {
+                  await apiRequest('PATCH', `/api/projects/${projectId}`, {
+                    makeCharacterSing
+                  });
+                  onNext();
+                } catch (error) {
+                  toast({
+                    title: "Error",
+                    description: "Failed to save preferences. Please try again.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              disabled={!currentCharacterUrl}
+              className={`floating-button py-4 px-8 text-base ${currentCharacterUrl ? 'button-glow' : ''}`}
+              data-testid="proceed-to-scenes-button"
+            >
+              Continue
+            </Button>
+          </div>
         </div>
       </div>
 

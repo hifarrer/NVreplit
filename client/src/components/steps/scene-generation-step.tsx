@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { SceneData } from "@/lib/types";
 import { RotateCcw, RefreshCw, Mic, Upload, Loader2, AlertTriangle } from "lucide-react";
 import { SceneTimeline } from "@/components/scene-timeline";
+import { StepCircles } from "@/components/ui/step-circles";
 
 interface SceneGenerationStepProps {
   projectId: string;
@@ -872,27 +873,30 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
         )}
 
         {/* Navigation */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:justify-between">
+        <div className="flex flex-col gap-3">
           <Button 
             variant="secondary"
             onClick={onBack}
-            className="order-2 sm:order-1"
+            className="w-full sm:w-auto"
             data-testid="back-to-character-button"
           >
             <i className="fas fa-arrow-left mr-2"></i>
             Back to Character
           </Button>
-          <Button
-            onClick={handleProceedToVideo}
-            disabled={generatedScenes.length === 0 || saveScenesMutation.isPending || regenerateVideoMutation.isPending}
-            className={`floating-button py-3 px-4 sm:px-8 text-sm sm:text-base order-1 sm:order-2 ${generatedScenes.length > 0 && !saveScenesMutation.isPending && !regenerateVideoMutation.isPending ? 'button-glow' : ''}`}
-            data-testid="proceed-to-video-generation-button"
-          >
-            <i className="fas fa-video mr-2"></i>
-            {regenerateVideoMutation.isPending ? "Regenerating..." : 
-             saveScenesMutation.isPending ? "Saving..." : 
-             isEditMode ? "Re-generate Music Video" : "Generate Music Video"}
-          </Button>
+          <div className="flex items-center justify-end gap-4">
+            <StepCircles currentStep={3} />
+            <Button
+              onClick={handleProceedToVideo}
+              disabled={generatedScenes.length === 0 || saveScenesMutation.isPending || regenerateVideoMutation.isPending}
+              className={`floating-button py-3 px-4 sm:px-8 text-sm sm:text-base ${generatedScenes.length > 0 && !saveScenesMutation.isPending && !regenerateVideoMutation.isPending ? 'button-glow' : ''}`}
+              data-testid="proceed-to-video-generation-button"
+            >
+              <i className="fas fa-video mr-2"></i>
+              {regenerateVideoMutation.isPending ? "Regenerating..." : 
+               saveScenesMutation.isPending ? "Saving..." : 
+               isEditMode ? "Re-generate Music Video" : "Generate Music Video"}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
