@@ -883,7 +883,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
             <i className="fas fa-arrow-left mr-2"></i>
             Back to Character
           </Button>
-          <div className="flex flex-col items-end gap-3">
+          <div className="flex flex-col items-center gap-3">
             <Button
               onClick={handleProceedToVideo}
               disabled={generatedScenes.length === 0 || saveScenesMutation.isPending || regenerateVideoMutation.isPending}

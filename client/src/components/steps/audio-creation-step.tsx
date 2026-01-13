@@ -1229,7 +1229,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
 
 
         {/* Next Step Button */}
-        <div className="flex flex-col items-end gap-3 mt-8 px-4">
+        <div className="flex flex-col items-center gap-3 mt-8 px-4">
           <Button
             onClick={onNext}
             disabled={!currentAudioUrl}
