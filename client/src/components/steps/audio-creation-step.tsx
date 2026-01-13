@@ -1229,8 +1229,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
 
 
         {/* Next Step Button */}
-        <div className="flex items-center justify-end gap-4 mt-8 px-4">
-          <StepCircles currentStep={1} />
+        <div className="flex flex-col items-end gap-3 mt-8 px-4">
           <Button
             onClick={onNext}
             disabled={!currentAudioUrl}
@@ -1239,6 +1238,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
           >
             Continue to Character
           </Button>
+          <StepCircles currentStep={1} />
         </div>
       </div>
 

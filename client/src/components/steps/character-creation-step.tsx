@@ -347,8 +347,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Audio
           </Button>
-          <div className="flex items-center justify-end gap-4 mt-3">
-            <StepCircles currentStep={2} />
+          <div className="flex flex-col items-end gap-3 mt-3">
             <Button
               onClick={async () => {
                 try {
@@ -370,6 +369,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
             >
               Continue
             </Button>
+            <StepCircles currentStep={2} />
           </div>
         </div>
       </div>
