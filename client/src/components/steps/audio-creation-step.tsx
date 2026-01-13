@@ -552,7 +552,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
           </Button>
         </div>
         <div className="text-center mb-8">
-          <h3 className="text-2xl font-bold gradient-text mb-4">Create Your Music</h3>
+          <h3 className="text-2xl font-bold gradient-text mb-4">Create Your Music Video</h3>
           <p className="text-muted-foreground">Choose how you want to create the soundtrack for your music video</p>
         </div>
 
