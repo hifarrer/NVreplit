@@ -278,7 +278,12 @@ export async function generateCharacterImageWavespeed(
   }
 
   // Enhanced prompt with style-specific suffix
-  const styleDescription = style === "cartoon" ? "cartoon style" : "3D animation style";
+  const styleDescriptions: Record<string, string> = {
+    "cartoon": "cartoon style",
+    "anime": "anime style",
+    "3d": "3D animation style"
+  };
+  const styleDescription = styleDescriptions[style] || "3D animation style";
   const enhancedPrompt = `front shot of a ${prompt}, ${styleDescription}`;
 
   // Determine image size based on aspect ratio
