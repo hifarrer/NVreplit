@@ -705,15 +705,18 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
         </div>
 
         {/* Scene Generation Progress - uses isGenerating state for accurate tracking */}
-        {isGenerating && (
+        {(isGenerating || (generatedScenes.length === 0 && !isEditMode)) && (
           <div className="bg-muted/30 rounded-lg p-6 mb-8" data-testid="scene-generation-progress">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-lg font-semibold">Generating Scenes...</h4>
-              <div className="loading-spinner"></div>
+              <h4 className="text-lg font-semibold">
+                {isGenerating ? "Generating Scenes..." : "Preparing scene generation..."}
+              </h4>
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
             </div>
             <Progress value={progress} className="mb-2" />
             <p className="text-sm text-muted-foreground" data-testid="scene-progress-text">
-              {progress <= 25 ? "Analyzing song concept..." :
+              {!isGenerating ? "Setting up AI scene generator..." :
+               progress <= 25 ? "Analyzing song concept..." :
                progress <= 50 ? "Generating scene prompts..." :
                progress <= 75 ? "Creating scene images..." :
                "Scene generation complete!"}
