@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, type OauthClient, type InsertOauthClient, type OauthAuthorizationCode, type InsertOauthAuthorizationCode, type OauthAccessToken, type InsertOauthAccessToken, type BannedUser, type InsertBannedUser, type GiftSubscription, type InsertGiftSubscription, type GreetingCard, type InsertGreetingCard, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts, oauthClients, oauthAuthorizationCodes, oauthAccessTokens, bannedUsers, giftSubscriptions, greetingCards } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, type OauthClient, type InsertOauthClient, type OauthAuthorizationCode, type InsertOauthAuthorizationCode, type OauthAccessToken, type InsertOauthAccessToken, type BannedUser, type InsertBannedUser, type GiftSubscription, type InsertGiftSubscription, type GreetingCard, type InsertGreetingCard, type CouponCode, type InsertCouponCode, type CouponRedemption, type InsertCouponRedemption, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts, oauthClients, oauthAuthorizationCodes, oauthAccessTokens, bannedUsers, giftSubscriptions, greetingCards, couponCodes, couponRedemptions } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -194,6 +194,17 @@ export interface IStorage {
   getGreetingCardByToken(token: string): Promise<GreetingCard | undefined>;
   getPendingGreetingCardsForToday(): Promise<GreetingCard[]>;
   updateGreetingCard(id: string, updates: Partial<GreetingCard>): Promise<GreetingCard | undefined>;
+
+  // Coupon code methods
+  createCouponCode(coupon: InsertCouponCode): Promise<CouponCode>;
+  getCouponCodeByCode(code: string): Promise<CouponCode | undefined>;
+  getCouponCode(id: string): Promise<CouponCode | undefined>;
+  getAllCouponCodes(): Promise<CouponCode[]>;
+  updateCouponCode(id: string, updates: Partial<CouponCode>): Promise<CouponCode | undefined>;
+  deleteCouponCode(id: string): Promise<boolean>;
+  redeemCouponCode(code: string, userId: string): Promise<{ success: boolean; message: string; creditsAwarded?: number }>;
+  hasUserRedeemedCoupon(couponId: string, userId: string): Promise<boolean>;
+  getCouponRedemptions(couponId: string): Promise<CouponRedemption[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -1481,6 +1492,99 @@ export class MemStorage implements IStorage {
     const updated = { ...existing, ...updates };
     this.greetingCardsStorage.set(id, updated);
     return updated;
+  }
+
+  // Coupon code methods (MemStorage stub implementations)
+  private couponCodesStorage: Map<string, CouponCode> = new Map();
+  private couponRedemptionsStorage: Map<string, CouponRedemption> = new Map();
+
+  async createCouponCode(coupon: InsertCouponCode): Promise<CouponCode> {
+    const id = randomUUID();
+    const newCoupon: CouponCode = {
+      id,
+      code: coupon.code,
+      credits: coupon.credits,
+      maxUses: coupon.maxUses ?? null,
+      usesCount: coupon.usesCount ?? 0,
+      isActive: coupon.isActive ?? true,
+      expiresAt: coupon.expiresAt ?? null,
+      createdAt: new Date(),
+    };
+    this.couponCodesStorage.set(id, newCoupon);
+    return newCoupon;
+  }
+
+  async getCouponCodeByCode(code: string): Promise<CouponCode | undefined> {
+    return Array.from(this.couponCodesStorage.values()).find(c => c.code === code);
+  }
+
+  async getCouponCode(id: string): Promise<CouponCode | undefined> {
+    return this.couponCodesStorage.get(id);
+  }
+
+  async getAllCouponCodes(): Promise<CouponCode[]> {
+    return Array.from(this.couponCodesStorage.values());
+  }
+
+  async updateCouponCode(id: string, updates: Partial<CouponCode>): Promise<CouponCode | undefined> {
+    const existing = this.couponCodesStorage.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...updates };
+    this.couponCodesStorage.set(id, updated);
+    return updated;
+  }
+
+  async deleteCouponCode(id: string): Promise<boolean> {
+    return this.couponCodesStorage.delete(id);
+  }
+
+  async redeemCouponCode(code: string, userId: string): Promise<{ success: boolean; message: string; creditsAwarded?: number }> {
+    const coupon = await this.getCouponCodeByCode(code);
+    if (!coupon) {
+      return { success: false, message: "Invalid code" };
+    }
+    if (!coupon.isActive) {
+      return { success: false, message: "This code is no longer active" };
+    }
+    if (coupon.expiresAt && new Date() > coupon.expiresAt) {
+      return { success: false, message: "This code has expired" };
+    }
+    if (coupon.maxUses && coupon.usesCount >= coupon.maxUses) {
+      return { success: false, message: "This code has reached its maximum uses" };
+    }
+    const alreadyRedeemed = await this.hasUserRedeemedCoupon(coupon.id, userId);
+    if (alreadyRedeemed) {
+      return { success: false, message: "You have already redeemed this code" };
+    }
+    
+    // Add credits to user
+    await this.addCreditsToUser(userId, coupon.credits);
+    
+    // Create redemption record
+    const redemptionId = randomUUID();
+    const redemption: CouponRedemption = {
+      id: redemptionId,
+      couponId: coupon.id,
+      userId,
+      creditsAwarded: coupon.credits,
+      createdAt: new Date(),
+    };
+    this.couponRedemptionsStorage.set(redemptionId, redemption);
+    
+    // Update coupon uses count
+    await this.updateCouponCode(coupon.id, { usesCount: coupon.usesCount + 1 });
+    
+    return { success: true, message: "Code redeemed successfully!", creditsAwarded: coupon.credits };
+  }
+
+  async hasUserRedeemedCoupon(couponId: string, userId: string): Promise<boolean> {
+    return Array.from(this.couponRedemptionsStorage.values())
+      .some(r => r.couponId === couponId && r.userId === userId);
+  }
+
+  async getCouponRedemptions(couponId: string): Promise<CouponRedemption[]> {
+    return Array.from(this.couponRedemptionsStorage.values())
+      .filter(r => r.couponId === couponId);
   }
 }
 
@@ -3119,6 +3223,143 @@ export class DbStorage implements IStorage {
       .where(eq(greetingCards.id, id))
       .returning();
     return result[0];
+  }
+
+  // Coupon code methods
+  async createCouponCode(coupon: InsertCouponCode): Promise<CouponCode> {
+    const result = await this.db.insert(couponCodes).values(coupon).returning();
+    return result[0];
+  }
+
+  async getCouponCodeByCode(code: string): Promise<CouponCode | undefined> {
+    const result = await this.db.select().from(couponCodes)
+      .where(eq(couponCodes.code, code))
+      .limit(1);
+    return result[0];
+  }
+
+  async getCouponCode(id: string): Promise<CouponCode | undefined> {
+    const result = await this.db.select().from(couponCodes)
+      .where(eq(couponCodes.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async getAllCouponCodes(): Promise<CouponCode[]> {
+    return await this.db.select().from(couponCodes);
+  }
+
+  async updateCouponCode(id: string, updates: Partial<CouponCode>): Promise<CouponCode | undefined> {
+    const result = await this.db.update(couponCodes)
+      .set(updates)
+      .where(eq(couponCodes.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteCouponCode(id: string): Promise<boolean> {
+    try {
+      await this.db.delete(couponRedemptions).where(eq(couponRedemptions.couponId, id));
+      await this.db.delete(couponCodes).where(eq(couponCodes.id, id));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async redeemCouponCode(code: string, userId: string): Promise<{ success: boolean; message: string; creditsAwarded?: number }> {
+    try {
+      return await this.db.transaction(async (tx) => {
+        // Lock and fetch coupon within transaction
+        const couponResult = await tx.select().from(couponCodes)
+          .where(eq(couponCodes.code, code.toUpperCase().trim()))
+          .limit(1);
+        
+        const coupon = couponResult[0];
+        if (!coupon) {
+          return { success: false, message: "Invalid code" };
+        }
+        if (!coupon.isActive) {
+          return { success: false, message: "This code is no longer active" };
+        }
+        if (coupon.expiresAt && new Date() > coupon.expiresAt) {
+          return { success: false, message: "This code has expired" };
+        }
+        if (coupon.maxUses && coupon.usesCount >= coupon.maxUses) {
+          return { success: false, message: "This code has reached its maximum uses" };
+        }
+        
+        // Check if user already redeemed within transaction
+        const existingRedemption = await tx.select().from(couponRedemptions)
+          .where(and(
+            eq(couponRedemptions.couponId, coupon.id),
+            eq(couponRedemptions.userId, userId)
+          ))
+          .limit(1);
+        
+        if (existingRedemption.length > 0) {
+          return { success: false, message: "You have already redeemed this code" };
+        }
+        
+        // Insert redemption record - unique constraint provides additional safety
+        await tx.insert(couponRedemptions).values({
+          couponId: coupon.id,
+          userId,
+          creditsAwarded: coupon.credits,
+        });
+        
+        // Update coupon uses count atomically with conditional check for maxUses
+        if (coupon.maxUses) {
+          const updateResult = await tx.update(couponCodes)
+            .set({ usesCount: sql`${couponCodes.usesCount} + 1` })
+            .where(and(
+              eq(couponCodes.id, coupon.id),
+              sql`${couponCodes.usesCount} < ${coupon.maxUses}`
+            ))
+            .returning();
+          
+          if (updateResult.length === 0) {
+            throw new Error("MAX_USES_EXCEEDED");
+          }
+        } else {
+          await tx.update(couponCodes)
+            .set({ usesCount: sql`${couponCodes.usesCount} + 1` })
+            .where(eq(couponCodes.id, coupon.id));
+        }
+        
+        // Add bonus credits to user within same transaction
+        await tx.update(users)
+          .set({ bonusCredits: sql`${users.bonusCredits} + ${coupon.credits}` })
+          .where(eq(users.id, userId));
+        
+        return { success: true, message: "Code redeemed successfully!", creditsAwarded: coupon.credits };
+      });
+    } catch (error: any) {
+      // Handle specific error cases
+      if (error.message === "MAX_USES_EXCEEDED") {
+        return { success: false, message: "This code has reached its maximum uses" };
+      }
+      if (error.code === '23505') {
+        return { success: false, message: "You have already redeemed this code" };
+      }
+      console.error("Error redeeming coupon:", error);
+      return { success: false, message: "Failed to redeem code. Please try again." };
+    }
+  }
+
+  async hasUserRedeemedCoupon(couponId: string, userId: string): Promise<boolean> {
+    const result = await this.db.select().from(couponRedemptions)
+      .where(and(
+        eq(couponRedemptions.couponId, couponId),
+        eq(couponRedemptions.userId, userId)
+      ))
+      .limit(1);
+    return result.length > 0;
+  }
+
+  async getCouponRedemptions(couponId: string): Promise<CouponRedemption[]> {
+    return await this.db.select().from(couponRedemptions)
+      .where(eq(couponRedemptions.couponId, couponId));
   }
 }
 

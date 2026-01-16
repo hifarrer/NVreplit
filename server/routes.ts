@@ -2626,6 +2626,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin coupon code routes
+  app.get("/api/admin/coupons", authenticateAdmin, async (req, res) => {
+    try {
+      const coupons = await storage.getAllCouponCodes();
+      res.json(coupons);
+    } catch (error) {
+      console.error("Admin get coupons error:", error);
+      res.status(500).json({ error: "Failed to get coupons" });
+    }
+  });
+
+  app.post("/api/admin/coupons", authenticateAdmin, async (req, res) => {
+    try {
+      const { code, credits, maxUses, expiresAt } = req.body;
+      
+      // Validate code
+      if (!code || typeof code !== 'string' || code.trim().length < 3) {
+        return res.status(400).json({ error: "Code must be at least 3 characters" });
+      }
+      
+      // Validate credits
+      const creditsNum = parseInt(credits);
+      if (isNaN(creditsNum) || creditsNum < 1) {
+        return res.status(400).json({ error: "Credits must be a positive number" });
+      }
+      
+      // Validate maxUses if provided
+      let maxUsesNum = null;
+      if (maxUses !== undefined && maxUses !== null && maxUses !== '') {
+        maxUsesNum = parseInt(maxUses);
+        if (isNaN(maxUsesNum) || maxUsesNum < 1) {
+          return res.status(400).json({ error: "Max uses must be a positive number" });
+        }
+      }
+      
+      // Validate expiresAt if provided
+      let expiresAtDate = null;
+      if (expiresAt) {
+        expiresAtDate = new Date(expiresAt);
+        if (isNaN(expiresAtDate.getTime())) {
+          return res.status(400).json({ error: "Invalid expiration date" });
+        }
+      }
+      
+      // Check if code already exists
+      const existingCoupon = await storage.getCouponCodeByCode(code.toUpperCase());
+      if (existingCoupon) {
+        return res.status(400).json({ error: "This code already exists" });
+      }
+      
+      const coupon = await storage.createCouponCode({
+        code: code.toUpperCase().trim(),
+        credits: creditsNum,
+        maxUses: maxUsesNum,
+        expiresAt: expiresAtDate,
+        isActive: true,
+        usesCount: 0,
+      });
+      
+      res.json(coupon);
+    } catch (error) {
+      console.error("Admin create coupon error:", error);
+      res.status(500).json({ error: "Failed to create coupon" });
+    }
+  });
+
+  app.patch("/api/admin/coupons/:id", authenticateAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { isActive, maxUses, expiresAt } = req.body;
+      
+      const updates: any = {};
+      if (typeof isActive === 'boolean') updates.isActive = isActive;
+      
+      // Validate maxUses if provided
+      if (maxUses !== undefined) {
+        if (maxUses === null || maxUses === '') {
+          updates.maxUses = null;
+        } else {
+          const maxUsesNum = parseInt(maxUses);
+          if (isNaN(maxUsesNum) || maxUsesNum < 1) {
+            return res.status(400).json({ error: "Max uses must be a positive number" });
+          }
+          updates.maxUses = maxUsesNum;
+        }
+      }
+      
+      // Validate expiresAt if provided
+      if (expiresAt !== undefined) {
+        if (expiresAt === null || expiresAt === '') {
+          updates.expiresAt = null;
+        } else {
+          const expiresAtDate = new Date(expiresAt);
+          if (isNaN(expiresAtDate.getTime())) {
+            return res.status(400).json({ error: "Invalid expiration date" });
+          }
+          updates.expiresAt = expiresAtDate;
+        }
+      }
+      
+      const coupon = await storage.updateCouponCode(id, updates);
+      if (!coupon) {
+        return res.status(404).json({ error: "Coupon not found" });
+      }
+      
+      res.json(coupon);
+    } catch (error) {
+      console.error("Admin update coupon error:", error);
+      res.status(500).json({ error: "Failed to update coupon" });
+    }
+  });
+
+  app.delete("/api/admin/coupons/:id", authenticateAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteCouponCode(id);
+      if (!success) {
+        return res.status(404).json({ error: "Coupon not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Admin delete coupon error:", error);
+      res.status(500).json({ error: "Failed to delete coupon" });
+    }
+  });
+
+  // User coupon redemption route
+  app.post("/api/redeem-coupon", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const { code } = req.body;
+      
+      if (!code) {
+        return res.status(400).json({ error: "Code is required" });
+      }
+      
+      const result = await storage.redeemCouponCode(code.toUpperCase(), userId);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.message });
+      }
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Redeem coupon error:", error);
+      res.status(500).json({ error: "Failed to redeem coupon" });
+    }
+  });
+
   // Update password
   app.patch("/api/user/password", authenticateToken, async (req, res) => {
     try {

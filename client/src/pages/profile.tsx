@@ -25,6 +25,7 @@ export default function ProfilePage() {
   const [error, setError] = useState("");
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [redeemCode, setRedeemCode] = useState("");
 
   // Get avatar options from API (handles production URLs)
   const { data: avatarData, isLoading: avatarsLoading, error: avatarsError } = useQuery<{ avatarOptions: Array<{ id: number; url: string; localUrl: string }> }>({
@@ -216,6 +217,35 @@ export default function ProfilePage() {
       });
     },
   });
+
+  // Redeem coupon code mutation
+  const redeemCouponMutation = useMutation({
+    mutationFn: async (code: string) => {
+      const response = await apiRequest("POST", "/api/redeem-coupon", { code });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Code Redeemed!",
+        description: `${data.creditsAwarded?.toLocaleString()} credits have been added to your account.`,
+      });
+      setRedeemCode("");
+      refreshUser();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to redeem code",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleRedeemCode = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!redeemCode.trim()) return;
+    redeemCouponMutation.mutate(redeemCode.trim());
+  };
 
   // Handle credit purchase success/cancel from URL params
   useEffect(() => {
@@ -646,6 +676,43 @@ export default function ProfilePage() {
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Redeem Code Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Gift className="h-5 w-5" />
+                  Redeem Code
+                </CardTitle>
+                <CardDescription>
+                  Enter a special code to redeem bonus credits
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleRedeemCode} className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter your code"
+                      value={redeemCode}
+                      onChange={(e) => setRedeemCode(e.target.value.toUpperCase())}
+                      className="flex-1 font-mono uppercase"
+                      maxLength={20}
+                      data-testid="redeem-code-input"
+                    />
+                    <Button 
+                      type="submit" 
+                      disabled={!redeemCode.trim() || redeemCouponMutation.isPending}
+                      data-testid="redeem-code-button"
+                    >
+                      {redeemCouponMutation.isPending ? "Redeeming..." : "Redeem"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Have a promotional code? Enter it above to receive bonus credits.
+                  </p>
+                </form>
               </CardContent>
             </Card>
 

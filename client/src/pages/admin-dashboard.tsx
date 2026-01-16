@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Users, Activity, Settings, LogOut, Shield, Music, Video, CreditCard, MessageCircle, Play, DollarSign, Cpu, ImageIcon, Mic2, Film } from "lucide-react";
+import { Users, Activity, Settings, LogOut, Shield, Music, Video, CreditCard, MessageCircle, Play, DollarSign, Cpu, ImageIcon, Mic2, Film, Ticket } from "lucide-react";
 import { UserManagement } from "../components/admin/user-management";
 import { SiteSettings } from "../components/admin/site-settings";
 import { UsageStatistics } from "../components/admin/usage-statistics";
@@ -14,6 +14,7 @@ import { VideoManagement } from "../components/admin/video-management";
 import { AudioManagement } from "../components/admin/audio-management";
 import { CommentManagement } from "../components/admin/comment-management";
 import { MuxManagement } from "../components/admin/mux-management";
+import { CouponManagement } from "../components/admin/coupon-management";
 
 interface AdminUser {
   username: string;
@@ -214,7 +215,7 @@ export default function AdminDashboard() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8 bg-black/30 border border-purple-500/20">
+          <TabsList className="grid w-full grid-cols-9 bg-black/30 border border-purple-500/20">
             <TabsTrigger value="users" className="data-[state=active]:bg-purple-600">
               <Users className="h-4 w-4 mr-2" />
               Users
@@ -234,6 +235,10 @@ export default function AdminDashboard() {
             <TabsTrigger value="mux" className="data-[state=active]:bg-purple-600">
               <Play className="h-4 w-4 mr-2" />
               Streaming
+            </TabsTrigger>
+            <TabsTrigger value="coupons" className="data-[state=active]:bg-purple-600">
+              <Ticket className="h-4 w-4 mr-2" />
+              Coupons
             </TabsTrigger>
             <TabsTrigger value="plans" className="data-[state=active]:bg-purple-600">
               <CreditCard className="h-4 w-4 mr-2" />
@@ -267,6 +272,10 @@ export default function AdminDashboard() {
 
           <TabsContent value="mux" className="space-y-6">
             <MuxManagement />
+          </TabsContent>
+
+          <TabsContent value="coupons" className="space-y-6">
+            <CouponManagement />
           </TabsContent>
 
           <TabsContent value="plans" className="space-y-6">

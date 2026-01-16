@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, jsonb, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, jsonb, integer, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -315,6 +315,29 @@ export const giftSubscriptions = pgTable("gift_subscriptions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Coupon codes table for admin-created redemption codes
+export const couponCodes = pgTable("coupon_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(), // The redemption code
+  credits: integer("credits").notNull(), // Credits awarded when redeemed
+  maxUses: integer("max_uses"), // Maximum number of uses (null = unlimited)
+  usesCount: integer("uses_count").default(0).notNull(), // Number of times used
+  isActive: boolean("is_active").default(true).notNull(), // Whether the code is active
+  expiresAt: timestamp("expires_at"), // When the code expires (null = never)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Track coupon code redemptions
+export const couponRedemptions = pgTable("coupon_redemptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  couponId: varchar("coupon_id").references(() => couponCodes.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  creditsAwarded: integer("credits_awarded").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  couponUserUnique: uniqueIndex("coupon_redemptions_coupon_user_unique").on(table.couponId, table.userId),
+}));
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -430,6 +453,16 @@ export const insertGreetingCardSchema = createInsertSchema(greetingCards).omit({
   createdAt: true,
 });
 
+export const insertCouponCodeSchema = createInsertSchema(couponCodes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertCouponRedemptionSchema = createInsertSchema(couponRedemptions).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertBannedUser = z.infer<typeof insertBannedUserSchema>;
@@ -474,3 +507,7 @@ export type InsertGiftSubscription = z.infer<typeof insertGiftSubscriptionSchema
 export type GiftSubscription = typeof giftSubscriptions.$inferSelect;
 export type InsertGreetingCard = z.infer<typeof insertGreetingCardSchema>;
 export type GreetingCard = typeof greetingCards.$inferSelect;
+export type InsertCouponCode = z.infer<typeof insertCouponCodeSchema>;
+export type CouponCode = typeof couponCodes.$inferSelect;
+export type InsertCouponRedemption = z.infer<typeof insertCouponRedemptionSchema>;
+export type CouponRedemption = typeof couponRedemptions.$inferSelect;
