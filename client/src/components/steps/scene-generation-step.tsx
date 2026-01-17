@@ -951,16 +951,16 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
 
         {/* Navigation */}
         <div className="flex flex-col gap-3">
-          <Button 
-            variant="secondary"
-            onClick={onBack}
-            className="w-full sm:w-auto"
-            data-testid="back-to-character-button"
-          >
-            <i className="fas fa-arrow-left mr-2"></i>
-            Back to Character
-          </Button>
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+            <Button 
+              variant="secondary"
+              onClick={onBack}
+              className="w-full sm:w-auto"
+              data-testid="back-to-character-button"
+            >
+              <i className="fas fa-arrow-left mr-2"></i>
+              Back to Character
+            </Button>
             <Button
               onClick={handleProceedToVideo}
               disabled={generatedScenes.length === 0 || saveScenesMutation.isPending || regenerateVideoMutation.isPending}
@@ -972,6 +972,8 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                saveScenesMutation.isPending ? "Saving..." : 
                isEditMode ? "Re-generate Music Video" : "Generate Music Video"}
             </Button>
+          </div>
+          <div className="flex justify-center">
             <StepCircles currentStep={3} />
           </div>
         </div>
