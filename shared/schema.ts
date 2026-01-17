@@ -69,6 +69,7 @@ export const projects = pgTable("projects", {
   characterPrompt: text("character_prompt"),
   makeCharacterSing: boolean("make_character_sing").default(true),
   aspectRatio: text("aspect_ratio").default("16:9"), // '16:9' (horizontal) or '3:4' (vertical)
+  videoQuality: text("video_quality").default("quick"), // 'quick' | 'medium' | 'premium' - AI model quality for video generation
   scenePrompts: jsonb("scene_prompts"), // Array of scene prompts
   sceneImages: jsonb("scene_images"), // Array of generated scene image URLs
   sceneOrder: jsonb("scene_order").$type<number[]>(), // Custom order for scenes (indices into scenePrompts/sceneImages)

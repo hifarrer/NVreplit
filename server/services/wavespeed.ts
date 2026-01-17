@@ -72,6 +72,9 @@ export function segmentHasLyrics(
 // Safe fallback prompt when content is flagged as sensitive
 const SAFE_FALLBACK_PROMPT = "the character dances gracefully";
 
+// Video quality type for different AI models
+export type VideoQuality = "quick" | "medium" | "premium";
+
 // Internal function that generates a single video segment attempt
 async function generateVideoSegmentInternal(
   audioUrl: string,
@@ -79,36 +82,74 @@ async function generateVideoSegmentInternal(
   prompt: string,
   model: "infinitetalk" | "seedance" = "infinitetalk",
   segmentDuration: number = 10,
+  videoQuality: VideoQuality = "quick",
 ): Promise<string> {
   console.log("=== GENERATING VIDEO SEGMENT ===");
   console.log("Audio URL:", audioUrl);
   console.log("Image URL:", imageUrl);
   console.log("Prompt:", prompt);
   console.log("Model:", model);
+  console.log("Video Quality:", videoQuality);
   console.log("Segment Duration:", segmentDuration, "seconds");
 
-  // Submit video generation request
-  // For seedance, use the provided segmentDuration (important for last segment which may be shorter)
-  const requestBody =
-    model === "infinitetalk"
-      ? {
-          audio: audioUrl,
+  // Determine endpoint and request body based on video quality and model type
+  let endpoint: string;
+  let requestBody: any;
+
+  if (model === "infinitetalk") {
+    // Infinitetalk is used for lipsync - uses audio
+    endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk-fast";
+    requestBody = {
+      audio: audioUrl,
+      image: imageUrl,
+      prompt: prompt,
+      seed: -1,
+    };
+  } else {
+    // Seedance-type models (no audio, image-to-video)
+    // Select model based on video quality
+    switch (videoQuality) {
+      case "premium":
+        // Alibaba Wan 2.5 - Premium quality
+        endpoint = "https://api.wavespeed.ai/api/v3/alibaba/wan-2.5/image-to-video";
+        requestBody = {
+          duration: segmentDuration,
+          enable_prompt_expansion: false,
           image: imageUrl,
           prompt: prompt,
+          resolution: "720p",
           seed: -1,
-        }
-      : {
+        };
+        break;
+      case "medium":
+        // Seedance v1.5 Pro Fast - Medium quality
+        endpoint = "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1.5-pro/image-to-video-fast";
+        requestBody = {
+          camera_fixed: false,
+          duration: segmentDuration,
+          generate_audio: true,
+          image: imageUrl,
+          prompt: prompt,
+          resolution: "720p",
+          seed: -1,
+        };
+        break;
+      case "quick":
+      default:
+        // Seedance v1 Pro 480p - Quick quality (original)
+        endpoint = "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1-pro-i2v-480p";
+        requestBody = {
           camera_fixed: false,
           duration: segmentDuration,
           image: imageUrl,
           prompt: prompt,
           seed: -1,
         };
+        break;
+    }
+  }
 
-  const endpoint =
-    model === "infinitetalk"
-      ? "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk-fast"
-      : "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1-pro-i2v-480p";
+  console.log("Selected endpoint:", endpoint);
 
   console.log(
     "Wavespeed request body:",
@@ -197,10 +238,11 @@ export async function generateVideoSegment(
   prompt: string,
   model: "infinitetalk" | "seedance" = "infinitetalk",
   segmentDuration: number = 10,
+  videoQuality: VideoQuality = "quick",
 ): Promise<string> {
   try {
     // First attempt with original prompt
-    return await generateVideoSegmentInternal(audioUrl, imageUrl, prompt, model, segmentDuration);
+    return await generateVideoSegmentInternal(audioUrl, imageUrl, prompt, model, segmentDuration, videoQuality);
   } catch (error) {
     const err = error as Error;
     
@@ -213,7 +255,7 @@ export async function generateVideoSegment(
       
       try {
         // Retry with safe fallback prompt
-        const result = await generateVideoSegmentInternal(audioUrl, imageUrl, SAFE_FALLBACK_PROMPT, model, segmentDuration);
+        const result = await generateVideoSegmentInternal(audioUrl, imageUrl, SAFE_FALLBACK_PROMPT, model, segmentDuration, videoQuality);
         console.log(`Successfully generated video with fallback prompt`);
         return result;
       } catch (retryError) {
@@ -241,6 +283,7 @@ export async function generateAllVideoSegmentsDynamic(
     numberOfVideosRegularApi: number;
     numberOfVideosLipsync: number;
     makeCharacterSing: boolean;
+    videoQuality?: VideoQuality;
   },
   subtitleData?: {
     assContent?: string;
@@ -251,6 +294,7 @@ export async function generateAllVideoSegmentsDynamic(
   videoUrls: string[];
   segmentPairs: Array<{ a: string; b: string }>;
 }> {
+  const videoQuality = config.videoQuality || "quick";
   console.log(`Starting dynamic video generation:`);
   console.log(`- Audio segments: ${audioSegments.length}`);
   console.log(`- Scene images: ${imageUrls.length}`);
@@ -259,6 +303,7 @@ export async function generateAllVideoSegmentsDynamic(
   );
   console.log(`- Lipsync videos (infinitetalk): ${config.numberOfVideosLipsync}`);
   console.log(`- Make character sing: ${config.makeCharacterSing}`);
+  console.log(`- Video quality: ${videoQuality}`);
   console.log(`- Has subtitle data: ${!!subtitleData?.assContent}`);
   console.log(`- Segment durations provided: ${segmentDurations ? segmentDurations.join(', ') + 's' : 'using defaults'}`);
 
@@ -349,12 +394,13 @@ export async function generateAllVideoSegmentsDynamic(
               prompts[i],
               "infinitetalk",
               segDuration,
+              videoQuality,
             ),
           );
         } else {
           // Seedance uses explicit duration parameter
           videoPromises.push(
-            generateVideoSegment("", imageUrls[i], prompts[i], "seedance", segDuration),
+            generateVideoSegment("", imageUrls[i], prompts[i], "seedance", segDuration, videoQuality),
           );
         }
       }
@@ -408,13 +454,14 @@ export async function generateAllVideoSegmentsDynamic(
               prompts[i],
               "infinitetalk",
               segDuration,
+              videoQuality,
             ),
           );
         } else {
           // Seedance uses explicit duration parameter (always >= 10s at this point)
           console.log(`  → Using seedance with duration: ${segDuration}s`);
           videoPromises.push(
-            generateVideoSegment("", imageUrls[i], prompts[i], "seedance", segDuration),
+            generateVideoSegment("", imageUrls[i], prompts[i], "seedance", segDuration, videoQuality),
           );
         }
       }
@@ -433,7 +480,7 @@ export async function generateAllVideoSegmentsDynamic(
       );
       videoTypes.push("seedance");
       videoPromises.push(
-        generateVideoSegment("", imageUrls[i], prompts[i], "seedance", effectiveDuration),
+        generateVideoSegment("", imageUrls[i], prompts[i], "seedance", effectiveDuration, videoQuality),
       );
     }
   }
