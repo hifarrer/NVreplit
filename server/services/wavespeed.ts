@@ -98,13 +98,40 @@ async function generateVideoSegmentInternal(
 
   if (model === "infinitetalk") {
     // Infinitetalk is used for lipsync - uses audio
-    endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk-fast";
-    requestBody = {
-      audio: audioUrl,
-      image: imageUrl,
-      prompt: prompt,
-      seed: -1,
-    };
+    // Select endpoint and resolution based on video quality
+    switch (videoQuality) {
+      case "premium":
+        // Premium quality: infinitetalk with 720p resolution
+        endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk";
+        requestBody = {
+          audio: audioUrl,
+          image: imageUrl,
+          resolution: "720p",
+          seed: -1,
+        };
+        break;
+      case "medium":
+        // Medium quality: infinitetalk with 480p resolution
+        endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk";
+        requestBody = {
+          audio: audioUrl,
+          image: imageUrl,
+          resolution: "480p",
+          seed: -1,
+        };
+        break;
+      case "quick":
+      default:
+        // Quick quality: infinitetalk-fast (no resolution param)
+        endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk-fast";
+        requestBody = {
+          audio: audioUrl,
+          image: imageUrl,
+          prompt: prompt,
+          seed: -1,
+        };
+        break;
+    }
   } else {
     // Seedance-type models (no audio, image-to-video)
     // Select model based on video quality
