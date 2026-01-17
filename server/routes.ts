@@ -1748,7 +1748,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           fileStream.on('error', (streamError) => {
             console.error(`Error streaming backup file: ${streamError}`);
-            res.status(500).json({ error: "Error downloading backup file" });
+            if (!res.headersSent) {
+              res.status(500).json({ error: "Error downloading backup file" });
+            } else {
+              res.end();
+            }
           });
           
           fileStream.pipe(res);

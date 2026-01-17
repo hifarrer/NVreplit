@@ -137,8 +137,25 @@ export function SiteSettings() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to download database backup");
+        let errorMessage = "Failed to download database backup";
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch {
+            const text = await response.text();
+            if (text) errorMessage = text;
+          }
+        } else {
+          try {
+            const text = await response.text();
+            if (text) errorMessage = text;
+          } catch {
+            // Use default error message
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       // Get the filename from the response headers
