@@ -209,6 +209,7 @@ export default function Home() {
               imageUrl: project.sceneImages?.[index] || ""
             }))}
             sceneOrder={(project as any)?.sceneOrder}
+            initialVideoQuality={(project as any)?.videoQuality || "quick"}
             isEditMode={isEditMode}
             onNext={() => handleStepChange(4)}
             onBack={() => handleStepChange(2)}

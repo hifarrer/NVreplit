@@ -8,13 +8,22 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SceneData } from "@/lib/types";
-import { RotateCcw, RefreshCw, Mic, Upload, Loader2, AlertTriangle } from "lucide-react";
+import { RotateCcw, RefreshCw, Mic, Upload, Loader2, AlertTriangle, Sparkles } from "lucide-react";
 import { SceneTimeline } from "@/components/scene-timeline";
 import { StepCircles } from "@/components/ui/step-circles";
+
+type VideoQuality = "quick" | "medium" | "premium";
 
 interface SceneGenerationStepProps {
   projectId: string;
@@ -25,6 +34,7 @@ interface SceneGenerationStepProps {
   characterImageUrl?: string;
   scenes?: SceneData[];
   sceneOrder?: number[];
+  initialVideoQuality?: VideoQuality;
   isEditMode?: boolean;
   onNext: () => void;
   onBack: () => void;
@@ -78,7 +88,7 @@ const isProjectLockInProgress = (projectId: string): boolean => {
   return lock.inProgress;
 };
 
-export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioLyrics, subtitleFileUrl, characterImageUrl, scenes = [], sceneOrder: initialSceneOrder, isEditMode = false, onNext, onBack, onReset }: SceneGenerationStepProps) {
+export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioLyrics, subtitleFileUrl, characterImageUrl, scenes = [], sceneOrder: initialSceneOrder, initialVideoQuality = "quick", isEditMode = false, onNext, onBack, onReset }: SceneGenerationStepProps) {
   // Defensively copy scenes array to avoid mutating the original project data
   const [generatedScenes, setGeneratedScenes] = useState<SceneData[]>(() => 
     scenes.map(scene => ({ ...scene }))
@@ -89,6 +99,8 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       ? initialSceneOrder 
       : scenes.map((_, index) => index)
   );
+  // Video quality selection - affects which AI model is used for video generation
+  const [videoQuality, setVideoQuality] = useState<VideoQuality>(initialVideoQuality);
   const [progress, setProgress] = useState(0);
   const [regeneratingScenes, setRegeneratingScenes] = useState<number[]>([]);
   const [uploadingScenes, setUploadingScenes] = useState<number[]>([]);
@@ -632,10 +644,11 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   // Mutation to clone/regenerate the project
   const regenerateVideoMutation = useMutation({
     mutationFn: async () => {
-      // Clone the project with updated scenes and scene order (don't modify the original)
+      // Clone the project with updated scenes, scene order, and video quality (don't modify the original)
       const response = await apiRequest("POST", `/api/projects/${projectId}/clone`, {
         updatedScenes: generatedScenes,
-        sceneOrder: sceneOrder
+        sceneOrder: sceneOrder,
+        videoQuality: videoQuality
       });
       return response.json();
     },
@@ -681,8 +694,30 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   const calculateRegenerationCost = () => {
     if (!audioDuration) return 0;
     // Video generation: 1000 credits per 30 seconds
-    return Math.ceil(audioDuration / 30) * 1000;
+    const baseCost = Math.ceil(audioDuration / 30) * 1000;
+    // Add extra credits based on video quality
+    const qualityCost = videoQuality === "medium" ? 500 : videoQuality === "premium" ? 1000 : 0;
+    return baseCost + qualityCost;
   };
+
+  // Get video quality extra credits display
+  const getVideoQualityExtraCredits = () => {
+    switch (videoQuality) {
+      case "medium": return "+500 credits";
+      case "premium": return "+1000 credits";
+      default: return "";
+    }
+  };
+
+  // Mutation to update video quality for normal mode
+  const updateVideoQualityMutation = useMutation({
+    mutationFn: async (quality: VideoQuality) => {
+      const response = await apiRequest("PATCH", `/api/projects/${projectId}`, {
+        videoQuality: quality
+      });
+      return response.json();
+    }
+  });
 
   return (
     <div className="max-w-6xl mx-auto mb-12 bg-card rounded-lg p-2 sm:p-4" data-testid="scene-generation-step">
@@ -860,6 +895,45 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
             ))}
             </div>
           </>
+        )}
+
+        {/* Video Quality Selector */}
+        {generatedScenes.length > 0 && (
+          <div className="bg-muted/30 border border-border rounded-lg p-4 mb-6" data-testid="video-quality-selector">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                <span className="font-medium">Video Generation Quality</span>
+              </div>
+              <Select
+                value={videoQuality}
+                onValueChange={(value: VideoQuality) => {
+                  setVideoQuality(value);
+                  if (!isEditMode) {
+                    updateVideoQualityMutation.mutate(value);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-[280px]" data-testid="video-quality-select">
+                  <SelectValue placeholder="Select video quality" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="quick">
+                    Quick
+                  </SelectItem>
+                  <SelectItem value="medium">
+                    Medium (+500 credits)
+                  </SelectItem>
+                  <SelectItem value="premium">
+                    Premium (+1000 credits)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Higher quality uses more advanced AI models for better video generation results.
+              </p>
+            </div>
+          </div>
         )}
 
         {/* Credit Cost Info for Edit Mode */}

@@ -3151,7 +3151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).user.userId;
       const sourceProjectId = req.params.id;
-      const { updatedScenes, sceneOrder: providedSceneOrder } = req.body; // Receive updated scenes and order from frontend
+      const { updatedScenes, sceneOrder: providedSceneOrder, videoQuality: providedVideoQuality } = req.body; // Receive updated scenes, order, and video quality from frontend
       
       // Get the source project
       const sourceProject = await storage.getProject(sourceProjectId);
@@ -3210,6 +3210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         characterType: sourceProject.characterType,
         characterPrompt: sourceProject.characterPrompt,
         makeCharacterSing: sourceProject.makeCharacterSing,
+        videoQuality: providedVideoQuality || (sourceProject as any).videoQuality || "quick",
         isCompleted: false, // Not completed yet
         generationStatus: 'idle',
       };
@@ -6204,6 +6205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: errorMsg });
       }
 
+      const videoQuality = (project as any).videoQuality || "quick";
       const { videoUrls: allVideoUrls, segmentPairs } = await generateAllVideoSegmentsDynamic(
         audioUrls,
         signedSceneUrls,
@@ -6211,7 +6213,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           numberOfVideosRegularApi,
           numberOfVideosLipsync,
-          makeCharacterSing: makeCharacterSing
+          makeCharacterSing: makeCharacterSing,
+          videoQuality: videoQuality
         },
         subtitleData,
         segmentDurations // Pass segment durations for proper video length matching
