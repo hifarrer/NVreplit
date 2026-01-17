@@ -925,7 +925,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                     Medium (+1000 credits)
                   </SelectItem>
                   <SelectItem value="premium">
-                    Premium (+2000 credits)
+                    Premium (HD) (+2000 credits)
                   </SelectItem>
                 </SelectContent>
               </Select>
