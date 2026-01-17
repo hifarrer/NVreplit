@@ -3210,6 +3210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         characterType: sourceProject.characterType,
         characterPrompt: sourceProject.characterPrompt,
         makeCharacterSing: sourceProject.makeCharacterSing,
+        aspectRatio: sourceProject.aspectRatio || "16:9", // Copy aspect ratio from source
         videoQuality: providedVideoQuality || (sourceProject as any).videoQuality || "quick",
         isCompleted: false, // Not completed yet
         generationStatus: 'idle',
