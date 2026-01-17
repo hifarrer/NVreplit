@@ -30,6 +30,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
   const [isUploading, setIsUploading] = useState(false);
   const [activeTab, setActiveTab] = useState("library");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const characterPreviewRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const handleCharacterUpload = () => {
@@ -133,6 +134,10 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
           title: "Character loaded",
           description: "Your saved character has been loaded successfully!",
         });
+        // Scroll to the character preview section after a brief delay for render
+        setTimeout(() => {
+          characterPreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
       } else {
         throw new Error('Failed to save character to project');
       }
@@ -276,7 +281,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
         </Tabs>
 
         {currentCharacterUrl && (
-          <div className="mt-6 p-4 sm:p-6 media-player rounded-lg" data-testid="character-preview-section">
+          <div ref={characterPreviewRef} className="mt-6 p-4 sm:p-6 media-player rounded-lg" data-testid="character-preview-section">
             <h4 className="text-lg font-semibold mb-4 flex items-center">
               <UserCheck className="w-4 h-4 text-primary mr-2" />
               Your Character
