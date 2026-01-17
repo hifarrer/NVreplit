@@ -5884,7 +5884,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const audioDuration = project.audioDuration || 120; // Default to 2 minutes
       // Round up to nearest minute (60 seconds) first, then calculate credits
       const roundedMinutes = Math.ceil(audioDuration / 60);
-      const VIDEO_GENERATION_CREDITS = roundedMinutes * 2 * 1000; // 2 x 1000 credits per minute (which is 2 x 30-second blocks)
+      const baseCredits = roundedMinutes * 2 * 1000; // 2 x 1000 credits per minute (which is 2 x 30-second blocks)
+      
+      // Add extra credits based on video quality
+      const projectVideoQuality = (project as any).videoQuality || "quick";
+      const qualityCost = projectVideoQuality === "medium" ? 1000 : projectVideoQuality === "premium" ? 2000 : 0;
+      const VIDEO_GENERATION_CREDITS = baseCredits + qualityCost;
       
       // Check if user has enough credits for video generation
       const canAfford = await storage.canUserAffordCredits(project.userId, VIDEO_GENERATION_CREDITS);

@@ -696,15 +696,15 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
     // Video generation: 1000 credits per 30 seconds
     const baseCost = Math.ceil(audioDuration / 30) * 1000;
     // Add extra credits based on video quality
-    const qualityCost = videoQuality === "medium" ? 500 : videoQuality === "premium" ? 1000 : 0;
+    const qualityCost = videoQuality === "medium" ? 1000 : videoQuality === "premium" ? 2000 : 0;
     return baseCost + qualityCost;
   };
 
   // Get video quality extra credits display
   const getVideoQualityExtraCredits = () => {
     switch (videoQuality) {
-      case "medium": return "+500 credits";
-      case "premium": return "+1000 credits";
+      case "medium": return "+1000 credits";
+      case "premium": return "+2000 credits";
       default: return "";
     }
   };
@@ -922,10 +922,10 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                     Quick
                   </SelectItem>
                   <SelectItem value="medium">
-                    Medium (+500 credits)
+                    Medium (+1000 credits)
                   </SelectItem>
                   <SelectItem value="premium">
-                    Premium (+1000 credits)
+                    Premium (+2000 credits)
                   </SelectItem>
                 </SelectContent>
               </Select>
