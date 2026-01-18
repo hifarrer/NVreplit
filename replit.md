@@ -1,6 +1,8 @@
 # Overview
 
-This is an AI-powered music video maker application that guides users through a multi-step process to create music videos. The application uses modern web technologies with a React frontend, Express backend, and integrates multiple AI services including ElevenLabs for music generation, OpenAI for lyrics and scene prompts, Fal.ai for image generation, and Wavespeed for video creation.
+This is an AI-powered music video maker application that guides users through a multi-step process to create music videos. The application uses modern web technologies with a React frontend, Express backend, and integrates multiple AI services including Minimax Music 02 (via Wavespeed API) for music generation, OpenAI for lyrics and scene prompts, Fal.ai for image generation, and Wavespeed for video creation.
+
+**Note**: ElevenLabs music generation code is preserved in the codebase (`server/services/elevenlabs.ts`) as a fallback option but is not currently used. Minimax Music 02 is the default music generation model.
 
 The workflow consists of six main steps: creating/uploading music, creating/uploading character images, generating scene prompts and images, splitting audio into segments, generating video segments, and merging them into a final music video.
 
