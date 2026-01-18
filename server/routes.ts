@@ -5995,17 +5995,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Get configuration based on audio duration (reuse the variable from earlier)
-      // audioDuration is already declared above
+      // Return immediately to avoid gateway timeout - video generation continues in background
+      res.json({ 
+        message: "Video generation started",
+        generationId: generationId,
+        status: "generating"
+      });
+
+      // Continue video generation in background (async, non-blocking)
+      (async () => {
+        try {
+          // Get configuration based on audio duration (reuse the variable from earlier)
+          // audioDuration is already declared above
+          
+          console.log(`Using audio duration: ${audioDuration} seconds for video generation`);
       
-      console.log(`Using audio duration: ${audioDuration} seconds for video generation`);
-      
-      // IMPORTANT: Use the number of scene images as the source of truth for audio parts
-      // This ensures audio segments match scene images, avoiding mismatch errors
-      // The sceneImages were generated earlier based on audioDuration at that time
-      const sceneImagesCount = (project.sceneImages as string[])?.length || Math.ceil(audioDuration / 10);
-      const numberOfAudioParts = sceneImagesCount;
-      const numberOfScenes = sceneImagesCount;
+          // IMPORTANT: Use the number of scene images as the source of truth for audio parts
+          // This ensures audio segments match scene images, avoiding mismatch errors
+          // The sceneImages were generated earlier based on audioDuration at that time
+          const sceneImagesCount = (project.sceneImages as string[])?.length || Math.ceil(audioDuration / 10);
+          const numberOfAudioParts = sceneImagesCount;
+          const numberOfScenes = sceneImagesCount;
       
       console.log(`Scene images count from project: ${sceneImagesCount}`);
       console.log(`Calculated from duration would be: ${Math.ceil(audioDuration / 10)}`);
@@ -6385,41 +6395,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error(`Final video merge failed: ${(mergeError as Error).message}`);
       }
 
-      await storage.updateProject(req.params.id, {
-        finalVideoUrl: savedFinalVideoUrl,
-        isCompleted: true,
-        currentStep: 6,
-        generationStatus: 'completed' as any,
-      });
+          await storage.updateProject(req.params.id, {
+            finalVideoUrl: savedFinalVideoUrl,
+            isCompleted: true,
+            currentStep: 6,
+            generationStatus: 'completed' as any,
+          });
 
-      await storage.addGenerationLog({
-        projectId: req.params.id,
-        step: "video_generation",
-        message: "Video generation completed",
-        status: "completed",
-        metadata: { finalVideoUrl: savedFinalVideoUrl }
-      });
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "video_generation",
+            message: "Video generation completed",
+            status: "completed",
+            metadata: { finalVideoUrl: savedFinalVideoUrl }
+          });
 
-      // Complete video processing in queue
-      await videoQueueService.completeVideoGeneration(req.params.id, true);
+          // Complete video processing in queue
+          await videoQueueService.completeVideoGeneration(req.params.id, true);
 
-      // Create Mux asset for improved streaming (non-blocking)
-      try {
-        await createMuxAssetForVideo(req.params.id, savedFinalVideoUrl);
-      } catch (muxError) {
-        console.error("Failed to create Mux asset (non-blocking):", muxError);
-        // Don't fail the video generation if Mux asset creation fails
-      }
+          // Create Mux asset for improved streaming (non-blocking)
+          try {
+            await createMuxAssetForVideo(req.params.id, savedFinalVideoUrl);
+          } catch (muxError) {
+            console.error("Failed to create Mux asset (non-blocking):", muxError);
+            // Don't fail the video generation if Mux asset creation fails
+          }
 
-      // Deduct credits for successful video generation
-      const creditDeducted = await storage.deductUserCredits(project.userId, VIDEO_GENERATION_CREDITS);
-      if (!creditDeducted) {
-        console.error("Failed to deduct credits for video generation, but video was already generated");
-      } else {
-        console.log(`Deducted ${VIDEO_GENERATION_CREDITS} credits for video generation (${audioDuration}s) from user ${project.userId}`);
-      }
+          // Deduct credits for successful video generation
+          const creditDeducted = await storage.deductUserCredits(project.userId, VIDEO_GENERATION_CREDITS);
+          if (!creditDeducted) {
+            console.error("Failed to deduct credits for video generation, but video was already generated");
+          } else {
+            console.log(`Deducted ${VIDEO_GENERATION_CREDITS} credits for video generation (${audioDuration}s) from user ${project.userId}`);
+          }
 
-      res.json({ finalVideoUrl: savedFinalVideoUrl });
+        } catch (error) {
+          console.error("Background video generation error:", error);
+          const errorMessage = (error as Error).message;
+          
+          // Mark generation as failed
+          await storage.updateProject(req.params.id, {
+            generationStatus: 'failed' as any,
+            currentStep: 3, // Reset to step 3 so user can try again
+          });
+          
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "video_generation",
+            message: `Video generation failed: ${errorMessage}`,
+            status: "error",
+            metadata: { error: errorMessage }
+          });
+
+          // Complete video processing in queue (mark as failed)
+          if (isInQueue) {
+            await videoQueueService.completeVideoGeneration(req.params.id, false);
+          }
+        }
+      })();
     } catch (error) {
       console.error("Generate video error:", error);
       const errorMessage = (error as Error).message;
@@ -6440,6 +6473,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Complete video processing in queue (mark as failed)
       if (isInQueue) {
+        const { videoQueueService } = await import("./services/videoQueue");
         await videoQueueService.completeVideoGeneration(req.params.id, false);
       }
       
