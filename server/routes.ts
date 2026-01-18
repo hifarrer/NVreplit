@@ -11,6 +11,7 @@ import { z } from "zod";
 import { generateLyrics, generateLyricsWithTitle, generateScenePrompts, splitLyricsIntoSections, openai } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
+import { generateSongWithMinimax, calculateVideoSegments } from "./services/minimax";
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
 import { createForcedAlignment, convertElevenLabsAlignmentToASS, storeElevenLabsSubtitleFile } from "./services/elevenlabs";
@@ -4735,15 +4736,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let kieTaskId = null;
       let kieAudioId = null;
       
-      // Always use ElevenLabs for song generation
-      console.log("Using ElevenLabs for song generation...");
-      const durationMs = duration * 1000; // Convert to milliseconds for ElevenLabs
-      const elevenLabsSong = await generateSongWithElevenLabs(tags, lyrics, durationMs);
+      // Use Minimax Music 02 for song generation
+      // Note: Minimax does not accept duration as a direct parameter, so we include it in the prompt
+      // The actual generated song duration will vary (typically ±15 seconds from requested)
+      console.log("Using Minimax Music 02 for song generation...");
+      const minimaxSong = await generateSongWithMinimax(tags, lyrics, duration, description);
+      
+      // The actual duration from Minimax may differ from the requested duration
+      // This is expected behavior - we'll use the actual duration for video segment calculation
+      const actualDuration = minimaxSong.duration;
+      console.log(`Minimax generated song with actual duration: ${actualDuration}s (requested: ${duration}s)`);
       
       // Create result format similar to KIE response but with single song
       result = {
-        songs: [elevenLabsSong],
-        firstSongUrl: elevenLabsSong.audioUrl
+        songs: [minimaxSong],
+        firstSongUrl: minimaxSong.audioUrl
       };
       
       // Always generate subtitles using ElevenLabs forced alignment when lyrics are available
@@ -4752,18 +4759,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Generating subtitles using ElevenLabs forced alignment...");
         
         try {
-          // Create forced alignment with ElevenLabs
-          const alignmentResponse = await createForcedAlignment(elevenLabsSong.audioUrl, lyrics);
+          // Create forced alignment with ElevenLabs using the Minimax-generated song
+          const alignmentResponse = await createForcedAlignment(minimaxSong.audioUrl, lyrics);
           
           // Convert to .ass format
           const assContent = convertElevenLabsAlignmentToASS(alignmentResponse);
           generatedSubtitlesContent = assContent; // Store for debugging display
           
           // Store subtitle file with the song ID for proper association
-          const songId = elevenLabsSong.audioUrl.split('/').pop()?.replace('.mp3', '') || undefined;
+          const songId = minimaxSong.audioUrl.split('/').pop()?.replace('.mp3', '') || undefined;
           subtitleFileUrl = await storeElevenLabsSubtitleFile(assContent, songId);
           
-          console.log("ElevenLabs subtitle file stored at:", subtitleFileUrl);
+          console.log("Subtitle file stored at:", subtitleFileUrl);
           
           await storage.addGenerationLog({
             projectId: req.params.id,
@@ -4773,11 +4780,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             metadata: { subtitleFileUrl, wordCount: alignmentResponse.words?.length || 0 }
           });
         } catch (subtitleError) {
-          console.error("ElevenLabs subtitle generation failed:", subtitleError);
+          console.error("Subtitle generation failed:", subtitleError);
           await storage.addGenerationLog({
             projectId: req.params.id,
             step: "subtitle_generation",
-            message: `ElevenLabs subtitle generation failed: ${(subtitleError as Error).message}`,
+            message: `Subtitle generation failed: ${(subtitleError as Error).message}`,
             status: "error",
             metadata: { error: (subtitleError as Error).message }
           });
@@ -4792,12 +4799,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: project.userId,
         title: songTitle || description || tags || "NeonVideo Song",
         url: selectedSong.audioUrl,
-        duration: duration,
+        duration: actualDuration, // Use actual duration from Minimax (may differ from requested)
         tags: tags || null,
         lyrics: lyrics || null,
         prompt: description || null,
         subtitleFileUrl: subtitleFileUrl || null,
-        // Remove KIE fields since we're using ElevenLabs
+        // Remove KIE fields since we're using Minimax
         kieTaskId: null,
         kieAudioId: null
       };
@@ -4836,6 +4843,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update the project with the selected song
+      // IMPORTANT: Store the actual duration from Minimax (not the requested duration)
+      // This ensures correct video segment calculation later
       await storage.updateProject(req.params.id, {
         title: description || tags, // Use the full song description as the project title, fallback to tags
         audioUrl: selectedSong.audioUrl,
@@ -4843,7 +4852,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audioPrompt: description,
         audioTags: tags,
         audioLyrics: lyrics,
-        audioDuration: duration, // Store the duration in seconds
+        audioDuration: actualDuration, // Store the ACTUAL duration from Minimax (may differ from requested)
         addSubtitles: addSubtitles,
         includeWatermark: finalIncludeWatermark, // Server-side enforced watermark setting
         isPublic: finalIsPublic, // Server-side enforced privacy setting (Premium only)
@@ -4866,9 +4875,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Song generation is free - no credit deduction needed
       // Credits are only consumed when generating the video
       
-      // Add debugging subtitle content to response if generated
+      // Add actual duration and debugging subtitle content to response
+      // The actual duration is important since Minimax may generate songs
+      // with different durations than requested (typically ±15 seconds)
       const responseData = {
         ...result,
+        actualDuration, // Include the actual duration from Minimax
+        requestedDuration: duration, // Include the originally requested duration
         subtitleFileUrl,
         generatedSubtitlesContent // For debugging display
       };
@@ -7907,23 +7920,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       console.log(`[NEON-SINGLE-PROMPT] Generated lyrics (${lyrics.length} chars) and title: ${aiGeneratedTitle}`);
 
-      // Step 4: Generate song with ElevenLabs
-      console.log(`[NEON-SINGLE-PROMPT] Step 4: Generating 30-second song with ElevenLabs...`);
+      // Step 4: Generate song with Minimax Music 02
+      console.log(`[NEON-SINGLE-PROMPT] Step 4: Generating ~30-second song with Minimax Music 02...`);
       const songTags = parsed.song_title 
         ? `${parsed.song_title}. ${parsed.video_description}`
         : parsed.video_description;
-      const songResult = await generateSongWithElevenLabs(
-        lyrics,
+      const songResult = await generateSongWithMinimax(
         songTags,
-        30000  // 30 seconds in milliseconds
+        lyrics,
+        30,  // Request 30 seconds (actual may vary ±15 seconds)
+        parsed.video_description
       );
+      
+      // Use the actual duration from Minimax (may differ from requested 30 seconds)
+      const actualSongDuration = songResult.duration;
+      console.log(`[NEON-SINGLE-PROMPT] Song generated: requested 30s, actual ${actualSongDuration}s`);
       
       await storage.updateProject(project.id, { 
         audioUrl: songResult.audioUrl,
-        audioDuration: 30,  // 30 seconds
+        audioDuration: actualSongDuration,  // Store actual duration, not requested
         currentStep: 2 
       });
-      console.log(`[NEON-SINGLE-PROMPT] Song generated and uploaded (30 seconds)`);
+      console.log(`[NEON-SINGLE-PROMPT] Song generated and uploaded (${actualSongDuration} seconds)`);
 
       // Step 5: Generate character image with Fal.ai
       // Use the project's aspectRatio (defaults to 16:9 for horizontal)
@@ -7937,9 +7955,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       console.log(`[NEON-SINGLE-PROMPT] Character image generated`);
 
-      // Calculate number of scenes dynamically for 30-second video
-      const numberOfScenes = Math.ceil(30 / 10); // 3 scenes for 30 seconds
-      console.log(`[NEON-SINGLE-PROMPT] Dynamically calculated ${numberOfScenes} scenes for 30s video`);
+      // Calculate number of scenes dynamically based on ACTUAL song duration
+      // Video segments can be 5 or 10 seconds, so we use calculateVideoSegments
+      const { numberOfSegments: numberOfScenes, segmentDurations } = calculateVideoSegments(actualSongDuration);
+      console.log(`[NEON-SINGLE-PROMPT] Dynamically calculated ${numberOfScenes} scenes for ${actualSongDuration}s video (segments: ${segmentDurations.join(', ')}s)`);
 
       // Step 6: Generate scene prompts
       console.log(`[NEON-SINGLE-PROMPT] Step 6: Generating scene prompts...`);
