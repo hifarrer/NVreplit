@@ -4668,6 +4668,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { description, tags, lyrics, songTitle, duration = 120, addSubtitles = false, includeWatermark = true, isPublic = true, aspectRatio = "16:9" } = req.body; // Duration in seconds
       
+      // Validate lyrics length vs duration to prevent abuse
+      // Only validate user-provided lyrics (not AI-generated)
+      if (lyrics && lyrics.trim().length > 0) {
+        const { validateLyricsDuration } = await import("@shared/lyricsValidation");
+        const validation = validateLyricsDuration(lyrics, duration);
+        
+        if (!validation.isValid) {
+          console.log(`Lyrics duration validation failed: ${validation.wordCount} words for ${duration}s duration`);
+          
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "song_generation",
+            message: `Song generation blocked: lyrics too long for specified duration`,
+            status: "error",
+            metadata: { 
+              wordCount: validation.wordCount,
+              maxWordsAllowed: validation.maxWordsAllowed,
+              estimatedMinDuration: validation.estimatedMinDuration,
+              requestedDuration: duration
+            }
+          });
+          
+          return res.status(400).json({ 
+            error: "Lyrics Too Long",
+            details: validation.message,
+            wordCount: validation.wordCount,
+            maxWordsAllowed: validation.maxWordsAllowed,
+            estimatedMinDuration: validation.estimatedMinDuration
+          });
+        }
+      }
+      
       // Check for profanity in user-provided lyrics
       if (lyrics) {
         const profanityCheck = checkProfanity(lyrics);

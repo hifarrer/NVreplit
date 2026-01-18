@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,8 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Subtitles, Tags } from "lucide-react";
+import { Subtitles, Tags, AlertTriangle } from "lucide-react";
+import { validateLyricsDuration } from "@shared/lyricsValidation";
 
 interface SongGeneratorModalProps {
   isOpen: boolean;
@@ -60,6 +61,14 @@ export function SongGeneratorModal({
 
   // Check if user is Premium (can disable watermark)
   const isPremiumUser = user?.plan?.name === "Premium";
+
+  // Validate lyrics length against duration
+  const lyricsValidation = useMemo(() => {
+    if (!lyrics || lyrics.trim().length === 0) {
+      return { isValid: true, wordCount: 0, maxWordsAllowed: 0, message: undefined };
+    }
+    return validateLyricsDuration(lyrics, duration[0]);
+  }, [lyrics, duration]);
 
   // Duration options based on user plan
   const durationOptions = isPaidUser
@@ -196,7 +205,7 @@ export function SongGeneratorModal({
     }
   };
 
-  const canGenerate = description.trim().length >= 5 && tags.trim().length > 0;
+  const canGenerate = description.trim().length >= 5 && tags.trim().length > 0 && lyricsValidation.isValid;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -366,9 +375,34 @@ export function SongGeneratorModal({
                 onChange={(e) => setLyrics(e.target.value)}
                 placeholder="Enter your lyrics here or click 'Generate Lyrics' to create them automatically..."
                 rows={6}
-                className="resize-none"
+                className={`resize-none ${!lyricsValidation.isValid ? "border-red-500" : ""}`}
                 data-testid="lyrics-textarea"
               />
+              {/* Lyrics word count and validation feedback */}
+              {lyrics.trim().length > 0 && (
+                <div className={`mt-2 text-xs ${lyricsValidation.isValid ? "text-muted-foreground" : "text-red-500"}`}>
+                  {lyricsValidation.wordCount} words 
+                  {!lyricsValidation.isValid && (
+                    <span> (max {lyricsValidation.maxWordsAllowed} for this duration)</span>
+                  )}
+                </div>
+              )}
+              {/* Lyrics too long warning */}
+              {!lyricsValidation.isValid && (
+                <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-md">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                        Lyrics too long for selected duration
+                      </p>
+                      <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-1">
+                        {lyricsValidation.message}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
               {songTitle && (
                 <div className="mt-3 p-3 bg-primary/10 rounded-md">
                   <div className="flex items-center gap-2">
@@ -506,6 +540,9 @@ export function SongGeneratorModal({
                   )}
                   {tags.trim().length === 0 && (
                     <span className="block">• At least one tag</span>
+                  )}
+                  {!lyricsValidation.isValid && (
+                    <span className="block">• Shorten lyrics or increase duration</span>
                   )}
                 </span>
               </p>
