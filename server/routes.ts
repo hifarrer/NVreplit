@@ -6120,18 +6120,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Audio type:", project.audioType);
       console.log("=== END DEBUG ===");
       
-      // Split audio using different methods based on audio type:
-      // - AI-generated songs (generated/library): Use /api/split_audio which splits into equal parts (guarantees exact number of parts)
-      // - User-uploaded songs: Use /api/split_audio_segments which splits by 10-second segments
-      let audioSegments;
-      if (project.audioType === 'uploaded') {
-        console.log("Using splitAudio for user-uploaded song (10-second segments)");
-        audioSegments = await splitAudio(audioUrl, numberOfAudioParts, audioDuration);
-      } else {
-        // For 'generated' or 'library' audio types, use equal parts splitting
-        console.log(`Using splitAudioByParts for ${project.audioType} song (equal parts)`);
-        audioSegments = await splitAudioByParts(audioUrl, numberOfAudioParts, audioDuration);
-      }
+      // Split audio into fixed 10-second segments for ALL audio types
+      // CRITICAL: All segments must be exactly 10 seconds, only the last segment can be shorter
+      // This ensures proper lipsync synchronization when merging videos
+      // Example: 45-second song → [10s, 10s, 10s, 10s, 5s] NOT [9s, 9s, 9s, 9s, 9s]
+      console.log(`Splitting audio into fixed 10-second segments (audio type: ${project.audioType}, total duration: ${audioDuration}s)`);
+      const audioSegments = await splitAudio(audioUrl, numberOfAudioParts, audioDuration);
       console.log("Audio segments result:", JSON.stringify(audioSegments, null, 2));
       
       const audioUrls = audioSegments.map(segment => segment.download_url);

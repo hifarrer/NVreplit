@@ -214,62 +214,59 @@ async function downloadAndStoreMinimaxAudio(
 
 /**
  * Calculate the number of video segments needed for a given song duration.
- * Video segments can be 5 or 10 seconds.
  * 
- * This function calculates the optimal combination of 10-second and 5-second segments
- * to cover the entire song duration.
+ * CRITICAL RULE: ALL video segments MUST be exactly 10 seconds, ONLY the last segment
+ * can be shorter (the remainder). This ensures proper lipsync synchronization.
  * 
  * Examples:
- * - 60 seconds = 6 x 10s segments
- * - 68 seconds = 7 x 10s segments (covers 70s, slightly longer than song)
- * - 72 seconds = 7 x 10s + 1 x 5s (covers 75s)
- * - 65 seconds = 6 x 10s + 1 x 5s (covers 65s exactly)
- * 
- * The last segment might be slightly longer than the remaining audio,
- * but the video will simply have a brief moment of silence at the end.
+ * - 60 seconds = [10, 10, 10, 10, 10, 10] (6 segments)
+ * - 45 seconds = [10, 10, 10, 10, 5] (5 segments, last is 5s)
+ * - 68 seconds = [10, 10, 10, 10, 10, 10, 8] (7 segments, last is 8s)
+ * - 73 seconds = [10, 10, 10, 10, 10, 10, 10, 3] (8 segments, last is 3s)
  */
 export function calculateVideoSegments(durationSeconds: number): {
   numberOfSegments: number;
   segmentDurations: number[];
 } {
-  // Guard against zero/invalid duration - minimum 5 seconds (shortest video segment)
+  // Guard against zero/invalid duration - minimum 2 seconds (shortest video segment for seedance)
   if (!durationSeconds || durationSeconds <= 0) {
-    console.warn(`Invalid duration ${durationSeconds}, defaulting to minimum 5s segment`);
+    console.warn(`Invalid duration ${durationSeconds}, defaulting to minimum 10s segment`);
     return {
       numberOfSegments: 1,
-      segmentDurations: [5],
+      segmentDurations: [10],
     };
   }
 
-  // For very short songs (< 5 seconds), use a single 5-second segment
-  if (durationSeconds < 5) {
-    console.log(`Very short duration ${durationSeconds}s, using minimum 5s segment`);
+  // For very short songs (< 2 seconds), use a single 10-second segment
+  // The video will be slightly longer than the audio
+  if (durationSeconds < 2) {
+    console.log(`Very short duration ${durationSeconds}s, using minimum 10s segment`);
     return {
       numberOfSegments: 1,
-      segmentDurations: [5],
+      segmentDurations: [10],
     };
   }
 
-  // Calculate base number of 10-second segments
-  const baseTenSecondSegments = Math.floor(durationSeconds / 10);
+  // Calculate number of full 10-second segments
+  const fullSegments = Math.floor(durationSeconds / 10);
   const remainder = durationSeconds % 10;
 
   let segmentDurations: number[] = [];
 
   // Fill with 10-second segments first
-  for (let i = 0; i < baseTenSecondSegments; i++) {
+  for (let i = 0; i < fullSegments; i++) {
     segmentDurations.push(10);
   }
 
-  // Handle the remainder
+  // Add remainder as the last segment if there's any remaining time
+  // The last segment can be any length (will use infinitetalk which supports any audio length)
   if (remainder > 0) {
-    // If remainder is more than 5 seconds, add a 10-second segment
-    // If remainder is 5 seconds or less, add a 5-second segment (minimum allowed by video model)
-    if (remainder > 5) {
-      segmentDurations.push(10);
-    } else {
-      segmentDurations.push(5);
-    }
+    segmentDurations.push(remainder);
+  }
+
+  // If we ended up with no segments (shouldn't happen), add one 10s segment
+  if (segmentDurations.length === 0) {
+    segmentDurations.push(10);
   }
 
   console.log(`Song duration: ${durationSeconds}s`);
