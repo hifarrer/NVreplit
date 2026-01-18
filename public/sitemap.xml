@@ -59,17 +59,49 @@
   <!-- Blog Section -->
   <url>
     <loc>https://neonvideo.ai/blog</loc>
-    <lastmod>2025-12-05</lastmod>
+    <lastmod>2026-01-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   
-  <!-- Blog Post: Best AI Music Video Generator 2025 -->
+  <!-- Blog Post: Version 2.5.1 Release -->
   <url>
-    <loc>https://neonvideo.ai/best-ai-music-generator-2025</loc>
-    <lastmod>2025-01-30</lastmod>
+    <loc>https://neonvideo.ai/version-2-5-1-release</loc>
+    <lastmod>2026-01-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
+  </url>
+  
+  <!-- Blog Post: Version 2.4.1 Release -->
+  <url>
+    <loc>https://neonvideo.ai/version-2-4-1-release</loc>
+    <lastmod>2026-01-02</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- Blog Post: Christmas Postcard Video -->
+  <url>
+    <loc>https://neonvideo.ai/christmas-postcard-video</loc>
+    <lastmod>2025-12-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- Blog Post: Version 2.3.1 Release -->
+  <url>
+    <loc>https://neonvideo.ai/version-2-3-1-release</loc>
+    <lastmod>2025-12-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- Blog Post: Version 2.1.1 Release -->
+  <url>
+    <loc>https://neonvideo.ai/version-2-1-1-release</loc>
+    <lastmod>2025-12-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
   </url>
   
   <!-- Blog Post: Version 2.0.1 Release -->
@@ -80,10 +112,10 @@
     <priority>0.8</priority>
   </url>
   
-  <!-- Blog Post: Version 2.1.1 Release -->
+  <!-- Blog Post: Best AI Music Video Generator 2025 -->
   <url>
-    <loc>https://neonvideo.ai/version-2-1-1-release</loc>
-    <lastmod>2025-12-05</lastmod>
+    <loc>https://neonvideo.ai/best-ai-music-generator-2025</loc>
+    <lastmod>2025-01-30</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
