@@ -932,6 +932,11 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
               <p className="text-xs text-muted-foreground">
                 Higher quality uses more advanced AI models for better video generation results.
               </p>
+              {videoQuality === "premium" && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  Note: Premium quality uses the highest quality AI models and may take 10-15 minutes to generate your video.
+                </p>
+              )}
             </div>
           </div>
         )}
