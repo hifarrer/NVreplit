@@ -33,6 +33,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
   const [isQueued, setIsQueued] = useState(false);
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
   const [shouldPollCompletion, setShouldPollCompletion] = useState(false);
+  const [isGeneratingInBackground, setIsGeneratingInBackground] = useState(false);
   const { toast } = useToast();
   const hasInitiatedGeneration = useRef(false);
 
@@ -131,15 +132,27 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
       });
     },
     onSuccess: (data) => {
+      // Check if this is an async response (generation started but not complete)
+      if (data.status === "generating" && !data.finalVideoUrl) {
+        // Video generation started in background - start polling for completion
+        setShouldPollCompletion(true);
+        setIsGeneratingInBackground(true);
+        // Don't clear progress - keep showing the progress animation
+        return;
+      }
+      
+      // Video is already complete (either from sync response or "already generated" response)
       if (progressInterval) {
         clearInterval(progressInterval);
         setProgressInterval(null);
       }
-      onVideoComplete(data.finalVideoUrl);
-      toast({
-        title: "Success",
-        description: "Your music video has been generated successfully!",
-      });
+      if (data.finalVideoUrl) {
+        onVideoComplete(data.finalVideoUrl);
+        toast({
+          title: "Success",
+          description: "Your music video has been generated successfully!",
+        });
+      }
     },
     onError: (error) => {
       // Don't show error popup for 409 "already generating" errors
@@ -184,6 +197,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
     if (shouldPollCompletion && projectStatus?.finalVideoUrl) {
       // Video generation completed!
       setShouldPollCompletion(false);
+      setIsGeneratingInBackground(false);
       if (progressInterval) {
         clearInterval(progressInterval);
         setProgressInterval(null);
@@ -200,7 +214,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
   const { data: queueStats } = useQuery<QueueStats>({
     queryKey: ["/api/video-queue/status"],
     refetchInterval: 5000, // Poll every 5 seconds
-    enabled: isQueued || generateVideoMutation.isPending
+    enabled: isQueued || generateVideoMutation.isPending || isGeneratingInBackground
   });
 
   // Query for project's queue position  
@@ -241,6 +255,12 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
     generateVideoMutation.reset();
     setOverallProgress(0);
     setCurrentStep(0);
+    setShouldPollCompletion(false);
+    setIsGeneratingInBackground(false);
+    if (progressInterval) {
+      clearInterval(progressInterval);
+      setProgressInterval(null);
+    }
     toast({
       title: "Generation Cancelled",
       description: "Video generation has been cancelled.",
@@ -273,7 +293,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
 
 
         {/* Loading Animation or Trending Videos */}
-        {generateVideoMutation.isPending ? (
+        {(generateVideoMutation.isPending || isGeneratingInBackground) ? (
           <div className="mb-8">
             <h3 className="text-xl font-semibold text-center mb-6">
               While you wait for your video, watch other fun videos!
@@ -318,7 +338,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
           <Button
             variant="destructive"
             onClick={cancelGeneration}
-            disabled={!generateVideoMutation.isPending}
+            disabled={!generateVideoMutation.isPending && !isGeneratingInBackground}
             data-testid="cancel-generation-button"
           >
             <RotateCcw className="w-4 h-4 mr-2" />
