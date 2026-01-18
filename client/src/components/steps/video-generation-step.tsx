@@ -111,10 +111,15 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
             return data;
           })
           .then(data => {
-            clearInterval(interval);
-            setProgressInterval(null);
-            setOverallProgress(100);
-            setCurrentStep(6);
+            // Only complete progress if video is actually done (has finalVideoUrl)
+            // For async "generating" responses, keep the progress interval running
+            if (data.finalVideoUrl) {
+              clearInterval(interval);
+              setProgressInterval(null);
+              setOverallProgress(100);
+              setCurrentStep(6);
+            }
+            // For async responses, the interval keeps running and polling will detect completion
             setIsQueued(false);
             resolve(data);
           })
@@ -198,6 +203,8 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
       // Video generation completed!
       setShouldPollCompletion(false);
       setIsGeneratingInBackground(false);
+      setOverallProgress(100);
+      setCurrentStep(6);
       if (progressInterval) {
         clearInterval(progressInterval);
         setProgressInterval(null);
