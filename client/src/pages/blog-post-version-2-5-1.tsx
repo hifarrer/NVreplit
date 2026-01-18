@@ -16,6 +16,7 @@ export default function Version251Release() {
         <meta property="og:description" content="NeonVideo.ai version 2.5.1 brings more realistic characters, new Medium and Premium AI models, plus bug fixes and UI improvements." />
         <meta property="og:type" content="article" />
         <meta property="og:url" content="https://neonvideo.ai/version-2-5-1-release" />
+        <meta property="og:image" content="https://res.cloudinary.com/dqemas8ht/image/upload/v1768700740/neonreal_xoobex.jpg" />
         <meta name="keywords" content="NeonVideo.ai update, version 2.5.1, AI music video, realistic characters, AI models, Medium AI, Premium AI, bug fixes" />
         <link rel="canonical" href="https://neonvideo.ai/version-2-5-1-release" />
       </Helmet>
@@ -47,6 +48,15 @@ export default function Version251Release() {
               <p className="text-xl text-gray-300 leading-relaxed mb-8">
                 We're excited to announce version 2.5.1! This update brings significantly more realistic AI characters, introduces new Medium and Premium AI models for enhanced video generation, and includes various bug fixes and UI improvements.
               </p>
+
+              <div className="rounded-lg overflow-hidden border border-purple-500/20 mb-8">
+                <img 
+                  src="https://res.cloudinary.com/dqemas8ht/image/upload/v1768700740/neonreal_xoobex.jpg" 
+                  alt="More Realistic Characters in NeonVideo.ai Version 2.5.1"
+                  className="w-full h-auto"
+                  data-testid="img-release-banner"
+                />
+              </div>
             </header>
 
             <div className="prose prose-invert max-w-none">
