@@ -134,13 +134,17 @@ async function generateVideoSegmentInternal(
     }
   } else {
     // Seedance-type models (no audio, image-to-video)
+    // Duration must be an integer between 2-12 for seedance models
+    const roundedDuration = Math.min(12, Math.max(2, Math.round(segmentDuration)));
+    console.log(`Seedance duration: ${segmentDuration}s → rounded to ${roundedDuration}s (valid range: 2-12)`);
+    
     // Select model based on video quality
     switch (videoQuality) {
       case "premium":
         // Alibaba Wan 2.5 - Premium quality
         endpoint = "https://api.wavespeed.ai/api/v3/alibaba/wan-2.5/image-to-video";
         requestBody = {
-          duration: segmentDuration,
+          duration: roundedDuration,
           enable_prompt_expansion: false,
           image: imageUrl,
           prompt: prompt,
@@ -153,7 +157,7 @@ async function generateVideoSegmentInternal(
         endpoint = "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1.5-pro/image-to-video-fast";
         requestBody = {
           camera_fixed: false,
-          duration: segmentDuration,
+          duration: roundedDuration,
           generate_audio: true,
           image: imageUrl,
           prompt: prompt,
@@ -167,7 +171,7 @@ async function generateVideoSegmentInternal(
         endpoint = "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1-pro-i2v-480p";
         requestBody = {
           camera_fixed: false,
-          duration: segmentDuration,
+          duration: roundedDuration,
           image: imageUrl,
           prompt: prompt,
           seed: -1,
