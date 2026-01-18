@@ -17,6 +17,14 @@ interface BlogPost {
 
 const blogPosts: BlogPost[] = [
   {
+    title: "Version 2.5.1 Released: More Realistic Characters & New AI Models",
+    slug: "/version-2-5-1-release",
+    excerpt: "NeonVideo.ai version 2.5.1 is here! Experience more realistic AI characters, choose from new Medium and Premium AI models, plus enjoy bug fixes and UI improvements.",
+    date: "January 18, 2026",
+    category: "Product Update",
+    readTime: "4 min read"
+  },
+  {
     title: "Version 2.4.1 Released: New Public Characters, Audio Track & Lyrics Track",
     slug: "/version-2-4-1-release",
     excerpt: "NeonVideo.ai version 2.4.1 is here! Explore new public characters available to all users, enhanced timeline with dedicated audio and lyrics tracks, plus various bug fixes for a smoother experience.",
