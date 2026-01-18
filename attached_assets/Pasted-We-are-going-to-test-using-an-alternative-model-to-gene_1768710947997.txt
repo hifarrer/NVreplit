@@ -1,0 +1,29 @@
+We are going to test using an alternative model to generate songs with AI.
+We currently use ElevenLabs for song generation. This model can accept the duration of a song as a parameter (30 seconds, 1 minute, etc).
+Maintain the existing functions or logic used to create songs using ElevenLabs as we might need to go back to use it in the future, but create a new function that will use this new model called Minimax Music 02.
+
+The new model we are going to test (Minimax Music 02) does not accept a parameter for the song duration, but we can add it as part of the prompt.
+The result will not be an accurate song duration but it would be approximate, for example prompting a 60 seconds song, will result in songs of 60 seconds +- 15 seconds, sometimes 75 seconds, sometimes 56 seconds etc.
+Since we always generate the video parts in 10 second parts, we will keep doing this as usual but we need to add a smart logic to calculate the number of parts in case we need to add extra 10 or 5 second video scenes.
+For example a 68 second song will need 6 videos of 10 seconds + an additional video of 10 seconds (video models can only take duration parameter of 5 or 10 seconds, nothing in between).
+Another example is a 72 second video, will take 7 videos of 10 seconds + an additional video of 5 seconds for the last part of the song.
+
+We should already have a similar logic in place for when a user uploads a song which is usually a random duration, so you can check that logic too.
+
+Remember to pass as a prompt all the existing parameters we have to generate a song (duration, music style and tags and the song description)The model has a separate parameter for the lyrics.
+This is a sample request:
+
+
+curl --location --request POST 'https://api.wavespeed.ai/api/v3/minimax/music-02' \
+--header "Content-Type: application/json" \
+--header "Authorization: Bearer ${WAVESPEED_API_KEY}" \
+--data-raw '{
+  "bitrate": 256000,
+  "lyrics": "$lyrics",
+  "prompt": "upbeat, electronic, male singer, 60 seconds",
+  "sample_rate": 44100
+}'
+
+Prompt used above is just an example.
+
+Credit usage should remain the same.
