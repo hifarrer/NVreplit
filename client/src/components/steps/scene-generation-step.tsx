@@ -19,7 +19,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SceneData } from "@/lib/types";
-import { RotateCcw, RefreshCw, Mic, Upload, Loader2, AlertTriangle, Sparkles } from "lucide-react";
+import { RotateCcw, RefreshCw, Mic, Upload, Loader2, AlertTriangle, Sparkles, Pencil, Zap } from "lucide-react";
 import { SceneTimeline } from "@/components/scene-timeline";
 import { StepCircles } from "@/components/ui/step-circles";
 
@@ -93,6 +93,10 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   const [generatedScenes, setGeneratedScenes] = useState<SceneData[]>(() => 
     scenes.map(scene => ({ ...scene }))
   );
+  // Store original scene image URLs to track modifications in edit mode
+  const originalSceneImagesRef = useRef<string[]>(
+    scenes.map(scene => scene.imageUrl)
+  );
   // Scene order tracking - defaults to sequential order if not provided
   const [sceneOrder, setSceneOrder] = useState<number[]>(() => 
     initialSceneOrder && initialSceneOrder.length > 0 
@@ -105,6 +109,22 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   const [regeneratingScenes, setRegeneratingScenes] = useState<number[]>([]);
   const [uploadingScenes, setUploadingScenes] = useState<number[]>([]);
   const { toast } = useToast();
+  
+  // Compute which scenes have been modified (image changed) in edit mode
+  const modifiedSceneIndices = useMemo(() => {
+    if (!isEditMode) return [];
+    return generatedScenes
+      .map((scene, index) => {
+        const originalImageUrl = originalSceneImagesRef.current[index];
+        return scene.imageUrl !== originalImageUrl ? index : -1;
+      })
+      .filter(index => index !== -1);
+  }, [generatedScenes, isEditMode]);
+  
+  // Check if project has existing video segments (meaning partial regeneration is possible)
+  const hasExistingVideoSegments = useMemo(() => {
+    return isEditMode && scenes.length > 0;
+  }, [isEditMode, scenes.length]);
   
   // Refs to prevent duplicate API calls - using multiple guards for safety
   const hasGeneratedRef = useRef(false);
@@ -699,6 +719,12 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
     const qualityCost = videoQuality === "medium" ? 1000 : videoQuality === "premium" ? 2000 : 0;
     return baseCost + qualityCost;
   };
+  
+  // Calculate credit cost for partial regeneration (only modified scenes)
+  const calculatePartialRegenerationCost = () => {
+    // 500 credits per modified scene video
+    return modifiedSceneIndices.length * 500;
+  };
 
   // Get video quality extra credits display
   const getVideoQualityExtraCredits = () => {
@@ -708,6 +734,36 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       default: return "";
     }
   };
+  
+  // Mutation to regenerate only modified scene videos and merge
+  const partialRegenerateMutation = useMutation({
+    mutationFn: async () => {
+      // Call the partial regeneration endpoint
+      const response = await apiRequest("POST", `/api/projects/${projectId}/regenerate-modified-scenes`, {
+        updatedScenes: generatedScenes,
+        sceneOrder: sceneOrder,
+        modifiedSceneIndices: modifiedSceneIndices,
+        videoQuality: videoQuality
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Starting Partial Regeneration",
+        description: `Regenerating ${modifiedSceneIndices.length} modified scene(s)...`,
+      });
+      
+      // Navigate to the new project's video generation step
+      window.location.href = `/create?id=${data.id}`;
+    },
+    onError: (error) => {
+      toast({
+        title: "Partial Regeneration Failed",
+        description: error instanceof Error ? error.message : "Failed to start partial regeneration",
+        variant: "destructive",
+      });
+    }
+  });
 
   // Mutation to update video quality for normal mode
   const updateVideoQualityMutation = useMutation({
@@ -804,6 +860,25 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <h5 className="font-semibold">Scene {index + 1}</h5>
+                        {/* Modified indicator - shows when scene image has been changed in edit mode */}
+                        {isEditMode && modifiedSceneIndices.includes(index) && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div 
+                                  className="px-2 py-0.5 rounded bg-orange-500/20 border border-orange-500/50 flex items-center gap-1"
+                                  data-testid={`scene-modified-${index + 1}`}
+                                >
+                                  <Pencil className="w-3 h-3 text-orange-500" />
+                                  <span className="text-xs text-orange-500 font-medium">Modified</span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-[250px]">
+                                <p>This scene has been modified. You can regenerate only modified scene videos to save credits.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -944,12 +1019,41 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
         {/* Credit Cost Info for Edit Mode */}
         {isEditMode && audioDuration && (
           <div className="bg-muted/30 border border-border rounded-lg p-4 mb-6" data-testid="regeneration-cost-info">
-            <div className="flex items-center gap-2 text-sm">
-              <i className="fas fa-coins text-primary"></i>
-              <span className="font-medium">Regeneration Cost:</span>
-              <span className="text-muted-foreground">
-                {calculateRegenerationCost().toLocaleString()} credits
-              </span>
+            <div className="flex flex-col gap-3">
+              {/* Full regeneration cost */}
+              <div className="flex items-center gap-2 text-sm">
+                <i className="fas fa-coins text-primary"></i>
+                <span className="font-medium">Full Video Regeneration:</span>
+                <span className="text-muted-foreground">
+                  {calculateRegenerationCost().toLocaleString()} credits
+                </span>
+              </div>
+              
+              {/* Partial regeneration cost - only show if there are modified scenes */}
+              {hasExistingVideoSegments && modifiedSceneIndices.length > 0 && (
+                <div className="flex items-center gap-2 text-sm bg-green-500/10 border border-green-500/30 rounded-md p-3">
+                  <Zap className="w-4 h-4 text-green-500" />
+                  <div className="flex-1">
+                    <span className="font-medium text-green-600 dark:text-green-400">
+                      Regenerate Modified Scenes Only:
+                    </span>
+                    <span className="text-green-600 dark:text-green-400 ml-2">
+                      {calculatePartialRegenerationCost().toLocaleString()} credits
+                    </span>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {modifiedSceneIndices.length} scene{modifiedSceneIndices.length > 1 ? 's' : ''} modified (500 credits each). 
+                      Only regenerates the video for changed scenes, keeping the rest.
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {/* No modifications message */}
+              {hasExistingVideoSegments && modifiedSceneIndices.length === 0 && (
+                <div className="text-xs text-muted-foreground italic">
+                  No scenes have been modified. Change a scene image to enable partial regeneration and save credits.
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -966,17 +1070,48 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
               <i className="fas fa-arrow-left mr-2"></i>
               Back to Character
             </Button>
-            <Button
-              onClick={handleProceedToVideo}
-              disabled={generatedScenes.length === 0 || saveScenesMutation.isPending || regenerateVideoMutation.isPending}
-              className={`floating-button py-3 px-4 sm:px-8 text-sm sm:text-base ${generatedScenes.length > 0 && !saveScenesMutation.isPending && !regenerateVideoMutation.isPending ? 'button-glow' : ''}`}
-              data-testid="proceed-to-video-generation-button"
-            >
-              <i className="fas fa-video mr-2"></i>
-              {regenerateVideoMutation.isPending ? "Regenerating..." : 
-               saveScenesMutation.isPending ? "Saving..." : 
-               isEditMode ? "Re-generate Music Video" : "Generate Music Video"}
-            </Button>
+            
+            {/* Action buttons for edit mode */}
+            {isEditMode && hasExistingVideoSegments && modifiedSceneIndices.length > 0 ? (
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                {/* Partial regeneration button - primary action when scenes are modified */}
+                <Button
+                  onClick={() => partialRegenerateMutation.mutate()}
+                  disabled={generatedScenes.length === 0 || partialRegenerateMutation.isPending || regenerateVideoMutation.isPending}
+                  className={`floating-button py-3 px-4 sm:px-6 text-sm sm:text-base flex items-center gap-2 ${generatedScenes.length > 0 && !partialRegenerateMutation.isPending ? 'button-glow' : ''}`}
+                  data-testid="partial-regenerate-button"
+                >
+                  <Zap className="w-4 h-4" />
+                  {partialRegenerateMutation.isPending ? "Regenerating..." : 
+                    `Regenerate ${modifiedSceneIndices.length} Scene${modifiedSceneIndices.length > 1 ? 's' : ''} (${calculatePartialRegenerationCost().toLocaleString()} credits)`}
+                </Button>
+                
+                {/* Full regeneration button - secondary option */}
+                <Button
+                  variant="outline"
+                  onClick={handleProceedToVideo}
+                  disabled={generatedScenes.length === 0 || saveScenesMutation.isPending || regenerateVideoMutation.isPending}
+                  className="py-3 px-4 text-sm"
+                  data-testid="full-regenerate-button"
+                >
+                  <i className="fas fa-video mr-2"></i>
+                  {regenerateVideoMutation.isPending ? "Regenerating..." : 
+                   `Full Regeneration (${calculateRegenerationCost().toLocaleString()} credits)`}
+                </Button>
+              </div>
+            ) : (
+              <Button
+                onClick={handleProceedToVideo}
+                disabled={generatedScenes.length === 0 || saveScenesMutation.isPending || regenerateVideoMutation.isPending}
+                className={`floating-button py-3 px-4 sm:px-8 text-sm sm:text-base ${generatedScenes.length > 0 && !saveScenesMutation.isPending && !regenerateVideoMutation.isPending ? 'button-glow' : ''}`}
+                data-testid="proceed-to-video-generation-button"
+              >
+                <i className="fas fa-video mr-2"></i>
+                {regenerateVideoMutation.isPending ? "Regenerating..." : 
+                 saveScenesMutation.isPending ? "Saving..." : 
+                 isEditMode ? "Re-generate Music Video" : "Generate Music Video"}
+              </Button>
+            )}
           </div>
           <div className="flex justify-center">
             <StepCircles currentStep={3} />
