@@ -2367,6 +2367,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin - Get user's projects
+  app.get("/api/admin/users/:id/projects", authenticateAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const projects = await storage.getProjectsByUser(id);
+      
+      // Sort by createdAt descending (newest first)
+      projects.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      // Return projects with key information for admin view
+      const projectsWithDetails = projects.map(project => ({
+        id: project.id,
+        title: project.title,
+        description: project.description,
+        currentStep: project.currentStep,
+        audioUrl: project.audioUrl,
+        audioType: project.audioType,
+        audioPrompt: project.audioPrompt,
+        audioDuration: project.audioDuration,
+        characterImageUrl: project.characterImageUrl,
+        characterType: project.characterType,
+        characterPrompt: project.characterPrompt,
+        scenePrompts: project.scenePrompts,
+        sceneImages: project.sceneImages,
+        videoSegments: project.videoSegments,
+        finalVideoUrl: project.finalVideoUrl,
+        muxPlaybackId: project.muxPlaybackId,
+        muxAssetStatus: project.muxAssetStatus,
+        isCompleted: project.isCompleted,
+        generationStatus: project.generationStatus,
+        aspectRatio: project.aspectRatio,
+        videoQuality: project.videoQuality,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+      }));
+      
+      res.json({
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+        },
+        projects: projectsWithDetails,
+      });
+    } catch (error) {
+      console.error("Admin get user projects error:", error);
+      res.status(500).json({ error: "Failed to get user projects" });
+    }
+  });
+
   // Admin Video Management Routes
   app.get("/api/admin/videos", authenticateAdmin, async (req, res) => {
     try {

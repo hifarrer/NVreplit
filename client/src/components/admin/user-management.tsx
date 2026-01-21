@@ -8,7 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard, Mail, MailCheck, Download, Plus, ChevronLeft, ChevronRight, Search, ChevronsRight, Ban, Check } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard, Mail, MailCheck, Download, Plus, ChevronLeft, ChevronRight, Search, ChevronsRight, Ban, Check, Image, Wand2, Clock, Eye, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -45,6 +46,41 @@ interface Plan {
   yearlyPrice: number;
 }
 
+interface UserProject {
+  id: string;
+  title: string;
+  description: string | null;
+  currentStep: number;
+  audioUrl: string | null;
+  audioType: string | null;
+  audioPrompt: string | null;
+  audioDuration: number | null;
+  characterImageUrl: string | null;
+  characterType: string | null;
+  characterPrompt: string | null;
+  scenePrompts: string[] | null;
+  sceneImages: string[] | null;
+  videoSegments: string[] | null;
+  finalVideoUrl: string | null;
+  muxPlaybackId: string | null;
+  muxAssetStatus: string | null;
+  isCompleted: boolean;
+  generationStatus: string | null;
+  aspectRatio: string | null;
+  videoQuality: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface UserProjectsResponse {
+  user: {
+    id: string;
+    username: string;
+    email: string;
+  };
+  projects: UserProject[];
+}
+
 interface UsersResponse {
   users: UserWithStats[];
   pagination: {
@@ -74,6 +110,8 @@ export function UserManagement() {
   const [planFilter, setPlanFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>("");
+  const [viewingProjectsUser, setViewingProjectsUser] = useState<UserWithStats | null>(null);
+  const [selectedProject, setSelectedProject] = useState<UserProject | null>(null);
 
   // Debounce search query - only update after user stops typing for 500ms
   useEffect(() => {
@@ -142,6 +180,23 @@ export function UserManagement() {
       if (!res.ok) throw new Error("Failed to fetch plans");
       return res.json();
     },
+  });
+
+  // Fetch user projects when viewing
+  const { data: userProjectsData, isLoading: isLoadingProjects } = useQuery<UserProjectsResponse | undefined>({
+    queryKey: ["/api/admin/users", viewingProjectsUser?.id, "projects"],
+    queryFn: async () => {
+      if (!viewingProjectsUser) return undefined;
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(`/api/admin/users/${viewingProjectsUser.id}/projects`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) throw new Error("Failed to fetch user projects");
+      return res.json();
+    },
+    enabled: !!viewingProjectsUser,
   });
 
   // Update user mutation
@@ -668,10 +723,14 @@ export function UserManagement() {
                       <Calendar className="h-3 w-3 mr-1" />
                       {new Date(user.createdAt).toLocaleDateString()}
                     </span>
-                    <span className="flex items-center">
+                    <button
+                      onClick={() => setViewingProjectsUser(user)}
+                      className="flex items-center hover:text-purple-400 transition-colors cursor-pointer underline underline-offset-2"
+                      title="Click to view projects"
+                    >
                       <Video className="h-3 w-3 mr-1" />
                       {user.projectCount} projects
-                    </span>
+                    </button>
                     <span className="flex items-center">
                       <Music className="h-3 w-3 mr-1" />
                       {user.songCount} songs
@@ -1184,6 +1243,249 @@ export function UserManagement() {
               Close
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* User Projects Dialog */}
+      <Dialog open={!!viewingProjectsUser} onOpenChange={() => { setViewingProjectsUser(null); setSelectedProject(null); }}>
+        <DialogContent className="bg-gray-900 border-purple-500/20 max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center">
+              <Video className="h-5 w-5 mr-2" />
+              Projects for {viewingProjectsUser?.username}
+            </DialogTitle>
+            <DialogDescription className="text-gray-300">
+              {viewingProjectsUser?.email} - {userProjectsData?.projects?.length || 0} projects
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="h-[60vh] pr-4">
+            {isLoadingProjects ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
+              </div>
+            ) : userProjectsData?.projects?.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                No projects found for this user.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {userProjectsData?.projects?.map((project) => {
+                  const getStepName = (step: number) => {
+                    const steps = ['Audio', 'Character', 'Scenes', 'Video', 'Result'];
+                    return steps[step - 1] || 'Unknown';
+                  };
+                  
+                  const getStatusColor = (project: UserProject) => {
+                    if (project.isCompleted && project.finalVideoUrl) return 'text-green-400 bg-green-500/10 border-green-500/30';
+                    if (project.generationStatus === 'generating') return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30';
+                    if (project.generationStatus === 'failed') return 'text-red-400 bg-red-500/10 border-red-500/30';
+                    return 'text-gray-400 bg-gray-500/10 border-gray-500/30';
+                  };
+                  
+                  const getStatusText = (project: UserProject) => {
+                    if (project.isCompleted && project.finalVideoUrl) return 'Completed';
+                    if (project.generationStatus === 'generating') return 'Generating';
+                    if (project.generationStatus === 'failed') return 'Failed';
+                    if (project.currentStep === 1 && !project.audioUrl) return 'Just Started';
+                    return `Step ${project.currentStep}: ${getStepName(project.currentStep)}`;
+                  };
+                  
+                  const hasSceneImages = project.sceneImages && Array.isArray(project.sceneImages) && project.sceneImages.length > 0;
+                  const hasCharacterImage = !!project.characterImageUrl;
+                  
+                  return (
+                    <div 
+                      key={project.id}
+                      className="p-4 bg-gray-800/50 rounded-lg border border-gray-600/30 hover:border-purple-500/30 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="text-white font-medium">{project.title || 'Untitled Project'}</h4>
+                            <Badge className={getStatusColor(project)}>
+                              {getStatusText(project)}
+                            </Badge>
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-4 text-xs text-gray-400 mb-3">
+                            <span className="flex items-center">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {new Date(project.createdAt).toLocaleString()}
+                            </span>
+                            {project.aspectRatio && (
+                              <span>Aspect: {project.aspectRatio}</span>
+                            )}
+                            {project.videoQuality && (
+                              <span>Quality: {project.videoQuality}</span>
+                            )}
+                            {project.audioDuration && (
+                              <span>Duration: {Math.floor(project.audioDuration / 60)}:{(project.audioDuration % 60).toString().padStart(2, '0')}</span>
+                            )}
+                          </div>
+                          
+                          {/* Progress Summary */}
+                          <div className="grid grid-cols-5 gap-2 mb-3">
+                            <div className={`text-center p-2 rounded text-xs ${project.audioUrl ? 'bg-green-500/20 text-green-400' : 'bg-gray-700/50 text-gray-500'}`}>
+                              Audio {project.audioUrl ? '✓' : '○'}
+                            </div>
+                            <div className={`text-center p-2 rounded text-xs ${hasCharacterImage ? 'bg-green-500/20 text-green-400' : 'bg-gray-700/50 text-gray-500'}`}>
+                              Character {hasCharacterImage ? '✓' : '○'}
+                            </div>
+                            <div className={`text-center p-2 rounded text-xs ${hasSceneImages ? 'bg-green-500/20 text-green-400' : 'bg-gray-700/50 text-gray-500'}`}>
+                              Scenes {hasSceneImages ? '✓' : '○'}
+                            </div>
+                            <div className={`text-center p-2 rounded text-xs ${project.videoSegments && (project.videoSegments as string[]).length > 0 ? 'bg-green-500/20 text-green-400' : 'bg-gray-700/50 text-gray-500'}`}>
+                              Videos {project.videoSegments && (project.videoSegments as string[]).length > 0 ? '✓' : '○'}
+                            </div>
+                            <div className={`text-center p-2 rounded text-xs ${project.finalVideoUrl ? 'bg-green-500/20 text-green-400' : 'bg-gray-700/50 text-gray-500'}`}>
+                              Final {project.finalVideoUrl ? '✓' : '○'}
+                            </div>
+                          </div>
+                          
+                          {/* Prompts/Details */}
+                          {project.audioPrompt && (
+                            <div className="text-xs text-gray-400 mb-2">
+                              <span className="text-gray-500">Audio Prompt:</span> {project.audioPrompt.substring(0, 100)}{project.audioPrompt.length > 100 ? '...' : ''}
+                            </div>
+                          )}
+                          {project.characterPrompt && (
+                            <div className="text-xs text-gray-400 mb-2">
+                              <span className="text-gray-500">Character:</span> {project.characterPrompt.substring(0, 100)}{project.characterPrompt.length > 100 ? '...' : ''}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Action buttons */}
+                        <div className="flex flex-col gap-2 ml-4">
+                          {(hasCharacterImage || hasSceneImages) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setSelectedProject(project)}
+                              className="border-purple-500/30 text-purple-300 hover:bg-purple-600/20"
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View Images
+                            </Button>
+                          )}
+                          {project.finalVideoUrl && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(project.finalVideoUrl!, '_blank', 'noopener,noreferrer')}
+                              className="border-green-500/30 text-green-300 hover:bg-green-600/20"
+                            >
+                              <Video className="h-4 w-4 mr-1" />
+                              Video
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Project Images/Scenes Viewer Dialog */}
+      <Dialog open={!!selectedProject} onOpenChange={() => setSelectedProject(null)}>
+        <DialogContent className="bg-gray-900 border-purple-500/20 max-w-5xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center">
+              <Image className="h-5 w-5 mr-2" />
+              {selectedProject?.title || 'Project'} - Generated Images
+            </DialogTitle>
+          </DialogHeader>
+          
+          <ScrollArea className="h-[70vh] pr-4">
+            {selectedProject && (
+              <div className="space-y-6">
+                {/* Character Image */}
+                {selectedProject.characterImageUrl && (
+                  <div>
+                    <h3 className="text-lg text-white font-medium mb-3 flex items-center">
+                      <Wand2 className="h-4 w-4 mr-2 text-purple-400" />
+                      Character Image
+                    </h3>
+                    {selectedProject.characterPrompt && (
+                      <p className="text-sm text-gray-400 mb-3">Prompt: {selectedProject.characterPrompt}</p>
+                    )}
+                    <div className="bg-gray-800/50 p-4 rounded-lg inline-block">
+                      <img 
+                        src={selectedProject.characterImageUrl} 
+                        alt="Character" 
+                        className="max-w-md max-h-80 object-contain rounded-lg"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Scene Images */}
+                {selectedProject.sceneImages && Array.isArray(selectedProject.sceneImages) && selectedProject.sceneImages.length > 0 && (
+                  <div>
+                    <h3 className="text-lg text-white font-medium mb-3 flex items-center">
+                      <Image className="h-4 w-4 mr-2 text-blue-400" />
+                      Scene Images ({selectedProject.sceneImages.length})
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {(selectedProject.sceneImages as string[]).map((imageUrl, index) => (
+                        <div key={index} className="bg-gray-800/50 p-3 rounded-lg">
+                          <div className="text-xs text-gray-400 mb-2">Scene {index + 1}</div>
+                          <img 
+                            src={imageUrl} 
+                            alt={`Scene ${index + 1}`}
+                            className="w-full h-40 object-cover rounded-lg"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                          {selectedProject.scenePrompts && 
+                           Array.isArray(selectedProject.scenePrompts) && 
+                           selectedProject.scenePrompts[index] && (
+                            <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+                              {selectedProject.scenePrompts[index]}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Scene Prompts without images */}
+                {selectedProject.scenePrompts && 
+                 Array.isArray(selectedProject.scenePrompts) && 
+                 selectedProject.scenePrompts.length > 0 && 
+                 (!selectedProject.sceneImages || (selectedProject.sceneImages as string[]).length === 0) && (
+                  <div>
+                    <h3 className="text-lg text-white font-medium mb-3">Scene Prompts (Images not generated)</h3>
+                    <div className="space-y-2">
+                      {(selectedProject.scenePrompts as string[]).map((prompt, index) => (
+                        <div key={index} className="bg-gray-800/50 p-3 rounded-lg">
+                          <span className="text-purple-400 font-medium">Scene {index + 1}:</span>
+                          <span className="text-gray-300 ml-2">{prompt}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {!selectedProject.characterImageUrl && 
+                 (!selectedProject.sceneImages || (selectedProject.sceneImages as string[]).length === 0) && (
+                  <div className="text-center py-12 text-gray-400">
+                    No images have been generated for this project yet.
+                  </div>
+                )}
+              </div>
+            )}
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </Card>
