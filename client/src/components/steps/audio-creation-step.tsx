@@ -122,6 +122,9 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   const [showSongSelection, setShowSongSelection] = useState(false);
   const [selectedGeneratedSongIndex, setSelectedGeneratedSongIndex] = useState<number>(0);
   
+  // Track actual song duration after generation (may differ from requested duration)
+  const [actualSongDuration, setActualSongDuration] = useState<number | null>(null);
+  
   // Library tab state
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
@@ -130,11 +133,14 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   // Calculate credit costs based on duration
   // Song generation is free, only video generation costs credits
   const getVideoCreditCost = (durationSeconds: number) => {
-    // Pricing: 1000 credits for every 30 seconds of video
-    return Math.ceil(durationSeconds / 30) * 1000;
+    // Pricing: 1000 credits for every 30 seconds of video (rounded down, minimum 1000)
+    const units = Math.floor(durationSeconds / 30);
+    return Math.max(units, 1) * 1000; // Minimum 1000 credits
   };
   
-  const totalCreditsNeeded = getVideoCreditCost(duration[0]);
+  // Use actual song duration if available (after generation), otherwise use slider duration
+  const effectiveDuration = actualSongDuration ?? duration[0];
+  const totalCreditsNeeded = getVideoCreditCost(effectiveDuration);
   const userCreditsRemaining = user?.creditsRemaining || 0;
   const hasEnoughCredits = userCreditsRemaining >= totalCreditsNeeded;
 
@@ -236,6 +242,10 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
       setIsUploading(false);
       setUploadProgress(0);
       setUploadStatus("");
+      // Update actual duration from uploaded audio
+      if (data.duration) {
+        setActualSongDuration(data.duration);
+      }
       const sceneCount = Math.ceil(data.duration / 10);
       
       let description = `Audio uploaded successfully! Duration: ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')} (${sceneCount} scenes will be generated)`;
@@ -337,9 +347,17 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         // Show song selection modal if multiple songs
         setGeneratedSongs(data.songs);
         setShowSongSelection(true);
+        // Set actual duration from first song (they should all have similar durations)
+        if (data.songs[0].duration) {
+          setActualSongDuration(data.songs[0].duration);
+        }
       } else if (data.audioUrl) {
         // Fallback for single song response
         setCurrentAudioUrl(data.audioUrl);
+        // Set actual duration if available
+        if (data.duration) {
+          setActualSongDuration(data.duration);
+        }
       }
       setProgress(0);
       toast({
@@ -374,8 +392,14 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
       });
       return response.json();
     },
-    onSuccess: (data) => {
-      setCurrentAudioUrl(data.audioUrl || generatedSongs[selectedGeneratedSongIndex].audioUrl);
+    onSuccess: (data, songIndex) => {
+      // Use the passed songIndex (which is the mutation variable)
+      const selectedSong = generatedSongs[songIndex] ?? generatedSongs[selectedGeneratedSongIndex];
+      setCurrentAudioUrl(data.audioUrl || selectedSong?.audioUrl);
+      // Update actual duration from selected song
+      if (selectedSong?.duration) {
+        setActualSongDuration(selectedSong.duration);
+      }
       setShowSongSelection(false);
       setGeneratedSongs([]);
       toast({
@@ -418,9 +442,13 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
       const response = await apiRequest("POST", `/api/projects/${projectId}/select-song`, requestData);
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data, song) => {
       if (data.audioUrl) {
         setCurrentAudioUrl(data.audioUrl);
+      }
+      // Update actual duration from selected library song
+      if (song.duration) {
+        setActualSongDuration(song.duration);
       }
       // Invalidate project data to refresh the current step and show Continue button
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
@@ -885,12 +913,12 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                 <div className="bg-red-500/10 border border-red-500/30 rounded-md p-3">
                   <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
                     <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-                    Credits required: {totalCreditsNeeded.toLocaleString()} (You have {userCreditsRemaining.toLocaleString()} remaining)
+                    Credits Required to Generate Video: {totalCreditsNeeded.toLocaleString()} (You have {userCreditsRemaining.toLocaleString()} remaining)
                   </p>
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground text-center">
-                  Credits required: {totalCreditsNeeded.toLocaleString()}
+                  Credits Required to Generate Video: {totalCreditsNeeded.toLocaleString()}
                 </p>
               )}
             </div>
