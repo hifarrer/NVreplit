@@ -3331,6 +3331,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Regenerate only modified scene videos (partial regeneration)
+  // This endpoint clones the project but preserves existing video segments for unmodified scenes
+  app.post("/api/projects/:id/regenerate-modified-scenes", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const sourceProjectId = req.params.id;
+      const { 
+        updatedScenes, 
+        sceneOrder: providedSceneOrder, 
+        modifiedSceneIndices,
+        videoQuality: providedVideoQuality 
+      } = req.body;
+      
+      // Validate required fields
+      if (!updatedScenes || !Array.isArray(modifiedSceneIndices) || modifiedSceneIndices.length === 0) {
+        return res.status(400).json({ 
+          error: "Missing required data: updatedScenes and modifiedSceneIndices are required" 
+        });
+      }
+      
+      // Get the source project
+      const sourceProject = await storage.getProject(sourceProjectId);
+      if (!sourceProject) {
+        return res.status(404).json({ error: "Source project not found" });
+      }
+      
+      // Verify ownership
+      if (sourceProject.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized to regenerate this project" });
+      }
+      
+      // Check if source project has video segments (required for partial regeneration)
+      const sourceVideoSegments = sourceProject.videoSegments as string[];
+      if (!sourceVideoSegments || sourceVideoSegments.length === 0) {
+        return res.status(400).json({ 
+          error: "Cannot perform partial regeneration: source project has no video segments" 
+        });
+      }
+      
+      // Calculate credits needed for partial regeneration (500 credits per modified scene)
+      const CREDITS_PER_SCENE = 500;
+      const creditsRequired = modifiedSceneIndices.length * CREDITS_PER_SCENE;
+      
+      // Check if user has enough credits
+      const canAfford = await storage.canUserAffordCredits(userId, creditsRequired);
+      if (!canAfford) {
+        const creditsRemaining = await storage.getUserCreditsRemaining(userId);
+        return res.status(402).json({ 
+          error: "Insufficient credits for partial regeneration", 
+          creditsRequired,
+          creditsRemaining,
+          modifiedScenesCount: modifiedSceneIndices.length
+        });
+      }
+      
+      console.log(`Partial regeneration: Cloning project ${sourceProjectId} for regenerating ${modifiedSceneIndices.length} modified scenes...`);
+      
+      // Deep copy scene data from request
+      const scenePrompts = updatedScenes.map((s: any) => s.prompt);
+      const sceneImages = updatedScenes.map((s: any) => s.imageUrl);
+      
+      // Use provided scene order or copy from source project
+      const sceneOrder = providedSceneOrder 
+        ? providedSceneOrder 
+        : ((sourceProject as any).sceneOrder ? JSON.parse(JSON.stringify((sourceProject as any).sceneOrder)) : undefined);
+      
+      // Deep copy audio segments from source project
+      const audioSegments = sourceProject.audioSegments 
+        ? JSON.parse(JSON.stringify(sourceProject.audioSegments))
+        : undefined;
+      
+      // Create a new project with all the same data but:
+      // - Mark it for partial regeneration with modified scene indices
+      // - Copy existing video segments to reuse for unmodified scenes
+      const clonedProjectData: any = {
+        userId: sourceProject.userId,
+        title: sourceProject.title || "NeonVideo Song",
+        description: sourceProject.description || "AI-generated music video project",
+        currentStep: 4, // Set to step 4 (ready for video generation)
+        audioUrl: sourceProject.audioUrl,
+        audioType: sourceProject.audioType,
+        audioPrompt: sourceProject.audioPrompt,
+        audioTags: sourceProject.audioTags,
+        audioLyrics: sourceProject.audioLyrics,
+        audioDuration: sourceProject.audioDuration,
+        addSubtitles: sourceProject.addSubtitles,
+        subtitleFileUrl: sourceProject.subtitleFileUrl,
+        kieTaskId: sourceProject.kieTaskId,
+        kieAudioId: sourceProject.kieAudioId,
+        characterImageUrl: sourceProject.characterImageUrl,
+        characterType: sourceProject.characterType,
+        characterPrompt: sourceProject.characterPrompt,
+        makeCharacterSing: sourceProject.makeCharacterSing,
+        aspectRatio: sourceProject.aspectRatio || "16:9",
+        videoQuality: providedVideoQuality || (sourceProject as any).videoQuality || "quick",
+        isCompleted: false,
+        generationStatus: 'idle',
+      };
+      
+      // Add optional fields only if they have values
+      if (scenePrompts !== undefined) clonedProjectData.scenePrompts = scenePrompts;
+      if (sceneImages !== undefined) clonedProjectData.sceneImages = sceneImages;
+      if (sceneOrder !== undefined) clonedProjectData.sceneOrder = sceneOrder;
+      if (audioSegments !== undefined) clonedProjectData.audioSegments = audioSegments;
+      
+      // Store video segments from source project to reuse unchanged ones
+      // Also store the modified scene indices for the video generation step
+      clonedProjectData.videoSegments = JSON.parse(JSON.stringify(sourceVideoSegments));
+      
+      const validatedData = insertProjectSchema.parse(clonedProjectData);
+      const clonedProject = await storage.createProject(validatedData);
+      
+      // Store the partial regeneration metadata in a separate field
+      // We'll use the generation log to store this information
+      await storage.addGenerationLog({
+        projectId: clonedProject.id,
+        step: "partial_regeneration_setup",
+        message: `Partial regeneration: ${modifiedSceneIndices.length} scenes to regenerate`,
+        status: "started",
+        metadata: { 
+          modifiedSceneIndices,
+          isPartialRegeneration: true,
+          sourceProjectId: sourceProjectId,
+          creditsToCharge: creditsRequired
+        }
+      });
+      
+      console.log(`Successfully created partial regeneration project ${clonedProject.id} from source ${sourceProjectId}`);
+      console.log(`Modified scenes to regenerate: [${modifiedSceneIndices.join(', ')}]`);
+      
+      res.json(clonedProject);
+    } catch (error) {
+      console.error("Partial regeneration error:", error);
+      if (error instanceof Error && 'name' in error && error.name === 'ZodError') {
+        console.error("Validation errors:", (error as any).errors);
+        res.status(400).json({ error: "Validation failed", details: (error as any).errors });
+      } else {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        res.status(400).json({ error: "Failed to start partial regeneration", message });
+      }
+    }
+  });
+
   // Delete a project
   app.delete("/api/projects/:id", authenticateToken, async (req, res) => {
     try {
@@ -6009,18 +6152,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!project || !project.audioUrl || !project.sceneImages || !project.scenePrompts) {
         return res.status(400).json({ error: "Missing required project data" });
       }
+      
+      // Check if this is a partial regeneration by looking for the setup log
+      const generationLogs = await storage.getGenerationLogs(req.params.id);
+      const partialRegenLog = generationLogs.find(
+        (log: any) => log.step === "partial_regeneration_setup" && log.metadata?.isPartialRegeneration
+      );
+      const isPartialRegeneration = !!partialRegenLog;
+      const partialRegenMetadata = partialRegenLog?.metadata as {
+        modifiedSceneIndices?: number[];
+        creditsToCharge?: number;
+        sourceProjectId?: string;
+      } | undefined;
+      
+      console.log(`Video generation starting for project ${req.params.id}`);
+      console.log(`Is partial regeneration: ${isPartialRegeneration}`);
+      if (isPartialRegeneration && partialRegenMetadata) {
+        console.log(`Modified scene indices: [${partialRegenMetadata.modifiedSceneIndices?.join(', ')}]`);
+        console.log(`Credits to charge: ${partialRegenMetadata.creditsToCharge}`);
+      }
 
       // Calculate credits needed for video generation based on duration
       // Pricing: 1000 credits per 30 seconds, rounded up to the nearest minute
       const audioDuration = project.audioDuration || 120; // Default to 2 minutes
-      // Round up to nearest minute (60 seconds) first, then calculate credits
-      const roundedMinutes = Math.ceil(audioDuration / 60);
-      const baseCredits = roundedMinutes * 2 * 1000; // 2 x 1000 credits per minute (which is 2 x 30-second blocks)
       
-      // Add extra credits based on video quality
-      const projectVideoQuality = (project as any).videoQuality || "quick";
-      const qualityCost = projectVideoQuality === "medium" ? 1000 : projectVideoQuality === "premium" ? 2000 : 0;
-      const VIDEO_GENERATION_CREDITS = baseCredits + qualityCost;
+      let VIDEO_GENERATION_CREDITS: number;
+      
+      if (isPartialRegeneration && partialRegenMetadata?.creditsToCharge) {
+        // Use the pre-calculated credits for partial regeneration
+        VIDEO_GENERATION_CREDITS = partialRegenMetadata.creditsToCharge;
+        console.log(`Using partial regeneration credits: ${VIDEO_GENERATION_CREDITS}`);
+      } else {
+        // Full video generation: 1000 credits per 30 seconds
+        const roundedMinutes = Math.ceil(audioDuration / 60);
+        const baseCredits = roundedMinutes * 2 * 1000; // 2 x 1000 credits per minute (which is 2 x 30-second blocks)
+        
+        // Add extra credits based on video quality
+        const projectVideoQuality = (project as any).videoQuality || "quick";
+        const qualityCost = projectVideoQuality === "medium" ? 1000 : projectVideoQuality === "premium" ? 2000 : 0;
+        VIDEO_GENERATION_CREDITS = baseCredits + qualityCost;
+      }
       
       // Check if user has enough credits for video generation
       const canAfford = await storage.canUserAffordCredits(project.userId, VIDEO_GENERATION_CREDITS);
@@ -6351,19 +6522,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const videoQuality = (project as any).videoQuality || "quick";
-      const { videoUrls: allVideoUrls, segmentPairs } = await generateAllVideoSegmentsDynamic(
-        audioUrls,
-        signedSceneUrls,
-        orderedScenePrompts,
-        {
-          numberOfVideosRegularApi,
-          numberOfVideosLipsync,
-          makeCharacterSing: makeCharacterSing,
-          videoQuality: videoQuality
-        },
-        subtitleData,
-        segmentDurations // Pass segment durations for proper video length matching
-      );
+      
+      let allVideoUrls: string[];
+      let segmentPairs: any;
+      
+      // Check if this is a partial regeneration
+      if (isPartialRegeneration && partialRegenMetadata?.modifiedSceneIndices) {
+        const modifiedIndices = partialRegenMetadata.modifiedSceneIndices;
+        const existingVideoSegments = project.videoSegments as string[];
+        
+        console.log(`\n=== PARTIAL REGENERATION MODE ===`);
+        console.log(`Modified scene indices: [${modifiedIndices.join(', ')}]`);
+        console.log(`Existing video segments count: ${existingVideoSegments?.length || 0}`);
+        
+        // Map scene order positions to actual scene indices for video generation
+        // When scenes are reordered, we need to know which positions in the final video correspond to modified scenes
+        const modifiedPositions = modifiedIndices.map(originalIndex => sceneOrder.indexOf(originalIndex));
+        console.log(`Modified scene positions in ordered video: [${modifiedPositions.join(', ')}]`);
+        
+        // Generate videos only for modified scenes
+        // Filter to only include scenes that need regeneration
+        const scenesToRegenerate = modifiedPositions.filter(pos => pos >= 0);
+        
+        if (scenesToRegenerate.length > 0) {
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "video_generation",
+            message: `Partial regeneration: regenerating ${scenesToRegenerate.length} modified scene videos`,
+            status: "progress",
+            metadata: { 
+              step: 2, 
+              total: 4,
+              modifiedPositions: scenesToRegenerate,
+              isPartialRegeneration: true
+            }
+          });
+          
+          // Get audio segments and scene data only for modified scenes
+          const modifiedAudioUrls = scenesToRegenerate.map(pos => audioUrls[pos]);
+          const modifiedSceneUrls = scenesToRegenerate.map(pos => signedSceneUrls[pos]);
+          const modifiedPrompts = scenesToRegenerate.map(pos => orderedScenePrompts[pos]);
+          const modifiedDurations = scenesToRegenerate.map(pos => segmentDurations[pos]);
+          
+          console.log(`Regenerating videos for positions: [${scenesToRegenerate.join(', ')}]`);
+          
+          // Generate only the modified scene videos
+          const { videoUrls: regeneratedVideoUrls } = await generateAllVideoSegmentsDynamic(
+            modifiedAudioUrls,
+            modifiedSceneUrls,
+            modifiedPrompts,
+            {
+              numberOfVideosRegularApi: Math.ceil(scenesToRegenerate.length / 2),
+              numberOfVideosLipsync: Math.floor(scenesToRegenerate.length / 2),
+              makeCharacterSing: makeCharacterSing,
+              videoQuality: videoQuality
+            },
+            subtitleData,
+            modifiedDurations
+          );
+          
+          // Merge regenerated videos with existing ones
+          // Start with existing video segments and replace only the modified ones
+          allVideoUrls = [...existingVideoSegments];
+          
+          for (let i = 0; i < scenesToRegenerate.length; i++) {
+            const position = scenesToRegenerate[i];
+            if (position < allVideoUrls.length) {
+              console.log(`Replacing video at position ${position} with regenerated video`);
+              allVideoUrls[position] = regeneratedVideoUrls[i];
+            } else {
+              console.log(`Position ${position} out of bounds, appending regenerated video`);
+              allVideoUrls.push(regeneratedVideoUrls[i]);
+            }
+          }
+          
+          console.log(`Final merged video URLs count: ${allVideoUrls.length}`);
+        } else {
+          // No scenes to regenerate, use existing segments
+          console.log(`No valid modified positions found, using existing video segments`);
+          allVideoUrls = existingVideoSegments;
+        }
+        
+        segmentPairs = null; // Not used in partial regeneration
+        console.log(`=== PARTIAL REGENERATION COMPLETE ===\n`);
+      } else {
+        // Full video generation - use existing logic
+        const result = await generateAllVideoSegmentsDynamic(
+          audioUrls,
+          signedSceneUrls,
+          orderedScenePrompts,
+          {
+            numberOfVideosRegularApi,
+            numberOfVideosLipsync,
+            makeCharacterSing: makeCharacterSing,
+            videoQuality: videoQuality
+          },
+          subtitleData,
+          segmentDurations // Pass segment durations for proper video length matching
+        );
+        
+        allVideoUrls = result.videoUrls;
+        segmentPairs = result.segmentPairs;
+      }
 
       await storage.updateProject(req.params.id, {
         videoSegments: allVideoUrls
