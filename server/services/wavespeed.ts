@@ -263,6 +263,25 @@ function isSensitiveContentError(error: Error): boolean {
          errorMessage.includes('inappropriate');
 }
 
+// Check if error is a transient/retryable network error
+function isTransientError(error: Error): boolean {
+  const errorMessage = error.message.toLowerCase();
+  return errorMessage.includes('connection aborted') ||
+         errorMessage.includes('remotedisconnected') ||
+         errorMessage.includes('remote end closed connection') ||
+         errorMessage.includes('econnreset') ||
+         errorMessage.includes('socket hang up') ||
+         errorMessage.includes('network error') ||
+         errorMessage.includes('timeout') ||
+         errorMessage.includes('502') ||
+         errorMessage.includes('503') ||
+         errorMessage.includes('504');
+}
+
+// Maximum number of retries for transient errors
+const MAX_TRANSIENT_RETRIES = 3;
+const RETRY_DELAY_MS = 5000; // 5 seconds between retries
+
 export async function generateVideoSegment(
   audioUrl: string,
   imageUrl: string,
@@ -271,38 +290,51 @@ export async function generateVideoSegment(
   segmentDuration: number = 10,
   videoQuality: VideoQuality = "quick",
 ): Promise<string> {
-  try {
-    // First attempt with original prompt
-    return await generateVideoSegmentInternal(audioUrl, imageUrl, prompt, model, segmentDuration, videoQuality);
-  } catch (error) {
-    const err = error as Error;
-    
-    // Check if the error is due to sensitive content
-    if (isSensitiveContentError(err)) {
-      console.log(`\n=== SENSITIVE CONTENT DETECTED ===`);
-      console.log(`Original prompt was flagged: "${prompt}"`);
-      console.log(`Retrying with safe fallback prompt: "${SAFE_FALLBACK_PROMPT}"`);
-      console.log(`================================\n`);
+  let lastError: Error | null = null;
+  let currentPrompt = prompt;
+  
+  // Retry loop for transient errors
+  for (let attempt = 1; attempt <= MAX_TRANSIENT_RETRIES; attempt++) {
+    try {
+      console.log(`Video segment generation attempt ${attempt}/${MAX_TRANSIENT_RETRIES}`);
+      return await generateVideoSegmentInternal(audioUrl, imageUrl, currentPrompt, model, segmentDuration, videoQuality);
+    } catch (error) {
+      const err = error as Error;
+      lastError = err;
       
-      try {
-        // Retry with safe fallback prompt
-        const result = await generateVideoSegmentInternal(audioUrl, imageUrl, SAFE_FALLBACK_PROMPT, model, segmentDuration, videoQuality);
-        console.log(`Successfully generated video with fallback prompt`);
-        return result;
-      } catch (retryError) {
-        console.error("Fallback prompt also failed:", retryError);
-        throw new Error(
-          "Failed to generate video segment even with fallback prompt: " + (retryError as Error).message,
-        );
+      // Check if the error is due to sensitive content
+      if (isSensitiveContentError(err)) {
+        console.log(`\n=== SENSITIVE CONTENT DETECTED ===`);
+        console.log(`Original prompt was flagged: "${currentPrompt}"`);
+        console.log(`Retrying with safe fallback prompt: "${SAFE_FALLBACK_PROMPT}"`);
+        console.log(`================================\n`);
+        
+        // Switch to safe fallback prompt and retry
+        currentPrompt = SAFE_FALLBACK_PROMPT;
+        continue;
       }
+      
+      // Check if this is a transient/retryable error
+      if (isTransientError(err) && attempt < MAX_TRANSIENT_RETRIES) {
+        console.log(`\n=== TRANSIENT ERROR DETECTED (attempt ${attempt}/${MAX_TRANSIENT_RETRIES}) ===`);
+        console.log(`Error: ${err.message}`);
+        console.log(`Waiting ${RETRY_DELAY_MS/1000} seconds before retry...`);
+        console.log(`================================================\n`);
+        
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        continue;
+      }
+      
+      // For non-retryable errors or max retries exceeded, break out
+      break;
     }
-    
-    // For non-sensitive errors, throw as before
-    console.error("Wavespeed generation error:", error);
-    throw new Error(
-      "Failed to generate video segment: " + err.message,
-    );
   }
+  
+  // If we get here, all retries failed
+  console.error("Wavespeed generation error after all retries:", lastError);
+  throw new Error(
+    "Failed to generate video segment after " + MAX_TRANSIENT_RETRIES + " attempts: " + (lastError?.message || "Unknown error"),
+  );
 }
 
 // Dynamic video generation based on configuration with smart lyrics detection
