@@ -9,6 +9,10 @@ class EmailService {
     this.initializeTransporter();
   }
 
+  private getAdminNotificationEmail(): string {
+    return process.env.ADMIN_NOTIFICATION_EMAIL || process.env.SMTP_USER || 'support@neonvideo.ai';
+  }
+
   private initializeTransporter() {
     // Check if SMTP configuration is provided
     if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
@@ -430,6 +434,123 @@ This video greeting was sent via neonvideo.ai
       return true;
     } catch (error) {
       console.error('Failed to send greeting card email:', error);
+      return false;
+    }
+  }
+
+  async sendAdminSettingsChangeNotification(data: {
+    settingName: string;
+    changedBy?: string;
+    ipAddress?: string;
+    userAgent?: string;
+    details?: string;
+  }): Promise<boolean> {
+    if (!this.transporter) {
+      console.error('Email transporter not initialized');
+      return false;
+    }
+
+    try {
+      const timestamp = new Date().toLocaleString('en-US', {
+        timeZone: 'America/New_York',
+        dateStyle: 'full',
+        timeStyle: 'long'
+      });
+
+      await this.transporter.sendMail({
+        from: `"NeonVideo Security Alert" <${process.env.SMTP_USER}>`,
+        to: this.getAdminNotificationEmail(),
+        subject: `[SECURITY ALERT] Admin Setting Changed: ${data.settingName}`,
+        text: `
+SECURITY ALERT - Admin Setting Changed
+
+A critical admin setting has been modified:
+
+Setting: ${data.settingName}
+Time: ${timestamp}
+${data.changedBy ? `Changed By: ${data.changedBy}` : ''}
+${data.ipAddress ? `IP Address: ${data.ipAddress}` : ''}
+${data.userAgent ? `User Agent: ${data.userAgent}` : ''}
+${data.details ? `\nDetails: ${data.details}` : ''}
+
+If you did not make this change, please take immediate action:
+1. Check your admin password and change it if compromised
+2. Review recent admin activity
+3. Contact your development team
+
+---
+This is an automated security notification from neonvideo.ai
+        `,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f0f0f; color: #ffffff;">
+            <div style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); padding: 30px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 24px;">⚠️ SECURITY ALERT</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Admin Setting Changed</p>
+            </div>
+            
+            <div style="padding: 30px;">
+              <p style="font-size: 16px; color: #e0e0e0;">A critical admin setting has been modified on your neonvideo.ai platform.</p>
+              
+              <div style="background: #1a1a1a; border-left: 4px solid #dc2626; padding: 20px; border-radius: 0 8px 8px 0; margin: 20px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #a0a0a0; width: 120px;"><strong>Setting:</strong></td>
+                    <td style="padding: 8px 0; color: #ffffff; font-weight: bold;">${data.settingName}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #a0a0a0;"><strong>Time:</strong></td>
+                    <td style="padding: 8px 0; color: #e0e0e0;">${timestamp}</td>
+                  </tr>
+                  ${data.changedBy ? `
+                  <tr>
+                    <td style="padding: 8px 0; color: #a0a0a0;"><strong>Changed By:</strong></td>
+                    <td style="padding: 8px 0; color: #e0e0e0;">${data.changedBy}</td>
+                  </tr>
+                  ` : ''}
+                  ${data.ipAddress ? `
+                  <tr>
+                    <td style="padding: 8px 0; color: #a0a0a0;"><strong>IP Address:</strong></td>
+                    <td style="padding: 8px 0; color: #e0e0e0;">${data.ipAddress}</td>
+                  </tr>
+                  ` : ''}
+                  ${data.details ? `
+                  <tr>
+                    <td style="padding: 8px 0; color: #a0a0a0;"><strong>Details:</strong></td>
+                    <td style="padding: 8px 0; color: #e0e0e0;">${data.details}</td>
+                  </tr>
+                  ` : ''}
+                </table>
+              </div>
+              
+              <div style="background: #fef2f2; border: 1px solid #dc2626; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="color: #991b1b; margin: 0 0 10px 0;">⚠️ If you did NOT make this change:</h3>
+                <ol style="color: #7f1d1d; margin: 0; padding-left: 20px;">
+                  <li style="padding: 5px 0;">Change your admin password immediately</li>
+                  <li style="padding: 5px 0;">Review recent admin activity</li>
+                  <li style="padding: 5px 0;">Contact your development team</li>
+                </ol>
+              </div>
+              
+              ${data.userAgent ? `
+              <div style="background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p style="color: #a0a0a0; margin: 0; font-size: 12px;"><strong>Browser/Device:</strong></p>
+                <p style="color: #666; margin: 5px 0 0 0; font-size: 11px; word-break: break-all;">${data.userAgent}</p>
+              </div>
+              ` : ''}
+            </div>
+            
+            <div style="text-align: center; padding: 20px; background: #1a1a1a; color: #666; font-size: 12px;">
+              <p style="margin: 0;">This is an automated security notification from neonvideo.ai</p>
+              <p style="margin: 5px 0 0 0;">© 2025 neonvideo.ai. All rights reserved.</p>
+            </div>
+          </div>
+        `
+      });
+
+      console.log(`Admin settings change notification sent for: ${data.settingName}`);
+      return true;
+    } catch (error) {
+      console.error('Failed to send admin settings change notification:', error);
       return false;
     }
   }

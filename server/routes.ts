@@ -2217,6 +2217,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         console.log("✅ Admin password updated and verified successfully");
+        
+        // Send security notification email
+        const forwardedFor = req.headers['x-forwarded-for'] as string;
+        const ipAddress = forwardedFor ? forwardedFor.split(',')[0].trim() : (req.socket.remoteAddress || 'Unknown');
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        emailService.sendAdminSettingsChangeNotification({
+          settingName: 'Admin Password',
+          ipAddress,
+          userAgent,
+          details: 'The admin dashboard password was changed'
+        }).catch(err => console.error('Failed to send admin notification email:', err));
+        
         res.json({ success: true, message: "Admin password updated successfully" });
       } catch (storageError) {
         console.error("❌ Failed to save admin password to database:", storageError);
@@ -2252,17 +2264,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { stripePublishableKey, stripeSecretKey, stripeWebhookSecret } = req.body;
       
+      const changedSettings: string[] = [];
+      
       // Save each key if provided (don't overwrite if not provided)
       if (stripePublishableKey) {
         await storage.setSetting('stripe_publishable_key', stripePublishableKey, false);
+        changedSettings.push('Publishable Key');
       }
       
       if (stripeSecretKey && !stripeSecretKey.includes('••••')) { // Only update if not masked
         await storage.setSetting('stripe_secret_key', stripeSecretKey, true);
+        changedSettings.push('Secret Key');
       }
       
       if (stripeWebhookSecret && !stripeWebhookSecret.includes('••••')) { // Only update if not masked
         await storage.setSetting('stripe_webhook_secret', stripeWebhookSecret, true);
+        changedSettings.push('Webhook Secret');
+      }
+      
+      // Send security notification email if any settings were changed
+      if (changedSettings.length > 0) {
+        const forwardedFor = req.headers['x-forwarded-for'] as string;
+        const ipAddress = forwardedFor ? forwardedFor.split(',')[0].trim() : (req.socket.remoteAddress || 'Unknown');
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        emailService.sendAdminSettingsChangeNotification({
+          settingName: 'Stripe Configuration',
+          ipAddress,
+          userAgent,
+          details: `Changed settings: ${changedSettings.join(', ')}`
+        }).catch(err => console.error('Failed to send admin notification email:', err));
       }
       
       res.json({ success: true, message: "Stripe settings updated successfully" });
