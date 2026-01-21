@@ -16,7 +16,7 @@ import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimes
 import { nanoid } from "nanoid";
 import { createForcedAlignment, convertElevenLabsAlignmentToASS, storeElevenLabsSubtitleFile } from "./services/elevenlabs";
 import { generateCharacterImage, generateCharacterImages, generateSceneImages, generateSingleSceneImage } from "./services/fal";
-import { generateAllVideoSegments, generateAllVideoSegmentsDynamic } from "./services/wavespeed";
+import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal } from "./services/wavespeed";
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
@@ -5336,6 +5336,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Save character option error:", error);
       res.status(500).json({ error: "Failed to save character option" });
+    }
+  });
+
+  // Enhance character image to hyper real (free - no credits charged)
+  app.post("/api/characters/enhance-hyper-real", async (req, res) => {
+    try {
+      console.log("Hyper real enhancement request body:", req.body);
+      const { imageUrl, prompt } = req.body;
+      
+      if (!imageUrl || !prompt) {
+        return res.status(400).json({ error: "Image URL and prompt are required" });
+      }
+
+      console.log("Starting hyper real enhancement...");
+      const enhancedImageUrl = await enhanceImageHyperReal(imageUrl, prompt);
+      console.log("Enhancement completed:", enhancedImageUrl);
+
+      // Download and store the enhanced image
+      const storedImage = await downloadAndStoreImage(enhancedImageUrl, "characters");
+      console.log("Enhanced image stored:", storedImage.storedUrl);
+
+      res.json({ 
+        enhancedImageUrl: storedImage.storedUrl,
+        message: 'Character enhanced to hyper real successfully' 
+      });
+    } catch (error) {
+      console.error("Hyper real enhancement error:", error);
+      res.status(500).json({ error: "Failed to enhance character to hyper real" });
     }
   });
 

@@ -8,7 +8,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { RefreshCw, Check } from "lucide-react";
+import { RefreshCw, Check, Sparkles } from "lucide-react";
 
 interface CharacterGeneratorModalProps {
   isOpen: boolean;
@@ -29,7 +29,9 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
   const [selectedStyle, setSelectedStyle] = useState("realistic");
   const [generatedImageUrls, setGeneratedImageUrls] = useState<string[]>([]);
   const [currentPrompt, setCurrentPrompt] = useState("");
+  const [generatedWithStyle, setGeneratedWithStyle] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [enhancingImageIndex, setEnhancingImageIndex] = useState<number | null>(null);
   const { toast } = useToast();
 
   const generateCharacterOptionsMutation = useMutation({
@@ -68,6 +70,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
     onSuccess: (data) => {
       setGeneratedImageUrls(data.imageUrls);
       setCurrentPrompt(data.prompt);
+      setGeneratedWithStyle(selectedStyle);
       toast({
         title: "Success",
         description: `Generated ${data.imageUrls.length} character options!`,
@@ -165,6 +168,40 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
     }
   });
 
+  const hyperRealMutation = useMutation({
+    mutationFn: async ({ imageUrl, index }: { imageUrl: string; index: number }) => {
+      setEnhancingImageIndex(index);
+      const response = await apiRequest("POST", "/api/characters/enhance-hyper-real", {
+        imageUrl,
+        prompt: currentPrompt
+      }, { timeout: 600000 }); // 10-minute timeout for enhancement
+      return response.json();
+    },
+    onSuccess: (data, { imageUrl: originalImageUrl, index }) => {
+      // Replace the original image URL with the enhanced one
+      setGeneratedImageUrls(prev => 
+        prev.map((url, i) => i === index ? data.enhancedImageUrl : url)
+      );
+      setEnhancingImageIndex(null);
+      toast({
+        title: "Success",
+        description: "Character enhanced to hyper real!",
+      });
+    },
+    onError: (error) => {
+      setEnhancingImageIndex(null);
+      toast({
+        title: "Error",
+        description: "Failed to enhance character to hyper real",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleMakeHyperReal = (imageUrl: string, index: number) => {
+    hyperRealMutation.mutate({ imageUrl, index });
+  };
+
   const handleSaveCharacter = (imageUrl: string) => {
     saveCharacterMutation.mutate(imageUrl);
   };
@@ -178,7 +215,9 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
     setSelectedStyle("realistic");
     setGeneratedImageUrls([]);
     setCurrentPrompt("");
+    setGeneratedWithStyle(null);
     setProgress(0);
+    setEnhancingImageIndex(null);
     onClose();
   };
 
@@ -265,7 +304,19 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
                       data-testid={`character-image-${index}`}
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors"></div>
-                    <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex flex-wrap justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {generatedWithStyle === "realistic" && (
+                        <Button
+                          onClick={() => handleMakeHyperReal(imageUrl, index)}
+                          disabled={enhancingImageIndex !== null}
+                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                          size="sm"
+                          data-testid={`make-hyper-real-${index}`}
+                        >
+                          <Sparkles className="w-4 h-4 mr-1" />
+                          {enhancingImageIndex === index ? "Enhancing..." : "Make Hyper Real"}
+                        </Button>
+                      )}
                       {projectId ? (
                         // Project mode - show both buttons
                         <>

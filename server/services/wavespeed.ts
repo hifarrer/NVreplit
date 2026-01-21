@@ -655,3 +655,105 @@ export async function generateAllVideoSegments(
 
   return { videoUrls, segmentPairs };
 }
+
+// Image-to-Image Hyper Real Enhancement
+export async function enhanceImageHyperReal(
+  imageUrl: string,
+  prompt: string
+): Promise<string> {
+  console.log("=== ENHANCING IMAGE TO HYPER REAL ===");
+  console.log("Image URL:", imageUrl);
+  console.log("Prompt:", prompt);
+
+  const response = await fetch(
+    "https://api.wavespeed.ai/api/v3/wavespeed-ai/z-image-turbo/image-to-image",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+      },
+      body: JSON.stringify({
+        enable_base64_output: false,
+        enable_sync_mode: false,
+        image: imageUrl,
+        output_format: "jpeg",
+        prompt: prompt,
+        seed: -1,
+        size: "1024*1024",
+        strength: 0.8,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Wavespeed image-to-image API error: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  const requestId = result.data?.id || result.id;
+
+  if (!requestId) {
+    console.error("Wavespeed response:", JSON.stringify(result, null, 2));
+    throw new Error("No request ID received from Wavespeed image-to-image API");
+  }
+
+  console.log(`Hyper real enhancement submitted, request ID: ${requestId}`);
+
+  // Poll for results
+  let attempts = 0;
+  const maxAttempts = 60; // 5 minutes with 5-second intervals
+
+  while (attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
+
+    const statusResponse = await fetch(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      {
+        headers: {
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+      }
+    );
+
+    if (!statusResponse.ok) {
+      throw new Error(`Status check failed: ${statusResponse.status}`);
+    }
+
+    const statusResult = await statusResponse.json();
+    console.log(`Poll attempt ${attempts + 1}: status = ${statusResult.data?.status}`);
+    console.log(`Poll response:`, JSON.stringify(statusResult, null, 2));
+
+    if (statusResult.data?.status === "completed") {
+      // Handle various WaveSpeed response formats
+      let enhancedImageUrl: string | undefined;
+      
+      if (statusResult.data.outputs && statusResult.data.outputs.length > 0) {
+        // Format: { data: { outputs: ["url1", "url2"] } }
+        enhancedImageUrl = statusResult.data.outputs[0];
+      } else if (statusResult.data.output) {
+        // Format: { data: { output: "url" } } or { data: { output: ["url"] } }
+        enhancedImageUrl = Array.isArray(statusResult.data.output) 
+          ? statusResult.data.output[0] 
+          : statusResult.data.output;
+      } else if (statusResult.data.image) {
+        // Format: { data: { image: "url" } }
+        enhancedImageUrl = statusResult.data.image;
+      }
+      
+      if (enhancedImageUrl) {
+        console.log("Hyper real enhancement completed:", enhancedImageUrl);
+        return enhancedImageUrl;
+      }
+    } else if (statusResult.data?.status === "failed") {
+      throw new Error(
+        `Hyper real enhancement failed: ${statusResult.data.error || "Unknown error"}`
+      );
+    }
+
+    attempts++;
+  }
+
+  throw new Error("Hyper real enhancement timed out");
+}
