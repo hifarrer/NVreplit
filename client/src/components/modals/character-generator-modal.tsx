@@ -230,7 +230,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto" data-testid="character-generator-modal">
         <DialogHeader>
           <DialogTitle className="gradient-text">Generate AI Character</DialogTitle>
-          <p className="text-sm text-muted-foreground">Character image generation is free.</p>
+          <p className="text-sm text-muted-foreground">Character image generation is <span className="text-green-500 font-semibold">free</span>.</p>
         </DialogHeader>
         
         <div className="space-y-6">
