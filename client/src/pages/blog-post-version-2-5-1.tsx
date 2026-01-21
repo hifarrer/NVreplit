@@ -50,11 +50,14 @@ export default function Version251Release() {
               </p>
 
               <div className="rounded-lg overflow-hidden border border-purple-500/20 mb-8">
-                <img 
-                  src="https://res.cloudinary.com/dqemas8ht/image/upload/v1768700740/neonreal_xoobex.jpg" 
-                  alt="More Realistic Characters in NeonVideo.ai Version 2.5.1"
+                <video 
+                  src="https://res.cloudinary.com/dqemas8ht/video/upload/v1768972512/neonvideo_1768972293757_ndscux.mp4" 
                   className="w-full h-auto"
-                  data-testid="img-release-banner"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  data-testid="video-release-banner"
                 />
               </div>
             </header>
