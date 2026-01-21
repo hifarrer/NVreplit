@@ -371,17 +371,26 @@ export function SceneTimeline({
   }, [isMuted]);
   
   const skipBackward = useCallback(() => {
-    const targetDuration = hasVideoPreview && videoDuration > 0 ? videoDuration : audioDuration;
-    const newTime = Math.max(0, currentTime - 10);
+    const newTime = Math.max(0, currentTime - 5);
     handleSeek(newTime);
-  }, [currentTime, audioDuration, videoDuration, hasVideoPreview, handleSeek]);
+  }, [currentTime, handleSeek]);
   
   const skipForward = useCallback(() => {
-    const targetDuration = hasVideoPreview && videoDuration > 0 ? videoDuration : audioDuration;
-    const newTime = Math.min(targetDuration, currentTime + 10);
+    const duration = hasVideoPreview && videoDuration > 0 ? videoDuration : audioDuration;
+    const newTime = Math.min(duration, currentTime + 5);
     handleSeek(newTime);
   }, [currentTime, audioDuration, videoDuration, hasVideoPreview, handleSeek]);
 
+  // Stop audio playback when video preview becomes available
+  useEffect(() => {
+    if (hasVideoPreview && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setIsPlaying(false);
+    }
+  }, [hasVideoPreview]);
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -438,6 +447,8 @@ export function SceneTimeline({
                 setIsPlaying(false);
                 setCurrentTime(0);
               }}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
               onClick={togglePlayback}
               muted={isMuted}
               playsInline
