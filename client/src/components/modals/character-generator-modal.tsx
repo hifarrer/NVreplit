@@ -18,7 +18,7 @@ interface CharacterGeneratorModalProps {
 }
 
 const artStyles = [
-  { id: "realistic", name: "Realistic", description: "Photorealistic style" },
+  { id: "realistic", name: "Realistic", description: "Photorealistic (best for human characters)" },
   { id: "3d", name: "3D Animation", description: "Modern 3D rendered style" },
   { id: "radiant", name: "Radiant", description: "Vibrant characters, best for fictional characters" },
   { id: "cartoon", name: "Cartoon", description: "Animated cartoon style" },
