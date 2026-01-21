@@ -53,6 +53,7 @@ export default function Version251Release() {
                 <video 
                   src="https://res.cloudinary.com/dqemas8ht/video/upload/v1768972512/neonvideo_1768972293757_ndscux.mp4" 
                   className="w-full h-auto"
+                  controls
                   autoPlay
                   loop
                   muted
