@@ -19,11 +19,11 @@ interface CharacterGeneratorModalProps {
 
 const artStyles = [
   { id: "realistic", name: "Realistic", description: "Photorealistic style" },
-  { id: "artistic", name: "Artistic", description: "Creative artistic style" },
-  { id: "radiant", name: "Radiant", description: "Vibrant HD quality style" },
   { id: "3d", name: "3D Animation", description: "Modern 3D rendered style" },
+  { id: "radiant", name: "Radiant", description: "Vibrant HD quality style" },
   { id: "cartoon", name: "Cartoon", description: "Animated cartoon style" },
-  { id: "anime", name: "Anime", description: "Japanese anime style" }
+  { id: "anime", name: "Anime", description: "Japanese anime style" },
+  { id: "artistic", name: "Artistic", description: "Creative artistic style" }
 ];
 
 export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated, projectId }: CharacterGeneratorModalProps) {
