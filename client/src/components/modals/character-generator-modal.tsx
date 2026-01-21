@@ -34,6 +34,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
   const [generatedWithStyle, setGeneratedWithStyle] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [enhancingImageIndex, setEnhancingImageIndex] = useState<number | null>(null);
+  const [enhancedIndices, setEnhancedIndices] = useState<Set<number>>(new Set());
   const { toast } = useToast();
 
   const generateCharacterOptionsMutation = useMutation({
@@ -73,6 +74,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
       setGeneratedImageUrls(data.imageUrls);
       setCurrentPrompt(data.prompt);
       setGeneratedWithStyle(selectedStyle);
+      setEnhancedIndices(new Set()); // Reset enhanced indices for new images
       toast({
         title: "Success",
         description: `Generated ${data.imageUrls.length} character options!`,
@@ -185,6 +187,8 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
         prev.map((url, i) => i === index ? data.enhancedImageUrl : url)
       );
       setEnhancingImageIndex(null);
+      // Mark this index as enhanced so the button won't show again
+      setEnhancedIndices(prev => new Set(prev).add(index));
       toast({
         title: "Success",
         description: "Character enhanced to hyper real!",
@@ -220,6 +224,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
     setGeneratedWithStyle(null);
     setProgress(0);
     setEnhancingImageIndex(null);
+    setEnhancedIndices(new Set());
     onClose();
   };
 
@@ -308,7 +313,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors"></div>
                     <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex flex-wrap justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {generatedWithStyle === "realistic" && (
+                      {generatedWithStyle === "realistic" && !enhancedIndices.has(index) && (
                         <Button
                           onClick={() => handleMakeHyperReal(imageUrl, index)}
                           disabled={enhancingImageIndex !== null}
