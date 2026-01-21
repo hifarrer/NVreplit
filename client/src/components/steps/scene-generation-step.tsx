@@ -19,7 +19,8 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SceneData } from "@/lib/types";
-import { RotateCcw, RefreshCw, Mic, Upload, Loader2, AlertTriangle, Sparkles, Pencil, Zap } from "lucide-react";
+import { RotateCcw, RefreshCw, Mic, Upload, Loader2, AlertTriangle, Sparkles, Pencil, Zap, Camera } from "lucide-react";
+import { CameraAngleModal } from "@/components/modals/camera-angle-modal";
 import { SceneTimeline } from "@/components/scene-timeline";
 import { StepCircles } from "@/components/ui/step-circles";
 
@@ -109,6 +110,9 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   const [progress, setProgress] = useState(0);
   const [regeneratingScenes, setRegeneratingScenes] = useState<number[]>([]);
   const [uploadingScenes, setUploadingScenes] = useState<number[]>([]);
+  const [cameraAngleScenes, setCameraAngleScenes] = useState<number[]>([]);
+  const [cameraAngleModalOpen, setCameraAngleModalOpen] = useState(false);
+  const [cameraAngleSceneIndex, setCameraAngleSceneIndex] = useState<number | null>(null);
   const { toast } = useToast();
   
   // Compute which scenes have been modified (image changed) in edit mode
@@ -543,6 +547,73 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
     }
   });
 
+  // Camera angle change mutation
+  const cameraAngleMutation = useMutation({
+    mutationFn: async ({ sceneIndex, horizontalAngle, verticalAngle, distance }: { 
+      sceneIndex: number; 
+      horizontalAngle: number; 
+      verticalAngle: number; 
+      distance: number;
+    }) => {
+      const scene = generatedScenes[sceneIndex];
+      if (!scene?.imageUrl) {
+        throw new Error("No image URL available for this scene");
+      }
+      
+      const response = await apiRequest("POST", `/api/change-camera-angle`, {
+        imageUrl: scene.imageUrl,
+        horizontalAngle,
+        verticalAngle,
+        distance
+      });
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      const { sceneIndex } = variables;
+      setGeneratedScenes(prev => 
+        prev.map((scene, index) => 
+          index === sceneIndex 
+            ? { ...scene, imageUrl: data.imageUrl }
+            : scene
+        )
+      );
+      setCameraAngleScenes(prev => prev.filter(i => i !== sceneIndex));
+      setCameraAngleModalOpen(false);
+      setCameraAngleSceneIndex(null);
+      toast({
+        title: "Success",
+        description: isEditMode 
+          ? `Scene ${sceneIndex + 1} camera angle changed! Changes will be saved when you click 'Re-generate Music Video'.`
+          : `Scene ${sceneIndex + 1} camera angle changed successfully!`,
+      });
+    },
+    onError: (error, variables) => {
+      const { sceneIndex } = variables;
+      setCameraAngleScenes(prev => prev.filter(i => i !== sceneIndex));
+      setCameraAngleModalOpen(false);
+      setCameraAngleSceneIndex(null);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to change camera angle",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const openCameraAngleModal = (index: number) => {
+    setCameraAngleSceneIndex(index);
+    setCameraAngleModalOpen(true);
+  };
+
+  const handleCameraAngleApply = (params: { horizontalAngle: number; verticalAngle: number; distance: number }) => {
+    if (cameraAngleSceneIndex === null) return;
+    setCameraAngleScenes(prev => [...prev, cameraAngleSceneIndex]);
+    cameraAngleMutation.mutate({
+      sceneIndex: cameraAngleSceneIndex,
+      ...params
+    });
+  };
+
   const handleFileSelect = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -923,7 +994,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                           variant="outline"
                           size="sm"
                           onClick={() => regenerateScene(index, scene.prompt)}
-                          disabled={regeneratingScenes.includes(index) || uploadingScenes.includes(index)}
+                          disabled={regeneratingScenes.includes(index) || uploadingScenes.includes(index) || cameraAngleScenes.includes(index)}
                           className="flex items-center gap-2"
                           data-testid={`regenerate-scene-${index + 1}`}
                         >
@@ -934,7 +1005,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                           variant="outline"
                           size="sm"
                           onClick={() => triggerFileInput(index)}
-                          disabled={regeneratingScenes.includes(index) || uploadingScenes.includes(index)}
+                          disabled={regeneratingScenes.includes(index) || uploadingScenes.includes(index) || cameraAngleScenes.includes(index)}
                           className="flex items-center gap-2"
                           data-testid={`upload-scene-${index + 1}`}
                         >
@@ -944,6 +1015,21 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                             <Upload className="w-4 h-4" />
                           )}
                           {uploadingScenes.includes(index) ? 'Uploading...' : 'Upload'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openCameraAngleModal(index)}
+                          disabled={regeneratingScenes.includes(index) || uploadingScenes.includes(index) || cameraAngleScenes.includes(index) || !scene.imageUrl}
+                          className="flex items-center gap-2"
+                          data-testid={`camera-angle-scene-${index + 1}`}
+                        >
+                          {cameraAngleScenes.includes(index) ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Camera className="w-4 h-4" />
+                          )}
+                          {cameraAngleScenes.includes(index) ? 'Processing...' : 'Camera angle'}
                         </Button>
                         <input
                           type="file"
@@ -1121,6 +1207,18 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
           </div>
         </div>
       </div>
+
+      {/* Camera Angle Modal */}
+      <CameraAngleModal
+        isOpen={cameraAngleModalOpen}
+        onClose={() => {
+          setCameraAngleModalOpen(false);
+          setCameraAngleSceneIndex(null);
+        }}
+        onApply={handleCameraAngleApply}
+        isLoading={cameraAngleMutation.isPending}
+        sceneIndex={cameraAngleSceneIndex ?? 0}
+      />
     </div>
   );
 }

@@ -6101,6 +6101,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Change camera angle for a scene image using WaveSpeed API
+  app.post("/api/change-camera-angle", authenticateToken, async (req, res) => {
+    try {
+      const { imageUrl, horizontalAngle = 45, verticalAngle = 0, distance = 1 } = req.body;
+      
+      if (!imageUrl) {
+        return res.status(400).json({ error: "Image URL is required" });
+      }
+
+      console.log(`Changing camera angle for image: ${imageUrl}`);
+      console.log(`Parameters: horizontal=${horizontalAngle}, vertical=${verticalAngle}, distance=${distance}`);
+
+      // Convert relative URL to absolute URL if needed
+      let absoluteImageUrl = imageUrl;
+      if (imageUrl.startsWith('/objects/')) {
+        const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+          ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+          : process.env.REPLIT_DOMAINS 
+            ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
+            : 'http://localhost:5000';
+        absoluteImageUrl = `${baseUrl}${imageUrl}`;
+      }
+
+      const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY || '';
+      
+      if (!WAVESPEED_API_KEY) {
+        return res.status(500).json({ error: "WaveSpeed API key not configured" });
+      }
+
+      // Call WaveSpeed edit-multiple-angles API
+      const wavespeedResponse = await fetch('https://api.wavespeed.ai/api/v3/wavespeed-ai/qwen-image/edit-multiple-angles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${WAVESPEED_API_KEY}`
+        },
+        body: JSON.stringify({
+          distance: distance,
+          enable_base64_output: false,
+          enable_sync_mode: false,
+          horizontal_angle: horizontalAngle,
+          images: [absoluteImageUrl],
+          output_format: "jpeg",
+          seed: -1,
+          vertical_angle: verticalAngle
+        })
+      });
+
+      if (!wavespeedResponse.ok) {
+        const errorText = await wavespeedResponse.text();
+        console.error("WaveSpeed API error:", errorText);
+        return res.status(500).json({ error: `WaveSpeed API error: ${wavespeedResponse.status}` });
+      }
+
+      const result = await wavespeedResponse.json();
+      const requestId = result.data?.id || result.id;
+
+      if (!requestId) {
+        console.error("No request ID from WaveSpeed:", result);
+        return res.status(500).json({ error: "No request ID received from WaveSpeed" });
+      }
+
+      console.log(`Camera angle change submitted, request ID: ${requestId}`);
+
+      // Poll for results
+      let attempts = 0;
+      const maxAttempts = 60; // 10 minutes with 10-second intervals
+
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+
+        const statusResponse = await fetch(
+          `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+          {
+            headers: {
+              'Authorization': `Bearer ${WAVESPEED_API_KEY}`
+            }
+          }
+        );
+
+        if (!statusResponse.ok) {
+          attempts++;
+          continue;
+        }
+
+        const statusResult = await statusResponse.json();
+
+        if (statusResult.data?.status === 'completed' && statusResult.data.outputs && statusResult.data.outputs.length > 0) {
+          const newImageUrl = statusResult.data.outputs[0];
+          console.log(`Camera angle change completed: ${newImageUrl}`);
+          return res.json({ imageUrl: newImageUrl });
+        } else if (statusResult.data?.status === 'failed') {
+          console.error("Camera angle change failed:", statusResult.data.error);
+          return res.status(500).json({ error: statusResult.data.error || "Camera angle change failed" });
+        }
+
+        attempts++;
+      }
+
+      return res.status(500).json({ error: "Camera angle change timed out" });
+    } catch (error) {
+      console.error("Camera angle change error:", error);
+      res.status(500).json({ error: "Failed to change camera angle" });
+    }
+  });
+
   // Update scene prompts (for edited prompts without regeneration)
   app.post("/api/projects/:id/update-scenes", async (req, res) => {
     try {
