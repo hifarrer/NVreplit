@@ -73,6 +73,7 @@ export const projects = pgTable("projects", {
   scenePrompts: jsonb("scene_prompts"), // Array of scene prompts
   sceneImages: jsonb("scene_images"), // Array of generated scene image URLs
   sceneOrder: jsonb("scene_order").$type<number[]>(), // Custom order for scenes (indices into scenePrompts/sceneImages)
+  sceneLipsyncSettings: jsonb("scene_lipsync_settings").$type<(boolean | null)[]>(), // Per-scene lipsync toggle settings (null means use default pattern)
   audioSegments: jsonb("audio_segments"), // Array of split audio URLs
   videoSegments: jsonb("video_segments"), // Array of generated video URLs
   finalVideoUrl: text("final_video_url"),

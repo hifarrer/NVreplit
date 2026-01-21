@@ -3265,6 +3265,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? updatedScenes.map((s: any) => s.imageUrl)
         : (sourceProject.sceneImages ? JSON.parse(JSON.stringify(sourceProject.sceneImages)) : undefined);
       
+      // Extract per-scene lipsync settings from updated scenes or copy from source project
+      const sceneLipsyncSettings = updatedScenes
+        ? updatedScenes.map((s: any) => s.lipsync !== undefined ? s.lipsync : null)
+        : ((sourceProject as any).sceneLipsyncSettings ? JSON.parse(JSON.stringify((sourceProject as any).sceneLipsyncSettings)) : undefined);
+      
       // Use provided scene order or copy from source project
       const sceneOrder = providedSceneOrder 
         ? providedSceneOrder 
@@ -3311,6 +3316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (scenePrompts !== undefined) clonedProjectData.scenePrompts = scenePrompts;
       if (sceneImages !== undefined) clonedProjectData.sceneImages = sceneImages;
       if (sceneOrder !== undefined) clonedProjectData.sceneOrder = sceneOrder;
+      if (sceneLipsyncSettings !== undefined) clonedProjectData.sceneLipsyncSettings = sceneLipsyncSettings;
       if (audioSegments !== undefined) clonedProjectData.audioSegments = audioSegments;
       
       const validatedData = insertProjectSchema.parse(clonedProjectData);
@@ -3421,6 +3427,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const scenePrompts = updatedScenes.map((s: any) => s.prompt);
       const sceneImages = updatedScenes.map((s: any) => s.imageUrl);
       
+      // Extract per-scene lipsync settings from updated scenes
+      const sceneLipsyncSettings = updatedScenes.map((s: any) => s.lipsync !== undefined ? s.lipsync : null);
+      
       // Use provided scene order or copy from source project
       const sceneOrder = providedSceneOrder 
         ? providedSceneOrder 
@@ -3463,6 +3472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (scenePrompts !== undefined) clonedProjectData.scenePrompts = scenePrompts;
       if (sceneImages !== undefined) clonedProjectData.sceneImages = sceneImages;
       if (sceneOrder !== undefined) clonedProjectData.sceneOrder = sceneOrder;
+      if (sceneLipsyncSettings !== undefined) clonedProjectData.sceneLipsyncSettings = sceneLipsyncSettings;
       if (audioSegments !== undefined) clonedProjectData.audioSegments = audioSegments;
       
       // Store video segments from source project to reuse unchanged ones
@@ -6652,12 +6662,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Converting scene images to signed URLs for Wavespeed API...");
       const originalSceneImages = project.sceneImages as string[];
       const originalScenePrompts = project.scenePrompts as string[];
+      const originalSceneLipsyncSettings = ((project as any).sceneLipsyncSettings as (boolean | null)[]) || [];
       const sceneOrder = ((project as any).sceneOrder as number[]) || originalSceneImages.map((_, i) => i);
       
       // Apply custom scene order if provided (reorder scenes for video merge)
       const sceneImages = sceneOrder.map(idx => originalSceneImages[idx]);
       const orderedScenePrompts = sceneOrder.map(idx => originalScenePrompts[idx]);
+      // Apply scene order to lipsync settings as well
+      const orderedSceneLipsyncSettings = sceneOrder.map(idx => 
+        originalSceneLipsyncSettings[idx] !== undefined ? originalSceneLipsyncSettings[idx] : null
+      );
       console.log(`Applied scene order: [${sceneOrder.join(', ')}]`);
+      console.log(`Ordered lipsync settings: [${orderedSceneLipsyncSettings.map(s => s === null ? 'null' : s).join(', ')}]`);
       
       const signedSceneUrls: string[] = [];
       
@@ -6806,10 +6822,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const modifiedSceneUrls = scenesToRegenerate.map(pos => signedSceneUrls[pos]);
           const modifiedPrompts = scenesToRegenerate.map(pos => orderedScenePrompts[pos]);
           const modifiedDurations = scenesToRegenerate.map(pos => segmentDurations[pos]);
+          // Get the per-scene lipsync settings for the modified scenes
+          const modifiedLipsyncSettings = scenesToRegenerate.map(pos => orderedSceneLipsyncSettings[pos]);
           
           console.log(`Regenerating videos for positions: [${scenesToRegenerate.join(', ')}]`);
+          console.log(`Lipsync settings for modified scenes: [${modifiedLipsyncSettings.map(s => s === null ? 'null' : s).join(', ')}]`);
           
-          // Generate only the modified scene videos
+          // Generate only the modified scene videos using the per-scene lipsync settings
           const { videoUrls: regeneratedVideoUrls } = await generateAllVideoSegmentsDynamic(
             modifiedAudioUrls,
             modifiedSceneUrls,
@@ -6818,7 +6837,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               numberOfVideosRegularApi: Math.ceil(scenesToRegenerate.length / 2),
               numberOfVideosLipsync: Math.floor(scenesToRegenerate.length / 2),
               makeCharacterSing: makeCharacterSing,
-              videoQuality: videoQuality
+              videoQuality: videoQuality,
+              sceneLipsyncSettings: modifiedLipsyncSettings
             },
             subtitleData,
             modifiedDurations
@@ -6849,7 +6869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         segmentPairs = null; // Not used in partial regeneration
         console.log(`=== PARTIAL REGENERATION COMPLETE ===\n`);
       } else {
-        // Full video generation - use existing logic
+        // Full video generation - use existing logic with per-scene lipsync settings
         const result = await generateAllVideoSegmentsDynamic(
           audioUrls,
           signedSceneUrls,
@@ -6858,7 +6878,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             numberOfVideosRegularApi,
             numberOfVideosLipsync,
             makeCharacterSing: makeCharacterSing,
-            videoQuality: videoQuality
+            videoQuality: videoQuality,
+            sceneLipsyncSettings: orderedSceneLipsyncSettings
           },
           subtitleData,
           segmentDurations // Pass segment durations for proper video length matching
