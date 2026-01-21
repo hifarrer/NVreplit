@@ -211,6 +211,7 @@ export default function Home() {
             sceneOrder={(project as any)?.sceneOrder}
             initialVideoQuality={(project as any)?.videoQuality || "quick"}
             isEditMode={isEditMode}
+            finalVideoUrl={isEditMode ? project?.finalVideoUrl : undefined}
             onNext={() => handleStepChange(4)}
             onBack={() => handleStepChange(2)}
             onReset={resetProject}

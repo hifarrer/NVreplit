@@ -36,6 +36,7 @@ interface SceneGenerationStepProps {
   sceneOrder?: number[];
   initialVideoQuality?: VideoQuality;
   isEditMode?: boolean;
+  finalVideoUrl?: string;
   onNext: () => void;
   onBack: () => void;
   onReset: () => void;
@@ -88,7 +89,7 @@ const isProjectLockInProgress = (projectId: string): boolean => {
   return lock.inProgress;
 };
 
-export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioLyrics, subtitleFileUrl, characterImageUrl, scenes = [], sceneOrder: initialSceneOrder, initialVideoQuality = "quick", isEditMode = false, onNext, onBack, onReset }: SceneGenerationStepProps) {
+export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioLyrics, subtitleFileUrl, characterImageUrl, scenes = [], sceneOrder: initialSceneOrder, initialVideoQuality = "quick", isEditMode = false, finalVideoUrl, onNext, onBack, onReset }: SceneGenerationStepProps) {
   // Defensively copy scenes array to avoid mutating the original project data
   const [generatedScenes, setGeneratedScenes] = useState<SceneData[]>(() => 
     scenes.map(scene => ({ ...scene }))
@@ -824,6 +825,8 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
             audioUrl={audioUrl}
             lyrics={audioLyrics}
             subtitleFileUrl={subtitleFileUrl}
+            finalVideoUrl={finalVideoUrl}
+            isEditMode={isEditMode}
             onReorder={handleSceneReorder}
             onSceneClick={scrollToScene}
             onToggleLipsync={toggleLipsync}

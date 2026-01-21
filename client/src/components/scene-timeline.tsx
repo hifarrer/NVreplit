@@ -1,12 +1,14 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { SceneData } from "@/lib/types";
-import { Film, GripVertical, Clock, Mic, Music, Type, Play, Pause, AlertTriangle } from "lucide-react";
+import { Film, GripVertical, Clock, Mic, Music, Type, Play, Pause, AlertTriangle, Video, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
 
 interface SceneTimelineProps {
   scenes: SceneData[];
@@ -15,6 +17,8 @@ interface SceneTimelineProps {
   audioUrl?: string;
   lyrics?: string;
   subtitleFileUrl?: string;
+  finalVideoUrl?: string;
+  isEditMode?: boolean;
   onReorder: (newOrder: number[]) => void;
   onSceneClick?: (sceneIndex: number) => void;
   onToggleLipsync?: (sceneIndex: number) => void;
@@ -27,6 +31,8 @@ export function SceneTimeline({
   audioUrl,
   lyrics,
   subtitleFileUrl,
+  finalVideoUrl,
+  isEditMode = false,
   onReorder,
   onSceneClick,
   onToggleLipsync
@@ -37,9 +43,14 @@ export function SceneTimeline({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [assSubtitles, setAssSubtitles] = useState<{ start: number; end: number; text: string }[]>([]);
+  const [isMuted, setIsMuted] = useState(false);
+  const [videoDuration, setVideoDuration] = useState(0);
   const timelineRef = useRef<HTMLDivElement>(null);
   const waveformContainerRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  
+  const hasVideoPreview = isEditMode && !!finalVideoUrl;
   
   useEffect(() => {
     if (!subtitleFileUrl) return;
@@ -300,6 +311,19 @@ export function SceneTimeline({
   }, [sceneOrder, onReorder]);
 
   const togglePlayback = useCallback(() => {
+    // If video preview is available, use video for playback
+    if (hasVideoPreview && videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        videoRef.current.play();
+        setIsPlaying(true);
+      }
+      return;
+    }
+    
+    // Fall back to audio playback
     if (!audioRef.current && audioUrl) {
       audioRef.current = new Audio(audioUrl);
       audioRef.current.addEventListener('timeupdate', () => {
@@ -320,13 +344,52 @@ export function SceneTimeline({
         setIsPlaying(true);
       }
     }
-  }, [audioUrl, isPlaying]);
+  }, [audioUrl, isPlaying, hasVideoPreview]);
+
+  const handleSeek = useCallback((newTime: number) => {
+    setCurrentTime(newTime);
+    if (hasVideoPreview && videoRef.current) {
+      videoRef.current.currentTime = newTime;
+    } else if (audioRef.current) {
+      audioRef.current.currentTime = newTime;
+    }
+  }, [hasVideoPreview]);
+  
+  const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickPosition = (e.clientX - rect.left) / rect.width;
+    const targetDuration = hasVideoPreview && videoDuration > 0 ? videoDuration : audioDuration;
+    const newTime = clickPosition * targetDuration;
+    handleSeek(newTime);
+  }, [audioDuration, videoDuration, hasVideoPreview, handleSeek]);
+  
+  const toggleMute = useCallback(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+    }
+    setIsMuted(!isMuted);
+  }, [isMuted]);
+  
+  const skipBackward = useCallback(() => {
+    const targetDuration = hasVideoPreview && videoDuration > 0 ? videoDuration : audioDuration;
+    const newTime = Math.max(0, currentTime - 10);
+    handleSeek(newTime);
+  }, [currentTime, audioDuration, videoDuration, hasVideoPreview, handleSeek]);
+  
+  const skipForward = useCallback(() => {
+    const targetDuration = hasVideoPreview && videoDuration > 0 ? videoDuration : audioDuration;
+    const newTime = Math.min(targetDuration, currentTime + 10);
+    handleSeek(newTime);
+  }, [currentTime, audioDuration, videoDuration, hasVideoPreview, handleSeek]);
 
   useEffect(() => {
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.pause();
       }
     };
   }, []);
@@ -354,6 +417,124 @@ export function SceneTimeline({
         Drag and drop scenes to reorder them in your video
       </p>
 
+      {/* Video Preview Section - Only shown in edit mode when finalVideoUrl exists */}
+      {hasVideoPreview && finalVideoUrl && (
+        <div className="mb-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-xl p-4 border border-slate-700 shadow-lg" data-testid="video-preview-section">
+          <div className="flex items-center gap-2 mb-3">
+            <Video className="w-4 h-4 text-purple-400" />
+            <span className="text-sm font-medium text-slate-300">Video Preview</span>
+            <span className="text-xs text-slate-500">(Original video)</span>
+          </div>
+          
+          {/* Video Player */}
+          <div className="relative aspect-video bg-black rounded-lg overflow-hidden mb-3">
+            <video
+              ref={videoRef}
+              src={finalVideoUrl}
+              className="w-full h-full object-contain"
+              onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+              onLoadedMetadata={(e) => setVideoDuration(e.currentTarget.duration)}
+              onEnded={() => {
+                setIsPlaying(false);
+                setCurrentTime(0);
+              }}
+              onClick={togglePlayback}
+              muted={isMuted}
+              playsInline
+              data-testid="video-preview-player"
+            />
+            
+            {/* Play overlay when paused */}
+            {!isPlaying && (
+              <div 
+                className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer transition-opacity hover:bg-black/40"
+                onClick={togglePlayback}
+              >
+                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                  <Play className="w-8 h-8 text-white ml-1" />
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Video Controls */}
+          <div className="flex flex-col gap-2">
+            {/* Progress Bar */}
+            <div 
+              className="relative h-2 bg-slate-700 rounded-full cursor-pointer group"
+              onClick={handleProgressClick}
+              data-testid="video-progress-bar"
+            >
+              <div 
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all"
+                style={{ width: `${(videoDuration > 0 ? (currentTime / videoDuration) * 100 : 0)}%` }}
+              />
+              <div 
+                className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ left: `calc(${(videoDuration > 0 ? (currentTime / videoDuration) * 100 : 0)}% - 6px)` }}
+              />
+            </div>
+            
+            {/* Control buttons */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={skipBackward}
+                  className="h-8 w-8 p-0 text-slate-400 hover:text-white"
+                  data-testid="skip-backward-button"
+                >
+                  <SkipBack className="w-4 h-4" />
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={togglePlayback}
+                  className="h-10 w-10 p-0 bg-purple-500/20 hover:bg-purple-500/40 text-purple-400 hover:text-white rounded-full"
+                  data-testid="video-play-pause-button"
+                >
+                  {isPlaying ? (
+                    <Pause className="w-5 h-5" />
+                  ) : (
+                    <Play className="w-5 h-5 ml-0.5" />
+                  )}
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={skipForward}
+                  className="h-8 w-8 p-0 text-slate-400 hover:text-white"
+                  data-testid="skip-forward-button"
+                >
+                  <SkipForward className="w-4 h-4" />
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleMute}
+                  className="h-8 w-8 p-0 text-slate-400 hover:text-white"
+                  data-testid="mute-button"
+                >
+                  {isMuted ? (
+                    <VolumeX className="w-4 h-4" />
+                  ) : (
+                    <Volume2 className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+              
+              <div className="text-xs text-slate-400 font-mono">
+                {formatDuration(Math.floor(currentTime))} / {formatDuration(Math.floor(videoDuration || audioDuration))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div 
         ref={timelineRef}
         className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-xl p-4 border border-slate-700 shadow-lg"
@@ -379,18 +560,25 @@ export function SceneTimeline({
             </div>
             <div className="h-10 mt-2 flex items-center">
               <div className="flex items-center gap-1">
-                <button
-                  onClick={togglePlayback}
-                  disabled={!audioUrl}
-                  className="p-1 rounded-full bg-cyan-500/20 hover:bg-cyan-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  data-testid="audio-play-button"
-                >
-                  {isPlaying ? (
-                    <Pause className="w-3 h-3 text-cyan-400" />
-                  ) : (
-                    <Play className="w-3 h-3 text-cyan-400" />
-                  )}
-                </button>
+                {/* Hide audio play button when video preview is available - playback is controlled via video */}
+                {!hasVideoPreview ? (
+                  <button
+                    onClick={togglePlayback}
+                    disabled={!audioUrl}
+                    className="p-1 rounded-full bg-cyan-500/20 hover:bg-cyan-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    data-testid="audio-play-button"
+                  >
+                    {isPlaying ? (
+                      <Pause className="w-3 h-3 text-cyan-400" />
+                    ) : (
+                      <Play className="w-3 h-3 text-cyan-400" />
+                    )}
+                  </button>
+                ) : (
+                  <div className="p-1 rounded-full bg-slate-700/50">
+                    <Music className="w-3 h-3 text-slate-500" />
+                  </div>
+                )}
                 <span className="text-[10px] text-slate-400 font-medium">Audio</span>
               </div>
             </div>
