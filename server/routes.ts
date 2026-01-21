@@ -5305,13 +5305,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Image URL and prompt are required" });
       }
 
-      // Download and store the image permanently
-      console.log("Downloading and storing character image...");
-      const storedImage = await downloadAndStoreImage(imageUrl, "characters");
-      console.log("Image stored successfully:", storedImage.storedUrl);
+      let finalImageUrl: string;
+      
+      // Check if image is already stored in object storage (starts with /objects/)
+      if (imageUrl.startsWith('/objects/')) {
+        console.log("Image already in object storage, using existing URL:", imageUrl);
+        finalImageUrl = imageUrl;
+      } else {
+        // Download and store the image permanently
+        console.log("Downloading and storing character image...");
+        const storedImage = await downloadAndStoreImage(imageUrl, "characters");
+        console.log("Image stored successfully:", storedImage.storedUrl);
+        finalImageUrl = storedImage.storedUrl;
+      }
 
       const project = await storage.updateProject(req.params.id, {
-        characterImageUrl: storedImage.storedUrl,
+        characterImageUrl: finalImageUrl,
         characterType: "generated",
         characterPrompt: prompt,
         currentStep: 3
@@ -5324,7 +5333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "completed",
         metadata: { 
           originalImageUrl: imageUrl,
-          storedImageUrl: storedImage.storedUrl,
+          storedImageUrl: finalImageUrl,
           prompt 
         }
       });

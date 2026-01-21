@@ -1,0 +1,68 @@
+Hyper real enhancement completed: https://d2p7pge43lyniu.cloudfront.net/output/6bb118e7-7231-48b8-b717-a11ae278c604-u1_2cc6f231-2501-4b10-8c67-3319eb12a3e7.jpeg
+Enhancement completed: https://d2p7pge43lyniu.cloudfront.net/output/6bb118e7-7231-48b8-b717-a11ae278c604-u1_2cc6f231-2501-4b10-8c67-3319eb12a3e7.jpeg
+Downloading image from: https://d2p7pge43lyniu.cloudfront.net/output/6bb118e7-7231-48b8-b717-a11ae278c604-u1_2cc6f231-2501-4b10-8c67-3319eb12a3e7.jpeg
+Storing image as: characters/2c94b261-1320-48a7-8fc3-00a703b7c3e9.jpg
+Image stored successfully at: /replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/characters/2c94b261-1320-48a7-8fc3-00a703b7c3e9.jpg
+Enhanced image stored: /objects/characters/2c94b261-1320-48a7-8fc3-00a703b7c3e9.jpg
+10:13:49 PM [express] POST /api/characters/enhance-hyper-real 200 in 5891ms :: {"enhancedImageUrl":"/…
+Save character option request body: {
+  imageUrl: '/objects/characters/2c94b261-1320-48a7-8fc3-00a703b7c3e9.jpg',
+  prompt: 'a cyberpunk ginger german woman wearing a brown jacket with the brand NeonVideo'
+}
+Downloading and storing character image...
+Downloading image from: /objects/characters/2c94b261-1320-48a7-8fc3-00a703b7c3e9.jpg
+[Retry] download image from /objects/characters/2c94b261-1320-48a7-8fc3-00a703... failed after 1 attempts: Invalid URL
+Save character option error: TypeError: Invalid URL
+    at new URL (node:internal/url:806:29)
+    at new Request (file:///home/runner/workspace/node_modules/node-fetch/src/request.js:55:16)
+    at file:///home/runner/workspace/node_modules/node-fetch/src/index.js:51:19
+    at new Promise (<anonymous>)
+    at fetch (file:///home/runner/workspace/node_modules/node-fetch/src/index.js:49:9)
+    at <anonymous> (/home/runner/workspace/server/services/imageStorage.ts:90:32)
+    at withRetry (/home/runner/workspace/server/services/imageStorage.ts:33:20)
+    at downloadAndStoreImage (/home/runner/workspace/server/services/imageStorage.ts:83:46)
+    at <anonymous> (/home/runner/workspace/server/routes.ts:5310:33)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/runner/workspace/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:284:15
+    at param (/home/runner/workspace/node_modules/express/lib/router/index.js:365:14)
+    at param (/home/runner/workspace/node_modules/express/lib/router/index.js:376:14)
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:421:3)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at initialize (/home/runner/workspace/node_modules/passport/lib/middleware/initialize.js:98:5)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at <anonymous> (/home/runner/workspace/server/index.ts:305:3)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at serveStatic (/home/runner/workspace/node_modules/serve-static/index.js:75:16)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at urlencodedParser (/home/runner/workspace/node_modules/body-parser/lib/types/urlencoded.js:82:7)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at /home/runner/workspace/node_modules/body-parser/lib/read.js:137:5
+    at AsyncResource.runInAsyncScope (node:async_hooks:206:9)
+    at invokeCallback (/home/runner/workspace/node_modules/raw-body/index.js:238:16)
+    at done (/home/runner/workspace/node_modules/raw-body/index.js:227:7)
+    at IncomingMessage.onEnd (/home/runner/workspace/node_modules/raw-body/index.js:287:7)
+    at IncomingMessage.emit (node:events:524:28)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:82:21) {
+  code: 'ERR_INVALID_URL',
+  input: '/objects/characters/2c94b261-1320-48a7-8fc3-00a703b7c3e9.jpg'
+}
