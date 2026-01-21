@@ -3370,6 +3370,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Validate that video segments count matches scene count for safe partial regeneration
+      const sourceSceneImages = sourceProject.sceneImages as string[];
+      if (!sourceSceneImages || sourceVideoSegments.length !== sourceSceneImages.length) {
+        return res.status(400).json({ 
+          error: "Cannot perform partial regeneration: video segments count doesn't match scene count. Please use full regeneration instead.",
+          videoSegmentsCount: sourceVideoSegments.length,
+          sceneImagesCount: sourceSceneImages?.length || 0
+        });
+      }
+      
+      // Also validate that updatedScenes count matches
+      if (updatedScenes.length !== sourceSceneImages.length) {
+        return res.status(400).json({ 
+          error: "Cannot perform partial regeneration: scene count has changed. Please use full regeneration instead.",
+          originalSceneCount: sourceSceneImages.length,
+          newSceneCount: updatedScenes.length
+        });
+      }
+      
+      // Validate modified scene indices are within bounds
+      const invalidIndices = modifiedSceneIndices.filter((idx: number) => idx < 0 || idx >= updatedScenes.length);
+      if (invalidIndices.length > 0) {
+        return res.status(400).json({ 
+          error: "Invalid modified scene indices: some indices are out of bounds",
+          invalidIndices,
+          maxValidIndex: updatedScenes.length - 1
+        });
+      }
+      
       // Calculate credits needed for partial regeneration (500 credits per modified scene)
       const CREDITS_PER_SCENE = 500;
       const creditsRequired = modifiedSceneIndices.length * CREDITS_PER_SCENE;
@@ -3445,6 +3474,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Store the partial regeneration metadata in a separate field
       // We'll use the generation log to store this information
+      // Include the original scene order for alignment verification during video generation
       await storage.addGenerationLog({
         projectId: clonedProject.id,
         step: "partial_regeneration_setup",
@@ -3454,7 +3484,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           modifiedSceneIndices,
           isPartialRegeneration: true,
           sourceProjectId: sourceProjectId,
-          creditsToCharge: creditsRequired
+          creditsToCharge: creditsRequired,
+          originalSceneOrder: sceneOrder,
+          originalSceneCount: sourceSceneImages.length,
+          originalVideoSegmentsCount: sourceVideoSegments.length
         }
       });
       
@@ -6526,10 +6559,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let allVideoUrls: string[];
       let segmentPairs: any;
       
-      // Check if this is a partial regeneration
-      if (isPartialRegeneration && partialRegenMetadata?.modifiedSceneIndices) {
+      // Determine if partial regeneration is valid and should proceed
+      let shouldUsePartialRegeneration = isPartialRegeneration && partialRegenMetadata?.modifiedSceneIndices;
+      const existingVideoSegments = project.videoSegments as string[];
+      let partialRegenError: string | null = null;
+      
+      // Safety validation for partial regeneration - MUST pass all checks
+      if (shouldUsePartialRegeneration) {
+        const currentSceneCount = originalSceneImages.length;
+        
+        // Check 1: Video segment count must match scene count
+        if (!existingVideoSegments || existingVideoSegments.length !== currentSceneCount) {
+          partialRegenError = `Video segment count (${existingVideoSegments?.length || 0}) doesn't match scene count (${currentSceneCount})`;
+          console.error(`Partial regeneration validation failed: ${partialRegenError}`);
+          shouldUsePartialRegeneration = false;
+        }
+        
+        // Check 2: Scene order must match the original order from partial regeneration setup
+        const originalSceneOrder = partialRegenMetadata?.originalSceneOrder as number[] | undefined;
+        if (shouldUsePartialRegeneration && originalSceneOrder) {
+          const orderMatches = sceneOrder.length === originalSceneOrder.length && 
+            sceneOrder.every((val, idx) => val === originalSceneOrder[idx]);
+          
+          if (!orderMatches) {
+            partialRegenError = "Scene order has changed since partial regeneration was set up";
+            console.error(`Partial regeneration validation failed: ${partialRegenError}`);
+            console.error(`Current order: [${sceneOrder.join(', ')}]`);
+            console.error(`Original order: [${originalSceneOrder.join(', ')}]`);
+            shouldUsePartialRegeneration = false;
+          }
+        }
+        
+        // Check 3: Ensure partial regen metadata has all required fields
+        if (shouldUsePartialRegeneration && !partialRegenMetadata?.creditsToCharge) {
+          partialRegenError = "Invalid partial regeneration metadata (missing credits)";
+          console.error(`Partial regeneration validation failed: ${partialRegenError}`);
+          shouldUsePartialRegeneration = false;
+        }
+        
+        // If partial regeneration validation failed, return an error instead of silently falling back
+        // This prevents unexpected overcharging and gives the user a clear choice
+        if (isPartialRegeneration && !shouldUsePartialRegeneration && partialRegenError) {
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "video_generation",
+            message: `Partial regeneration failed: ${partialRegenError}. Please use full regeneration.`,
+            status: "error",
+            metadata: { 
+              error: partialRegenError,
+              requiresFullRegeneration: true
+            }
+          });
+          
+          // Reset project status so user can try again
+          await storage.updateProject(req.params.id, {
+            generationStatus: 'idle' as any,
+            currentStep: 3,
+          });
+          
+          // Remove from queue if queued
+          if (isInQueue) {
+            const { videoQueueService } = await import("./services/videoQueue");
+            videoQueueService.removeFromQueue(req.params.id);
+          }
+          
+          throw new Error(`Partial regeneration is no longer valid: ${partialRegenError}. Please use full video regeneration instead.`);
+        }
+      }
+      
+      // Check if this is a valid partial regeneration
+      if (shouldUsePartialRegeneration && partialRegenMetadata?.modifiedSceneIndices) {
         const modifiedIndices = partialRegenMetadata.modifiedSceneIndices;
-        const existingVideoSegments = project.videoSegments as string[];
         
         console.log(`\n=== PARTIAL REGENERATION MODE ===`);
         console.log(`Modified scene indices: [${modifiedIndices.join(', ')}]`);
