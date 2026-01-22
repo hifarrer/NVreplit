@@ -83,9 +83,36 @@ export default function NeonSinglePrompt() {
   };
 
   const examplePrompts = [
-    "Create a music video about a cute little cowboy hamster singing a song called 'Cowboy's Life' about adventures in the wild west.",
-    "Make a video featuring a neon-glowing robot dancer performing a song titled 'Electric Dreams' in a futuristic cyberpunk city.",
-    "Generate a music video with a magical fairy singing 'Moonlight Garden' while flying through an enchanted forest at night.",
+    {
+      text: "A hyper realistic cyberpunk woman with neon blue hair singing 'Midnight City' in the rainy streets of Tokyo at night",
+      style: "hyperrealistic",
+      aspectRatio: "9:16" as const,
+    },
+    {
+      text: "Create a cartoon music video about a cute little cowboy hamster singing 'Cowboy's Life' about adventures in the wild west desert",
+      style: "cartoon",
+      aspectRatio: "16:9" as const,
+    },
+    {
+      text: "An anime magical girl with pink hair performing 'Starlight Dreams' while flying through a neon-lit futuristic city",
+      style: "anime",
+      aspectRatio: "9:16" as const,
+    },
+    {
+      text: "A realistic jazz musician in a smoky 1920s speakeasy playing 'Midnight Blues' on saxophone",
+      style: "realistic",
+      aspectRatio: "16:9" as const,
+    },
+    {
+      text: "A 3D animated astronaut panda floating in zero gravity performing 'Space Disco' inside a colorful space station",
+      style: "3d",
+      aspectRatio: "16:9" as const,
+    },
+    {
+      text: "A hyper realistic rock singer with long hair performing 'Thunder Road' on stage with dramatic lighting and pyrotechnics",
+      style: "hyperrealistic",
+      aspectRatio: "16:9" as const,
+    },
   ];
 
   return (
@@ -105,7 +132,7 @@ export default function NeonSinglePrompt() {
           <CardHeader>
             <CardTitle className="text-white">Describe Your Music Video</CardTitle>
             <CardDescription className="text-gray-400">
-              Include a character description, song title, and video description in your prompt.
+              Include a character description, song title, and video description. You can also choose the video orientation and character style below.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -173,11 +200,20 @@ export default function NeonSinglePrompt() {
                   key={index}
                   variant="outline"
                   size="sm"
-                  onClick={() => setPrompt(example)}
-                  className="w-full text-left justify-start border-purple-500/30 text-gray-300 hover:bg-purple-600/20"
+                  onClick={() => {
+                    setPrompt(example.text);
+                    setStyle(example.style);
+                    setAspectRatio(example.aspectRatio);
+                  }}
+                  className="w-full text-left justify-start border-purple-500/30 text-gray-300 hover:bg-purple-600/20 h-auto py-2"
                   data-testid={`example-prompt-${index}`}
                 >
-                  {example}
+                  <div className="flex flex-col items-start gap-1 w-full">
+                    <span className="text-xs text-purple-400">
+                      {example.aspectRatio === "9:16" ? "Vertical" : "Horizontal"} | {example.style.charAt(0).toUpperCase() + example.style.slice(1)}
+                    </span>
+                    <span className="text-gray-300 text-left whitespace-normal">{example.text}</span>
+                  </div>
                 </Button>
               ))}
             </div>
