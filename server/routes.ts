@@ -5043,13 +5043,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use Minimax Music 02 for song generation
       // Note: Minimax does not accept duration as a direct parameter, so we include it in the prompt
       // The actual generated song duration will vary (typically ±15 seconds from requested)
-      console.log("Using Minimax Music 02 for song generation...");
-      const minimaxSong = await generateSongWithMinimax(tags, lyrics, duration, description);
+      // To mitigate this, we generate 2 songs in parallel and select the one closest to the requested duration
+      console.log("Using Minimax Music 02 for song generation (generating 2 songs to select best match)...");
+      
+      // Generate 2 songs in parallel with error resilience
+      // If one fails, we still use the successful one
+      const songPromises = [
+        generateSongWithMinimax(tags, lyrics, duration, description).catch(err => {
+          console.warn("Song generation 1 failed:", err.message);
+          return null;
+        }),
+        generateSongWithMinimax(tags, lyrics, duration, description).catch(err => {
+          console.warn("Song generation 2 failed:", err.message);
+          return null;
+        })
+      ];
+      
+      const [song1Result, song2Result] = await Promise.all(songPromises);
+      
+      // Filter out failed generations
+      const successfulSongs = [song1Result, song2Result].filter((s): s is NonNullable<typeof s> => s !== null);
+      
+      if (successfulSongs.length === 0) {
+        throw new Error("Both song generation attempts failed");
+      }
+      
+      let minimaxSong;
+      let selectionReason: string;
+      
+      if (successfulSongs.length === 1) {
+        // Only one song succeeded
+        minimaxSong = successfulSongs[0];
+        selectionReason = "only_successful_generation";
+        console.log(`Only one song generated successfully: ${minimaxSong.duration}s (requested: ${duration}s)`);
+      } else {
+        const song1 = song1Result!;
+        const song2 = song2Result!;
+        
+        console.log(`Song 1 duration: ${song1.duration}s, Song 2 duration: ${song2.duration}s (requested: ${duration}s)`);
+        
+        // Select the song that is closest to the requested duration
+        // Prefer the shorter one if both are equally close
+        const diff1 = Math.abs(song1.duration - duration);
+        const diff2 = Math.abs(song2.duration - duration);
+        
+        if (diff1 === diff2) {
+          // If equal distance, prefer the shorter one
+          minimaxSong = song1.duration <= song2.duration ? song1 : song2;
+          selectionReason = "equal_distance_shorter_selected";
+          console.log(`Songs equally close to target, selected shorter one: ${minimaxSong.duration}s`);
+        } else if (diff1 < diff2) {
+          minimaxSong = song1;
+          selectionReason = "song1_closer_to_target";
+          console.log(`Selected song 1 (${song1.duration}s) - closer to target than song 2 (${song2.duration}s)`);
+        } else {
+          minimaxSong = song2;
+          selectionReason = "song2_closer_to_target";
+          console.log(`Selected song 2 (${song2.duration}s) - closer to target than song 1 (${song1.duration}s)`);
+        }
+      }
       
       // The actual duration from Minimax may differ from the requested duration
       // This is expected behavior - we'll use the actual duration for video segment calculation
       const actualDuration = minimaxSong.duration;
-      console.log(`Minimax generated song with actual duration: ${actualDuration}s (requested: ${duration}s)`);
+      console.log(`Final selected song duration: ${actualDuration}s (requested: ${duration}s)`);
+      
+      // Log candidate durations for traceability
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "song_selection",
+        message: `Selected song with duration ${actualDuration}s from ${successfulSongs.length} candidates`,
+        status: "completed",
+        metadata: {
+          requestedDuration: duration,
+          selectedDuration: actualDuration,
+          candidateDurations: successfulSongs.map(s => s.duration),
+          selectionReason
+        }
+      });
       
       // Create result format similar to KIE response but with single song
       result = {
