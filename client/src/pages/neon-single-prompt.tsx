@@ -158,6 +158,7 @@ export default function NeonSinglePrompt() {
                     <SelectItem value="cartoon" className="text-white hover:bg-purple-600/20">Cartoon</SelectItem>
                     <SelectItem value="anime" className="text-white hover:bg-purple-600/20">Anime</SelectItem>
                     <SelectItem value="realistic" className="text-white hover:bg-purple-600/20">Realistic</SelectItem>
+                    <SelectItem value="hyperrealistic" className="text-white hover:bg-purple-600/20">Hyper Realistic</SelectItem>
                     <SelectItem value="artistic" className="text-white hover:bg-purple-600/20">Artistic</SelectItem>
                     <SelectItem value="radiant" className="text-white hover:bg-purple-600/20">Radiant</SelectItem>
                   </SelectContent>

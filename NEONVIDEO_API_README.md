@@ -32,7 +32,7 @@ curl -X POST https://your-domain.replit.dev/api/neon-single-prompt \
 |-------|------|----------|-------------|
 | prompt | string | Yes | A natural language description of the desired music video. Should include character, song title, and video setting/theme. |
 | aspectRatio | string | No | Video orientation: `"16:9"` (horizontal/landscape) or `"9:16"` (vertical/portrait). Defaults to `"16:9"`. |
-| style | string | No | Character art style: `"3d"`, `"cartoon"`, `"anime"`, `"realistic"`, `"artistic"`, or `"radiant"`. Defaults to `"3d"`. |
+| style | string | No | Character art style: `"3d"`, `"cartoon"`, `"anime"`, `"realistic"`, `"hyperrealistic"`, `"artistic"`, or `"radiant"`. Defaults to `"3d"`. Note: `"hyperrealistic"` uses a two-step process for ultra-realistic characters. **Auto-detection**: If not provided, the API will detect keywords like "hyper realistic", "realistic", "anime", or "cartoon" from the prompt and set the style accordingly. |
 
 ### Request Example
 
@@ -144,6 +144,18 @@ curl -X POST https://your-domain.replit.dev/api/neon-single-prompt \
     "prompt": "An astronaut panda performing \"Space Disco\" in a zero-gravity dance club orbiting Earth.",
     "aspectRatio": "9:16",
     "style": "cartoon"
+  }'
+```
+
+### Hyper Realistic Style (Two-Step Enhancement)
+```bash
+curl -X POST https://your-domain.replit.dev/api/neon-single-prompt \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "prompt": "A hyper realistic cyberpunk woman wearing a brown leather jacket singing in NYC streets at night.",
+    "aspectRatio": "9:16",
+    "style": "hyperrealistic"
   }'
 ```
 

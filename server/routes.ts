@@ -8474,10 +8474,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validAspectRatios = ["16:9", "9:16"];
-      const validStyles = ["3d", "cartoon", "realistic", "artistic", "radiant", "anime"];
+      const validStyles = ["3d", "cartoon", "realistic", "artistic", "radiant", "anime", "hyperrealistic"];
       
       const aspectRatio = validAspectRatios.includes(requestedAspectRatio) ? requestedAspectRatio : "16:9";
-      const style = validStyles.includes(requestedStyle) ? requestedStyle : "3d";
+      
+      // Auto-detect style from prompt if not explicitly provided
+      let style: string;
+      if (validStyles.includes(requestedStyle)) {
+        style = requestedStyle;
+      } else {
+        // Check if prompt mentions "hyper realistic" or "hyperrealistic"
+        const promptLower = prompt.toLowerCase();
+        if (promptLower.includes("hyper realistic") || promptLower.includes("hyperrealistic") || promptLower.includes("hyper-realistic")) {
+          style = "hyperrealistic";
+          console.log(`[NEON-SINGLE-PROMPT] Auto-detected hyperrealistic style from prompt`);
+        } else if (promptLower.includes("realistic")) {
+          style = "realistic";
+          console.log(`[NEON-SINGLE-PROMPT] Auto-detected realistic style from prompt`);
+        } else if (promptLower.includes("anime")) {
+          style = "anime";
+          console.log(`[NEON-SINGLE-PROMPT] Auto-detected anime style from prompt`);
+        } else if (promptLower.includes("cartoon")) {
+          style = "cartoon";
+          console.log(`[NEON-SINGLE-PROMPT] Auto-detected cartoon style from prompt`);
+        } else {
+          style = "3d"; // Default
+        }
+      }
 
       console.log(`[NEON-SINGLE-PROMPT] Starting video generation for user ${userId}`);
       console.log(`[NEON-SINGLE-PROMPT] Prompt: ${prompt}`);
@@ -8588,15 +8611,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[NEON-SINGLE-PROMPT] Song generated and uploaded (${actualSongDuration} seconds)`);
 
       // Step 5: Generate character image with style support
-      console.log(`[NEON-SINGLE-PROMPT] Step 5: Generating character image for "${parsed.character}" with aspectRatio: ${aspectRatio}, style: ${style}...`);
-      const characterImageUrls = await generateCharacterImages(parsed.character, aspectRatio, style);
-      const characterImageUrl = characterImageUrls[0];
+      let characterImageUrl: string;
+      
+      if (style === "hyperrealistic") {
+        // Two-step process for hyper realistic: first generate realistic, then enhance
+        console.log(`[NEON-SINGLE-PROMPT] Step 5a: Generating realistic base image for "${parsed.character}" with aspectRatio: ${aspectRatio}...`);
+        const realisticImageUrls = await generateCharacterImages(parsed.character, aspectRatio, "realistic");
+        const realisticImageUrl = realisticImageUrls[0];
+        console.log(`[NEON-SINGLE-PROMPT] Realistic base image generated: ${realisticImageUrl}`);
+        
+        console.log(`[NEON-SINGLE-PROMPT] Step 5b: Enhancing to hyper realistic...`);
+        const enhancedImageUrl = await enhanceImageHyperReal(realisticImageUrl, parsed.character);
+        
+        // Download and store the enhanced image
+        const storedImage = await downloadAndStoreImage(enhancedImageUrl, "characters");
+        characterImageUrl = storedImage.storedUrl;
+        console.log(`[NEON-SINGLE-PROMPT] Hyper realistic character image generated: ${characterImageUrl}`);
+      } else {
+        console.log(`[NEON-SINGLE-PROMPT] Step 5: Generating character image for "${parsed.character}" with aspectRatio: ${aspectRatio}, style: ${style}...`);
+        const characterImageUrls = await generateCharacterImages(parsed.character, aspectRatio, style);
+        characterImageUrl = characterImageUrls[0];
+        console.log(`[NEON-SINGLE-PROMPT] Character image generated`);
+      }
       
       await storage.updateProject(project.id, { 
         characterImageUrl,
         currentStep: 3
       });
-      console.log(`[NEON-SINGLE-PROMPT] Character image generated`);
 
       // Calculate number of scenes dynamically based on ACTUAL song duration
       // Video segments can be 5 or 10 seconds, so we use calculateVideoSegments
