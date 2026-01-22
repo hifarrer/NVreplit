@@ -8659,20 +8659,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[NEON-SINGLE-PROMPT] Generated lyrics (${lyrics.length} chars) and title: ${aiGeneratedTitle}`);
 
       // Step 4: Generate song with Minimax Music 02
-      console.log(`[NEON-SINGLE-PROMPT] Step 4: Generating ~30-second song with Minimax Music 02...`);
+      // Generate 2 songs in parallel and select the one closest to the requested duration
+      console.log(`[NEON-SINGLE-PROMPT] Step 4: Generating ~30-second song with Minimax Music 02 (2 candidates for best match)...`);
       const songTags = parsed.song_title 
         ? `${parsed.song_title}. ${parsed.video_description}`
         : parsed.video_description;
-      const songResult = await generateSongWithMinimax(
-        songTags,
-        lyrics,
-        30,  // Request 30 seconds (actual may vary ±15 seconds)
-        parsed.video_description
-      );
+      
+      const requestedDuration = 30;
+      
+      // Generate 2 songs in parallel with error resilience
+      const songPromises = [
+        generateSongWithMinimax(songTags, lyrics, requestedDuration, parsed.video_description).catch(err => {
+          console.warn("[NEON-SINGLE-PROMPT] Song generation 1 failed:", err.message);
+          return null;
+        }),
+        generateSongWithMinimax(songTags, lyrics, requestedDuration, parsed.video_description).catch(err => {
+          console.warn("[NEON-SINGLE-PROMPT] Song generation 2 failed:", err.message);
+          return null;
+        })
+      ];
+      
+      const [song1Result, song2Result] = await Promise.all(songPromises);
+      
+      // Filter out failed generations
+      const successfulSongs = [song1Result, song2Result].filter((s): s is NonNullable<typeof s> => s !== null);
+      
+      if (successfulSongs.length === 0) {
+        throw new Error("Both song generation attempts failed");
+      }
+      
+      let songResult;
+      let selectionReason: string;
+      
+      if (successfulSongs.length === 1) {
+        songResult = successfulSongs[0];
+        selectionReason = "only_successful_generation";
+        console.log(`[NEON-SINGLE-PROMPT] Only one song generated successfully: ${songResult.duration}s`);
+      } else {
+        const song1 = song1Result!;
+        const song2 = song2Result!;
+        
+        console.log(`[NEON-SINGLE-PROMPT] Song 1 duration: ${song1.duration}s, Song 2 duration: ${song2.duration}s (requested: ${requestedDuration}s)`);
+        
+        // Select the song closest to the requested duration
+        const diff1 = Math.abs(song1.duration - requestedDuration);
+        const diff2 = Math.abs(song2.duration - requestedDuration);
+        
+        if (diff1 === diff2) {
+          songResult = song1.duration <= song2.duration ? song1 : song2;
+          selectionReason = "equal_distance_shorter_selected";
+          console.log(`[NEON-SINGLE-PROMPT] Songs equally close to target, selected shorter one: ${songResult.duration}s`);
+        } else if (diff1 < diff2) {
+          songResult = song1;
+          selectionReason = "song1_closer_to_target";
+          console.log(`[NEON-SINGLE-PROMPT] Selected song 1 (${song1.duration}s) - closer to target`);
+        } else {
+          songResult = song2;
+          selectionReason = "song2_closer_to_target";
+          console.log(`[NEON-SINGLE-PROMPT] Selected song 2 (${song2.duration}s) - closer to target`);
+        }
+      }
       
       // Use the actual duration from Minimax (may differ from requested 30 seconds)
       const actualSongDuration = songResult.duration;
-      console.log(`[NEON-SINGLE-PROMPT] Song generated: requested 30s, actual ${actualSongDuration}s`);
+      console.log(`[NEON-SINGLE-PROMPT] Final selected song: ${actualSongDuration}s (requested: ${requestedDuration}s, candidates: ${successfulSongs.length}, reason: ${selectionReason})`);
       
       await storage.updateProject(project.id, { 
         audioUrl: songResult.audioUrl,
