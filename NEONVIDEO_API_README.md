@@ -31,12 +31,26 @@ curl -X POST https://your-domain.replit.dev/api/neon-single-prompt \
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | prompt | string | Yes | A natural language description of the desired music video. Should include character, song title, and video setting/theme. |
+| aspectRatio | string | No | Video orientation: `"16:9"` (horizontal/landscape) or `"9:16"` (vertical/portrait). Defaults to `"16:9"`. |
+| style | string | No | Character art style: `"3d"`, `"cartoon"`, `"anime"`, `"realistic"`, `"artistic"`, or `"radiant"`. Defaults to `"3d"`. |
 
 ### Request Example
 
 ```json
 {
-  "prompt": "Make a video featuring a neon-glowing robot dancer performing a song titled 'Electric Dreams' in a futuristic cyberpunk city."
+  "prompt": "Make a video featuring a neon-glowing robot dancer performing a song titled 'Electric Dreams' in a futuristic cyberpunk city.",
+  "aspectRatio": "16:9",
+  "style": "3d"
+}
+```
+
+### Vertical Video with Realistic Style Example
+
+```json
+{
+  "prompt": "Create a vertical video of a cyberpunk woman singing in NYC streets at night.",
+  "aspectRatio": "9:16",
+  "style": "realistic"
 }
 ```
 
@@ -87,33 +101,49 @@ curl -X POST https://your-domain.replit.dev/api/neon-single-prompt \
 
 ## Complete cURL Examples
 
-### Basic Request
-```bash
-curl -X POST https://046b05f0-5ff8-4276-acdf-2f3159a5e709-00-3a4g2oro15uqc.kirk.replit.dev/api/neon-single-prompt \
-  -H "Content-Type: application/json" \
-  -H "Cookie: auth_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
-  -d '{
-    "prompt": "Create a music video with a cowboy hamster singing country music in the wild west desert."
-  }'
-```
-
-### Request with Detailed Prompt
+### Basic Request (Horizontal 16:9, 3D Style - defaults)
 ```bash
 curl -X POST https://your-domain.replit.dev/api/neon-single-prompt \
   -H "Content-Type: application/json" \
   -H "Cookie: auth_token=YOUR_JWT_TOKEN" \
   -d '{
-    "prompt": "Make a video featuring a cyberpunk cat DJ performing a song called \"Neon Nights\" in a futuristic Tokyo nightclub with strobing lights."
+    "prompt": "Create a music video with a cowboy hamster singing country music in the wild west desert."
   }'
 ```
 
-### Request with Authorization Header
+### Vertical Video with Realistic Style
+```bash
+curl -X POST https://your-domain.replit.dev/api/neon-single-prompt \
+  -H "Content-Type: application/json" \
+  -H "Cookie: auth_token=YOUR_JWT_TOKEN" \
+  -d '{
+    "prompt": "A cyberpunk woman with neon hair singing in the rainy NYC streets at night.",
+    "aspectRatio": "9:16",
+    "style": "realistic"
+  }'
+```
+
+### Horizontal Video with Anime Style
+```bash
+curl -X POST https://your-domain.replit.dev/api/neon-single-prompt \
+  -H "Content-Type: application/json" \
+  -H "Cookie: auth_token=YOUR_JWT_TOKEN" \
+  -d '{
+    "prompt": "Make a video featuring a cyberpunk cat DJ performing a song called \"Neon Nights\" in a futuristic Tokyo nightclub with strobing lights.",
+    "aspectRatio": "16:9",
+    "style": "anime"
+  }'
+```
+
+### Vertical Video with Cartoon Style
 ```bash
 curl -X POST https://your-domain.replit.dev/api/neon-single-prompt \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{
-    "prompt": "An astronaut panda performing \"Space Disco\" in a zero-gravity dance club orbiting Earth."
+    "prompt": "An astronaut panda performing \"Space Disco\" in a zero-gravity dance club orbiting Earth.",
+    "aspectRatio": "9:16",
+    "style": "cartoon"
   }'
 ```
 

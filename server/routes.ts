@@ -8464,7 +8464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
     
     try {
-      const { prompt } = req.body;
+      const { prompt, aspectRatio: requestedAspectRatio, style: requestedStyle } = req.body;
       const userId = req.user!.userId;
 
       if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
@@ -8473,8 +8473,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      const validAspectRatios = ["16:9", "9:16"];
+      const validStyles = ["3d", "cartoon", "realistic", "artistic", "radiant", "anime"];
+      
+      const aspectRatio = validAspectRatios.includes(requestedAspectRatio) ? requestedAspectRatio : "16:9";
+      const style = validStyles.includes(requestedStyle) ? requestedStyle : "3d";
+
       console.log(`[NEON-SINGLE-PROMPT] Starting video generation for user ${userId}`);
       console.log(`[NEON-SINGLE-PROMPT] Prompt: ${prompt}`);
+      console.log(`[NEON-SINGLE-PROMPT] Aspect Ratio: ${aspectRatio}, Style: ${style}`);
 
       // Import OpenAI dynamically to ensure it's available
       const OpenAI = (await import("openai")).default;
@@ -8538,6 +8545,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         title: parsed.song_title || parsed.video_description.substring(0, 50),
         description: parsed.video_description,
+        aspectRatio: aspectRatio,
         currentStep: 1
       });
       console.log(`[NEON-SINGLE-PROMPT] Created project ${project.id}`);
@@ -8579,11 +8587,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       console.log(`[NEON-SINGLE-PROMPT] Song generated and uploaded (${actualSongDuration} seconds)`);
 
-      // Step 5: Generate character image with Fal.ai
-      // Use the project's aspectRatio (defaults to 16:9 for horizontal)
-      const aspectRatio = project.aspectRatio || "16:9";
-      console.log(`[NEON-SINGLE-PROMPT] Step 5: Generating character image for "${parsed.character}" with aspectRatio: ${aspectRatio}...`);
-      const characterImageUrl = await generateCharacterImage(parsed.character, aspectRatio);
+      // Step 5: Generate character image with style support
+      console.log(`[NEON-SINGLE-PROMPT] Step 5: Generating character image for "${parsed.character}" with aspectRatio: ${aspectRatio}, style: ${style}...`);
+      const characterImageUrls = await generateCharacterImages(parsed.character, aspectRatio, style);
+      const characterImageUrl = characterImageUrls[0];
       
       await storage.updateProject(project.id, { 
         characterImageUrl,
