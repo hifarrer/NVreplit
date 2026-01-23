@@ -43,7 +43,7 @@ export async function generateSongWithMinimax(
   console.log("Requested duration:", durationSeconds, "seconds");
   console.log("Effective request duration (capped at 4 min):", effectiveRequestDuration, "seconds");
   console.log("Max acceptable duration (100% tolerance, capped at 4 min):", maxAcceptableDuration, "seconds");
-  console.log("Will generate 3 parallel songs and pick the closest");
+  console.log("Will generate 4 parallel songs and pick the closest");
 
   for (let retryAttempt = 0; retryAttempt <= maxRetries; retryAttempt++) {
     if (retryAttempt > 0) {
@@ -56,7 +56,7 @@ export async function generateSongWithMinimax(
         lyrics,
         effectiveRequestDuration,
         description,
-        3
+        4
       );
 
       if (songs.length === 0) {
@@ -79,7 +79,7 @@ export async function generateSongWithMinimax(
       console.log(`All ${songs.length} generated songs exceeded max acceptable duration of ${maxAcceptableDuration}s`);
       
       if (retryAttempt < maxRetries) {
-        console.log("Will retry with 3 more generations...");
+        console.log("Will retry with 4 more generations...");
       }
     } catch (error) {
       console.error(`Generation attempt ${retryAttempt + 1} failed:`, error);
