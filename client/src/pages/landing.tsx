@@ -7,9 +7,10 @@ import { Video, Sparkles, Music, Wand2, Play, Calendar, User, ArrowRight, Volume
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
 import logoImage from "@assets/neonlogo_1756693683433.png";
-import heroVideo from "@assets/hero_video.mp4";
 import { useAuth } from "@/hooks/use-auth";
 import { SiTiktok, SiFacebook, SiYoutube } from "react-icons/si";
+
+const heroVideo = "https://res.cloudinary.com/dqemas8ht/video/upload/v1769200552/hero_video-BLAd97Wv_urt68e.mp4";
 
 interface TrendingVideo {
   id: string;
