@@ -23,6 +23,8 @@ interface WavespeedStatusResponse {
   };
 }
 
+const MAX_SONG_DURATION = 240; // 4 minutes maximum
+
 export async function generateSongWithMinimax(
   tags: string,
   lyrics?: string,
@@ -33,129 +35,230 @@ export async function generateSongWithMinimax(
     throw new Error("WAVESPEED_API_KEY is not configured");
   }
 
-  try {
-    // Build the prompt including all parameters
-    // Duration is included in prompt since the API doesn't have a separate parameter for it
-    const promptParts: string[] = [];
-    
-    // Add music style/tags
-    if (tags && tags.trim()) {
-      promptParts.push(tags.trim());
-    }
-    
-    // Add song description if provided
-    if (description && description.trim()) {
-      promptParts.push(description.trim());
-    }
-    
-    // Add duration guidance in the prompt (the model doesn't accept duration as a parameter)
-    promptParts.push(`${durationSeconds} seconds`);
-    
-    const prompt = promptParts.join(", ");
-    
-    console.log("=== GENERATING SONG WITH MINIMAX MUSIC 02 ===");
-    console.log("Prompt:", prompt);
-    console.log("Lyrics:", lyrics ? lyrics.substring(0, 100) + "..." : "No lyrics");
-    console.log("Requested duration:", durationSeconds, "seconds");
+  const effectiveRequestDuration = Math.min(durationSeconds, MAX_SONG_DURATION);
+  const maxAcceptableDuration = Math.min(effectiveRequestDuration * 2, MAX_SONG_DURATION);
+  const maxRetries = 2;
+  
+  console.log("=== GENERATING SONG WITH MINIMAX MUSIC 02 (ROBUST MODE) ===");
+  console.log("Requested duration:", durationSeconds, "seconds");
+  console.log("Effective request duration (capped at 4 min):", effectiveRequestDuration, "seconds");
+  console.log("Max acceptable duration (100% tolerance, capped at 4 min):", maxAcceptableDuration, "seconds");
+  console.log("Will generate 3 parallel songs and pick the closest");
 
-    // Make the API request to Minimax Music 02 via Wavespeed
-    const response = await fetch("https://api.wavespeed.ai/api/v3/minimax/music-02", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${WAVESPEED_API_KEY}`,
-      },
-      body: JSON.stringify({
-        bitrate: 256000,
-        lyrics: lyrics || "",
-        prompt: prompt,
-        sample_rate: 44100,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Minimax Music 02 API error:", errorText);
-      throw new Error(`Minimax Music 02 API error: ${response.status} - ${errorText}`);
+  for (let retryAttempt = 0; retryAttempt <= maxRetries; retryAttempt++) {
+    if (retryAttempt > 0) {
+      console.log(`\n=== RETRY ATTEMPT ${retryAttempt}/${maxRetries} ===`);
     }
 
-    const result = await response.json() as WavespeedSubmissionResponse;
-    const requestId = result.data?.id || result.id;
-
-    if (!requestId) {
-      console.error("Minimax response:", JSON.stringify(result, null, 2));
-      throw new Error("No request ID received from Minimax Music 02");
-    }
-
-    console.log(`Minimax Music 02 submission successful, request ID: ${requestId}`);
-
-    // Poll for results
-    let attempts = 0;
-    const maxAttempts = 120; // 20 minutes with 10-second intervals (music generation can take longer)
-
-    while (attempts < maxAttempts) {
-      await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds
-
-      const statusResponse = await fetch(
-        `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
-        {
-          headers: {
-            Authorization: `Bearer ${WAVESPEED_API_KEY}`,
-          },
-        }
+    try {
+      const songs = await generateMultipleSongsInParallel(
+        tags,
+        lyrics,
+        effectiveRequestDuration,
+        description,
+        3
       );
 
-      if (!statusResponse.ok) {
-        throw new Error(`Minimax status check failed: ${statusResponse.status}`);
+      if (songs.length === 0) {
+        throw new Error("No songs were generated successfully");
       }
 
-      const statusResult = await statusResponse.json() as WavespeedStatusResponse;
-      const status = statusResult.data?.status;
+      const selectedSong = selectBestSong(songs, effectiveRequestDuration, maxAcceptableDuration);
 
-      // Log status for debugging
-      if (attempts % 6 === 0) {
-        console.log(`Minimax status check: ${status || 'unknown'}`);
+      if (selectedSong) {
+        if (selectedSong.duration > MAX_SONG_DURATION) {
+          console.log(`Selected song exceeds absolute max of ${MAX_SONG_DURATION}s, will retry`);
+        } else {
+          console.log(`\n=== SONG SELECTION COMPLETE ===`);
+          console.log(`Selected song duration: ${selectedSong.duration}s (requested: ${effectiveRequestDuration}s)`);
+          console.log(`Duration difference: ${Math.abs(selectedSong.duration - effectiveRequestDuration)}s`);
+          return selectedSong;
+        }
       }
 
-      if (
-        status === "completed" &&
-        statusResult.data?.outputs &&
-        statusResult.data.outputs.length > 0
-      ) {
-        const audioExternalUrl = statusResult.data.outputs[0];
-        console.log("Minimax Music 02 generation completed!");
-        console.log("External audio URL:", audioExternalUrl);
-
-        // Download and store the audio in our object storage
-        const { audioUrl, actualDuration } = await downloadAndStoreMinimaxAudio(audioExternalUrl);
-        
-        console.log("Song stored at:", audioUrl);
-        console.log("Actual song duration:", actualDuration, "seconds");
-
-        return {
-          audioUrl,
-          title: "NeonVideo Song",
-          duration: actualDuration,
-        };
-      } else if (status === "failed") {
-        throw new Error(
-          `Minimax Music 02 generation failed: ${statusResult.data?.error || "Unknown error"}`
-        );
-      } else if (status && !["pending", "processing", "queued", "starting"].includes(status)) {
-        // Log unexpected status for debugging
-        console.warn(`Unexpected Minimax status: ${status}`, JSON.stringify(statusResult.data, null, 2));
+      console.log(`All ${songs.length} generated songs exceeded max acceptable duration of ${maxAcceptableDuration}s`);
+      
+      if (retryAttempt < maxRetries) {
+        console.log("Will retry with 3 more generations...");
       }
+    } catch (error) {
+      console.error(`Generation attempt ${retryAttempt + 1} failed:`, error);
+      if (retryAttempt >= maxRetries) {
+        throw error;
+      }
+    }
+  }
 
-      attempts++;
+  throw new Error(
+    `Failed to generate a song within acceptable duration after ${maxRetries + 1} attempts. ` +
+    `Requested ${durationSeconds}s, max acceptable was ${maxAcceptableDuration}s.`
+  );
+}
+
+async function generateMultipleSongsInParallel(
+  tags: string,
+  lyrics: string | undefined,
+  durationSeconds: number,
+  description: string | undefined,
+  count: number
+): Promise<MinimaxSongResult[]> {
+  console.log(`\nStarting ${count} parallel song generations...`);
+
+  const generationPromises = Array.from({ length: count }, (_, i) =>
+    generateSingleSong(tags, lyrics, durationSeconds, description, i + 1)
+      .catch((error) => {
+        console.error(`Song generation ${i + 1} failed:`, error.message);
+        return null;
+      })
+  );
+
+  const results = await Promise.all(generationPromises);
+  const successfulSongs = results.filter((s): s is MinimaxSongResult => s !== null);
+
+  console.log(`\n${successfulSongs.length}/${count} songs generated successfully`);
+  successfulSongs.forEach((song, i) => {
+    console.log(`  Song ${i + 1}: ${song.duration}s`);
+  });
+
+  return successfulSongs;
+}
+
+function selectBestSong(
+  songs: MinimaxSongResult[],
+  requestedDuration: number,
+  maxAcceptableDuration: number
+): MinimaxSongResult | null {
+  const sortedSongs = songs
+    .filter((song) => song.duration <= MAX_SONG_DURATION)
+    .map((song) => ({
+      song,
+      difference: Math.abs(song.duration - requestedDuration),
+      withinLimit: song.duration <= maxAcceptableDuration,
+    }))
+    .sort((a, b) => a.difference - b.difference);
+
+  console.log("\n=== SONG SELECTION ANALYSIS ===");
+  console.log(`  Filtered ${songs.length - sortedSongs.length} songs exceeding ${MAX_SONG_DURATION}s absolute max`);
+  sortedSongs.forEach(({ song, difference, withinLimit }, i) => {
+    console.log(
+      `  ${i + 1}. Duration: ${song.duration}s, Diff: ${difference}s, Within limit: ${withinLimit}`
+    );
+  });
+
+  const bestWithinLimit = sortedSongs.find((s) => s.withinLimit);
+  if (bestWithinLimit) {
+    return bestWithinLimit.song;
+  }
+
+  return null;
+}
+
+async function generateSingleSong(
+  tags: string,
+  lyrics: string | undefined,
+  durationSeconds: number,
+  description: string | undefined,
+  songIndex: number
+): Promise<MinimaxSongResult> {
+  const promptParts: string[] = [];
+
+  if (tags && tags.trim()) {
+    promptParts.push(tags.trim());
+  }
+
+  if (description && description.trim()) {
+    promptParts.push(description.trim());
+  }
+
+  promptParts.push(`${durationSeconds} seconds`);
+
+  const prompt = promptParts.join(", ");
+
+  console.log(`[Song ${songIndex}] Starting generation...`);
+  console.log(`[Song ${songIndex}] Prompt: ${prompt.substring(0, 100)}...`);
+
+  const response = await fetch("https://api.wavespeed.ai/api/v3/minimax/music-02", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+    },
+    body: JSON.stringify({
+      bitrate: 256000,
+      lyrics: lyrics || "",
+      prompt: prompt,
+      sample_rate: 44100,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[Song ${songIndex}] API error:`, errorText);
+    throw new Error(`Minimax Music 02 API error: ${response.status} - ${errorText}`);
+  }
+
+  const result = (await response.json()) as WavespeedSubmissionResponse;
+  const requestId = result.data?.id || result.id;
+
+  if (!requestId) {
+    throw new Error(`[Song ${songIndex}] No request ID received`);
+  }
+
+  console.log(`[Song ${songIndex}] Request ID: ${requestId}`);
+
+  let attempts = 0;
+  const maxAttempts = 120;
+
+  while (attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+
+    const statusResponse = await fetch(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      {
+        headers: {
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+      }
+    );
+
+    if (!statusResponse.ok) {
+      throw new Error(`[Song ${songIndex}] Status check failed: ${statusResponse.status}`);
     }
 
-    throw new Error("Minimax Music 02 generation timed out after 20 minutes");
-  } catch (error) {
-    console.error("Minimax Music 02 song generation error:", error);
-    throw new Error(
-      `Failed to generate song with Minimax Music 02: ${(error as Error).message}`
-    );
+    const statusResult = (await statusResponse.json()) as WavespeedStatusResponse;
+    const status = statusResult.data?.status;
+
+    if (attempts % 6 === 0) {
+      console.log(`[Song ${songIndex}] Status: ${status || "unknown"}`);
+    }
+
+    if (
+      status === "completed" &&
+      statusResult.data?.outputs &&
+      statusResult.data.outputs.length > 0
+    ) {
+      const audioExternalUrl = statusResult.data.outputs[0];
+      console.log(`[Song ${songIndex}] Generation completed!`);
+
+      const { audioUrl, actualDuration } = await downloadAndStoreMinimaxAudio(audioExternalUrl);
+
+      console.log(`[Song ${songIndex}] Duration: ${actualDuration}s, URL: ${audioUrl}`);
+
+      return {
+        audioUrl,
+        title: "NeonVideo Song",
+        duration: actualDuration,
+      };
+    } else if (status === "failed") {
+      throw new Error(
+        `[Song ${songIndex}] Generation failed: ${statusResult.data?.error || "Unknown error"}`
+      );
+    }
+
+    attempts++;
   }
+
+  throw new Error(`[Song ${songIndex}] Generation timed out after 20 minutes`);
 }
 
 async function downloadAndStoreMinimaxAudio(
@@ -164,7 +267,6 @@ async function downloadAndStoreMinimaxAudio(
   try {
     console.log("Downloading Minimax audio from:", externalUrl);
 
-    // Download the audio from Wavespeed's CDN
     const response = await fetch(externalUrl);
     if (!response.ok) {
       throw new Error(`Failed to download audio: ${response.status} ${response.statusText}`);
@@ -173,7 +275,6 @@ async function downloadAndStoreMinimaxAudio(
     const audioBuffer = Buffer.from(await response.arrayBuffer());
     console.log("Downloaded audio buffer, size:", audioBuffer.length);
 
-    // Get actual duration from the audio buffer using music-metadata
     let actualDuration: number;
     try {
       const { parseBuffer } = await import("music-metadata");
@@ -182,17 +283,19 @@ async function downloadAndStoreMinimaxAudio(
       console.log("Detected audio duration:", actualDuration, "seconds");
     } catch (metadataError) {
       console.warn("Could not detect audio duration, falling back to estimate:", metadataError);
-      // Fallback: estimate based on buffer size (MP3 at 256kbps = ~32KB per second)
       actualDuration = Math.ceil(audioBuffer.length / (256000 / 8));
     }
 
-    // Guard against zero/invalid duration
     if (actualDuration <= 0) {
       console.warn("Duration detection failed, defaulting to 60 seconds");
-      actualDuration = 60; // Fallback to reasonable default
+      actualDuration = 60;
     }
 
-    // Store in object storage
+    if (actualDuration > MAX_SONG_DURATION) {
+      console.warn(`Song duration ${actualDuration}s exceeds max ${MAX_SONG_DURATION}s, skipping storage`);
+      throw new Error(`Song duration ${actualDuration}s exceeds maximum allowed ${MAX_SONG_DURATION}s`);
+    }
+
     const songId = randomUUID();
     const fileName = `songs/${songId}.mp3`;
 
