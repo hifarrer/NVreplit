@@ -5074,84 +5074,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let kieTaskId = null;
       let kieAudioId = null;
       
-      // Use Minimax Music 02 for song generation
-      // Note: Minimax does not accept duration as a direct parameter, so we include it in the prompt
-      // The actual generated song duration will vary (typically ±15 seconds from requested)
-      // To mitigate this, we generate 2 songs in parallel and select the one closest to the requested duration
-      console.log("Using Minimax Music 02 for song generation (generating 2 songs to select best match)...");
+      // Use Minimax Music 02 for song generation with robust parallel generation
+      // The function internally generates 4 songs in parallel, selects the closest to requested duration,
+      // and retries if all exceed 100% of requested duration (up to 2 retries)
+      console.log("Using Minimax Music 02 for song generation...");
       
-      // Generate 2 songs in parallel with error resilience
-      // If one fails, we still use the successful one
-      const songPromises = [
-        generateSongWithMinimax(tags, lyrics, duration, description).catch(err => {
-          console.warn("Song generation 1 failed:", err.message);
-          return null;
-        }),
-        generateSongWithMinimax(tags, lyrics, duration, description).catch(err => {
-          console.warn("Song generation 2 failed:", err.message);
-          return null;
-        })
-      ];
-      
-      const [song1Result, song2Result] = await Promise.all(songPromises);
-      
-      // Filter out failed generations
-      const successfulSongs = [song1Result, song2Result].filter((s): s is NonNullable<typeof s> => s !== null);
-      
-      if (successfulSongs.length === 0) {
-        throw new Error("Both song generation attempts failed");
-      }
-      
-      let minimaxSong;
-      let selectionReason: string;
-      
-      if (successfulSongs.length === 1) {
-        // Only one song succeeded
-        minimaxSong = successfulSongs[0];
-        selectionReason = "only_successful_generation";
-        console.log(`Only one song generated successfully: ${minimaxSong.duration}s (requested: ${duration}s)`);
-      } else {
-        const song1 = song1Result!;
-        const song2 = song2Result!;
-        
-        console.log(`Song 1 duration: ${song1.duration}s, Song 2 duration: ${song2.duration}s (requested: ${duration}s)`);
-        
-        // Select the song that is closest to the requested duration
-        // Prefer the shorter one if both are equally close
-        const diff1 = Math.abs(song1.duration - duration);
-        const diff2 = Math.abs(song2.duration - duration);
-        
-        if (diff1 === diff2) {
-          // If equal distance, prefer the shorter one
-          minimaxSong = song1.duration <= song2.duration ? song1 : song2;
-          selectionReason = "equal_distance_shorter_selected";
-          console.log(`Songs equally close to target, selected shorter one: ${minimaxSong.duration}s`);
-        } else if (diff1 < diff2) {
-          minimaxSong = song1;
-          selectionReason = "song1_closer_to_target";
-          console.log(`Selected song 1 (${song1.duration}s) - closer to target than song 2 (${song2.duration}s)`);
-        } else {
-          minimaxSong = song2;
-          selectionReason = "song2_closer_to_target";
-          console.log(`Selected song 2 (${song2.duration}s) - closer to target than song 1 (${song1.duration}s)`);
-        }
-      }
+      const minimaxSong = await generateSongWithMinimax(tags, lyrics, duration, description);
+      const selectionReason = "robust_parallel_selection";
       
       // The actual duration from Minimax may differ from the requested duration
       // This is expected behavior - we'll use the actual duration for video segment calculation
       const actualDuration = minimaxSong.duration;
       console.log(`Final selected song duration: ${actualDuration}s (requested: ${duration}s)`);
       
-      // Log candidate durations for traceability
+      // Log song generation for traceability
       await storage.addGenerationLog({
         projectId: req.params.id,
-        step: "song_selection",
-        message: `Selected song with duration ${actualDuration}s from ${successfulSongs.length} candidates`,
+        step: "song_generation",
+        message: `Generated song with duration ${actualDuration}s (requested: ${duration}s)`,
         status: "completed",
         metadata: {
           requestedDuration: duration,
           selectedDuration: actualDuration,
-          candidateDurations: successfulSongs.map(s => s.duration),
           selectionReason
         }
       });
@@ -8710,37 +8654,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
         ? `${parsed.song_title}. ${parsed.video_description}`
         : parsed.video_description || generatedPrompt;
       
-      const songPromises = [
-        generateSongWithMinimax(songTags, lyrics, targetDuration, parsed.video_description).catch(err => {
-          console.warn("[AUTO-GENERATE] Song generation 1 failed:", err.message);
-          return null;
-        }),
-        generateSongWithMinimax(songTags, lyrics, targetDuration, parsed.video_description).catch(err => {
-          console.warn("[AUTO-GENERATE] Song generation 2 failed:", err.message);
-          return null;
-        })
-      ];
-      
-      const [song1Result, song2Result] = await Promise.all(songPromises);
-      
-      const successfulSongs = [song1Result, song2Result].filter((s): s is NonNullable<typeof s> => s !== null);
-      
-      if (successfulSongs.length === 0) {
-        throw new Error("Both song generation attempts failed");
-      }
-      
-      let songResult;
-      
-      if (successfulSongs.length === 1) {
-        songResult = successfulSongs[0];
-      } else {
-        const song1 = song1Result!;
-        const song2 = song2Result!;
-        const diff1 = Math.abs(song1.duration - targetDuration);
-        const diff2 = Math.abs(song2.duration - targetDuration);
-        songResult = diff1 <= diff2 ? song1 : song2;
-      }
-      
+      const songResult = await generateSongWithMinimax(songTags, lyrics, targetDuration, parsed.video_description);
       const actualSongDuration = songResult.duration;
       console.log(`[AUTO-GENERATE] Song generated: ${actualSongDuration}s`);
       
@@ -8966,65 +8880,16 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       console.log(`[NEON-SINGLE-PROMPT-GET] Generated lyrics (${lyrics.length} chars) and title: ${aiGeneratedTitle}`);
 
       // Step 4: Generate song with Minimax Music 02
-      console.log(`[NEON-SINGLE-PROMPT-GET] Step 4: Generating ~30-second song with Minimax Music 02 (2 candidates for best match)...`);
+      console.log(`[NEON-SINGLE-PROMPT-GET] Step 4: Generating ~30-second song with Minimax Music 02...`);
       const songTags = parsed.song_title 
         ? `${parsed.song_title}. ${parsed.video_description}`
         : parsed.video_description;
       
       const requestedDuration = 30;
       
-      const songPromises = [
-        generateSongWithMinimax(songTags, lyrics, requestedDuration, parsed.video_description).catch(err => {
-          console.warn("[NEON-SINGLE-PROMPT-GET] Song generation 1 failed:", err.message);
-          return null;
-        }),
-        generateSongWithMinimax(songTags, lyrics, requestedDuration, parsed.video_description).catch(err => {
-          console.warn("[NEON-SINGLE-PROMPT-GET] Song generation 2 failed:", err.message);
-          return null;
-        })
-      ];
-      
-      const [song1Result, song2Result] = await Promise.all(songPromises);
-      
-      const successfulSongs = [song1Result, song2Result].filter((s): s is NonNullable<typeof s> => s !== null);
-      
-      if (successfulSongs.length === 0) {
-        throw new Error("Both song generation attempts failed");
-      }
-      
-      let songResult;
-      let selectionReason: string;
-      
-      if (successfulSongs.length === 1) {
-        songResult = successfulSongs[0];
-        selectionReason = "only_successful_generation";
-        console.log(`[NEON-SINGLE-PROMPT-GET] Only one song generated successfully: ${songResult.duration}s`);
-      } else {
-        const song1 = song1Result!;
-        const song2 = song2Result!;
-        
-        console.log(`[NEON-SINGLE-PROMPT-GET] Song 1 duration: ${song1.duration}s, Song 2 duration: ${song2.duration}s (requested: ${requestedDuration}s)`);
-        
-        const diff1 = Math.abs(song1.duration - requestedDuration);
-        const diff2 = Math.abs(song2.duration - requestedDuration);
-        
-        if (diff1 === diff2) {
-          songResult = song1.duration <= song2.duration ? song1 : song2;
-          selectionReason = "equal_distance_shorter_selected";
-          console.log(`[NEON-SINGLE-PROMPT-GET] Songs equally close to target, selected shorter one: ${songResult.duration}s`);
-        } else if (diff1 < diff2) {
-          songResult = song1;
-          selectionReason = "song1_closer_to_target";
-          console.log(`[NEON-SINGLE-PROMPT-GET] Selected song 1 (${song1.duration}s) - closer to target`);
-        } else {
-          songResult = song2;
-          selectionReason = "song2_closer_to_target";
-          console.log(`[NEON-SINGLE-PROMPT-GET] Selected song 2 (${song2.duration}s) - closer to target`);
-        }
-      }
-      
+      const songResult = await generateSongWithMinimax(songTags, lyrics, requestedDuration, parsed.video_description);
       const actualSongDuration = songResult.duration;
-      console.log(`[NEON-SINGLE-PROMPT-GET] Final selected song: ${actualSongDuration}s (requested: ${requestedDuration}s, candidates: ${successfulSongs.length}, reason: ${selectionReason})`);
+      console.log(`[NEON-SINGLE-PROMPT-GET] Song generated: ${actualSongDuration}s (requested: ${requestedDuration}s)`);
       
       await storage.updateProject(project.id, { 
         audioUrl: songResult.audioUrl,
@@ -9278,62 +9143,9 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       
       const requestedDuration = 30;
       
-      // Generate 2 songs in parallel with error resilience
-      const songPromises = [
-        generateSongWithMinimax(songTags, lyrics, requestedDuration, parsed.video_description).catch(err => {
-          console.warn("[NEON-SINGLE-PROMPT] Song generation 1 failed:", err.message);
-          return null;
-        }),
-        generateSongWithMinimax(songTags, lyrics, requestedDuration, parsed.video_description).catch(err => {
-          console.warn("[NEON-SINGLE-PROMPT] Song generation 2 failed:", err.message);
-          return null;
-        })
-      ];
-      
-      const [song1Result, song2Result] = await Promise.all(songPromises);
-      
-      // Filter out failed generations
-      const successfulSongs = [song1Result, song2Result].filter((s): s is NonNullable<typeof s> => s !== null);
-      
-      if (successfulSongs.length === 0) {
-        throw new Error("Both song generation attempts failed");
-      }
-      
-      let songResult;
-      let selectionReason: string;
-      
-      if (successfulSongs.length === 1) {
-        songResult = successfulSongs[0];
-        selectionReason = "only_successful_generation";
-        console.log(`[NEON-SINGLE-PROMPT] Only one song generated successfully: ${songResult.duration}s`);
-      } else {
-        const song1 = song1Result!;
-        const song2 = song2Result!;
-        
-        console.log(`[NEON-SINGLE-PROMPT] Song 1 duration: ${song1.duration}s, Song 2 duration: ${song2.duration}s (requested: ${requestedDuration}s)`);
-        
-        // Select the song closest to the requested duration
-        const diff1 = Math.abs(song1.duration - requestedDuration);
-        const diff2 = Math.abs(song2.duration - requestedDuration);
-        
-        if (diff1 === diff2) {
-          songResult = song1.duration <= song2.duration ? song1 : song2;
-          selectionReason = "equal_distance_shorter_selected";
-          console.log(`[NEON-SINGLE-PROMPT] Songs equally close to target, selected shorter one: ${songResult.duration}s`);
-        } else if (diff1 < diff2) {
-          songResult = song1;
-          selectionReason = "song1_closer_to_target";
-          console.log(`[NEON-SINGLE-PROMPT] Selected song 1 (${song1.duration}s) - closer to target`);
-        } else {
-          songResult = song2;
-          selectionReason = "song2_closer_to_target";
-          console.log(`[NEON-SINGLE-PROMPT] Selected song 2 (${song2.duration}s) - closer to target`);
-        }
-      }
-      
-      // Use the actual duration from Minimax (may differ from requested 30 seconds)
+      const songResult = await generateSongWithMinimax(songTags, lyrics, requestedDuration, parsed.video_description);
       const actualSongDuration = songResult.duration;
-      console.log(`[NEON-SINGLE-PROMPT] Final selected song: ${actualSongDuration}s (requested: ${requestedDuration}s, candidates: ${successfulSongs.length}, reason: ${selectionReason})`);
+      console.log(`[NEON-SINGLE-PROMPT] Song generated: ${actualSongDuration}s (requested: ${requestedDuration}s)`);
       
       await storage.updateProject(project.id, { 
         audioUrl: songResult.audioUrl,
