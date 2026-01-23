@@ -6,13 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, ArrowLeft, Save, Key, Home as HomeIcon, Music, Video, LogOut, ExternalLink, CreditCard, AlertTriangle, CheckCircle, XCircle, Trash2, Coins, Gift, Copy, Check, Clock, Mail } from "lucide-react";
+import { User, ArrowLeft, Save, Key, ExternalLink, AlertTriangle, CheckCircle, XCircle, Trash2, Coins, Gift, Copy, Check, Clock, Mail, CreditCard } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import logoImage from "@assets/neonlogo_1756693857051.png";
+import { NavigationHeader } from "@/components/navigation-header";
+import { Footer } from "@/components/footer";
 
 export default function ProfilePage() {
   const { user, logout, refreshUser } = useAuth();
@@ -358,80 +359,15 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen" data-testid="profile-page">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <img 
-                src={logoImage} 
-                alt="neonvideo.ai" 
-                className="h-16" 
-                data-testid="app-logo"
-              />
-              <nav className="flex items-center space-x-4">
-                <Link href="/">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <HomeIcon className="h-4 w-4 mr-2" />
-                    Create
-                  </Button>
-                </Link>
-                <Link href="/my-songs">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <Music className="h-4 w-4 mr-2" />
-                    My Songs
-                  </Button>
-                </Link>
-                <Link href="/my-videos">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <Video className="h-4 w-4 mr-2" />
-                    My Videos
-                  </Button>
-                </Link>
-                <Link href="/plans">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Plans
-                  </Button>
-                </Link>
-              </nav>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Avatar className="h-6 w-6">
-                  {user?.avatarUrl ? (
-                    <AvatarImage src={user.avatarUrl} alt={user.username} />
-                  ) : (
-                    <AvatarFallback className="text-xs bg-gradient-to-br from-primary/20 to-secondary/20">
-                      {user?.username?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  )}
-                </Avatar>
-                <span className="text-sm text-muted-foreground">{user?.username}</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={logout}
-                className="text-muted-foreground hover:text-foreground"
-                data-testid="logout-button"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen flex flex-col" data-testid="profile-page">
+      <NavigationHeader currentPage="profile" />
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 flex-1">
         <div className="max-w-2xl mx-auto">
           {/* Page Header */}
           <div className="mb-8">
-            <Link href="/">
+            <Link href="/create">
               <Button variant="ghost" size="sm" className="mb-4">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to App
@@ -506,7 +442,7 @@ export default function ProfilePage() {
                     
                     {!avatarsLoading && (
                       <>
-                        <div className="grid grid-cols-10 gap-2 mt-2">
+                        <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-10 gap-2 mt-2">
                           {avatarOptions.map((avatar, index) => (
                             <button
                               key={avatar.id}
@@ -1168,6 +1104,7 @@ export default function ProfilePage() {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }
