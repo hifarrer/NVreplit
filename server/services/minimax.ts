@@ -63,19 +63,26 @@ export async function generateSongWithMinimax(
         throw new Error("No songs were generated successfully");
       }
 
+      console.log(`\n=== SELECTING BEST SONG ===`);
+      console.log(`Songs available: ${songs.length}`);
+      songs.forEach((song, i) => {
+        console.log(`  Song ${i + 1}: duration=${song.duration}s, url=${song.audioUrl.substring(0, 50)}...`);
+      });
+      
       const selectedSong = selectBestSong(songs, effectiveRequestDuration, maxAcceptableDuration);
 
       if (selectedSong) {
         if (selectedSong.duration > MAX_SONG_DURATION) {
           console.log(`Selected song exceeds absolute max of ${MAX_SONG_DURATION}s, will retry`);
-        } else {
-          console.log(`\n=== SONG SELECTION COMPLETE ===`);
-          console.log(`Selected song duration: ${selectedSong.duration}s (requested: ${effectiveRequestDuration}s)`);
-          console.log(`Duration difference: ${Math.abs(selectedSong.duration - effectiveRequestDuration)}s`);
-          return selectedSong;
+          continue; // Explicitly continue to next retry
         }
+        console.log(`\n=== SONG SELECTION COMPLETE ===`);
+        console.log(`Selected song duration: ${selectedSong.duration}s (requested: ${effectiveRequestDuration}s)`);
+        console.log(`Duration difference: ${Math.abs(selectedSong.duration - effectiveRequestDuration)}s`);
+        return selectedSong;
       }
 
+      console.log(`\n=== NO SUITABLE SONG FOUND ===`);
       console.log(`All ${songs.length} generated songs exceeded max acceptable duration of ${maxAcceptableDuration}s`);
       
       if (retryAttempt < maxRetries) {
@@ -128,6 +135,12 @@ function selectBestSong(
   requestedDuration: number,
   maxAcceptableDuration: number
 ): MinimaxSongResult | null {
+  console.log("\n=== SONG SELECTION ANALYSIS ===");
+  console.log(`  Input songs: ${songs.length}`);
+  console.log(`  Requested duration: ${requestedDuration}s`);
+  console.log(`  Max acceptable duration: ${maxAcceptableDuration}s`);
+  console.log(`  Absolute max duration: ${MAX_SONG_DURATION}s`);
+  
   const sortedSongs = songs
     .filter((song) => song.duration <= MAX_SONG_DURATION)
     .map((song) => ({
@@ -137,19 +150,22 @@ function selectBestSong(
     }))
     .sort((a, b) => a.difference - b.difference);
 
-  console.log("\n=== SONG SELECTION ANALYSIS ===");
   console.log(`  Filtered ${songs.length - sortedSongs.length} songs exceeding ${MAX_SONG_DURATION}s absolute max`);
+  console.log(`  Remaining songs after filter: ${sortedSongs.length}`);
+  
   sortedSongs.forEach(({ song, difference, withinLimit }, i) => {
     console.log(
-      `  ${i + 1}. Duration: ${song.duration}s, Diff: ${difference}s, Within limit: ${withinLimit}`
+      `  ${i + 1}. Duration: ${song.duration}s, Diff: ${difference}s, Within limit (${song.duration} <= ${maxAcceptableDuration}): ${withinLimit}`
     );
   });
 
   const bestWithinLimit = sortedSongs.find((s) => s.withinLimit);
   if (bestWithinLimit) {
+    console.log(`  Selected: ${bestWithinLimit.song.duration}s song (difference: ${bestWithinLimit.difference}s)`);
     return bestWithinLimit.song;
   }
 
+  console.log(`  No song found within acceptable limit of ${maxAcceptableDuration}s`);
   return null;
 }
 
