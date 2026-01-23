@@ -560,8 +560,8 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   };
 
   return (
-    <div className="max-w-5xl mx-auto mb-12 bg-card rounded-lg p-4" data-testid="audio-creation-step">
-      <div className="bg-background border border-border rounded-lg p-8">
+    <div className="max-w-5xl mx-auto mb-12 bg-card rounded-lg p-2 sm:p-4" data-testid="audio-creation-step">
+      <div className="bg-background border border-border rounded-lg p-4 sm:p-8">
         <div className="flex justify-between items-center mb-4">
           {/* Credit Usage Info */}
           <div className="text-sm text-muted-foreground">
