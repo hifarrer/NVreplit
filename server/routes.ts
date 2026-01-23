@@ -3046,7 +3046,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         localUrl: `/public-objects/public/avatars/anonymous.png`
       });
       
-      for (let i = 1; i <= 20; i++) {
+      for (let i = 1; i <= 19; i++) {
         avatarOptions.push({
           id: i,
           url: `/public-objects/public/avatars/avatar${i}.png`,

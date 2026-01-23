@@ -85,8 +85,8 @@ export default function ProfilePage() {
       url: `/public-objects/public/avatars/anonymous.png`,
       localUrl: `/public-objects/public/avatars/anonymous.png`
     },
-    // Numbered avatars 1-20
-    ...Array.from({ length: 20 }, (_, i) => ({
+    // Numbered avatars 1-19 (total 20 with anonymous)
+    ...Array.from({ length: 19 }, (_, i) => ({
       id: i + 1,
       url: `/public-objects/public/avatars/avatar${i + 1}.png`,
       localUrl: `/public-objects/public/avatars/avatar${i + 1}.png`
