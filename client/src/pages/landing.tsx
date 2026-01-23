@@ -148,18 +148,17 @@ export default function LandingPage() {
             </div>
 
             {/* Right side - Video */}
-            <div className="relative mx-auto lg:mx-0">
-              <div className="relative overflow-hidden rounded-xl shadow-2xl" style={{ aspectRatio: '3/4', maxWidth: '400px', margin: '0 auto' }}>
+            <div className="relative mx-auto lg:mx-0 w-full max-w-[300px] sm:max-w-[350px] md:max-w-[400px]">
+              <div className="relative overflow-hidden rounded-xl shadow-2xl aspect-[3/4]">
                 <video
                   ref={heroVideoRef}
                   className="absolute inset-0 w-full h-full object-cover"
                   src={heroVideo}
                   autoPlay
                   loop
-                  muted={isMuted}
+                  muted
                   playsInline
-                  preload="auto"
-                  {...{ 'webkit-playsinline': 'true' } as any}
+                  preload="metadata"
                   onClick={() => {
                     setIsMuted(!isMuted);
                     if (heroVideoRef.current) {
