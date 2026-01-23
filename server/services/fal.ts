@@ -61,6 +61,19 @@ async function ensurePublicImageUrl(characterImageUrl: string, ttlSec: number = 
 }
 
 /**
+ * Helper function to convert aspect ratio to Qwen model size parameter
+ * Qwen uses "width*height" format
+ */
+function aspectRatioToSize(aspectRatio: string = "16:9"): string {
+  // Qwen model size format: "width*height"
+  if (aspectRatio === "9:16") {
+    return "612*1024"; // Vertical (portrait) - for TikTok/Reels/Shorts
+  } else {
+    return "1024*612"; // Horizontal (landscape) - default 16:9
+  }
+}
+
+/**
  * Model configurations for scene generation
  */
 type WavespeedModel = {
@@ -71,15 +84,16 @@ type WavespeedModel = {
 
 const WAVESPEED_MODELS: { primary: WavespeedModel; fallback: WavespeedModel } = {
   primary: {
-    name: "google/nano-banana/edit",
-    endpoint: "https://api.wavespeed.ai/api/v3/google/nano-banana/edit",
+    name: "wavespeed-ai/qwen-image/edit",
+    endpoint: "https://api.wavespeed.ai/api/v3/wavespeed-ai/qwen-image/edit",
     buildRequestBody: (imageUrl: string, prompt: string, aspectRatio: string = "16:9") => ({
       enable_base64_output: false,
       enable_sync_mode: false,
-      images: [imageUrl],
+      image: imageUrl, // Qwen uses "image" (singular) instead of "images" array
       output_format: "jpeg",
       prompt: prompt,
-      aspect_ratio: aspectRatio,
+      seed: -1,
+      size: aspectRatioToSize(aspectRatio), // Qwen uses size instead of aspect_ratio
     }),
   },
   fallback: {
