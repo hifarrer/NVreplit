@@ -8561,6 +8561,276 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   }
 
+  // Auto-generate random video - generates a creative prompt with OpenAI and creates a video
+  app.get("/api/auto-generate-video", extractTokenFromUrl, authenticateToken, async (req: any, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    try {
+      const userId = req.user!.userId;
+      const { style: requestedStyle, aspectRatio: requestedAspectRatio } = req.query;
+
+      console.log(`[AUTO-GENERATE] Starting auto video generation for user ${userId}`);
+
+      const OpenAI = (await import("openai")).default;
+      const openaiClient = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
+      // Generate a random creative music video prompt
+      console.log(`[AUTO-GENERATE] Generating random creative prompt with OpenAI...`);
+      
+      const promptResponse = await openaiClient.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are a creative music video concept generator. Generate a unique, creative, and fun music video concept. 
+            
+Include:
+- A detailed character description (appearance, personality, style)
+- A video/song theme or story
+- The mood and visual style
+
+Be creative and diverse! Mix genres, styles, time periods. Examples:
+- A cyberpunk samurai cat in neon Tokyo
+- A 1920s jazz-singing penguin in a speakeasy
+- A mystical forest fairy discovering a hidden disco
+- A cowboy robot on Mars
+- A magical baker whose pastries come to life
+
+Keep the response under 150 words. Be vivid and specific.`
+          },
+          {
+            role: "user",
+            content: "Generate a unique and creative music video concept that hasn't been done before. Be imaginative and fun!"
+          }
+        ],
+        temperature: 1.2, // High temperature for more creativity/randomness
+        max_tokens: 200
+      });
+
+      const generatedPrompt = promptResponse.choices[0].message.content || "";
+      console.log(`[AUTO-GENERATE] Generated prompt: ${generatedPrompt}`);
+
+      if (!generatedPrompt || generatedPrompt.trim().length === 0) {
+        return res.status(500).json({ error: "Failed to generate creative prompt" });
+      }
+
+      // Validate style and aspectRatio
+      const validAspectRatios = ["16:9", "9:16"];
+      const validStyles = ["3d", "cartoon", "realistic", "artistic", "radiant", "anime", "hyperrealistic"];
+      
+      const aspectRatio = validAspectRatios.includes(requestedAspectRatio) ? requestedAspectRatio : "16:9";
+      
+      let style: string;
+      if (validStyles.includes(requestedStyle)) {
+        style = requestedStyle;
+      } else {
+        // Pick a random style for variety
+        const randomStyles = ["3d", "cartoon", "realistic", "anime"];
+        style = randomStyles[Math.floor(Math.random() * randomStyles.length)];
+      }
+
+      console.log(`[AUTO-GENERATE] Using style: ${style}, aspectRatio: ${aspectRatio}`);
+
+      // Now process like the regular single-prompt endpoint
+      console.log(`[AUTO-GENERATE] Step 1: Parsing generated prompt with OpenAI...`);
+      
+      const parseResponse = await openaiClient.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are a helpful assistant that extracts structured information from music video prompts. 
+            Extract the following from the user's prompt:
+            - character: A detailed description of the main character (appearance, style, personality) - REQUIRED
+            - video_description: What the music video should be about (scenes, mood, story) - REQUIRED
+            - song_title: The title or theme of the song - OPTIONAL (can be null if not specified)
+            
+            Only mark character and video_description as missing if they are truly unclear or absent.
+            Song title is optional and should not be marked as missing.
+            Respond ONLY with valid JSON in this format:
+            {
+              "character": "description or null",
+              "song_title": "title or null", 
+              "video_description": "description or null",
+              "missing": ["list of REQUIRED missing elements only"],
+              "suggestion": "helpful suggestion if anything is missing"
+            }`
+          },
+          {
+            role: "user",
+            content: generatedPrompt
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+
+      const parsed = JSON.parse(parseResponse.choices[0].message.content || "{}");
+      console.log(`[AUTO-GENERATE] Parsed prompt:`, parsed);
+
+      // Step 2: Create a new project
+      console.log(`[AUTO-GENERATE] Step 2: Creating project...`);
+      const project = await storage.createProject({
+        userId,
+        title: parsed.song_title || parsed.video_description?.substring(0, 50) || "Auto-Generated Video",
+        description: parsed.video_description || generatedPrompt,
+        aspectRatio: aspectRatio,
+        currentStep: 1
+      });
+      console.log(`[AUTO-GENERATE] Created project ${project.id}`);
+
+      // Step 3: Generate lyrics and title
+      const lyricsPrompt = parsed.song_title 
+        ? `${parsed.song_title}. ${parsed.video_description}`
+        : parsed.video_description || generatedPrompt;
+      console.log(`[AUTO-GENERATE] Step 3: Generating lyrics and title with OpenAI...`);
+      const { lyrics, title: aiGeneratedTitle } = await generateLyricsWithTitle(lyricsPrompt, 30);
+      await storage.updateProject(project.id, { 
+        audioLyrics: lyrics,
+        title: aiGeneratedTitle,
+        audioDuration: 30,
+        currentStep: 1
+      });
+      console.log(`[AUTO-GENERATE] Generated lyrics (${lyrics.length} chars) and title: ${aiGeneratedTitle}`);
+
+      // Step 4: Generate song with Minimax Music 02
+      console.log(`[AUTO-GENERATE] Step 4: Generating ~30-second song with Minimax Music 02...`);
+      const songTags = parsed.song_title 
+        ? `${parsed.song_title}. ${parsed.video_description}`
+        : parsed.video_description || generatedPrompt;
+      
+      const requestedDuration = 30;
+      
+      const songPromises = [
+        generateSongWithMinimax(songTags, lyrics, requestedDuration, parsed.video_description).catch(err => {
+          console.warn("[AUTO-GENERATE] Song generation 1 failed:", err.message);
+          return null;
+        }),
+        generateSongWithMinimax(songTags, lyrics, requestedDuration, parsed.video_description).catch(err => {
+          console.warn("[AUTO-GENERATE] Song generation 2 failed:", err.message);
+          return null;
+        })
+      ];
+      
+      const [song1Result, song2Result] = await Promise.all(songPromises);
+      
+      const successfulSongs = [song1Result, song2Result].filter((s): s is NonNullable<typeof s> => s !== null);
+      
+      if (successfulSongs.length === 0) {
+        throw new Error("Both song generation attempts failed");
+      }
+      
+      let songResult;
+      
+      if (successfulSongs.length === 1) {
+        songResult = successfulSongs[0];
+      } else {
+        const song1 = song1Result!;
+        const song2 = song2Result!;
+        const diff1 = Math.abs(song1.duration - requestedDuration);
+        const diff2 = Math.abs(song2.duration - requestedDuration);
+        songResult = diff1 <= diff2 ? song1 : song2;
+      }
+      
+      const actualSongDuration = songResult.duration;
+      console.log(`[AUTO-GENERATE] Song generated: ${actualSongDuration}s`);
+      
+      await storage.updateProject(project.id, { 
+        audioUrl: songResult.audioUrl,
+        audioDuration: actualSongDuration,
+        currentStep: 2 
+      });
+
+      // Step 5: Generate character image
+      const characterDescription = parsed.character || generatedPrompt;
+      console.log(`[AUTO-GENERATE] Step 5: Generating character image...`);
+      const characterImageUrls = await generateCharacterImages(characterDescription, aspectRatio, style);
+      const characterImageUrl = characterImageUrls[0];
+      
+      await storage.updateProject(project.id, { 
+        characterImageUrl,
+        currentStep: 3
+      });
+      console.log(`[AUTO-GENERATE] Character image generated`);
+
+      const { numberOfSegments: numberOfScenes, segmentDurations } = calculateVideoSegments(actualSongDuration);
+      console.log(`[AUTO-GENERATE] Calculated ${numberOfScenes} scenes for ${actualSongDuration}s video`);
+
+      // Step 6: Generate scene prompts
+      console.log(`[AUTO-GENERATE] Step 6: Generating scene prompts...`);
+      const scenePrompts = await generateScenePrompts(
+        parsed.video_description || generatedPrompt,
+        numberOfScenes
+      );
+
+      // Step 7: Generate scene images
+      console.log(`[AUTO-GENERATE] Step 7: Generating scene images...`);
+      const sceneImages = await generateSceneImages(
+        scenePrompts,
+        characterImageUrl,
+        aspectRatio
+      );
+
+      await storage.updateProject(project.id, {
+        scenePrompts: scenePrompts,
+        sceneImages: sceneImages,
+        currentStep: 4
+      });
+      console.log(`[AUTO-GENERATE] Generated ${sceneImages.length} scene images`);
+
+      // Step 8: Generate final video
+      console.log(`[AUTO-GENERATE] Step 8: Triggering final video generation...`);
+      
+      await storage.updateProject(project.id, {
+        currentStep: 5,
+        isCompleted: false
+      });
+
+      // Trigger video generation asynchronously
+      (async () => {
+        try {
+          const videoGenResponse = await fetch(`http://localhost:5000/api/projects/${project.id}/generate-video`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+          });
+
+          if (videoGenResponse.ok) {
+            console.log(`[AUTO-GENERATE] Video generation completed for project ${project.id}`);
+          } else {
+            const errorData = await videoGenResponse.json();
+            console.error(`[AUTO-GENERATE] Video generation failed:`, errorData);
+          }
+        } catch (error) {
+          console.error(`[AUTO-GENERATE] Video generation failed:`, error);
+        }
+      })();
+
+      console.log(`[AUTO-GENERATE] All steps completed! Project ${project.id} is processing.`);
+
+      res.json({
+        success: true,
+        projectId: project.id,
+        message: "Auto-generated music video is being created!",
+        generatedPrompt: generatedPrompt,
+        statusUrl: `/api/neon-single-prompt/status/${project.id}`,
+        details: {
+          character: parsed.character,
+          song_title: aiGeneratedTitle,
+          video_description: parsed.video_description,
+          style: style,
+          sceneCount: sceneImages.length
+        }
+      });
+      
+    } catch (error: any) {
+      console.error(`[AUTO-GENERATE] Error:`, error);
+      return res.status(500).json({ error: error.message || "Failed to auto-generate video" });
+    }
+  });
+
   // CORS preflight for NeonSinglePrompt endpoint
   app.options("/api/neon-single-prompt", (req, res) => {
     res.header("Access-Control-Allow-Origin", "*");
