@@ -158,6 +158,8 @@ export default function LandingPage() {
                   loop
                   muted={isMuted}
                   playsInline
+                  preload="auto"
+                  {...{ 'webkit-playsinline': 'true' } as any}
                   onClick={() => {
                     setIsMuted(!isMuted);
                     if (heroVideoRef.current) {
