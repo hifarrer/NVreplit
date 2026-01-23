@@ -8519,16 +8519,317 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Middleware to extract token from URL query and set as Authorization header
+  function extractTokenFromUrl(req: any, res: any, next: any) {
+    if (!req.headers['authorization'] && req.query.token) {
+      req.headers['authorization'] = `Bearer ${req.query.token}`;
+    }
+    next();
+  }
+
   // CORS preflight for NeonSinglePrompt endpoint
   app.options("/api/neon-single-prompt", (req, res) => {
     res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.sendStatus(204);
   });
 
-  // NeonSinglePrompt: Generate complete music video from a single prompt
-  app.post("/api/neon-single-prompt", authenticateToken, async (req, res) => {
+  // NeonSinglePrompt: Generate complete music video from a single prompt (GET with token in URL for cron jobs)
+  app.get("/api/neon-single-prompt", extractTokenFromUrl, authenticateToken, async (req: any, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    try {
+      const { prompt, aspectRatio: requestedAspectRatio, style: requestedStyle } = req.query;
+      const userId = req.user!.userId;
+
+      if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+        return res.status(400).json({ 
+          error: "Please provide a prompt describing your music video" 
+        });
+      }
+
+      const validAspectRatios = ["16:9", "9:16"];
+      const validStyles = ["3d", "cartoon", "realistic", "artistic", "radiant", "anime", "hyperrealistic"];
+      
+      const aspectRatio = validAspectRatios.includes(requestedAspectRatio) ? requestedAspectRatio : "16:9";
+      
+      let style: string;
+      if (validStyles.includes(requestedStyle)) {
+        style = requestedStyle;
+      } else {
+        const promptLower = prompt.toLowerCase();
+        if (promptLower.includes("hyper realistic") || promptLower.includes("hyperrealistic") || promptLower.includes("hyper-realistic")) {
+          style = "hyperrealistic";
+        } else if (promptLower.includes("realistic")) {
+          style = "realistic";
+        } else if (promptLower.includes("anime")) {
+          style = "anime";
+        } else if (promptLower.includes("cartoon")) {
+          style = "cartoon";
+        } else {
+          style = "3d";
+        }
+      }
+
+      console.log(`[NEON-SINGLE-PROMPT-GET] Starting video generation for user ${userId}`);
+      console.log(`[NEON-SINGLE-PROMPT-GET] Prompt: ${prompt}`);
+      console.log(`[NEON-SINGLE-PROMPT-GET] Aspect Ratio: ${aspectRatio}, Style: ${style}`);
+
+      const OpenAI = (await import("openai")).default;
+      const openaiClient = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
+      console.log(`[NEON-SINGLE-PROMPT-GET] Step 1: Parsing prompt with OpenAI...`);
+      
+      const parseResponse = await openaiClient.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are a helpful assistant that extracts structured information from music video prompts. 
+            Extract the following from the user's prompt:
+            - character: A detailed description of the main character (appearance, style, personality) - REQUIRED
+            - video_description: What the music video should be about (scenes, mood, story) - REQUIRED
+            - song_title: The title or theme of the song - OPTIONAL (can be null if not specified)
+            
+            Only mark character and video_description as missing if they are truly unclear or absent.
+            Song title is optional and should not be marked as missing.
+            Respond ONLY with valid JSON in this format:
+            {
+              "character": "description or null",
+              "song_title": "title or null", 
+              "video_description": "description or null",
+              "missing": ["list of REQUIRED missing elements only"],
+              "suggestion": "helpful suggestion if anything is missing"
+            }`
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+
+      const parsed = JSON.parse(parseResponse.choices[0].message.content || "{}");
+      console.log(`[NEON-SINGLE-PROMPT-GET] Parsed prompt:`, parsed);
+
+      const requiredMissing = parsed.missing?.filter((item: string) => item !== 'song_title') || [];
+
+      if (requiredMissing.length > 0) {
+        console.log(`[NEON-SINGLE-PROMPT-GET] Missing required elements:`, requiredMissing);
+        return res.status(400).json({
+          error: "Incomplete prompt",
+          missing: requiredMissing,
+          suggestion: parsed.suggestion || "Please provide a character description and video description.",
+          example: "Create a music video about a cute little cowboy hamster in the wild west."
+        });
+      }
+
+      // Step 2: Create a new project
+      console.log(`[NEON-SINGLE-PROMPT-GET] Step 2: Creating project...`);
+      const project = await storage.createProject({
+        userId,
+        title: parsed.song_title || parsed.video_description.substring(0, 50),
+        description: parsed.video_description,
+        aspectRatio: aspectRatio,
+        currentStep: 1
+      });
+      console.log(`[NEON-SINGLE-PROMPT-GET] Created project ${project.id}`);
+
+      // Step 3: Generate lyrics and title
+      const lyricsPrompt = parsed.song_title 
+        ? `${parsed.song_title}. ${parsed.video_description}`
+        : parsed.video_description;
+      console.log(`[NEON-SINGLE-PROMPT-GET] Step 3: Generating lyrics and title with OpenAI...`);
+      const { lyrics, title: aiGeneratedTitle } = await generateLyricsWithTitle(lyricsPrompt, 30);
+      await storage.updateProject(project.id, { 
+        audioLyrics: lyrics,
+        title: aiGeneratedTitle,
+        audioDuration: 30,
+        currentStep: 1
+      });
+      console.log(`[NEON-SINGLE-PROMPT-GET] Generated lyrics (${lyrics.length} chars) and title: ${aiGeneratedTitle}`);
+
+      // Step 4: Generate song with Minimax Music 02
+      console.log(`[NEON-SINGLE-PROMPT-GET] Step 4: Generating ~30-second song with Minimax Music 02 (2 candidates for best match)...`);
+      const songTags = parsed.song_title 
+        ? `${parsed.song_title}. ${parsed.video_description}`
+        : parsed.video_description;
+      
+      const requestedDuration = 30;
+      
+      const songPromises = [
+        generateSongWithMinimax(songTags, lyrics, requestedDuration, parsed.video_description).catch(err => {
+          console.warn("[NEON-SINGLE-PROMPT-GET] Song generation 1 failed:", err.message);
+          return null;
+        }),
+        generateSongWithMinimax(songTags, lyrics, requestedDuration, parsed.video_description).catch(err => {
+          console.warn("[NEON-SINGLE-PROMPT-GET] Song generation 2 failed:", err.message);
+          return null;
+        })
+      ];
+      
+      const [song1Result, song2Result] = await Promise.all(songPromises);
+      
+      const successfulSongs = [song1Result, song2Result].filter((s): s is NonNullable<typeof s> => s !== null);
+      
+      if (successfulSongs.length === 0) {
+        throw new Error("Both song generation attempts failed");
+      }
+      
+      let songResult;
+      let selectionReason: string;
+      
+      if (successfulSongs.length === 1) {
+        songResult = successfulSongs[0];
+        selectionReason = "only_successful_generation";
+        console.log(`[NEON-SINGLE-PROMPT-GET] Only one song generated successfully: ${songResult.duration}s`);
+      } else {
+        const song1 = song1Result!;
+        const song2 = song2Result!;
+        
+        console.log(`[NEON-SINGLE-PROMPT-GET] Song 1 duration: ${song1.duration}s, Song 2 duration: ${song2.duration}s (requested: ${requestedDuration}s)`);
+        
+        const diff1 = Math.abs(song1.duration - requestedDuration);
+        const diff2 = Math.abs(song2.duration - requestedDuration);
+        
+        if (diff1 === diff2) {
+          songResult = song1.duration <= song2.duration ? song1 : song2;
+          selectionReason = "equal_distance_shorter_selected";
+          console.log(`[NEON-SINGLE-PROMPT-GET] Songs equally close to target, selected shorter one: ${songResult.duration}s`);
+        } else if (diff1 < diff2) {
+          songResult = song1;
+          selectionReason = "song1_closer_to_target";
+          console.log(`[NEON-SINGLE-PROMPT-GET] Selected song 1 (${song1.duration}s) - closer to target`);
+        } else {
+          songResult = song2;
+          selectionReason = "song2_closer_to_target";
+          console.log(`[NEON-SINGLE-PROMPT-GET] Selected song 2 (${song2.duration}s) - closer to target`);
+        }
+      }
+      
+      const actualSongDuration = songResult.duration;
+      console.log(`[NEON-SINGLE-PROMPT-GET] Final selected song: ${actualSongDuration}s (requested: ${requestedDuration}s, candidates: ${successfulSongs.length}, reason: ${selectionReason})`);
+      
+      await storage.updateProject(project.id, { 
+        audioUrl: songResult.audioUrl,
+        audioDuration: actualSongDuration,
+        currentStep: 2 
+      });
+      console.log(`[NEON-SINGLE-PROMPT-GET] Song generated and uploaded (${actualSongDuration} seconds)`);
+
+      // Step 5: Generate character image with style support
+      let characterImageUrl: string;
+      
+      if (style === "hyperrealistic") {
+        console.log(`[NEON-SINGLE-PROMPT-GET] Step 5a: Generating realistic base image for "${parsed.character}" with aspectRatio: ${aspectRatio}...`);
+        const realisticImageUrls = await generateCharacterImages(parsed.character, aspectRatio, "realistic");
+        const realisticImageUrl = realisticImageUrls[0];
+        console.log(`[NEON-SINGLE-PROMPT-GET] Realistic base image generated: ${realisticImageUrl}`);
+        
+        console.log(`[NEON-SINGLE-PROMPT-GET] Step 5b: Enhancing to hyper realistic...`);
+        const enhancedImageUrl = await enhanceImageHyperReal(realisticImageUrl, parsed.character);
+        
+        const storedImage = await downloadAndStoreImage(enhancedImageUrl, "characters");
+        characterImageUrl = storedImage.storedUrl;
+        console.log(`[NEON-SINGLE-PROMPT-GET] Hyper realistic character image generated: ${characterImageUrl}`);
+      } else {
+        console.log(`[NEON-SINGLE-PROMPT-GET] Step 5: Generating character image for "${parsed.character}" with aspectRatio: ${aspectRatio}, style: ${style}...`);
+        const characterImageUrls = await generateCharacterImages(parsed.character, aspectRatio, style);
+        characterImageUrl = characterImageUrls[0];
+        console.log(`[NEON-SINGLE-PROMPT-GET] Character image generated`);
+      }
+      
+      await storage.updateProject(project.id, { 
+        characterImageUrl,
+        currentStep: 3
+      });
+
+      const { numberOfSegments: numberOfScenes, segmentDurations } = calculateVideoSegments(actualSongDuration);
+      console.log(`[NEON-SINGLE-PROMPT-GET] Dynamically calculated ${numberOfScenes} scenes for ${actualSongDuration}s video (segments: ${segmentDurations.join(', ')}s)`);
+
+      // Step 6: Generate scene prompts
+      console.log(`[NEON-SINGLE-PROMPT-GET] Step 6: Generating scene prompts...`);
+      const scenePrompts = await generateScenePrompts(
+        parsed.video_description,
+        numberOfScenes
+      );
+      
+      console.log(`[NEON-SINGLE-PROMPT-GET] Generated ${scenePrompts.length} scene prompts`);
+
+      // Step 7: Generate scene images
+      console.log(`[NEON-SINGLE-PROMPT-GET] Step 7: Generating scene images with aspectRatio: ${aspectRatio}...`);
+      const sceneImages = await generateSceneImages(
+        scenePrompts,
+        characterImageUrl,
+        aspectRatio
+      );
+
+      await storage.updateProject(project.id, {
+        scenePrompts: scenePrompts,
+        sceneImages: sceneImages,
+        currentStep: 4
+      });
+      console.log(`[NEON-SINGLE-PROMPT-GET] Generated ${sceneImages.length} scene images`);
+
+      // Step 8: Generate final video
+      console.log(`[NEON-SINGLE-PROMPT-GET] Step 8: Generating final music video...`);
+      
+      await storage.updateProject(project.id, {
+        currentStep: 5,
+        isCompleted: false
+      });
+
+      // Trigger video generation asynchronously
+      (async () => {
+        try {
+          const videoGenResponse = await fetch(`http://localhost:5000/api/projects/${project.id}/generate-video`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            }
+          });
+
+          if (videoGenResponse.ok) {
+            console.log(`[NEON-SINGLE-PROMPT-GET] Video generation completed for project ${project.id}`);
+          } else {
+            const errorData = await videoGenResponse.json();
+            console.error(`[NEON-SINGLE-PROMPT-GET] Video generation failed with status ${videoGenResponse.status}:`, errorData);
+          }
+        } catch (error) {
+          console.error(`[NEON-SINGLE-PROMPT-GET] Video generation failed:`, error);
+        }
+      })();
+
+      console.log(`[NEON-SINGLE-PROMPT-GET] All steps completed! Project ${project.id} is processing final video.`);
+
+      res.json({
+        success: true,
+        projectId: project.id,
+        message: "Music video generation started! The video is being created in the background.",
+        statusUrl: `/api/neon-single-prompt/status/${project.id}`,
+        details: {
+          character: parsed.character,
+          song_title: parsed.song_title,
+          video_description: parsed.video_description,
+          lyrics: lyrics.substring(0, 100) + "...",
+          sceneCount: sceneImages.length
+        }
+      });
+      
+    } catch (error: any) {
+      console.error(`[NEON-SINGLE-PROMPT-GET] Error:`, error);
+      return res.status(500).json({ error: error.message || "Failed to process request" });
+    }
+  });
+
+  // NeonSinglePrompt: Generate complete music video from a single prompt (POST - main endpoint)
+  app.post("/api/neon-single-prompt", extractTokenFromUrl, authenticateToken, async (req, res) => {
     // Set CORS headers
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -8853,7 +9154,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get video generation status - for async polling
-  app.get("/api/neon-single-prompt/status/:projectId", authenticateToken, async (req, res) => {
+  app.get("/api/neon-single-prompt/status/:projectId", extractTokenFromUrl, authenticateToken, async (req, res) => {
     // Set CORS headers
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
