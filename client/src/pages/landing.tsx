@@ -53,7 +53,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background/95 to-background">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background/95 to-background overflow-x-hidden">
       {/* Header */}
       <header className="border-b border-border/50 bg-card/30 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
