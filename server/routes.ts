@@ -8569,7 +8569,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const userId = req.user!.userId;
-      const { style: requestedStyle, aspectRatio: requestedAspectRatio } = req.query;
+      const { style: requestedStyle, aspectRatio: requestedAspectRatio, duration: requestedDurationParam } = req.query;
+      
+      // Parse and validate duration (default 30 seconds, max 60 seconds for auto-generate)
+      let targetDuration = 30;
+      if (requestedDurationParam) {
+        const parsedDuration = parseInt(requestedDurationParam, 10);
+        if (!isNaN(parsedDuration) && parsedDuration >= 15 && parsedDuration <= 60) {
+          targetDuration = parsedDuration;
+        }
+      }
+      console.log(`[AUTO-GENERATE] Target duration: ${targetDuration} seconds`);
 
       console.log(`[AUTO-GENERATE] Starting auto video generation for user ${userId}`);
 
@@ -8684,30 +8694,28 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       const lyricsPrompt = parsed.song_title 
         ? `${parsed.song_title}. ${parsed.video_description}`
         : parsed.video_description || generatedPrompt;
-      console.log(`[AUTO-GENERATE] Step 3: Generating lyrics and title with OpenAI...`);
-      const { lyrics, title: aiGeneratedTitle } = await generateLyricsWithTitle(lyricsPrompt, 30);
+      console.log(`[AUTO-GENERATE] Step 3: Generating lyrics and title with OpenAI for ${targetDuration}s...`);
+      const { lyrics, title: aiGeneratedTitle } = await generateLyricsWithTitle(lyricsPrompt, targetDuration);
       await storage.updateProject(project.id, { 
         audioLyrics: lyrics,
         title: aiGeneratedTitle,
-        audioDuration: 30,
+        audioDuration: targetDuration,
         currentStep: 1
       });
       console.log(`[AUTO-GENERATE] Generated lyrics (${lyrics.length} chars) and title: ${aiGeneratedTitle}`);
 
       // Step 4: Generate song with Minimax Music 02
-      console.log(`[AUTO-GENERATE] Step 4: Generating ~30-second song with Minimax Music 02...`);
+      console.log(`[AUTO-GENERATE] Step 4: Generating ~${targetDuration}-second song with Minimax Music 02...`);
       const songTags = parsed.song_title 
         ? `${parsed.song_title}. ${parsed.video_description}`
         : parsed.video_description || generatedPrompt;
       
-      const requestedDuration = 30;
-      
       const songPromises = [
-        generateSongWithMinimax(songTags, lyrics, requestedDuration, parsed.video_description).catch(err => {
+        generateSongWithMinimax(songTags, lyrics, targetDuration, parsed.video_description).catch(err => {
           console.warn("[AUTO-GENERATE] Song generation 1 failed:", err.message);
           return null;
         }),
-        generateSongWithMinimax(songTags, lyrics, requestedDuration, parsed.video_description).catch(err => {
+        generateSongWithMinimax(songTags, lyrics, targetDuration, parsed.video_description).catch(err => {
           console.warn("[AUTO-GENERATE] Song generation 2 failed:", err.message);
           return null;
         })
@@ -8728,8 +8736,8 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       } else {
         const song1 = song1Result!;
         const song2 = song2Result!;
-        const diff1 = Math.abs(song1.duration - requestedDuration);
-        const diff2 = Math.abs(song2.duration - requestedDuration);
+        const diff1 = Math.abs(song1.duration - targetDuration);
+        const diff2 = Math.abs(song2.duration - targetDuration);
         songResult = diff1 <= diff2 ? song1 : song2;
       }
       
