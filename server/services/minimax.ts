@@ -102,6 +102,32 @@ export async function generateSongWithMinimax(
   );
 }
 
+const SONG_GENERATION_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes per song
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  songIndex: number
+): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timeoutId = setTimeout(() => {
+      console.warn(`[Song ${songIndex}] Generation timed out after ${timeoutMs / 1000}s - continuing without this song`);
+      resolve(null);
+    }, timeoutMs);
+
+    promise
+      .then((result) => {
+        clearTimeout(timeoutId);
+        resolve(result);
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        console.error(`[Song ${songIndex}] Generation failed:`, error.message);
+        resolve(null);
+      });
+  });
+}
+
 async function generateMultipleSongsInParallel(
   tags: string,
   lyrics: string | undefined,
@@ -110,19 +136,23 @@ async function generateMultipleSongsInParallel(
   count: number
 ): Promise<MinimaxSongResult[]> {
   console.log(`\nStarting ${count} parallel song generations...`);
+  console.log(`Per-song timeout: ${SONG_GENERATION_TIMEOUT_MS / 1000}s (3 minutes)`);
 
   const generationPromises = Array.from({ length: count }, (_, i) =>
-    generateSingleSong(tags, lyrics, durationSeconds, description, i + 1)
-      .catch((error) => {
-        console.error(`Song generation ${i + 1} failed:`, error.message);
-        return null;
-      })
+    withTimeout(
+      generateSingleSong(tags, lyrics, durationSeconds, description, i + 1),
+      SONG_GENERATION_TIMEOUT_MS,
+      i + 1
+    )
   );
 
   const results = await Promise.all(generationPromises);
   const successfulSongs = results.filter((s): s is MinimaxSongResult => s !== null);
 
   console.log(`\n${successfulSongs.length}/${count} songs generated successfully`);
+  if (successfulSongs.length < count) {
+    console.log(`  ${count - successfulSongs.length} song(s) failed or timed out`);
+  }
   successfulSongs.forEach((song, i) => {
     console.log(`  Song ${i + 1}: ${song.duration}s`);
   });
