@@ -1053,6 +1053,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate long-lived API token for cron jobs (requires authentication)
+  app.post("/api/generate-api-token", authenticateToken, async (req: any, res) => {
+    try {
+      const userId = req.user.userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Generate a token that expires in 1 year (for cron job usage)
+      const apiToken = jwt.sign(
+        { userId: user.id, username: user.username },
+        JWT_SECRET,
+        { expiresIn: '365d' }
+      );
+      
+      console.log(`[API-TOKEN] Generated long-lived API token for user ${user.username}`);
+      
+      res.json({
+        success: true,
+        token: apiToken,
+        expiresIn: "1 year",
+        usage: {
+          createVideo: `/api/neon-single-prompt?token=${apiToken}&prompt=YOUR_PROMPT_HERE`,
+          checkStatus: `/api/neon-single-prompt/status/PROJECT_ID?token=${apiToken}`
+        }
+      });
+    } catch (error) {
+      console.error("[API-TOKEN] Error generating token:", error);
+      res.status(500).json({ error: "Failed to generate API token" });
+    }
+  });
+
   // Email verification endpoint
   app.get("/verify-email", async (req, res) => {
     try {
