@@ -1,0 +1,148 @@
+2026-01-23 16:42:37.89
+e79dc4a7
+User
+[Song 1] Status: completed
+2026-01-23 16:42:37.89
+e79dc4a7
+User
+Downloading Minimax audio from: https://d1q70pf5vjeyhc.cloudfront.net/predictions/60875bd156684c868c6857df232b0bc8/1.mp3
+2026-01-23 16:42:37.90
+e79dc4a7
+User
+[Song 3] Status: created
+2026-01-23 16:42:38.42
+e79dc4a7
+User
+Downloaded audio buffer, size: 2213565
+2026-01-23 16:42:38.42
+e79dc4a7
+User
+Detected audio duration: 70 seconds
+2026-01-23 16:42:38.42
+e79dc4a7
+User
+Uploading Minimax audio to object storage: songs/de208959-d743-47e2-82d9-d3583e64658c.mp3
+2026-01-23 16:42:38.65
+e79dc4a7
+User
+Generated permanent audio path: /objects/songs/de208959-d743-47e2-82d9-d3583e64658c.mp3
+2026-01-23 16:42:38.65
+e79dc4a7
+User
+[Song 1] Duration: 70s, URL: /objects/songs/de208959-d743-47e2-82d9-d3583e64658c.mp3
+2026-01-23 16:42:38.65
+e79dc4a7
+User
+Audio uploaded to object storage: /replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/de208959-d743-47e2-82d9-d3583e64658c.mp3
+2026-01-23 16:42:40.00
+e79dc4a7
+User
+[Song 3] Status: created
+2026-01-23 16:42:40.05
+e79dc4a7
+User
+[Song 1] Status: created
+2026-01-23 16:42:40.08
+e79dc4a7
+User
+[Song 4] Status: created
+2026-01-23 16:42:40.11
+e79dc4a7
+User
+[Song 2] Status: created
+2026-01-23 16:43:30.26
+e79dc4a7
+User
+[Song 3] Generation completed!
+2026-01-23 16:43:30.26
+e79dc4a7
+User
+Downloading Minimax audio from: https://d1q70pf5vjeyhc.cloudfront.net/predictions/8104dd2002e44abead6f197d1f89aa9b/1.mp3
+2026-01-23 16:43:30.35
+e79dc4a7
+User
+Downloading Minimax audio from: https://d1q70pf5vjeyhc.cloudfront.net/predictions/4460c124f679471d94a7b2b39c5060c1/1.mp3
+2026-01-23 16:43:30.35
+e79dc4a7
+User
+[Song 2] Generation completed!
+2026-01-23 16:43:30.47
+e79dc4a7
+User
+[Song 1] Generation completed!
+2026-01-23 16:43:30.47
+e79dc4a7
+User
+Downloading Minimax audio from: https://d1q70pf5vjeyhc.cloudfront.net/predictions/d460c31ad5724aeabec44fe8b8a53407/1.mp3
+2026-01-23 16:43:30.85
+e79dc4a7
+User
+Downloaded audio buffer, size: 1331626
+2026-01-23 16:43:30.86
+e79dc4a7
+User
+Uploading Minimax audio to object storage: songs/d647a5ce-58a3-434b-a078-115027b4e167.mp3
+2026-01-23 16:43:30.86
+e79dc4a7
+User
+Detected audio duration: 42 seconds
+2026-01-23 16:43:30.92
+e79dc4a7
+User
+Downloaded audio buffer, size: 1713186
+2026-01-23 16:43:30.92
+e79dc4a7
+User
+Uploading Minimax audio to object storage: songs/da3daea6-622f-4efe-9ec5-b7703c5323ac.mp3
+2026-01-23 16:43:30.92
+e79dc4a7
+User
+Detected audio duration: 54 seconds
+2026-01-23 16:43:30.97
+e79dc4a7
+User
+Downloaded audio buffer, size: 1611939
+2026-01-23 16:43:30.98
+e79dc4a7
+User
+Detected audio duration: 51 seconds
+2026-01-23 16:43:30.98
+e79dc4a7
+User
+Uploading Minimax audio to object storage: songs/7b89e9dd-dd5f-4e9b-b389-86174b37e395.mp3
+2026-01-23 16:43:31.14
+e79dc4a7
+User
+Generated permanent audio path: /objects/songs/da3daea6-622f-4efe-9ec5-b7703c5323ac.mp3
+2026-01-23 16:43:31.14
+e79dc4a7
+User
+[Song 2] Duration: 54s, URL: /objects/songs/da3daea6-622f-4efe-9ec5-b7703c5323ac.mp3
+2026-01-23 16:43:31.14
+e79dc4a7
+User
+Audio uploaded to object storage: /replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/da3daea6-622f-4efe-9ec5-b7703c5323ac.mp3
+2026-01-23 16:43:31.20
+e79dc4a7
+User
+Generated permanent audio path: /objects/songs/d647a5ce-58a3-434b-a078-115027b4e167.mp3
+2026-01-23 16:43:31.20
+e79dc4a7
+User
+Audio uploaded to object storage: /replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/d647a5ce-58a3-434b-a078-115027b4e167.mp3
+2026-01-23 16:43:31.20
+e79dc4a7
+User
+[Song 3] Duration: 42s, URL: /objects/songs/d647a5ce-58a3-434b-a078-115027b4e167.mp3
+2026-01-23 16:43:31.24
+e79dc4a7
+User
+Audio uploaded to object storage: /replit-objstore-e575b29a-5b91-4cc8-9e7c-23ea3b54fe73/.private/songs/7b89e9dd-dd5f-4e9b-b389-86174b37e395.mp3
+2026-01-23 16:43:31.24
+e79dc4a7
+User
+[Song 1] Duration: 51s, URL: /objects/songs/7b89e9dd-dd5f-4e9b-b389-86174b37e395.mp3
+2026-01-23 16:43:31.24
+e79dc4a7
+User
+Generated permanent audio path: /objects/songs/7b89e9dd-dd5f-4e9b-b389-86174b37e395.mp3
