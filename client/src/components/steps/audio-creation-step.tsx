@@ -316,9 +316,9 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
             clearInterval(progressInterval);
             return prev;
           }
-          return prev + 10;
+          return prev + 5;
         });
-      }, 1000);
+      }, 2000);
 
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-song`, {
         description,

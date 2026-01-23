@@ -128,16 +128,16 @@ export function SongGeneratorModal({
 
   const generateSongMutation = useMutation({
     mutationFn: async () => {
-      // Simulate progress updates
+      // Simulate progress updates (slower for Minimax model)
       const progressInterval = setInterval(() => {
         setProgress((prev) => {
           if (prev >= 90) {
             clearInterval(progressInterval);
             return prev;
           }
-          return prev + 10;
+          return prev + 5;
         });
-      }, 1000);
+      }, 2000);
 
       const response = await apiRequest(
         "POST",
