@@ -8578,7 +8578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         apiKey: process.env.OPENAI_API_KEY,
       });
 
-      // Generate a random creative music video prompt
+      // Generate a random creative music video prompt optimized for vertical format
       console.log(`[AUTO-GENERATE] Generating random creative prompt with OpenAI...`);
       
       const promptResponse = await openaiClient.chat.completions.create({
@@ -8586,25 +8586,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         messages: [
           {
             role: "system",
-            content: `You are a creative music video concept generator. Generate a unique, creative, and fun music video concept. 
-            
+            content: `You are a creative music video concept generator. Generate a unique, creative, and fun music video concept optimized for VERTICAL video format (like TikTok/Reels/Shorts).
+
 Include:
-- A detailed character description (appearance, personality, style)
-- A video/song theme or story
+- A detailed character description (appearance, personality, style) - make them visually striking and memorable
+- A video/song theme or story that works well in vertical format (focus on the character, close-ups, dynamic movements)
 - The mood and visual style
 
 Be creative and diverse! Mix genres, styles, time periods. Examples:
-- A cyberpunk samurai cat in neon Tokyo
-- A 1920s jazz-singing penguin in a speakeasy
-- A mystical forest fairy discovering a hidden disco
-- A cowboy robot on Mars
-- A magical baker whose pastries come to life
+- A neon-lit cyberpunk DJ with glowing tattoos spinning in a futuristic club
+- A magical ice queen with crystalline hair in a frozen palace
+- A streetwear-wearing dragon dancing in a graffiti alley
+- A golden pharaoh emerging from ancient ruins with cosmic powers
+- A bioluminescent mermaid singing in an underwater city
 
-Keep the response under 150 words. Be vivid and specific.`
+Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
           },
           {
             role: "user",
-            content: "Generate a unique and creative music video concept that hasn't been done before. Be imaginative and fun!"
+            content: "Generate a unique and creative music video concept that hasn't been done before. Make it visually stunning and perfect for vertical video format!"
           }
         ],
         temperature: 1.2, // High temperature for more creativity/randomness
@@ -8618,19 +8618,17 @@ Keep the response under 150 words. Be vivid and specific.`
         return res.status(500).json({ error: "Failed to generate creative prompt" });
       }
 
-      // Validate style and aspectRatio
-      const validAspectRatios = ["16:9", "9:16"];
-      const validStyles = ["3d", "cartoon", "realistic", "artistic", "radiant", "anime", "hyperrealistic"];
+      // Always use vertical format (9:16) for this endpoint
+      const aspectRatio = "9:16";
       
-      const aspectRatio = validAspectRatios.includes(requestedAspectRatio) ? requestedAspectRatio : "16:9";
-      
+      // Only use these three styles: 3d, radiant, hyperrealistic
+      const allowedStyles = ["3d", "radiant", "hyperrealistic"];
       let style: string;
-      if (validStyles.includes(requestedStyle)) {
+      if (requestedStyle && allowedStyles.includes(requestedStyle)) {
         style = requestedStyle;
       } else {
-        // Pick a random style for variety
-        const randomStyles = ["3d", "cartoon", "realistic", "anime"];
-        style = randomStyles[Math.floor(Math.random() * randomStyles.length)];
+        // Pick a random style from the allowed options
+        style = allowedStyles[Math.floor(Math.random() * allowedStyles.length)];
       }
 
       console.log(`[AUTO-GENERATE] Using style: ${style}, aspectRatio: ${aspectRatio}`);
