@@ -142,7 +142,7 @@ export default function MyVideosPage() {
 
   return (
     <div className="min-h-screen flex flex-col" data-testid="my-videos-page">
-      <NavigationHeader currentPage="my-videos" />
+      <NavigationHeader currentPage="videos" />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
@@ -188,19 +188,23 @@ export default function MyVideosPage() {
                     onClick={() => setSelectedVideo(video)}
                     data-testid={`video-card-${video.id}`}
                   >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute top-2 right-2 z-10 h-8 w-8 p-0 bg-black/50 hover:bg-red-500 text-white hover:text-white rounded-full"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setVideoToDelete(video);
+                    <div 
+                      className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center relative overflow-hidden group"
+                      onMouseEnter={(e) => {
+                        const videoEl = e.currentTarget.querySelector('video, mux-player') as HTMLVideoElement | null;
+                        if (videoEl) {
+                          videoEl.currentTime = 0;
+                          videoEl.play?.().catch(() => {});
+                        }
                       }}
-                      data-testid={`button-delete-${video.id}`}
+                      onMouseLeave={(e) => {
+                        const videoEl = e.currentTarget.querySelector('video, mux-player') as HTMLVideoElement | null;
+                        if (videoEl) {
+                          videoEl.pause?.();
+                          videoEl.currentTime = 0;
+                        }
+                      }}
                     >
-                      <X className="h-4 w-4" />
-                    </Button>
-                    <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center relative overflow-hidden group">
                       <MuxVideoPlayer
                         className="absolute inset-0 w-full h-full object-cover"
                         playbackId={video.mux?.assetStatus === 'ready' ? video.mux.playbackId : null}
@@ -208,18 +212,6 @@ export default function MyVideosPage() {
                         preload="metadata"
                         muted
                         playsInline
-                        onMouseEnter={(e) => {
-                          e.stopPropagation();
-                          const videoEl = e.currentTarget;
-                          videoEl.currentTime = 0;
-                          videoEl.play().catch(() => {});
-                        }}
-                        onMouseLeave={(e) => {
-                          e.stopPropagation();
-                          const videoEl = e.currentTarget;
-                          videoEl.pause();
-                          videoEl.currentTime = 0;
-                        }}
                         onError={() => {
                           console.warn(`Failed to load video ${video.id}`);
                         }}
@@ -230,6 +222,18 @@ export default function MyVideosPage() {
                         <Play className="h-16 w-16 text-white drop-shadow-lg" />
                       </div>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute top-2 right-2 z-50 h-8 w-8 p-0 bg-black/50 hover:bg-red-500 text-white hover:text-white rounded-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setVideoToDelete(video);
+                      }}
+                      data-testid={`button-delete-${video.id}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                     <CardContent className="p-4">
                       <div className="flex items-center gap-2 mb-2">
                         {editingVideo === video.id ? (
