@@ -1803,17 +1803,19 @@ export class DbStorage implements IStorage {
 
   async deleteProjectWithLogs(id: string): Promise<boolean> {
     try {
-      // Use a transaction to ensure both operations succeed or fail together
+      // Use a transaction to ensure all operations succeed or fail together
       await this.db.transaction(async (tx) => {
-        // First delete generation logs
+        // First delete greeting cards that reference this project
+        await tx.delete(greetingCards).where(eq(greetingCards.projectId, id));
+        // Then delete generation logs
         await tx.delete(generationLogs).where(eq(generationLogs.projectId, id));
-        // Then delete the project
+        // Finally delete the project
         await tx.delete(projects).where(eq(projects.id, id));
       });
       return true;
     } catch (error) {
       console.error("Transaction failed:", error);
-      return false;
+      throw error; // Re-throw so the route can return proper error
     }
   }
 
