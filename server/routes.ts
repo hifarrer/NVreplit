@@ -8709,32 +8709,45 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
         isCompleted: false
       });
 
-      // Trigger video generation asynchronously
-      (async () => {
-        try {
-          const videoGenResponse = await fetch(`http://localhost:5000/api/projects/${project.id}/generate-video`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" }
-          });
+      // Trigger video generation synchronously (wait for completion)
+      let finalVideoUrl: string | null = null;
+      let videoError: string | null = null;
+      
+      try {
+        const videoGenResponse = await fetch(`http://localhost:5000/api/projects/${project.id}/generate-video`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
 
-          if (videoGenResponse.ok) {
-            console.log(`[AUTO-GENERATE] Video generation completed for project ${project.id}`);
-          } else {
-            const errorData = await videoGenResponse.json();
-            console.error(`[AUTO-GENERATE] Video generation failed:`, errorData);
+        if (videoGenResponse.ok) {
+          console.log(`[AUTO-GENERATE] Video generation completed for project ${project.id}`);
+          // Fetch the updated project to get the final video URL
+          const updatedProject = await storage.getProject(project.id);
+          if (updatedProject && updatedProject.videoUrl) {
+            finalVideoUrl = updatedProject.videoUrl;
           }
-        } catch (error) {
-          console.error(`[AUTO-GENERATE] Video generation failed:`, error);
+        } else {
+          const errorData = await videoGenResponse.json();
+          console.error(`[AUTO-GENERATE] Video generation failed:`, errorData);
+          videoError = errorData.error || errorData.message || "Video generation failed";
         }
-      })();
+      } catch (error) {
+        console.error(`[AUTO-GENERATE] Video generation failed:`, error);
+        videoError = error instanceof Error ? error.message : String(error);
+      }
 
-      console.log(`[AUTO-GENERATE] All steps completed! Project ${project.id} is processing.`);
+      console.log(`[AUTO-GENERATE] All steps completed! Project ${project.id} finished.`);
 
+      const timestamp = new Date().toISOString();
+      
       res.json({
-        success: true,
+        success: !videoError,
         projectId: project.id,
-        message: "Auto-generated music video is being created!",
+        message: videoError ? "Video generation failed" : "Auto-generated music video completed!",
         generatedPrompt: generatedPrompt,
+        videoUrl: finalVideoUrl,
+        error: videoError,
+        timestamp: timestamp,
         statusUrl: `/api/neon-single-prompt/status/${project.id}`,
         details: {
           character: parsed.character,
@@ -8747,7 +8760,12 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       
     } catch (error: any) {
       console.error(`[AUTO-GENERATE] Error:`, error);
-      return res.status(500).json({ error: error.message || "Failed to auto-generate video" });
+      const timestamp = new Date().toISOString();
+      return res.status(500).json({ 
+        success: false,
+        error: error.message || "Failed to auto-generate video",
+        timestamp: timestamp
+      });
     }
   });
 
