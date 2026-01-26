@@ -1,0 +1,152 @@
+2026-01-26 12:15:50.51
+7ebf2494
+User
+at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+2026-01-26 12:15:50.51
+7ebf2494
+User
+Background video generation error: PostgresError: terminating connection due to administrator command
+2026-01-26 12:15:50.51
+7ebf2494
+User
+at TLSSocket.data (file:///home/runner/workspace/node_modules/postgres/src/connection.js:315:9)
+2026-01-26 12:15:50.51
+7ebf2494
+User
+severity_local: 'FATAL',
+2026-01-26 12:15:50.51
+7ebf2494
+User
+at ErrorResponse (file:///home/runner/workspace/node_modules/postgres/src/connection.js:794:26)
+2026-01-26 12:15:50.51
+7ebf2494
+User
+file: 'postgres.c',
+2026-01-26 12:15:50.51
+7ebf2494
+User
+at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23) {
+2026-01-26 12:15:50.51
+7ebf2494
+User
+line: '3289',
+2026-01-26 12:15:51.61
+7ebf2494
+User
+at TLSSocket.data (file:///home/runner/workspace/node_modules/postgres/src/connection.js:315:9)
+2026-01-26 12:15:51.61
+7ebf2494
+User
+at ErrorResponse (file:///home/runner/workspace/node_modules/postgres/src/connection.js:794:26)
+2026-01-26 12:15:51.61
+7ebf2494
+User
+at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23) {
+2026-01-26 12:15:51.61
+7ebf2494
+User
+routine: 'ProcessInterrupts'
+2026-01-26 12:15:51.61
+7ebf2494
+User
+at addChunk (node:internal/streams/readable:561:12)
+2026-01-26 12:15:51.61
+7ebf2494
+User
+}
+2026-01-26 12:15:51.61
+7ebf2494
+User
+severity_local: 'FATAL',
+2026-01-26 12:15:51.61
+7ebf2494
+User
+code: '57P01',
+2026-01-26 12:15:51.61
+7ebf2494
+User
+file: 'postgres.c',
+2026-01-26 12:15:51.61
+7ebf2494
+User
+line: '3289',
+2026-01-26 12:15:51.61
+7ebf2494
+User
+severity: 'FATAL',
+2026-01-26 12:15:51.61
+7ebf2494
+User
+at TLSSocket.emit (node:events:524:28)
+2026-01-26 12:15:51.61
+7ebf2494
+User
+💥 UNHANDLED REJECTION: PostgresError: terminating connection due to administrator command
+2026-01-26 12:15:51.61
+7ebf2494
+User
+at Readable.push (node:internal/streams/readable:392:5)
+2026-01-26 12:15:51.61
+7ebf2494
+User
+at handle (file:///home/runner/workspace/node_modules/postgres/src/connection.js:480:6)
+2026-01-26 12:15:51.61
+7ebf2494
+User
+at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+2026-01-26 12:15:51.91
+7ebf2494
+User
+severity: 'critical',
+2026-01-26 12:15:51.91
+7ebf2494
+User
+stack: 'PostgresError: terminating connection due to administrator command\n' +
+2026-01-26 12:15:51.91
+7ebf2494
+User
+' at ErrorResponse (file:///home/runner/workspace/node_modules/postgres/src/connection.js:794:26)\n' +
+2026-01-26 12:15:51.91
+7ebf2494
+User
+' at TLSSocket.emit (node:events:524:28)\n' +
+2026-01-26 12:15:51.91
+7ebf2494
+User
+message: 'terminating connection due to administrator command',
+2026-01-26 12:15:51.91
+7ebf2494
+User
+name: 'PostgresError',
+2026-01-26 12:15:51.91
+7ebf2494
+User
+' at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)\n' +
+2026-01-26 12:15:51.91
+7ebf2494
+User
+🚨 ERROR CAUGHT BY MONITORING: {
+2026-01-26 12:15:51.91
+7ebf2494
+User
+' at Readable.push (node:internal/streams/readable:392:5)\n' +
+2026-01-26 12:15:51.91
+7ebf2494
+User
+' at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23)'
+2026-01-26 12:15:51.91
+7ebf2494
+User
+context: { errorType: 'unhandledRejection' },
+2026-01-26 12:16:03.23
+7ebf2494
+User
+📧 Error notification email sent to admin@neonvideo.ai
+2026-01-26 12:16:04.61
+7ebf2494
+User
+Mux asset created for project 1a871f59-6a5a-457a-a44c-dbd36596abf6: qs91ouUySdFYCB101q3ql5EfoA6lsjcqUMdgmiXkjdH8
+2026-01-26 12:16:15.11
+7ebf2494
+User
+Mux asset ready for project 1a871f59-6a5a-457a-a44c-dbd36596abf6: https://stream.mux.com/9mx53cif1cey4C2XIIzpyf6izwZ014NjK8gOAR9wlglc.m3u8
