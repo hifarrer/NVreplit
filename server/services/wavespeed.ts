@@ -133,17 +133,18 @@ async function generateVideoSegmentInternal(
         break;
     }
   } else {
-    // Seedance-type models (no audio, image-to-video)
-    // Duration must be an integer between 2-12 for seedance models
+    // Non-lipsync models (seedance for quick, Alibaba Wan 2.5 for medium/premium)
+    // Duration must be an integer between 2-12 for these models
     const roundedDuration = Math.min(12, Math.max(2, Math.round(segmentDuration)));
-    console.log(`Seedance duration: ${segmentDuration}s → rounded to ${roundedDuration}s (valid range: 2-12)`);
+    console.log(`Video duration: ${segmentDuration}s → rounded to ${roundedDuration}s (valid range: 2-12)`);
     
     // Select model based on video quality
     switch (videoQuality) {
       case "premium":
-        // Alibaba Wan 2.5 - Premium quality
+        // Alibaba Wan 2.5 - Premium quality with 720p resolution (supports lipsync)
         endpoint = "https://api.wavespeed.ai/api/v3/alibaba/wan-2.5/image-to-video";
         requestBody = {
+          audio: audioUrl,
           duration: roundedDuration,
           enable_prompt_expansion: false,
           image: imageUrl,
@@ -153,15 +154,15 @@ async function generateVideoSegmentInternal(
         };
         break;
       case "medium":
-        // Seedance v1.5 Pro Fast - Medium quality
-        endpoint = "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1.5-pro/image-to-video-fast";
+        // Alibaba Wan 2.5 - Medium quality with 480p resolution (supports lipsync)
+        endpoint = "https://api.wavespeed.ai/api/v3/alibaba/wan-2.5/image-to-video";
         requestBody = {
-          camera_fixed: false,
+          audio: audioUrl,
           duration: roundedDuration,
-          generate_audio: true,
+          enable_prompt_expansion: false,
           image: imageUrl,
           prompt: prompt,
-          resolution: "720p",
+          resolution: "480p",
           seed: -1,
         };
         break;
