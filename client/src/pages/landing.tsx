@@ -326,6 +326,13 @@ export default function LandingPage() {
         </Card>
       </section>
 
+      {/* Featured On Badge */}
+      <section className="container mx-auto px-4 py-8 flex justify-center">
+        <a href="https://theresanaiforthat.com/ai/neonvideo-ai/?ref=featured&v=6052648" target="_blank" rel="nofollow">
+          <img width="300" src="https://media.theresanaiforthat.com/featured-on-taaft.png?width=600" alt="Featured on There's An AI For That" />
+        </a>
+      </section>
+
       {/* Video Player Modal */}
       {selectedVideo && (
         <Dialog open={!!selectedVideo} onOpenChange={() => setSelectedVideo(null)}>
