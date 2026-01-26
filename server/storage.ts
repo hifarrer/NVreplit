@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { eq, asc, sql, and, inArray, ilike } from "drizzle-orm";
+import { withDbRetry } from "./db";
 
 export interface IStorage {
   // User methods
@@ -1751,15 +1752,17 @@ export class DbStorage implements IStorage {
   }
 
   async deductUserCredits(userId: string, credits: number): Promise<boolean> {
-    const user = await this.getUser(userId);
-    if (!user) return false;
-    
-    const canAfford = await this.canUserAffordCredits(userId, credits);
-    if (!canAfford) return false;
-    
-    const newCreditsUsed = (user.creditsUsed || 0) + credits;
-    await this.updateUser(userId, { creditsUsed: newCreditsUsed });
-    return true;
+    return withDbRetry(async () => {
+      const user = await this.getUser(userId);
+      if (!user) return false;
+      
+      const canAfford = await this.canUserAffordCredits(userId, credits);
+      if (!canAfford) return false;
+      
+      const newCreditsUsed = (user.creditsUsed || 0) + credits;
+      await this.updateUser(userId, { creditsUsed: newCreditsUsed });
+      return true;
+    }, { operationName: 'deductUserCredits' });
   }
 
   async getFreePlan(): Promise<Plan | undefined> {
@@ -1771,8 +1774,10 @@ export class DbStorage implements IStorage {
   }
 
   async getProject(id: string): Promise<Project | undefined> {
-    const result = await this.db.select().from(projects).where(eq(projects.id, id)).limit(1);
-    return result[0];
+    return withDbRetry(async () => {
+      const result = await this.db.select().from(projects).where(eq(projects.id, id)).limit(1);
+      return result[0];
+    }, { operationName: 'getProject' });
   }
 
   async getProjectsByUser(userId: string): Promise<Project[]> {
@@ -1789,11 +1794,13 @@ export class DbStorage implements IStorage {
   }
 
   async updateProject(id: string, updates: Partial<Project>): Promise<Project | undefined> {
-    const result = await this.db.update(projects)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(projects.id, id))
-      .returning();
-    return result[0];
+    return withDbRetry(async () => {
+      const result = await this.db.update(projects)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(projects.id, id))
+        .returning();
+      return result[0];
+    }, { operationName: 'updateProject' });
   }
 
   async deleteProject(id: string): Promise<boolean> {
@@ -1820,8 +1827,10 @@ export class DbStorage implements IStorage {
   }
 
   async addGenerationLog(insertLog: InsertGenerationLog): Promise<GenerationLog> {
-    const result = await this.db.insert(generationLogs).values(insertLog).returning();
-    return result[0];
+    return withDbRetry(async () => {
+      const result = await this.db.insert(generationLogs).values(insertLog).returning();
+      return result[0];
+    }, { operationName: 'addGenerationLog' });
   }
 
   async getGenerationLogs(projectId: string): Promise<GenerationLog[]> {
@@ -1900,14 +1909,16 @@ export class DbStorage implements IStorage {
   }
 
   async completeVideoProcessing(projectId: string, status: 'completed' | 'failed'): Promise<boolean> {
-    const result = await this.db.update(videoQueue)
-      .set({ 
-        status,
-        completedAt: sql`NOW()`
-      })
-      .where(eq(videoQueue.projectId, projectId))
-      .returning();
-    return result.length > 0;
+    return withDbRetry(async () => {
+      const result = await this.db.update(videoQueue)
+        .set({ 
+          status,
+          completedAt: sql`NOW()`
+        })
+        .where(eq(videoQueue.projectId, projectId))
+        .returning();
+      return result.length > 0;
+    }, { operationName: 'completeVideoProcessing' });
   }
 
   async cleanupStaleEntries(): Promise<void> {
