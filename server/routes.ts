@@ -8513,7 +8513,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const userId = req.user!.userId;
-      const { style: requestedStyle, aspectRatio: requestedAspectRatio, duration: requestedDurationParam } = req.query;
+      const { style: requestedStyle, aspectRatio: requestedAspectRatio, duration: requestedDurationParam, quality: requestedQuality } = req.query;
+      
+      // Parse and validate video quality (default medium, options: medium, premium)
+      const validQualities = ["medium", "premium"];
+      const videoQuality = validQualities.includes(requestedQuality) ? requestedQuality : "medium";
+      console.log(`[AUTO-GENERATE] Video quality: ${videoQuality}`);
       
       // Parse and validate duration (default 30 seconds, max 60 seconds for auto-generate)
       let targetDuration = 30;
@@ -8630,6 +8635,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
         title: parsed.song_title || parsed.video_description?.substring(0, 50) || "Auto-Generated Video",
         description: parsed.video_description || generatedPrompt,
         aspectRatio: aspectRatio,
+        videoQuality: videoQuality,
         currentStep: 1
       });
       console.log(`[AUTO-GENERATE] Created project ${project.id}`);
@@ -8754,6 +8760,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
           song_title: aiGeneratedTitle,
           video_description: parsed.video_description,
           style: style,
+          quality: videoQuality,
           sceneCount: sceneImages.length
         }
       });
