@@ -13,7 +13,7 @@ import type { Project } from "@shared/schema";
 export default function NeonSinglePrompt() {
   const { toast } = useToast();
   const [prompt, setPrompt] = useState("");
-  const [aspectRatio, setAspectRatio] = useState<"16:9" | "9:16">("16:9");
+  const [aspectRatio, setAspectRatio] = useState<"16:9" | "9:16">("9:16");
   const [style, setStyle] = useState<string>("3d");
   const [generatedProjectId, setGeneratedProjectId] = useState<string | null>(null);
 
