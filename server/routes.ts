@@ -8580,8 +8580,8 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       // Always use vertical format (9:16) for this endpoint
       const aspectRatio = "9:16";
       
-      // Only use these three styles: 3d, radiant, hyperrealistic
-      const allowedStyles = ["3d", "radiant", "hyperrealistic"];
+      // Allowed styles for auto-generate endpoint
+      const allowedStyles = ["3d", "radiant", "hyperrealistic", "realistic"];
       let style: string;
       if (requestedStyle && allowedStyles.includes(requestedStyle)) {
         style = requestedStyle;
