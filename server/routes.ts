@@ -8732,8 +8732,11 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
           console.log(`[AUTO-GENERATE] Video generation completed for project ${project.id}`);
           // Fetch the updated project to get the final video URL
           const updatedProject = await storage.getProject(project.id);
-          if (updatedProject && updatedProject.videoUrl) {
-            finalVideoUrl = updatedProject.videoUrl;
+          if (updatedProject && updatedProject.finalVideoUrl) {
+            finalVideoUrl = updatedProject.finalVideoUrl;
+            console.log(`[AUTO-GENERATE] Final video URL retrieved: ${finalVideoUrl}`);
+          } else {
+            console.log(`[AUTO-GENERATE] Warning: Project updated but finalVideoUrl is missing. isCompleted: ${updatedProject?.isCompleted}`);
           }
         } else {
           const errorData = await videoGenResponse.json();
@@ -8755,6 +8758,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
         message: videoError ? "Video generation failed" : "Auto-generated music video completed!",
         generatedPrompt: generatedPrompt,
         videoUrl: finalVideoUrl,
+        finalVideoUrl: finalVideoUrl,
         error: videoError,
         timestamp: timestamp,
         statusUrl: `/api/neon-single-prompt/status/${project.id}`,
