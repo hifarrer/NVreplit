@@ -505,9 +505,11 @@ export async function generateAllVideoSegmentsDynamic(
         );
       } else {
         // Seedance uses explicit duration parameter
+        // For medium/premium quality, pass audio URL since wan-2.5 supports audio-synced video
         console.log(`  → Using seedance with duration: ${segDuration}s`);
+        const seedanceAudioUrl = (videoQuality === "medium" || videoQuality === "premium") ? audioSegments[i] : "";
         videoPromises.push(
-          generateVideoSegment("", imageUrls[i], prompts[i], "seedance", segDuration, videoQuality),
+          generateVideoSegment(seedanceAudioUrl, imageUrls[i], prompts[i], "seedance", segDuration, videoQuality),
         );
       }
     }
@@ -524,8 +526,10 @@ export async function generateAllVideoSegmentsDynamic(
         `Generating video segment ${i + 1} using seedance model (no lipsync, ${effectiveDuration}s)`,
       );
       videoTypes.push("seedance");
+      // For medium/premium quality, pass audio URL since wan-2.5 supports audio-synced video
+      const seedanceAudioUrl = (videoQuality === "medium" || videoQuality === "premium") ? audioSegments[i] : "";
       videoPromises.push(
-        generateVideoSegment("", imageUrls[i], prompts[i], "seedance", effectiveDuration, videoQuality),
+        generateVideoSegment(seedanceAudioUrl, imageUrls[i], prompts[i], "seedance", effectiveDuration, videoQuality),
       );
     }
   }
