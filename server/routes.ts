@@ -8585,9 +8585,12 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       let style: string;
       if (requestedStyle && allowedStyles.includes(requestedStyle)) {
         style = requestedStyle;
+        console.log(`[AUTO-GENERATE] Requested style "${requestedStyle}" is valid, using it`);
       } else {
         // Pick a random style from the allowed options
-        style = allowedStyles[Math.floor(Math.random() * allowedStyles.length)];
+        const randomIndex = Math.floor(Math.random() * allowedStyles.length);
+        style = allowedStyles[randomIndex];
+        console.log(`[AUTO-GENERATE] No valid style requested (got: "${requestedStyle}"), randomly selected index ${randomIndex} = "${style}" from ${JSON.stringify(allowedStyles)}`);
       }
 
       console.log(`[AUTO-GENERATE] Using style: ${style}, aspectRatio: ${aspectRatio}`);
