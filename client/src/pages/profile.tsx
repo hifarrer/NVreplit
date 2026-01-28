@@ -587,16 +587,15 @@ export default function ProfilePage() {
                       </div>
                       <div className="flex justify-between">
                         <span>• Video (30 seconds)</span>
-                        <span>1,000 credits</span>
+                        <span>2,000 credits</span>
                       </div>
                       <div className="flex justify-between">
                         <span>• Video (1 minute)</span>
-                        <span>2,000 credits</span>
+                        <span>4,000 credits</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span>• Video (2+ minutes)</span>
-                        <span>2,000 credits</span>
-                      </div>
+                      <p className="text-xs text-muted-foreground/70 pt-1 italic">
+                        Costs using the "Quick" generation model
+                      </p>
                     </div>
                   </div>
 
