@@ -95,6 +95,22 @@ The platform enforces different song duration limits based on user plan:
 - Duration limits apply to both "Generate with AI" and "Upload Audio File" features
 - Video generation configs automatically calculate numberOfAudioParts and numberOfScenes as ceil(duration/10)
 
+## Social Media Auto-Posting
+
+The platform automatically posts completed public videos to social media via Postiz API:
+- **Endpoint**: `POST /api/cron/auto-post-to-social` (triggered by external cron job)
+- **Platforms**: Facebook, YouTube, TikTok, Reddit
+- **Features**:
+  - AI-generated descriptions for Reddit using OpenAI GPT-4o-mini
+  - SEO keywords included: "AI music video", "music video", "music video generator"
+  - Shareable link to video on production site: `https://neonvideo.ai/v/{projectId}`
+  - Video attachment to posts
+- **Reddit-specific**:
+  - Posted as separate request to isolate failures from other platforms
+  - AI generates title and description based on project context (character, audio prompt, etc.)
+  - Channel ID: `cmkzpyncb00sant0yy54mt640`
+- **Database tracking**: `postiz_posts` table tracks which videos have been posted to each platform
+
 ## OAuth 2.1 API Endpoints
 
 The application provides OAuth 2.1-compliant API endpoints for external integrations:
