@@ -8195,14 +8195,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Check if already posted
     const existingPost = await storage.getPostizPostByProjectId(projectId);
-    if (existingPost && existingPost.postedFacebook && existingPost.postedYoutube && existingPost.postedTiktok) {
-      throw new Error("Video has already been posted to Facebook, YouTube, and TikTok");
+    if (existingPost && existingPost.postedFacebook && existingPost.postedYoutube && existingPost.postedTiktok && existingPost.postedReddit) {
+      throw new Error("Video has already been posted to Facebook, YouTube, TikTok, and Reddit");
     }
 
     const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY;
     const FACEBOOK_CHANNEL_ID = "cmgi638zj005ulb0yf9dlmz4g";
     const YOUTUBE_CHANNEL_ID = "cmgheacv20174lb0yszfbkfrg";
     const TIKTOK_CHANNEL_ID = "cmgi2xrxq0036lb0ykwos7wny";
+    const REDDIT_CHANNEL_ID = "cmkzpyncb00sant0yy54mt640";
 
     if (!POSTIZ_API_KEY) {
       throw new Error("POSTIZ_API_KEY not configured");
@@ -8211,6 +8212,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Prepare video URL and content
     const videoUrl = project.finalVideoUrl;
     const hashtags = "#ai #aivideo #musicvideo #neonvideo";
+    const shareableLink = `https://neonvideo.ai/v/${projectId}`;
+    
+    // Generate AI description for Reddit using OpenAI
+    // Build context from project data
+    const projectContext = {
+      title: project.title,
+      characterPrompt: project.characterPrompt || "",
+      audioPrompt: project.audioPrompt || "",
+      description: project.description || "",
+    };
+    
+    console.log(`[POSTIZ] Generating AI description for Reddit...`);
+    let redditTitle = `AI Music Video: ${project.title}`;
+    let redditDescription = `Check out this AI-generated music video created with NeonVideo.ai - the best AI music video generator!`;
+    
+    // Only attempt AI generation if OPENAI_API_KEY is available
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        const OpenAI = (await import("openai")).default;
+        const openaiClient = new OpenAI({
+          apiKey: process.env.OPENAI_API_KEY,
+        });
+        
+        const aiResponse = await openaiClient.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: `You are a social media content creator writing Reddit posts for AI-generated music videos. 
+Write in natural, conversational human language. Be enthusiastic but not over-the-top.
+Include SEO keywords naturally: "AI music video", "music video", "music video generator", "AI video generator".
+Keep it brief and engaging - around 2-3 sentences for the description.`
+            },
+            {
+              role: "user",
+              content: `Create a Reddit post title and description for this AI music video:
+
+Title: ${projectContext.title}
+Character: ${projectContext.characterPrompt}
+Theme/Audio: ${projectContext.audioPrompt}
+Description: ${projectContext.description}
+
+Format your response as JSON:
+{
+  "title": "short catchy title with 'AI Music Video' included",
+  "description": "2-3 sentence description in natural language"
+}`
+            }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.8,
+          max_tokens: 200
+        });
+        
+        // Safely parse AI response with defensive guards
+        const messageContent = aiResponse?.choices?.[0]?.message?.content;
+        if (messageContent) {
+          const aiContent = JSON.parse(messageContent);
+          if (aiContent.title) redditTitle = aiContent.title;
+          if (aiContent.description) redditDescription = aiContent.description;
+          console.log(`[POSTIZ] AI generated title: ${redditTitle}`);
+          console.log(`[POSTIZ] AI generated description: ${redditDescription}`);
+        } else {
+          console.log(`[POSTIZ] AI response was empty, using default description`);
+        }
+      } catch (aiError) {
+        console.error(`[POSTIZ] AI description generation failed, using default:`, aiError);
+      }
+    } else {
+      console.log(`[POSTIZ] OPENAI_API_KEY not configured, using default description`);
+    }
+    
+    // Build full Reddit content with link
+    const redditContent = `${redditDescription}\n\nWatch the full video: ${shareableLink}`;
     
     // Generate a signed URL for the video file (valid for 1 hour)
     const { ObjectStorageService } = await import('./objectStorage.js');
@@ -8339,11 +8414,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             content_posting_method: "DIRECT_POST"
           },
           group: groupId
-        }
+        },
       ]
     };
 
-    console.log(`[POSTIZ] Creating post with video...`);
+    console.log(`[POSTIZ] Creating post for Facebook, YouTube, TikTok...`);
     console.log(`[POSTIZ] Post body:`, JSON.stringify(postBody, null, 2));
     
     const postResponse = await fetch("https://api.postiz.com/public/v1/posts", {
@@ -8368,6 +8443,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     console.log(`[POSTIZ] Successfully posted to Facebook, YouTube, and TikTok. Post ID: ${postId}`);
 
+    // Post to Reddit separately to isolate failures
+    let redditPostId: string | null = null;
+    let redditPostedTime: Date | null = null;
+    
+    try {
+      console.log(`[POSTIZ] Creating separate Reddit post...`);
+      
+      const redditPostBody = {
+        type: "now",
+        date: new Date().toISOString(),
+        shortLink: false,
+        tags: [],
+        posts: [
+          {
+            integration: { id: REDDIT_CHANNEL_ID },
+            value: [
+              {
+                content: redditContent,
+                image: [
+                  {
+                    id: uploadResult.id,
+                    path: uploadResult.path || uploadResult.url
+                  }
+                ]
+              }
+            ],
+            settings: {
+              title: redditTitle
+            },
+            group: `neonvideo-reddit-${Date.now()}`
+          }
+        ]
+      };
+      
+      console.log(`[POSTIZ] Reddit post body:`, JSON.stringify(redditPostBody, null, 2));
+      
+      const redditResponse = await fetch("https://api.postiz.com/public/v1/posts", {
+        method: "POST",
+        headers: {
+          "Authorization": POSTIZ_API_KEY,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(redditPostBody)
+      });
+
+      const redditResponseText = await redditResponse.text();
+      console.log(`[POSTIZ] Reddit post response status: ${redditResponse.status}`);
+      console.log(`[POSTIZ] Reddit post response:`, redditResponseText);
+
+      if (redditResponse.ok) {
+        const redditResult = JSON.parse(redditResponseText);
+        redditPostId = redditResult.id || redditResult.data?.id || null;
+        redditPostedTime = new Date();
+        console.log(`[POSTIZ] ✅ Successfully posted to Reddit. Post ID: ${redditPostId}`);
+      } else {
+        console.error(`[POSTIZ] ⚠️ Reddit post failed (${redditResponse.status}): ${redditResponseText}`);
+      }
+    } catch (redditError) {
+      console.error(`[POSTIZ] ⚠️ Reddit post error (isolated, other platforms succeeded):`, redditError);
+    }
+
     // Record the post in database
     const now = new Date();
     if (existingPost) {
@@ -8375,9 +8511,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         postedFacebook: now,
         postedYoutube: now,
         postedTiktok: now,
+        postedReddit: redditPostedTime,
         facebookPostId: postId,
         youtubePostId: postId,
-        tiktokPostId: postId
+        tiktokPostId: postId,
+        redditPostId: redditPostId
       });
       console.log(`[POSTIZ] ✅ Updated post record for project ${projectId} - marked as posted to all platforms at ${now.toISOString()}`);
     } else {
@@ -8386,9 +8524,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         postedFacebook: now,
         postedYoutube: now,
         postedTiktok: now,
+        postedReddit: redditPostedTime,
         facebookPostId: postId,
         youtubePostId: postId,
-        tiktokPostId: postId
+        tiktokPostId: postId,
+        redditPostId: redditPostId
       });
       console.log(`[POSTIZ] ✅ Created post record for project ${projectId} - marked as posted to all platforms at ${now.toISOString()}`);
     }
@@ -8403,7 +8543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if already posted to all platforms
       const postRecord = await storage.getPostizPostByProjectId(id);
-      if (postRecord && postRecord.postedFacebook && postRecord.postedYoutube && postRecord.postedTiktok) {
+      if (postRecord && postRecord.postedFacebook && postRecord.postedYoutube && postRecord.postedTiktok && postRecord.postedReddit) {
         return res.status(400).json({
           success: false,
           error: "This video has already been posted to all platforms",
@@ -8415,7 +8555,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         success: true,
-        message: "Video posted to Facebook, YouTube, and TikTok successfully",
+        message: "Video posted to Facebook, YouTube, TikTok, and Reddit successfully",
         video: {
           id: id,
           title: result.projectTitle,
@@ -8447,11 +8587,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[AUTO-POST] Found ${completedVideos.length} completed videos`);
 
-      // Check which ones haven't been posted to Facebook, YouTube, and TikTok yet
+      // Check which ones haven't been posted to Facebook, YouTube, TikTok, and Reddit yet
       const unpostedVideos = [];
       for (const video of completedVideos) {
         const postRecord = await storage.getPostizPostByProjectId(video.id);
-        if (!postRecord || !postRecord.postedFacebook || !postRecord.postedYoutube || !postRecord.postedTiktok) {
+        if (!postRecord || !postRecord.postedFacebook || !postRecord.postedYoutube || !postRecord.postedTiktok || !postRecord.postedReddit) {
           unpostedVideos.push(video);
         }
       }
@@ -8478,7 +8618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         success: true,
-        message: "Video posted to Facebook, YouTube, and TikTok successfully",
+        message: "Video posted to Facebook, YouTube, TikTok, and Reddit successfully",
         posted: 1,
         video: {
           id: videoToPost.id,
