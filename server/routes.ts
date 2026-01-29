@@ -1678,6 +1678,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Database backup endpoint
   app.get("/api/admin/database-backup", authenticateAdmin, async (req, res) => {
+    let responseSent = false;
+    
+    const sendError = (statusCode: number, errorMsg: string) => {
+      if (responseSent || res.headersSent) {
+        console.log('Response already sent, cannot send error:', errorMsg);
+        return;
+      }
+      responseSent = true;
+      res.status(statusCode).json({ error: errorMsg });
+    };
+    
     try {
       // Create temporary backup file
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -1700,17 +1711,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: process.env.PGPASSWORD
       };
       
+      console.log('Database backup params:', {
+        host: dbParams.host,
+        port: dbParams.port,
+        database: dbParams.database,
+        username: dbParams.username,
+        hasPassword: !!dbParams.password
+      });
+      
       // Build pg_dump command
       const pgDumpArgs = [
-        '-h', dbParams.host,
+        '-h', dbParams.host!,
         '-p', dbParams.port,
-        '-U', dbParams.username,
-        '-d', dbParams.database,
-        '--clean',  // Include DROP statements
-        '--create', // Include CREATE DATABASE statement  
-        '--if-exists', // Use IF EXISTS for DROP statements
-        '--verbose',
-        '--no-password', // Use PGPASSWORD env var
+        '-U', dbParams.username!,
+        '-d', dbParams.database!,
+        '--clean',
+        '--create',
+        '--if-exists',
+        '--no-password',
         '-f', backupPath
       ];
       
@@ -1721,93 +1739,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       console.log(`Starting database backup: ${backupFileName}`);
+      console.log(`Backup path: ${backupPath}`);
       
       // Execute pg_dump
       const pgDump = spawn('pg_dump', pgDumpArgs, { env });
       
-      let errorOutput = '';
+      let stderrOutput = '';
       
       pgDump.stderr.on('data', (data) => {
-        errorOutput += data.toString();
-        console.log('pg_dump stderr:', data.toString());
-      });
-      
-      pgDump.stdout.on('data', (data) => {
-        console.log('pg_dump stdout:', data.toString());
+        stderrOutput += data.toString();
       });
       
       pgDump.on('close', (code) => {
+        console.log(`pg_dump exited with code: ${code}`);
+        
         if (code !== 0) {
-          console.error(`pg_dump failed with code ${code}: ${errorOutput}`);
-          return res.status(500).json({ 
-            error: `Database backup failed: ${errorOutput}` 
-          });
+          console.error(`pg_dump failed with code ${code}`);
+          console.error(`stderr: ${stderrOutput}`);
+          sendError(500, `Database backup failed with code ${code}`);
+          return;
         }
         
         try {
           // Check if backup file exists and has content
           if (!fs.existsSync(backupPath)) {
-            return res.status(500).json({ 
-              error: "Backup file was not created" 
-            });
+            console.error('Backup file does not exist:', backupPath);
+            sendError(500, "Backup file was not created");
+            return;
           }
           
           const stats = fs.statSync(backupPath);
+          console.log(`Backup file stats: size=${stats.size} bytes`);
+          
           if (stats.size === 0) {
-            return res.status(500).json({ 
-              error: "Backup file is empty" 
-            });
+            console.error('Backup file is empty');
+            sendError(500, "Backup file is empty");
+            return;
           }
           
           console.log(`Database backup completed: ${backupFileName} (${stats.size} bytes)`);
           
+          if (res.headersSent) {
+            console.log('Response already sent, cannot stream file');
+            return;
+          }
+          
           // Set appropriate headers for file download
-          res.setHeader('Content-Type', 'application/sql');
+          res.setHeader('Content-Type', 'application/octet-stream');
           res.setHeader('Content-Disposition', `attachment; filename="${backupFileName}"`);
           res.setHeader('Content-Length', stats.size);
           
           // Stream the file to the response
           const fileStream = fs.createReadStream(backupPath);
           
-          fileStream.on('end', () => {
+          fileStream.on('error', (streamError) => {
+            console.error(`Error streaming backup file: ${streamError}`);
+            if (!res.headersSent && !responseSent) {
+              sendError(500, "Error downloading backup file");
+            } else {
+              res.end();
+            }
+          });
+          
+          // Mark response as being sent only when pipe starts
+          responseSent = true;
+          fileStream.pipe(res);
+          
+          res.on('finish', () => {
+            console.log('Database backup download completed successfully');
             // Clean up temporary file after download
             setTimeout(() => {
               try {
-                fs.unlinkSync(backupPath);
-                console.log(`Temporary backup file deleted: ${backupPath}`);
+                if (fs.existsSync(backupPath)) {
+                  fs.unlinkSync(backupPath);
+                  console.log(`Temporary backup file deleted: ${backupPath}`);
+                }
               } catch (cleanupError) {
                 console.error(`Error cleaning up backup file: ${cleanupError}`);
               }
             }, 1000);
           });
           
-          fileStream.on('error', (streamError) => {
-            console.error(`Error streaming backup file: ${streamError}`);
-            if (!res.headersSent) {
-              res.status(500).json({ error: "Error downloading backup file" });
-            } else {
-              res.end();
-            }
-          });
-          
-          fileStream.pipe(res);
-          
         } catch (fileError) {
           console.error(`Error processing backup file: ${fileError}`);
-          res.status(500).json({ error: "Error processing backup file" });
+          sendError(500, "Error processing backup file");
         }
       });
       
       pgDump.on('error', (error) => {
         console.error(`pg_dump process error: ${error}`);
-        res.status(500).json({ 
-          error: `Failed to start database backup: ${error.message}` 
-        });
+        sendError(500, `Failed to start database backup: ${error.message}`);
       });
       
     } catch (error) {
       console.error("Database backup error:", error);
-      res.status(500).json({ error: "Failed to create database backup" });
+      sendError(500, "Failed to create database backup");
     }
   });
 
