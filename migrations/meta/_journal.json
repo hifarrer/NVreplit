@@ -29,6 +29,13 @@
       "when": 1764897961819,
       "tag": "0003_worried_paper_doll",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1769720215163,
+      "tag": "0004_clever_gambit",
+      "breakpoints": true
     }
   ]
 }
