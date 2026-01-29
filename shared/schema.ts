@@ -242,9 +242,11 @@ export const postizPosts = pgTable("postiz_posts", {
   postedFacebook: timestamp("posted_facebook"), // When posted to Facebook
   postedTiktok: timestamp("posted_tiktok"), // When posted to TikTok
   postedYoutube: timestamp("posted_youtube"), // When posted to YouTube
+  postedReddit: timestamp("posted_reddit"), // When posted to Reddit
   facebookPostId: text("facebook_post_id"), // Postiz post ID for Facebook
   tiktokPostId: text("tiktok_post_id"), // Postiz post ID for TikTok
   youtubePostId: text("youtube_post_id"), // Postiz post ID for YouTube
+  redditPostId: text("reddit_post_id"), // Postiz post ID for Reddit
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
