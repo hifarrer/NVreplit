@@ -1,0 +1,152 @@
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.greeting_cards greeting_cards_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.video_comments video_comments_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.coupon_codes coupon_codes_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.users users_email_unique"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating FK CONSTRAINT "public.affiliate_earnings affiliate_earnings_affiliate_id_fkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.coupon_redemptions coupon_redemptions_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.users users_username_unique"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.banned_users banned_users_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.oauth_access_tokens oauth_access_tokens_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating FK CONSTRAINT "public.affiliate_payouts affiliate_payouts_affiliate_id_fkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.generation_logs generation_logs_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.users users_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump:
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.saved_characters saved_characters_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.affiliates affiliates_affiliate_code_key"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating INDEX "public.users_referral_code_unique"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.gift_subscriptions gift_subscriptions_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.projects projects_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump stderr: creating FK CONSTRAINT "public.affiliate_signups affiliate_signups_affiliate_id_fkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump stderr: pg_dump: creating FK CONSTRAINT "public.affiliate_earnings affiliate_earnings_signup_user_id_fkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.coupon_codes coupon_codes_code_key"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.affiliate_earnings affiliate_earnings_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump stderr: pg_dump: executing SEQUENCE SET replit_database_migrations_v1_id_seq
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.referrals referrals_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.songs songs_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.postiz_posts postiz_posts_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.postiz_posts postiz_posts_project_id_key"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.oauth_authorization_codes oauth_authorization_codes_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.affiliates affiliates_user_id_key"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating INDEX "_system.idx_replit_database_migrations_v1_build_id"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.plans plans_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.oauth_clients oauth_clients_client_id_key"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.affiliate_payouts affiliate_payouts_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.greeting_cards greeting_cards_unique_token_key"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "_system.replit_database_migrations_v1 replit_database_migrations_v1_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.oauth_clients oauth_clients_pkey"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.gift_subscriptions gift_subscriptions_redemption_code_key"
+2026-01-29 17:43:00.80
+d8929537
+User
+pg_dump: creating CONSTRAINT "public.video_likes video_likes_pkey"
