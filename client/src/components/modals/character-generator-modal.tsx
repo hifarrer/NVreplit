@@ -1,20 +1,30 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { useMutation } from "@tanstack/react-query";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { RefreshCw, Check, Sparkles } from "lucide-react";
+import { RefreshCw, Check, Sparkles, AlertTriangle, Crown } from "lucide-react";
+import { Link } from "wouter";
 
 interface CharacterGeneratorModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCharacterGenerated: (result: { imageUrl: string; prompt: string }) => void;
   projectId: string;
+}
+
+interface CharacterLimitInfo {
+  count: number;
+  limit: number | null;
+  isFreePlan: boolean;
+  isAtLimit: boolean;
+  canCreate: boolean;
 }
 
 const artStyles = [
@@ -36,13 +46,23 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
   const [enhancingImageIndex, setEnhancingImageIndex] = useState<number | null>(null);
   const [enhancedIndices, setEnhancedIndices] = useState<Set<number>>(new Set());
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: limitInfo, refetch: refetchLimitInfo } = useQuery<CharacterLimitInfo>({
+    queryKey: ['/api/characters/limit'],
+    enabled: isOpen,
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      refetchLimitInfo();
+    }
+  }, [isOpen, refetchLimitInfo]);
 
   const generateCharacterOptionsMutation = useMutation({
     mutationFn: async () => {
-      // Send only the description, backend will handle style-specific prompt formatting
       const fullPrompt = description;
       
-      // Simulate progress updates
       setProgress(0);
       const progressInterval = setInterval(() => {
         setProgress(prev => {
@@ -52,9 +72,8 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
           }
           return prev + 10;
         });
-      }, 5000); // Slower progress for longer generation time
+      }, 5000);
 
-      // Use different endpoints based on whether we have a project ID
       const endpoint = projectId 
         ? `/api/projects/${projectId}/generate-character-options`
         : `/api/characters/generate-options`;
@@ -63,7 +82,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
         prompt: fullPrompt,
         aspectRatio: "16:9",
         style: selectedStyle
-      }, { timeout: 900000 }); // 15-minute timeout for character generation
+      }, { timeout: 900000 });
 
       clearInterval(progressInterval);
       setProgress(100);
@@ -74,7 +93,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
       setGeneratedImageUrls(data.imageUrls);
       setCurrentPrompt(data.prompt);
       setGeneratedWithStyle(selectedStyle);
-      setEnhancedIndices(new Set()); // Reset enhanced indices for new images
+      setEnhancedIndices(new Set());
       toast({
         title: "Success",
         description: `Generated ${data.imageUrls.length} character options!`,
@@ -93,7 +112,6 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
   const saveCharacterMutation = useMutation({
     mutationFn: async (imageUrl: string) => {
       if (projectId) {
-        // Save to both project and user's character library
         const [projectResponse, libraryResponse] = await Promise.all([
           apiRequest("POST", `/api/projects/${projectId}/save-character-option`, {
             imageUrl,
@@ -111,7 +129,6 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
           library: await libraryResponse.json()
         };
       } else {
-        // Save to character library only
         const response = await apiRequest("POST", `/api/characters`, {
           imageUrl,
           prompt: currentPrompt,
@@ -121,29 +138,38 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
       }
     },
     onSuccess: (data, imageUrl) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/characters/limit'] });
       onCharacterGenerated({ imageUrl, prompt: currentPrompt });
       if (projectId) {
         toast({
           title: "Success",
           description: "Character saved to project and your library!",
         });
-        // Close the modal after saving to project
         handleClose();
       } else {
         toast({
           title: "Success",
           description: "Character saved to your library!",
         });
-        // Close the modal after saving to library
         handleClose();
       }
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to save character",
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      if (error?.isLimitError) {
+        toast({
+          title: "Character Limit Reached",
+          description: "Free users can save up to 30 characters. Upgrade to a paid plan for unlimited characters.",
+          variant: "destructive",
+        });
+        refetchLimitInfo();
+      } else {
+        toast({
+          title: "Error",
+          description: error?.message || "Failed to save character",
+          variant: "destructive",
+        });
+      }
     }
   });
 
@@ -152,23 +178,34 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
       const response = await apiRequest("POST", "/api/characters", {
         imageUrl,
         prompt: currentPrompt,
-        name: `Character ${Date.now()}`, // Generate a unique name
+        name: `Character ${Date.now()}`,
         style: selectedStyle
       });
       return response.json();
     },
     onSuccess: (data, imageUrl) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/characters/limit'] });
       toast({
         title: "Success",
         description: "Character saved to your library!",
       });
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to save character to library",
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      if (error?.isLimitError) {
+        toast({
+          title: "Character Limit Reached",
+          description: "Free users can save up to 30 characters. Upgrade to a paid plan for unlimited characters.",
+          variant: "destructive",
+        });
+        refetchLimitInfo();
+      } else {
+        toast({
+          title: "Error",
+          description: error?.message || "Failed to save character to library",
+          variant: "destructive",
+        });
+      }
     }
   });
 
@@ -178,16 +215,14 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
       const response = await apiRequest("POST", "/api/characters/enhance-hyper-real", {
         imageUrl,
         prompt: currentPrompt
-      }, { timeout: 600000 }); // 10-minute timeout for enhancement
+      }, { timeout: 600000 });
       return response.json();
     },
     onSuccess: (data, { imageUrl: originalImageUrl, index }) => {
-      // Replace the original image URL with the enhanced one
       setGeneratedImageUrls(prev => 
         prev.map((url, i) => i === index ? data.enhancedImageUrl : url)
       );
       setEnhancingImageIndex(null);
-      // Mark this index as enhanced so the button won't show again
       setEnhancedIndices(prev => new Set(prev).add(index));
       toast({
         title: "Success",
@@ -229,6 +264,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
   };
 
   const canGenerate = description.trim().length > 10;
+  const isSaveDisabled = limitInfo?.isAtLimit && limitInfo?.isFreePlan;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -239,7 +275,26 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
         </DialogHeader>
         
         <div className="space-y-6">
-          {/* Character Description */}
+          {limitInfo?.isAtLimit && (
+            <Alert className="border-amber-500/50 bg-amber-500/10">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <AlertDescription className="text-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <span>
+                    You've reached the limit of {limitInfo.limit} saved characters on the Free plan. 
+                    You can still generate characters, but to save them, please delete some existing characters or upgrade your plan.
+                  </span>
+                  <Link href="/plans" onClick={handleClose}>
+                    <Button size="sm" className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 whitespace-nowrap">
+                      <Crown className="h-3 w-3 mr-1" />
+                      Upgrade
+                    </Button>
+                  </Link>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div>
             <Label className="flex items-center text-sm font-semibold mb-2">
               <i className="fas fa-user text-primary mr-2"></i>
@@ -257,7 +312,6 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
             <p className="text-xs text-muted-foreground mt-1 font-medium">For best results, make sure only 1 character is shown. Front shots from waist up are also better than full body shots</p>
           </div>
 
-          {/* Style Presets */}
           <div>
             <Label className="flex items-center text-sm font-semibold mb-3">
               <i className="fas fa-palette text-accent mr-2"></i>
@@ -283,7 +337,6 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
             </div>
           </div>
 
-          {/* Generation Progress */}
           {generateCharacterOptionsMutation.isPending && (
             <div className="bg-muted/30 rounded-lg p-4" data-testid="character-generation-progress">
               <div className="flex items-center justify-between mb-3">
@@ -295,7 +348,6 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
             </div>
           )}
 
-          {/* Generated Character Options */}
           {generatedImageUrls.length > 0 && (
             <div data-testid="generated-character-options">
               <Label className="flex items-center text-sm font-semibold mb-3">
@@ -326,13 +378,13 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
                         </Button>
                       )}
                       {projectId ? (
-                        // Project mode - show both buttons
                         <>
                           <Button
                             onClick={() => handleSaveCharacter(imageUrl)}
-                            disabled={saveCharacterMutation.isPending}
+                            disabled={saveCharacterMutation.isPending || isSaveDisabled}
                             className="bg-green-600 hover:bg-green-700 text-white"
                             size="sm"
+                            title={isSaveDisabled ? "Character limit reached - upgrade to save more" : ""}
                             data-testid={`save-character-${index}`}
                           >
                             <Check className="w-4 h-4 mr-1" />
@@ -340,9 +392,10 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
                           </Button>
                           <Button
                             onClick={() => handleSaveToLibrary(imageUrl)}
-                            disabled={saveToLibraryMutation.isPending}
+                            disabled={saveToLibraryMutation.isPending || isSaveDisabled}
                             className="bg-blue-600 hover:bg-blue-700 text-white"
                             size="sm"
+                            title={isSaveDisabled ? "Character limit reached - upgrade to save more" : ""}
                             data-testid={`save-to-library-${index}`}
                           >
                             <Check className="w-4 h-4 mr-1" />
@@ -350,12 +403,12 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
                           </Button>
                         </>
                       ) : (
-                        // Library mode - show only save button
                         <Button
                           onClick={() => handleSaveCharacter(imageUrl)}
-                          disabled={saveCharacterMutation.isPending}
+                          disabled={saveCharacterMutation.isPending || isSaveDisabled}
                           className="bg-green-600 hover:bg-green-700 text-white"
                           size="sm"
+                          title={isSaveDisabled ? "Character limit reached - upgrade to save more" : ""}
                           data-testid={`save-character-${index}`}
                         >
                           <Check className="w-4 h-4 mr-1" />

@@ -7252,10 +7252,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get character count and limit info for current user
+  app.get("/api/characters/limit", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const characters = await storage.getSavedCharacters(userId);
+      const characterCount = characters.length;
+      
+      // Get user's plan to check if they're on free plan
+      const userWithPlan = await storage.getUserWithPlan(userId);
+      const isFreePlan = !userWithPlan?.plan || userWithPlan.plan.name.toLowerCase() === 'free';
+      
+      const FREE_CHARACTER_LIMIT = 30;
+      const isAtLimit = isFreePlan && characterCount >= FREE_CHARACTER_LIMIT;
+      
+      res.json({
+        count: characterCount,
+        limit: isFreePlan ? FREE_CHARACTER_LIMIT : null,
+        isFreePlan,
+        isAtLimit,
+        canCreate: !isAtLimit
+      });
+    } catch (error) {
+      console.error("Get character limit error:", error);
+      res.status(500).json({ error: "Failed to get character limit info" });
+    }
+  });
+
   app.post("/api/characters", authenticateToken, async (req, res) => {
     try {
       const userId = (req as any).user.userId;
       const { imageUrl, ...restData } = req.body;
+      
+      // Check character limit for free users
+      const FREE_CHARACTER_LIMIT = 30;
+      const userWithPlan = await storage.getUserWithPlan(userId);
+      const isFreePlan = !userWithPlan?.plan || userWithPlan.plan.name.toLowerCase() === 'free';
+      
+      if (isFreePlan) {
+        const existingCharacters = await storage.getSavedCharacters(userId);
+        if (existingCharacters.length >= FREE_CHARACTER_LIMIT) {
+          return res.status(403).json({ 
+            error: "Character limit reached",
+            message: "Free users can save up to 30 characters. Please upgrade to a paid plan for unlimited characters, or delete some existing characters.",
+            isLimitError: true
+          });
+        }
+      }
       
       let finalImageUrl = imageUrl;
       

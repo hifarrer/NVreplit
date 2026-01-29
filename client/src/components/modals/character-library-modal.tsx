@@ -4,10 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trash2, Image, Loader2, Globe, User } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Trash2, Image, Loader2, Globe, User, AlertTriangle, Crown } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { Link } from 'wouter';
 
 interface SavedCharacter {
   id: string;
@@ -22,6 +24,14 @@ interface PublicCharacter {
   name: string;
   prompt: string;
   imageUrl: string;
+}
+
+interface CharacterLimitInfo {
+  count: number;
+  limit: number | null;
+  isFreePlan: boolean;
+  isAtLimit: boolean;
+  canCreate: boolean;
 }
 
 const PUBLIC_CHARACTERS: PublicCharacter[] = [
@@ -59,12 +69,18 @@ export function CharacterLibraryModal({ isOpen, onClose, onSelect }: CharacterLi
     enabled: isOpen,
   });
 
+  const { data: limitInfo } = useQuery<CharacterLimitInfo>({
+    queryKey: ['/api/characters/limit'],
+    enabled: isOpen,
+  });
+
   const deleteCharacterMutation = useMutation({
     mutationFn: async (characterId: string) => {
       await apiRequest('DELETE', `/api/characters/${characterId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/characters/limit'] });
       toast({
         title: 'Character deleted',
         description: 'The character has been removed from your library.',
@@ -181,6 +197,26 @@ export function CharacterLibraryModal({ isOpen, onClose, onSelect }: CharacterLi
           </TabsContent>
 
           <TabsContent value="my-characters" className="flex-1 flex flex-col min-h-0 mt-0">
+            {limitInfo?.isAtLimit && (
+              <Alert className="mb-4 border-amber-500/50 bg-amber-500/10">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <AlertDescription className="text-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <span>
+                      You've reached the limit of {limitInfo.limit} saved characters on the Free plan. 
+                      Delete some characters or upgrade to save unlimited characters.
+                    </span>
+                    <Link href="/plans" onClick={onClose}>
+                      <Button size="sm" className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 whitespace-nowrap">
+                        <Crown className="h-3 w-3 mr-1" />
+                        Upgrade
+                      </Button>
+                    </Link>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+            
             {isLoading ? (
               <div className="flex-1 flex items-center justify-center py-8">
                 <div className="text-center">
@@ -251,7 +287,7 @@ export function CharacterLibraryModal({ isOpen, onClose, onSelect }: CharacterLi
 
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mt-4 pt-4 border-t">
                   <p className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
-                    {characters.length} character{characters.length !== 1 ? 's' : ''} in your library
+                    {characters.length}{limitInfo?.isFreePlan ? `/${limitInfo.limit}` : ''} character{characters.length !== 1 ? 's' : ''} in your library
                   </p>
                   <div className="flex space-x-2 justify-center sm:justify-end">
                     <Button variant="outline" size="sm" onClick={onClose} data-testid="button-cancel">

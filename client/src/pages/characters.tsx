@@ -4,10 +4,11 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import { Search, Trash2, Users, Loader2, Plus, Edit3 } from "lucide-react";
+import { Search, Trash2, Users, Loader2, Plus, Edit3, AlertTriangle, Crown } from "lucide-react";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { CharacterGeneratorModal } from "@/components/modals/character-generator-modal";
@@ -20,6 +21,14 @@ interface SavedCharacter {
   createdAt: string;
 }
 
+interface CharacterLimitInfo {
+  count: number;
+  limit: number | null;
+  isFreePlan: boolean;
+  isAtLimit: boolean;
+  canCreate: boolean;
+}
+
 export default function CharactersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showCharacterModal, setShowCharacterModal] = useState(false);
@@ -30,6 +39,11 @@ export default function CharactersPage() {
 
   const { data: characters = [], isLoading } = useQuery<SavedCharacter[]>({
     queryKey: ['/api/characters'],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+  });
+
+  const { data: limitInfo } = useQuery<CharacterLimitInfo>({
+    queryKey: ['/api/characters/limit'],
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
@@ -60,6 +74,7 @@ export default function CharactersPage() {
     onSuccess: () => {
       // Always invalidate queries to refresh the list
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/characters/limit'] });
       
       // Show success message
       toast({
@@ -164,12 +179,33 @@ export default function CharactersPage() {
           <Button
             onClick={() => setShowCharacterModal(true)}
             className="floating-button"
+            disabled={limitInfo?.isFreePlan && limitInfo?.isAtLimit}
             data-testid="create-character-button"
           >
             <Plus className="h-4 w-4 mr-2" />
             Create Character
           </Button>
         </div>
+
+        {limitInfo?.isFreePlan && limitInfo?.isAtLimit && (
+          <Alert className="mb-6 border-amber-500/50 bg-amber-500/10">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <AlertDescription className="text-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <span>
+                  You've reached the limit of {limitInfo.limit} saved characters on the Free plan. 
+                  Delete some characters or upgrade to save unlimited characters and create more.
+                </span>
+                <Link href="/plans">
+                  <Button size="sm" className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 whitespace-nowrap">
+                    <Crown className="h-3 w-3 mr-1" />
+                    Upgrade Plan
+                  </Button>
+                </Link>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Search */}
         <div className="mb-6">
@@ -303,7 +339,7 @@ export default function CharactersPage() {
         {/* Stats */}
         <div className="mt-12 text-center text-sm text-muted-foreground">
           <p>
-            {filteredCharacters.length} character{filteredCharacters.length !== 1 ? 's' : ''} 
+            {filteredCharacters.length}{limitInfo?.isFreePlan && limitInfo.limit ? `/${limitInfo.limit}` : ''} character{filteredCharacters.length !== 1 ? 's' : ''} 
             {searchTerm && ` matching "${searchTerm}"`}
           </p>
         </div>

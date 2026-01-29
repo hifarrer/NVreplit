@@ -1,9 +1,28 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+interface ApiError extends Error {
+  isLimitError?: boolean;
+  status?: number;
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    let errorMessage = res.statusText;
+    let isLimitError = false;
+    
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorData.error || res.statusText;
+      isLimitError = errorData.isLimitError === true;
+    } catch {
+      const text = await res.text().catch(() => res.statusText);
+      errorMessage = text || res.statusText;
+    }
+    
+    const error: ApiError = new Error(errorMessage);
+    error.isLimitError = isLimitError;
+    error.status = res.status;
+    throw error;
   }
 }
 
