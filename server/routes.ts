@@ -7594,7 +7594,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).user.userId;
       const characters = await storage.getSavedCharacters(userId);
-      res.json(characters);
+      
+      // Resolve ImageKit URLs for character images
+      const resolvedCharacters = await Promise.all(
+        characters.map(async (char) => {
+          const resolvedUrl = await resolveUrlWithImageKitFallback(char.imageUrl, storage);
+          if (char.imageUrl !== resolvedUrl) {
+            console.log(`[ImageKit] Resolved character image: ${char.imageUrl} -> ${resolvedUrl}`);
+          }
+          return {
+            ...char,
+            imageUrl: resolvedUrl
+          };
+        })
+      );
+      
+      res.json(resolvedCharacters);
     } catch (error) {
       console.error("Get saved characters error:", error);
       res.status(500).json({ error: "Failed to get saved characters" });
