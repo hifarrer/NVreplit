@@ -20,7 +20,7 @@ import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImage
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
-import { resolveUrlWithImageKitFallback } from "./services/imagekit";
+import { resolveUrlWithImageKitFallback, uploadImageToImageKit } from "./services/imagekit";
 import { emailService } from "./services/email";
 import { createMuxAssetForVideo } from "./services/muxJobs";
 import bcrypt from "bcryptjs";
@@ -6069,9 +6069,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[SCENE-GEN-API ${requestId}] BLOCKED: Project already has ${project.sceneImages.length} scene images`);
         console.log(`[SCENE-GEN-API ${requestId}] Returning existing scenes instead of regenerating`);
         releaseSceneGenLock(projectId, requestId);
+        
+        // Resolve ImageKit URLs for existing scene images
+        const resolvedSceneImages = await Promise.all(
+          project.sceneImages.map(url => resolveUrlWithImageKitFallback(url, storage))
+        );
+        
         return res.json({ 
           scenePrompts: project.scenePrompts || [],
-          sceneImages: project.sceneImages,
+          sceneImages: resolvedSceneImages,
           alreadyGenerated: true
         });
       }
@@ -6183,9 +6189,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { scenePrompts, sceneImages, requestId, durationMs: duration }
       });
 
+      // Resolve ImageKit URLs for newly generated scene images
+      const resolvedSceneImages = await Promise.all(
+        sceneImages.map(url => resolveUrlWithImageKitFallback(url, storage))
+      );
+
       // Release lock on success
       releaseSceneGenLock(projectId, requestId);
-      res.json({ scenePrompts, sceneImages });
+      res.json({ scenePrompts, sceneImages: resolvedSceneImages });
     } catch (error) {
       const duration = Date.now() - startTime;
       console.error(`\n========================================`);
@@ -6266,8 +6277,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { sceneIndex, newImageUrl: imageUrl, newPrompt: prompt }
       });
 
+      // Resolve ImageKit URL for the regenerated scene image
+      const resolvedImageUrl = await resolveUrlWithImageKitFallback(imageUrl, storage);
+
       res.json({ 
-        imageUrl: imageUrl,
+        imageUrl: resolvedImageUrl,
         sceneIndex: sceneIndex
       });
     } catch (error) {
@@ -6401,6 +6415,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const storedUrl = `/objects/${filename}`;
       console.log(`Scene image stored at: ${storedUrl}`);
+      
+      // Upload to ImageKit as well (non-blocking dual-write)
+      uploadImageToImageKit(processedImageBuffer, filename.replace('scenes/', ''), '/scenes')
+        .then(async (result) => {
+          console.log(`[ImageKit] Scene image uploaded: ${result.url}`);
+          try {
+            await storage.createImagekitBackup({
+              originalPath: storedUrl,
+              imagekitUrl: result.url,
+              imagekitFileId: result.fileId,
+              fileType: 'image',
+              fileSize: processedImageBuffer.length,
+              mimeType: 'image/jpeg'
+            });
+          } catch (err) {
+            console.error('[ImageKit] Failed to save backup record:', err);
+          }
+        })
+        .catch(err => console.error('[ImageKit] Upload failed (non-blocking):', err));
 
       // Update the scene image in the project
       sceneImages[sceneIndex] = storedUrl;
