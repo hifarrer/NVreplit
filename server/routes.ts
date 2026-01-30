@@ -4741,13 +4741,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Raw songs from database:", songs.length);
       console.log("Songs data:", JSON.stringify(songs, null, 2));
       
-      // Sort by newest first and format for frontend
-      const formattedSongs = songs
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .map(song => ({
+      // Sort by newest first and format for frontend with ImageKit URL resolution
+      const sortedSongs = songs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      const formattedSongs = await Promise.all(
+        sortedSongs.map(async song => ({
           id: song.id,
           title: song.title,
-          audioUrl: song.url,
+          audioUrl: await resolveUrlWithImageKitFallback(song.url, storage),
           audioTags: song.tags,
           audioLyrics: song.lyrics,
           duration: song.duration,
@@ -4756,7 +4757,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           kieAudioId: song.kieAudioId,
           createdAt: song.createdAt,
           updatedAt: song.createdAt // Songs table doesn't have updatedAt
-        }));
+        }))
+      );
       
       console.log("Formatted songs to return:", formattedSongs.length);
       res.json(formattedSongs);
