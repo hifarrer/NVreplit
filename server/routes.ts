@@ -30,6 +30,64 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { checkProfanity, getCategoryMessage } from "./profanity-filter";
 import { getJWKS, initializeOAuthKeys } from "./services/oauth";
 
+// Content moderation API for user-uploaded images
+const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+
+interface ContentModerationResult {
+  harassment: boolean;
+  hate: boolean;
+  sexual: boolean;
+  "sexual/minors": boolean;
+  violence: boolean;
+}
+
+async function moderateImageContent(imageUrl: string): Promise<{ safe: boolean; violations: string[]; error?: string }> {
+  if (!WAVESPEED_API_KEY) {
+    console.error("WAVESPEED_API_KEY not configured - content moderation is required but API key is missing");
+    return { safe: false, violations: [], error: "Content moderation service unavailable" };
+  }
+
+  try {
+    console.log(`[Content Moderation] Checking image: ${imageUrl.substring(0, 100)}...`);
+    
+    const response = await fetch("https://api.wavespeed.ai/api/v3/wavespeed-ai/molmo2/image-content-moderator", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${WAVESPEED_API_KEY}`
+      },
+      body: JSON.stringify({
+        enable_sync_mode: true,
+        image: imageUrl
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[Content Moderation] API error: ${response.status} ${response.statusText} - ${errorText}`);
+      return { safe: false, violations: [], error: "Content moderation check failed. Please try again." };
+    }
+
+    const result: ContentModerationResult = await response.json();
+    console.log(`[Content Moderation] Result:`, result);
+
+    const violations: string[] = [];
+    if (result.harassment) violations.push("harassment");
+    if (result.hate) violations.push("hate");
+    if (result.sexual) violations.push("sexual content");
+    if (result["sexual/minors"]) violations.push("sexual content involving minors");
+    if (result.violence) violations.push("violence");
+
+    return { 
+      safe: violations.length === 0, 
+      violations 
+    };
+  } catch (error) {
+    console.error("[Content Moderation] Error:", error);
+    return { safe: false, violations: [], error: "Content moderation check failed. Please try again." };
+  }
+}
+
 // Configure multer for audio uploads
 const uploadDir = path.join(process.cwd(), 'public', 'uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -8361,6 +8419,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Generate permanent path
       const permanentPath = `/objects/${imagePath}`;
+      
+      // Get a signed URL for content moderation check
+      const signedUrl = await objectStorage.getSignedUrlForPath(permanentPath, 300); // 5 min TTL
+      
+      // Run content moderation on the uploaded image
+      const moderationResult = await moderateImageContent(signedUrl);
+      
+      if (!moderationResult.safe) {
+        // Delete the uploaded image since it violates content policies or moderation failed
+        console.log(`[Content Moderation] Image rejected, deleting: ${permanentPath}`);
+        try {
+          await fileObj.delete();
+        } catch (deleteError) {
+          console.error("[Content Moderation] Failed to delete rejected image:", deleteError);
+        }
+        
+        // Check if it was a moderation service error vs actual content violation
+        if (moderationResult.error) {
+          return res.status(503).json({ 
+            error: moderationResult.error
+          });
+        }
+        
+        const violationList = moderationResult.violations.join(", ");
+        return res.status(400).json({ 
+          error: `Image rejected: Our AI detected content that doesn't comply with our policies (${violationList}). Please upload a different image.`
+        });
+      }
       
       // Update project with character image
       await storage.updateProject(projectId, {
