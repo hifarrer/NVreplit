@@ -342,6 +342,15 @@ export const couponRedemptions = pgTable("coupon_redemptions", {
   couponUserUnique: uniqueIndex("coupon_redemptions_coupon_user_unique").on(table.couponId, table.userId),
 }));
 
+export const imagekitBackups = pgTable("imagekit_backups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  originalPath: text("original_path").notNull().unique(),
+  imagekitUrl: text("imagekit_url").notNull(),
+  imagekitFileId: text("imagekit_file_id"),
+  fileType: text("file_type").notNull(), // 'song' or 'character'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -467,6 +476,11 @@ export const insertCouponRedemptionSchema = createInsertSchema(couponRedemptions
   createdAt: true,
 });
 
+export const insertImagekitBackupSchema = createInsertSchema(imagekitBackups).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertBannedUser = z.infer<typeof insertBannedUserSchema>;
@@ -515,3 +529,5 @@ export type InsertCouponCode = z.infer<typeof insertCouponCodeSchema>;
 export type CouponCode = typeof couponCodes.$inferSelect;
 export type InsertCouponRedemption = z.infer<typeof insertCouponRedemptionSchema>;
 export type CouponRedemption = typeof couponRedemptions.$inferSelect;
+export type InsertImagekitBackup = z.infer<typeof insertImagekitBackupSchema>;
+export type ImagekitBackup = typeof imagekitBackups.$inferSelect;
