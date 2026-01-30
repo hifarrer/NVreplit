@@ -1838,9 +1838,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ImageKit backup endpoint - copies all songs and character images to ImageKit.io
-  app.post("/api/admin/backup-to-imagekit", authenticateAdmin, async (req, res) => {
+  app.get("/api/admin/backup-to-imagekit", authenticateAdmin, async (req, res) => {
     try {
-      const { publicKey, privateKey, urlEndpoint } = req.body;
+      const { publicKey, privateKey, urlEndpoint } = req.query as { publicKey: string; privateKey: string; urlEndpoint: string };
       
       if (!publicKey || !privateKey || !urlEndpoint) {
         return res.status(400).json({ 
