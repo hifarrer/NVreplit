@@ -4809,7 +4809,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "No project found" });
       }
       
-      res.json(currentProject);
+      // Resolve ImageKit URLs for media fields
+      const resolvedProject = {
+        ...currentProject,
+        characterImageUrl: await resolveUrlWithImageKitFallback(currentProject.characterImageUrl, storage),
+        audioUrl: await resolveUrlWithImageKitFallback(currentProject.audioUrl, storage),
+        sceneImages: currentProject.sceneImages 
+          ? await Promise.all(currentProject.sceneImages.map(url => resolveUrlWithImageKitFallback(url, storage)))
+          : null
+      };
+      
+      res.json(resolvedProject);
     } catch (error) {
       console.error("Get current project error:", error);
       res.status(500).json({ error: "Failed to get current project" });
@@ -4823,7 +4833,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!project) {
         return res.status(404).json({ error: "Project not found" });
       }
-      res.json(project);
+      
+      // Resolve ImageKit URLs for media fields
+      const resolvedProject = {
+        ...project,
+        characterImageUrl: await resolveUrlWithImageKitFallback(project.characterImageUrl, storage),
+        audioUrl: await resolveUrlWithImageKitFallback(project.audioUrl, storage),
+        sceneImages: project.sceneImages 
+          ? await Promise.all(project.sceneImages.map(url => resolveUrlWithImageKitFallback(url, storage)))
+          : null
+      };
+      
+      res.json(resolvedProject);
     } catch (error) {
       console.error("Get project error:", error);
       res.status(500).json({ error: "Failed to get project" });
