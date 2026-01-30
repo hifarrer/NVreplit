@@ -1837,6 +1837,154 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ImageKit backup endpoint - copies all songs and character images to ImageKit.io
+  app.post("/api/admin/backup-to-imagekit", authenticateAdmin, async (req, res) => {
+    try {
+      const { publicKey, privateKey, urlEndpoint } = req.body;
+      
+      if (!publicKey || !privateKey || !urlEndpoint) {
+        return res.status(400).json({ 
+          error: "Missing required ImageKit credentials",
+          required: ["publicKey", "privateKey", "urlEndpoint"]
+        });
+      }
+      
+      // Import ImageKit dynamically
+      const ImageKit = (await import("imagekit")).default;
+      
+      const imagekit = new ImageKit({
+        publicKey,
+        privateKey,
+        urlEndpoint
+      });
+      
+      const results = {
+        songs: { 
+          success: [] as string[], 
+          failed: [] as { url: string; error: string }[],
+          skipped: [] as { url: string; reason: string }[]
+        },
+        characters: { 
+          success: [] as string[], 
+          failed: [] as { url: string; error: string }[],
+          skipped: [] as { url: string; reason: string }[]
+        }
+      };
+      
+      // Get all songs from the database
+      const allSongs = await storage.getAllSongs();
+      console.log(`Found ${allSongs.length} songs to backup`);
+      
+      // Get all saved characters from the database
+      const allCharacters = await storage.getAllSavedCharacters();
+      console.log(`Found ${allCharacters.length} characters to backup`);
+      
+      // Process songs
+      for (const song of allSongs) {
+        try {
+          if (!song.url) {
+            results.songs.skipped.push({ url: "null", reason: "No URL set" });
+            continue;
+          }
+          
+          // Get the file from object storage
+          let fileBuffer: Buffer;
+          let fileName: string;
+          
+          if (song.url.startsWith("/objects/")) {
+            // It's in private object storage
+            const file = await objectStorage.getObjectEntityFile(song.url);
+            const [contents] = await file.download();
+            fileBuffer = contents;
+            fileName = path.basename(song.url);
+          } else {
+            const reason = `Unsupported URL format (not in /objects/)`;
+            console.log(`Skipping song ${song.id} - ${reason}: ${song.url}`);
+            results.songs.skipped.push({ url: song.url, reason });
+            continue;
+          }
+          
+          // Upload to ImageKit
+          const uploadResponse = await imagekit.upload({
+            file: fileBuffer.toString("base64"),
+            fileName: fileName,
+            folder: "/audio"
+          });
+          
+          results.songs.success.push(song.url);
+          console.log(`Uploaded song ${song.id}: ${uploadResponse.url}`);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          results.songs.failed.push({ url: song.url, error: errorMessage });
+          console.error(`Failed to upload song ${song.id}:`, error);
+        }
+      }
+      
+      // Process characters
+      for (const character of allCharacters) {
+        try {
+          if (!character.imageUrl) {
+            results.characters.skipped.push({ url: "null", reason: "No image URL set" });
+            continue;
+          }
+          
+          let fileBuffer: Buffer;
+          let fileName: string;
+          
+          if (character.imageUrl.startsWith("/objects/")) {
+            // It's in private object storage
+            const file = await objectStorage.getObjectEntityFile(character.imageUrl);
+            const [contents] = await file.download();
+            fileBuffer = contents;
+            fileName = path.basename(character.imageUrl);
+          } else {
+            const reason = `Unsupported URL format (not in /objects/)`;
+            console.log(`Skipping character ${character.id} - ${reason}: ${character.imageUrl}`);
+            results.characters.skipped.push({ url: character.imageUrl, reason });
+            continue;
+          }
+          
+          // Upload to ImageKit
+          const uploadResponse = await imagekit.upload({
+            file: fileBuffer.toString("base64"),
+            fileName: fileName,
+            folder: "/characters"
+          });
+          
+          results.characters.success.push(character.imageUrl);
+          console.log(`Uploaded character ${character.id}: ${uploadResponse.url}`);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          results.characters.failed.push({ url: character.imageUrl, error: errorMessage });
+          console.error(`Failed to upload character ${character.id}:`, error);
+        }
+      }
+      
+      res.json({
+        success: true,
+        summary: {
+          songs: {
+            total: allSongs.length,
+            uploaded: results.songs.success.length,
+            failed: results.songs.failed.length,
+            skipped: results.songs.skipped.length
+          },
+          characters: {
+            total: allCharacters.length,
+            uploaded: results.characters.success.length,
+            failed: results.characters.failed.length,
+            skipped: results.characters.skipped.length
+          }
+        },
+        details: results
+      });
+      
+    } catch (error) {
+      console.error("ImageKit backup error:", error);
+      res.status(500).json({ error: "Failed to backup to ImageKit" });
+    }
+  });
+
   app.get("/api/me", authenticateToken, async (req, res) => {
     try {
       const userWithPlan = await storage.getUserWithPlan((req as any).user.userId);

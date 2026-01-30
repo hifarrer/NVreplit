@@ -43,6 +43,7 @@ export interface IStorage {
 
   // Saved character methods
   getSavedCharacters(userId: string): Promise<SavedCharacter[]>;
+  getAllSavedCharacters(): Promise<SavedCharacter[]>;
   saveCharacter(character: InsertSavedCharacter): Promise<SavedCharacter>;
   updateSavedCharacter(id: string, userId: string, updates: Partial<SavedCharacter>): Promise<SavedCharacter | undefined>;
   deleteSavedCharacter(id: string): Promise<boolean>;
@@ -57,6 +58,7 @@ export interface IStorage {
 
   // Song methods
   getSongs(userId: string): Promise<Song[]>;
+  getAllSongs(): Promise<Song[]>;
   getSong(id: string): Promise<Song | undefined>;
   addSong(song: InsertSong): Promise<Song>;
   deleteSong(id: string): Promise<boolean>;
@@ -517,6 +519,11 @@ export class MemStorage implements IStorage {
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
+  async getAllSavedCharacters(): Promise<SavedCharacter[]> {
+    return Array.from(this.savedCharacters.values())
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
   async saveCharacter(insertCharacter: InsertSavedCharacter): Promise<SavedCharacter> {
     const id = randomUUID();
     const character: SavedCharacter = {
@@ -605,6 +612,10 @@ export class MemStorage implements IStorage {
 
   async getSongs(userId: string): Promise<Song[]> {
     return Array.from(this.songs.values()).filter(song => song.userId === userId);
+  }
+
+  async getAllSongs(): Promise<Song[]> {
+    return Array.from(this.songs.values());
   }
 
   async getSong(id: string): Promise<Song | undefined> {
@@ -1850,6 +1861,11 @@ export class DbStorage implements IStorage {
       .orderBy(asc(savedCharacters.createdAt));
   }
 
+  async getAllSavedCharacters(): Promise<SavedCharacter[]> {
+    return await this.db.select().from(savedCharacters)
+      .orderBy(asc(savedCharacters.createdAt));
+  }
+
   async saveCharacter(insertCharacter: InsertSavedCharacter): Promise<SavedCharacter> {
     const result = await this.db.insert(savedCharacters).values(insertCharacter).returning();
     return result[0];
@@ -1934,6 +1950,12 @@ export class DbStorage implements IStorage {
     return await this.db.select()
       .from(songs)
       .where(eq(songs.userId, userId))
+      .orderBy(asc(songs.createdAt));
+  }
+
+  async getAllSongs(): Promise<Song[]> {
+    return await this.db.select()
+      .from(songs)
       .orderBy(asc(songs.createdAt));
   }
 
