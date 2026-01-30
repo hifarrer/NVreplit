@@ -1,10 +1,13 @@
 import fetch from "node-fetch";
 import { ObjectStorageService } from "../objectStorage";
 import { randomUUID } from "crypto";
+import { isImageKitConfigured, uploadImageToImageKit } from "./imagekit";
+import { storage } from "../storage";
 
 export interface StoredImageResult {
   storedUrl: string;
   originalUrl: string;
+  imagekitUrl?: string;
 }
 
 /**
@@ -152,9 +155,33 @@ export async function downloadAndStoreImage(
   // Return the stored URL that can be served via our API
   const storedUrl = `/objects/${filename}`;
   
+  // Also upload to ImageKit if configured
+  let imagekitUrl: string | undefined;
+  if (isImageKitConfigured()) {
+    try {
+      console.log(`[ImageKit] Uploading image to ImageKit: ${filename}`);
+      const imagekitResult = await uploadImageToImageKit(imageBuffer, filename.split('/').pop() || filename, `/${category}`);
+      imagekitUrl = imagekitResult.url;
+      
+      // Record the backup in the database
+      await storage.recordImagekitBackup({
+        originalPath: storedUrl,
+        imagekitUrl: imagekitResult.url,
+        imagekitFileId: imagekitResult.fileId,
+        fileType: "character"
+      });
+      
+      console.log(`[ImageKit] Image uploaded successfully: ${imagekitUrl}`);
+    } catch (error) {
+      console.error(`[ImageKit] Failed to upload image to ImageKit:`, error);
+      // Continue without ImageKit - we still have the internal storage URL
+    }
+  }
+  
   return {
     storedUrl,
     originalUrl: imageUrl,
+    imagekitUrl,
   };
 }
 

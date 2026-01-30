@@ -20,6 +20,7 @@ import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImage
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
+import { resolveUrlWithImageKitFallback } from "./services/imagekit";
 import { emailService } from "./services/email";
 import { createMuxAssetForVideo } from "./services/muxJobs";
 import bcrypt from "bcryptjs";
@@ -3541,6 +3542,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve avatar images
   app.get("/objects/:objectPath(*)", async (req, res) => {
     try {
+      // First check if we have an ImageKit URL for this object
+      const imagekitBackup = await storage.getImagekitBackupByPath(req.path);
+      if (imagekitBackup && imagekitBackup.imagekitUrl) {
+        // Redirect to ImageKit URL for better performance
+        return res.redirect(302, imagekitBackup.imagekitUrl);
+      }
+      
+      // Fall back to serving from internal object storage
       const objectStorageService = new ObjectStorageService();
       const objectFile = await objectStorageService.getObjectEntityFile(req.path);
       objectStorageService.downloadObject(objectFile, res);
@@ -3928,12 +3937,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Creator not found" });
       }
       
+      // Resolve ImageKit URLs for thumbnails
+      const thumbnailUrl = await resolveUrlWithImageKitFallback(project.characterImageUrl, storage);
+      
       // Format the response
       const videoData = {
         id: project.id,
         title: ["My Music Video", "NeonVideo Song", "AI Generated Song"].includes(project.title) ? (project.audioPrompt ? project.audioPrompt.substring(0, 30) + (project.audioPrompt.length > 30 ? '...' : '') : project.title) : project.title,
         videoUrl: project.finalVideoUrl,
-        thumbnailUrl: project.characterImageUrl || null,
+        thumbnailUrl,
         createdAt: project.createdAt,
         duration: project.audioDuration || 30,
         likesCount: project.likesCount || 0,
@@ -3971,15 +3983,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projects = await storage.getProjectsByUser(user.id);
       const videosWithFinal = projects.filter(p => p.isCompleted && p.finalVideoUrl);
       
-      // Format the response
-      const publicVideos = videosWithFinal.map(project => ({
+      // Format the response with ImageKit URL resolution
+      const publicVideos = await Promise.all(videosWithFinal.map(async project => ({
         id: project.id,
         title: ["My Music Video", "NeonVideo Song", "AI Generated Song"].includes(project.title) ? (project.audioPrompt ? project.audioPrompt.substring(0, 30) + (project.audioPrompt.length > 30 ? '...' : '') : project.title) : project.title,
         videoUrl: project.finalVideoUrl,
-        thumbnailUrl: project.characterImageUrl || null,
+        thumbnailUrl: await resolveUrlWithImageKitFallback(project.characterImageUrl, storage),
         createdAt: project.createdAt,
         duration: project.audioDuration || 30
-      }));
+      })));
       
       res.json({
         user: {
@@ -4125,6 +4137,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!thumbnailUrl) {
             thumbnailUrl = project.characterImageUrl || null;
           }
+          
+          // Resolve ImageKit URL for thumbnail
+          thumbnailUrl = await resolveUrlWithImageKitFallback(thumbnailUrl, storage);
           
           return {
             id: project.id,

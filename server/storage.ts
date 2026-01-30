@@ -212,6 +212,7 @@ export interface IStorage {
   // ImageKit backup methods
   getBackedUpPaths(): Promise<Set<string>>;
   recordImagekitBackup(backup: InsertImagekitBackup): Promise<ImagekitBackup>;
+  getImagekitBackupByPath(originalPath: string): Promise<ImagekitBackup | null>;
 }
 
 export class MemStorage implements IStorage {
@@ -1621,6 +1622,15 @@ export class MemStorage implements IStorage {
     };
     this.imagekitBackupsStorage.set(id, newBackup);
     return newBackup;
+  }
+
+  async getImagekitBackupByPath(originalPath: string): Promise<ImagekitBackup | null> {
+    for (const backup of this.imagekitBackupsStorage.values()) {
+      if (backup.originalPath === originalPath) {
+        return backup;
+      }
+    }
+    return null;
   }
 }
 
@@ -3429,6 +3439,15 @@ export class DbStorage implements IStorage {
   async recordImagekitBackup(backup: InsertImagekitBackup): Promise<ImagekitBackup> {
     const [newBackup] = await this.db.insert(imagekitBackups).values(backup).returning();
     return newBackup;
+  }
+
+  async getImagekitBackupByPath(originalPath: string): Promise<ImagekitBackup | null> {
+    const [backup] = await this.db
+      .select()
+      .from(imagekitBackups)
+      .where(eq(imagekitBackups.originalPath, originalPath))
+      .limit(1);
+    return backup || null;
   }
 }
 

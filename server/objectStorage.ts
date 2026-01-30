@@ -6,6 +6,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
+import { isImageKitConfigured, uploadAudioToImageKit } from "./services/imagekit";
+import { storage } from "./storage";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -232,6 +234,29 @@ export class ObjectStorageService {
       // Return a permanent path that can be served through our application
       const permanentPath = `/objects/${path}`;
       console.log("Generated permanent audio path:", permanentPath);
+      
+      // Also upload to ImageKit if configured
+      if (isImageKitConfigured()) {
+        try {
+          const fileName = path.split('/').pop() || path;
+          console.log(`[ImageKit] Uploading audio to ImageKit: ${fileName}`);
+          const imagekitResult = await uploadAudioToImageKit(buffer, fileName, "/audio");
+          
+          // Record the backup in the database
+          await storage.recordImagekitBackup({
+            originalPath: permanentPath,
+            imagekitUrl: imagekitResult.url,
+            imagekitFileId: imagekitResult.fileId,
+            fileType: "song"
+          });
+          
+          console.log(`[ImageKit] Audio uploaded successfully: ${imagekitResult.url}`);
+        } catch (error) {
+          console.error(`[ImageKit] Failed to upload audio to ImageKit:`, error);
+          // Continue without ImageKit - we still have the internal storage URL
+        }
+      }
+      
       return permanentPath;
     } catch (error) {
       console.error("Error uploading audio to storage:", error);

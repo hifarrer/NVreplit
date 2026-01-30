@@ -1,4 +1,6 @@
 import { downloadAndStoreImage } from "./imageStorage";
+import { isImageKitConfigured, uploadAudioToImageKit } from "./imagekit";
+import { storage } from "../storage";
 
 export interface KieLyricsResponse {
   code: number;
@@ -244,6 +246,28 @@ async function downloadAndStoreAudio(
     
     // Return the stored URL that can be served via our API
     const storedUrl = `/objects/${filename}`;
+    
+    // Also upload to ImageKit if configured
+    if (isImageKitConfigured()) {
+      try {
+        const fileNameOnly = filename.split('/').pop() || filename;
+        console.log(`[ImageKit] Uploading audio to ImageKit: ${fileNameOnly}`);
+        const imagekitResult = await uploadAudioToImageKit(audioBuffer, fileNameOnly, "/audio");
+        
+        // Record the backup in the database
+        await storage.recordImagekitBackup({
+          originalPath: storedUrl,
+          imagekitUrl: imagekitResult.url,
+          imagekitFileId: imagekitResult.fileId,
+          fileType: "song"
+        });
+        
+        console.log(`[ImageKit] Audio uploaded successfully: ${imagekitResult.url}`);
+      } catch (imagekitError) {
+        console.error(`[ImageKit] Failed to upload audio to ImageKit:`, imagekitError);
+        // Continue without ImageKit - we still have the internal storage URL
+      }
+    }
     
     return storedUrl;
   } catch (error) {
