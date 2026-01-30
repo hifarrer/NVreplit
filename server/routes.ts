@@ -1872,6 +1872,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       };
       
+      // Get already backed up paths for incremental backup (mutable for tracking within this run)
+      const backedUpPaths = await storage.getBackedUpPaths();
+      console.log(`Found ${backedUpPaths.size} already backed up files`);
+      
       // Get all songs from the database
       const allSongs = await storage.getAllSongs();
       console.log(`Found ${allSongs.length} songs to backup`);
@@ -1885,6 +1889,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           if (!song.url) {
             results.songs.skipped.push({ url: "null", reason: "No URL set" });
+            continue;
+          }
+          
+          // Check if already backed up (incremental backup)
+          if (backedUpPaths.has(song.url)) {
+            results.songs.skipped.push({ url: song.url, reason: "Already backed up" });
             continue;
           }
           
@@ -1912,6 +1922,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             folder: "/audio"
           });
           
+          // Record the backup in the database
+          await storage.recordImagekitBackup({
+            originalPath: song.url,
+            imagekitUrl: uploadResponse.url,
+            imagekitFileId: uploadResponse.fileId,
+            fileType: "song"
+          });
+          
+          // Track within this run to avoid duplicates
+          backedUpPaths.add(song.url);
+          
           results.songs.success.push(song.url);
           console.log(`Uploaded song ${song.id}: ${uploadResponse.url}`);
         } catch (error) {
@@ -1926,6 +1947,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           if (!character.imageUrl) {
             results.characters.skipped.push({ url: "null", reason: "No image URL set" });
+            continue;
+          }
+          
+          // Check if already backed up (incremental backup)
+          if (backedUpPaths.has(character.imageUrl)) {
+            results.characters.skipped.push({ url: character.imageUrl, reason: "Already backed up" });
             continue;
           }
           
@@ -1951,6 +1978,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             fileName: fileName,
             folder: "/characters"
           });
+          
+          // Record the backup in the database
+          await storage.recordImagekitBackup({
+            originalPath: character.imageUrl,
+            imagekitUrl: uploadResponse.url,
+            imagekitFileId: uploadResponse.fileId,
+            fileType: "character"
+          });
+          
+          // Track within this run to avoid duplicates
+          backedUpPaths.add(character.imageUrl);
           
           results.characters.success.push(character.imageUrl);
           console.log(`Uploaded character ${character.id}: ${uploadResponse.url}`);

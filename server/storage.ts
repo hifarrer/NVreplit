@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, type OauthClient, type InsertOauthClient, type OauthAuthorizationCode, type InsertOauthAuthorizationCode, type OauthAccessToken, type InsertOauthAccessToken, type BannedUser, type InsertBannedUser, type GiftSubscription, type InsertGiftSubscription, type GreetingCard, type InsertGreetingCard, type CouponCode, type InsertCouponCode, type CouponRedemption, type InsertCouponRedemption, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts, oauthClients, oauthAuthorizationCodes, oauthAccessTokens, bannedUsers, giftSubscriptions, greetingCards, couponCodes, couponRedemptions } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, type OauthClient, type InsertOauthClient, type OauthAuthorizationCode, type InsertOauthAuthorizationCode, type OauthAccessToken, type InsertOauthAccessToken, type BannedUser, type InsertBannedUser, type GiftSubscription, type InsertGiftSubscription, type GreetingCard, type InsertGreetingCard, type CouponCode, type InsertCouponCode, type CouponRedemption, type InsertCouponRedemption, type ImagekitBackup, type InsertImagekitBackup, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts, oauthClients, oauthAuthorizationCodes, oauthAccessTokens, bannedUsers, giftSubscriptions, greetingCards, couponCodes, couponRedemptions, imagekitBackups } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -208,6 +208,10 @@ export interface IStorage {
   redeemCouponCode(code: string, userId: string): Promise<{ success: boolean; message: string; creditsAwarded?: number }>;
   hasUserRedeemedCoupon(couponId: string, userId: string): Promise<boolean>;
   getCouponRedemptions(couponId: string): Promise<CouponRedemption[]>;
+
+  // ImageKit backup methods
+  getBackedUpPaths(): Promise<Set<string>>;
+  recordImagekitBackup(backup: InsertImagekitBackup): Promise<ImagekitBackup>;
 }
 
 export class MemStorage implements IStorage {
@@ -229,6 +233,7 @@ export class MemStorage implements IStorage {
   private affiliatePayoutsStorage: Map<string, AffiliatePayout>;
   private bannedUsersStorage: Map<string, BannedUser>;
   private giftSubscriptionsStorage: Map<string, GiftSubscription>;
+  private imagekitBackupsStorage: Map<string, ImagekitBackup>;
 
   constructor() {
     this.users = new Map();
@@ -249,6 +254,7 @@ export class MemStorage implements IStorage {
     this.affiliatePayoutsStorage = new Map();
     this.bannedUsersStorage = new Map();
     this.giftSubscriptionsStorage = new Map();
+    this.imagekitBackupsStorage = new Map();
     
     // Initialize default video generation configs
     this.initializeDefaultConfigs();
@@ -1597,6 +1603,24 @@ export class MemStorage implements IStorage {
   async getCouponRedemptions(couponId: string): Promise<CouponRedemption[]> {
     return Array.from(this.couponRedemptionsStorage.values())
       .filter(r => r.couponId === couponId);
+  }
+
+  async getBackedUpPaths(): Promise<Set<string>> {
+    return new Set(Array.from(this.imagekitBackupsStorage.values()).map(b => b.originalPath));
+  }
+
+  async recordImagekitBackup(backup: InsertImagekitBackup): Promise<ImagekitBackup> {
+    const id = randomUUID();
+    const newBackup: ImagekitBackup = {
+      id,
+      originalPath: backup.originalPath,
+      imagekitUrl: backup.imagekitUrl,
+      imagekitFileId: backup.imagekitFileId || null,
+      fileType: backup.fileType,
+      createdAt: new Date()
+    };
+    this.imagekitBackupsStorage.set(id, newBackup);
+    return newBackup;
   }
 }
 
@@ -3395,6 +3419,16 @@ export class DbStorage implements IStorage {
   async getCouponRedemptions(couponId: string): Promise<CouponRedemption[]> {
     return await this.db.select().from(couponRedemptions)
       .where(eq(couponRedemptions.couponId, couponId));
+  }
+
+  async getBackedUpPaths(): Promise<Set<string>> {
+    const backups = await this.db.select({ originalPath: imagekitBackups.originalPath }).from(imagekitBackups);
+    return new Set(backups.map(b => b.originalPath));
+  }
+
+  async recordImagekitBackup(backup: InsertImagekitBackup): Promise<ImagekitBackup> {
+    const [newBackup] = await this.db.insert(imagekitBackups).values(backup).returning();
+    return newBackup;
   }
 }
 
