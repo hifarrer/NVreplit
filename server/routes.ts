@@ -213,7 +213,8 @@ function authenticateToken(req: any, res: any, next: any) {
 // Middleware to verify admin JWT token
 function authenticateAdmin(req: any, res: any, next: any) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  // Support token from header or query parameter (for browser access)
+  const token = (authHeader && authHeader.split(' ')[1]) || req.query.adminToken;
 
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });
