@@ -1,0 +1,68 @@
+
+Change all replit's internal storage references to imagekit.io.
+
+This is a sample url of a character image uploaded to imagekit.
+https://ik.imagekit.io/neonvideo/characters/e2c4a882-2207-48ed-9b6e-28e6b9192c82_iGCRYMxqG.jpg
+This is a sample url of an audio file uploaded to imagekit.
+https://ik.imagekit.io/neonvideo/audio/ead481cd-724f-410e-933f-2da49059f0d0_X9VfmcQhQ.mp3
+
+The main issue I see is the imagekit renames the last part of the filename like this:
+
+Replit's filename: 166fd826-40c1-4c78-977f-b9f1dc1ea4bc.jpg
+Imagekit's filename: 166fd826-40c1-4c78-977f-b9f1dc1ea4bc_lolPhRKci.jpg
+
+It adds a unique sequence after an _, so how would we know how to replace the existing images and audios with the correct urls from imagekit? My guess is we need to somehow query imagekit to search for the first part of the filename and pull the correct filename/url from imagekit so we can reference that instead, based on their api documentation it is possible:
+
+https://imagekit.io/docs/api-reference/digital-asset-management-dam/list-and-search-assets
+This API can list all the uploaded files and folders in your ImageKit.io media library. In addition, you can fine-tune your query by specifying various filters by generating a query string in a Lucene-like syntax and provide this generated string as the value of the searchQuery.
+searchQuery
+string
+Query string in a Lucene-like query language e.g. name HAS "555bb72a-85cb-48c4-a84c*"
+
+curl --request GET \
+  --url 'https://api.imagekit.io/v1/files?path=characters&searchQuery=name+HAS+%22555bb72a-85cb-48c4-a84c*%22' \
+  --header 'Accept: application/json' \
+  --header 'Authorization: Basic cHJpdmF0ZV9oNXVxdC9oV29NeW9kd0Z3dUExOTQvalRHREk9Og=='
+
+response
+[
+  {
+    "type": "file",
+    "name": "555bb72a-85cb-48c4-a84c-3da83e41545c_q8ti3Vgib.jpg",
+    "createdAt": "2026-01-30T03:24:46.920Z",
+    "updatedAt": "2026-01-30T03:24:47.353Z",
+    "fileId": "697c247e5c7cd75eb81ed9a6",
+    "tags": null,
+    "AITags": null,
+    "versionInfo": {
+      "id": "697c247e5c7cd75eb81ed9a6",
+      "name": "Version 1"
+    },
+    "embeddedMetadata": {
+      "YResolution": 1,
+      "XResolution": 1,
+      "DateCreated": "2026-01-30T03:24:47.352Z",
+      "DateTimeCreated": "2026-01-30T03:24:47.352Z"
+    },
+    "isPublished": true,
+    "customCoordinates": null,
+    "customMetadata": {},
+    "isPrivateFile": false,
+    "url": "https://ik.imagekit.io/neonvideo/characters/555bb72a-85cb-48c4-a84c-3da83e41545c_q8ti3Vgib.jpg?updatedAt=1769743487353",
+    "thumbnail": "https://ik.imagekit.io/neonvideo/characters/555bb72a-85cb-48c4-a84c-3da83e41545c_q8ti3Vgib.jpg?updatedAt=1769743487353&tr=n-ik_ml_thumbnail",
+    "fileType": "image",
+    "filePath": "/characters/555bb72a-85cb-48c4-a84c-3da83e41545c_q8ti3Vgib.jpg",
+    "height": 1024,
+    "width": 1024,
+    "size": 267601,
+    "hasAlpha": false,
+    "mime": "image/jpeg"
+  }
+]
+
+I assume we will need another one time script to copy the imagekit urls into our database, for starters we will run on development and when everything is working I should be able to run the script on production.
+
+We need to make a safe transition meaning that we keep storing the current image values we have in the database and if needed we create a new column with imagekit's filenames, this way we can switch back to internal storage if needed. 
+
+You will need to also consider any API calls that create audios and character images so they get created on imagekit instead.
+Please tell me all the places we will need to change to get an idea of how big of a change this is.
