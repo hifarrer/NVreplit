@@ -1925,17 +1925,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ImageKit backup endpoint - copies all songs and character images to ImageKit.io
+  // ImageKit backup endpoint - copies songs and character images to ImageKit.io in batches
+  // Supports batch processing to avoid timeouts:
+  // - type: 'songs' | 'characters' | 'all' (default: 'all')
+  // - limit: number of items to process per request (default: 10)
+  // - offset: starting index for pagination (default: 0)
   app.get("/api/admin/backup-to-imagekit", authenticateAdmin, async (req, res) => {
     try {
-      const { publicKey, privateKey, urlEndpoint } = req.query as { publicKey: string; privateKey: string; urlEndpoint: string };
+      const { publicKey, privateKey, urlEndpoint, type = 'all', limit = '10', offset = '0' } = req.query as { 
+        publicKey: string; 
+        privateKey: string; 
+        urlEndpoint: string;
+        type?: string;
+        limit?: string;
+        offset?: string;
+      };
       
       if (!publicKey || !privateKey || !urlEndpoint) {
         return res.status(400).json({ 
           error: "Missing required ImageKit credentials",
-          required: ["publicKey", "privateKey", "urlEndpoint"]
+          required: ["publicKey", "privateKey", "urlEndpoint"],
+          optionalParams: {
+            type: "songs | characters | all (default: all)",
+            limit: "number of items per batch (default: 10)",
+            offset: "starting index (default: 0)"
+          }
         });
       }
+      
+      const batchLimit = Math.min(parseInt(limit, 10) || 10, 50); // Max 50 per batch
+      const batchOffset = parseInt(offset, 10) || 0;
+      const processType = type as 'songs' | 'characters' | 'all';
       
       // Import ImageKit dynamically
       const ImageKit = (await import("imagekit")).default;
@@ -1963,144 +1983,158 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const backedUpPaths = await storage.getBackedUpPaths();
       console.log(`Found ${backedUpPaths.size} already backed up files`);
       
-      // Get all songs from the database
-      const allSongs = await storage.getAllSongs();
-      console.log(`Found ${allSongs.length} songs to backup`);
-      
-      // Get all saved characters from the database
-      const allCharacters = await storage.getAllSavedCharacters();
-      console.log(`Found ${allCharacters.length} characters to backup`);
+      let totalSongs = 0;
+      let totalCharacters = 0;
+      let songsRemaining = 0;
+      let charactersRemaining = 0;
       
       // Process songs
-      for (const song of allSongs) {
-        try {
-          if (!song.url) {
-            results.songs.skipped.push({ url: "null", reason: "No URL set" });
-            continue;
-          }
-          
-          // Check if already backed up (incremental backup)
-          if (backedUpPaths.has(song.url)) {
-            results.songs.skipped.push({ url: song.url, reason: "Already backed up" });
-            continue;
-          }
-          
-          // Get the file from object storage
-          let fileBuffer: Buffer;
-          let fileName: string;
-          
-          if (song.url.startsWith("/objects/")) {
-            // It's in private object storage
+      if (processType === 'songs' || processType === 'all') {
+        const allSongs = await storage.getAllSongs();
+        totalSongs = allSongs.length;
+        
+        // Filter to only songs that need backup
+        const songsToBackup = allSongs.filter(song => 
+          song.url && 
+          song.url.startsWith("/objects/") && 
+          !backedUpPaths.has(song.url)
+        );
+        
+        songsRemaining = songsToBackup.length;
+        console.log(`Found ${songsRemaining} songs needing backup out of ${totalSongs} total`);
+        
+        // Apply pagination
+        const songBatch = songsToBackup.slice(batchOffset, batchOffset + batchLimit);
+        console.log(`Processing songs batch: offset=${batchOffset}, limit=${batchLimit}, batchSize=${songBatch.length}`);
+        
+        for (const song of songBatch) {
+          try {
+            // Get the file from object storage
             const file = await objectStorage.getObjectEntityFile(song.url);
             const [contents] = await file.download();
-            fileBuffer = contents;
-            fileName = path.basename(song.url);
-          } else {
-            const reason = `Unsupported URL format (not in /objects/)`;
-            console.log(`Skipping song ${song.id} - ${reason}: ${song.url}`);
-            results.songs.skipped.push({ url: song.url, reason });
-            continue;
+            const fileBuffer = contents;
+            const fileName = path.basename(song.url);
+            
+            // Upload to ImageKit
+            const uploadResponse = await imagekit.upload({
+              file: fileBuffer.toString("base64"),
+              fileName: fileName,
+              folder: "/audio"
+            });
+            
+            // Record the backup in the database
+            await storage.recordImagekitBackup({
+              originalPath: song.url,
+              imagekitUrl: uploadResponse.url,
+              imagekitFileId: uploadResponse.fileId,
+              fileType: "song"
+            });
+            
+            // Track within this run to avoid duplicates
+            backedUpPaths.add(song.url);
+            
+            results.songs.success.push(song.url);
+            console.log(`Uploaded song ${song.id}: ${uploadResponse.url}`);
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            results.songs.failed.push({ url: song.url, error: errorMessage });
+            console.error(`Failed to upload song ${song.id}:`, error);
           }
-          
-          // Upload to ImageKit
-          const uploadResponse = await imagekit.upload({
-            file: fileBuffer.toString("base64"),
-            fileName: fileName,
-            folder: "/audio"
-          });
-          
-          // Record the backup in the database
-          await storage.recordImagekitBackup({
-            originalPath: song.url,
-            imagekitUrl: uploadResponse.url,
-            imagekitFileId: uploadResponse.fileId,
-            fileType: "song"
-          });
-          
-          // Track within this run to avoid duplicates
-          backedUpPaths.add(song.url);
-          
-          results.songs.success.push(song.url);
-          console.log(`Uploaded song ${song.id}: ${uploadResponse.url}`);
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          results.songs.failed.push({ url: song.url, error: errorMessage });
-          console.error(`Failed to upload song ${song.id}:`, error);
         }
+        
+        // Count songs already backed up
+        const alreadyBackedUp = allSongs.filter(s => s.url && backedUpPaths.has(s.url)).length;
+        results.songs.skipped = [{ url: "summary", reason: `${alreadyBackedUp} already backed up` }];
       }
       
       // Process characters
-      for (const character of allCharacters) {
-        try {
-          if (!character.imageUrl) {
-            results.characters.skipped.push({ url: "null", reason: "No image URL set" });
-            continue;
-          }
-          
-          // Check if already backed up (incremental backup)
-          if (backedUpPaths.has(character.imageUrl)) {
-            results.characters.skipped.push({ url: character.imageUrl, reason: "Already backed up" });
-            continue;
-          }
-          
-          let fileBuffer: Buffer;
-          let fileName: string;
-          
-          if (character.imageUrl.startsWith("/objects/")) {
-            // It's in private object storage
+      if (processType === 'characters' || processType === 'all') {
+        const allCharacters = await storage.getAllSavedCharacters();
+        totalCharacters = allCharacters.length;
+        
+        // Filter to only characters that need backup
+        const charactersToBackup = allCharacters.filter(char => 
+          char.imageUrl && 
+          char.imageUrl.startsWith("/objects/") && 
+          !backedUpPaths.has(char.imageUrl)
+        );
+        
+        charactersRemaining = charactersToBackup.length;
+        console.log(`Found ${charactersRemaining} characters needing backup out of ${totalCharacters} total`);
+        
+        // Apply pagination
+        const characterBatch = charactersToBackup.slice(batchOffset, batchOffset + batchLimit);
+        console.log(`Processing characters batch: offset=${batchOffset}, limit=${batchLimit}, batchSize=${characterBatch.length}`);
+        
+        for (const character of characterBatch) {
+          try {
+            // Get the file from object storage
             const file = await objectStorage.getObjectEntityFile(character.imageUrl);
             const [contents] = await file.download();
-            fileBuffer = contents;
-            fileName = path.basename(character.imageUrl);
-          } else {
-            const reason = `Unsupported URL format (not in /objects/)`;
-            console.log(`Skipping character ${character.id} - ${reason}: ${character.imageUrl}`);
-            results.characters.skipped.push({ url: character.imageUrl, reason });
-            continue;
+            const fileBuffer = contents;
+            const fileName = path.basename(character.imageUrl);
+            
+            // Upload to ImageKit
+            const uploadResponse = await imagekit.upload({
+              file: fileBuffer.toString("base64"),
+              fileName: fileName,
+              folder: "/characters"
+            });
+            
+            // Record the backup in the database
+            await storage.recordImagekitBackup({
+              originalPath: character.imageUrl,
+              imagekitUrl: uploadResponse.url,
+              imagekitFileId: uploadResponse.fileId,
+              fileType: "character"
+            });
+            
+            // Track within this run to avoid duplicates
+            backedUpPaths.add(character.imageUrl);
+            
+            results.characters.success.push(character.imageUrl);
+            console.log(`Uploaded character ${character.id}: ${uploadResponse.url}`);
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            results.characters.failed.push({ url: character.imageUrl, error: errorMessage });
+            console.error(`Failed to upload character ${character.id}:`, error);
           }
-          
-          // Upload to ImageKit
-          const uploadResponse = await imagekit.upload({
-            file: fileBuffer.toString("base64"),
-            fileName: fileName,
-            folder: "/characters"
-          });
-          
-          // Record the backup in the database
-          await storage.recordImagekitBackup({
-            originalPath: character.imageUrl,
-            imagekitUrl: uploadResponse.url,
-            imagekitFileId: uploadResponse.fileId,
-            fileType: "character"
-          });
-          
-          // Track within this run to avoid duplicates
-          backedUpPaths.add(character.imageUrl);
-          
-          results.characters.success.push(character.imageUrl);
-          console.log(`Uploaded character ${character.id}: ${uploadResponse.url}`);
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          results.characters.failed.push({ url: character.imageUrl, error: errorMessage });
-          console.error(`Failed to upload character ${character.id}:`, error);
         }
+        
+        // Count characters already backed up
+        const alreadyBackedUp = allCharacters.filter(c => c.imageUrl && backedUpPaths.has(c.imageUrl)).length;
+        results.characters.skipped = [{ url: "summary", reason: `${alreadyBackedUp} already backed up` }];
       }
+      
+      // Calculate remaining items after this batch
+      const processedSongs = results.songs.success.length + results.songs.failed.length;
+      const processedCharacters = results.characters.success.length + results.characters.failed.length;
       
       res.json({
         success: true,
+        batch: {
+          type: processType,
+          offset: batchOffset,
+          limit: batchLimit,
+          processed: processedSongs + processedCharacters
+        },
         summary: {
           songs: {
-            total: allSongs.length,
+            total: totalSongs,
+            remaining: Math.max(0, songsRemaining - processedSongs),
             uploaded: results.songs.success.length,
-            failed: results.songs.failed.length,
-            skipped: results.songs.skipped.length
+            failed: results.songs.failed.length
           },
           characters: {
-            total: allCharacters.length,
+            total: totalCharacters,
+            remaining: Math.max(0, charactersRemaining - processedCharacters),
             uploaded: results.characters.success.length,
-            failed: results.characters.failed.length,
-            skipped: results.characters.skipped.length
+            failed: results.characters.failed.length
           }
+        },
+        nextBatch: {
+          songs: songsRemaining > processedSongs ? `&type=songs&offset=0&limit=${batchLimit}` : null,
+          characters: charactersRemaining > processedCharacters ? `&type=characters&offset=0&limit=${batchLimit}` : null
         },
         details: results
       });
