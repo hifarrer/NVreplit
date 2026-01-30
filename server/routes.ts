@@ -41,6 +41,18 @@ interface ContentModerationResult {
   violence: boolean;
 }
 
+interface WaveSpeedAPIResponse {
+  code: number;
+  message: string;
+  data: {
+    id: string;
+    model: string;
+    outputs: ContentModerationResult[];
+    status: string;
+    error: string;
+  };
+}
+
 async function moderateImageContent(imageUrl: string): Promise<{ safe: boolean; violations: string[]; error?: string }> {
   if (!WAVESPEED_API_KEY) {
     console.error("WAVESPEED_API_KEY not configured - content moderation is required but API key is missing");
@@ -68,15 +80,32 @@ async function moderateImageContent(imageUrl: string): Promise<{ safe: boolean; 
       return { safe: false, violations: [], error: "Content moderation check failed. Please try again." };
     }
 
-    const result: ContentModerationResult = await response.json();
-    console.log(`[Content Moderation] Result:`, result);
+    const apiResponse: WaveSpeedAPIResponse = await response.json();
+    console.log(`[Content Moderation] API Response:`, JSON.stringify(apiResponse, null, 2));
+
+    // Check if API call was successful
+    if (apiResponse.code !== 200 || apiResponse.data?.status !== 'completed') {
+      console.error(`[Content Moderation] API returned error status: ${apiResponse.message}`);
+      return { safe: false, violations: [], error: "Content moderation check failed. Please try again." };
+    }
+
+    // Extract the moderation result from outputs array
+    const moderationResult = apiResponse.data?.outputs?.[0];
+    if (!moderationResult) {
+      console.error(`[Content Moderation] No moderation result in outputs`);
+      return { safe: false, violations: [], error: "Content moderation check failed. Please try again." };
+    }
+
+    console.log(`[Content Moderation] Moderation flags:`, moderationResult);
 
     const violations: string[] = [];
-    if (result.harassment) violations.push("harassment");
-    if (result.hate) violations.push("hate");
-    if (result.sexual) violations.push("sexual content");
-    if (result["sexual/minors"]) violations.push("sexual content involving minors");
-    if (result.violence) violations.push("violence");
+    if (moderationResult.harassment) violations.push("harassment");
+    if (moderationResult.hate) violations.push("hate");
+    if (moderationResult.sexual) violations.push("sexual content");
+    if (moderationResult["sexual/minors"]) violations.push("sexual content involving minors");
+    if (moderationResult.violence) violations.push("violence");
+
+    console.log(`[Content Moderation] Violations found: ${violations.length > 0 ? violations.join(', ') : 'none'}`);
 
     return { 
       safe: violations.length === 0, 
