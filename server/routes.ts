@@ -8601,15 +8601,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Update project with character image
+      // Upload to ImageKit (dual-write, blocking to get URL)
+      let imagekitUrl: string | undefined;
+      try {
+        const imagekitResult = await uploadImageToImageKit(processedBuffer, filename, '/characters');
+        imagekitUrl = imagekitResult.url;
+        console.log(`[ImageKit] Character image uploaded: ${imagekitUrl}`);
+        
+        // Record the backup in the database
+        await storage.createImagekitBackup({
+          originalPath: permanentPath,
+          imagekitUrl: imagekitResult.url,
+          imagekitFileId: imagekitResult.fileId,
+          fileType: 'image',
+          fileSize: processedBuffer.length,
+          mimeType: 'image/jpeg'
+        });
+      } catch (imagekitError) {
+        console.error('[ImageKit] Upload failed (continuing with internal storage):', imagekitError);
+      }
+      
+      // Update project with character image (internal storage URL for database)
       await storage.updateProject(projectId, {
         characterImageUrl: permanentPath
       });
 
       console.log(`Character image uploaded and processed for ${projectAspectRatio} aspect ratio: ${permanentPath}`);
 
+      // Return ImageKit URL if available, otherwise internal URL
+      const responseUrl = imagekitUrl || permanentPath;
       res.json({
-        imageUrl: permanentPath,
+        imageUrl: responseUrl,
         message: "Character image uploaded successfully"
       });
     } catch (error) {
