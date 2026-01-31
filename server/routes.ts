@@ -3604,9 +3604,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Generating single scene with prompt: ${prompt}`);
       
       // Generate scene image using the same method as regular scene generation
-      const imageUrl = await generateSingleSceneImage(prompt, characterImageUrl);
+      const storedImageUrl = await generateSingleSceneImage(prompt, characterImageUrl);
       
-      res.json({ imageUrl });
+      // Resolve to ImageKit URL for the response (internal storage URL is stored in database)
+      const resolvedImageUrl = await resolveUrlWithImageKitFallback(storedImageUrl);
+      console.log(`[generate-single-scene] Resolved image URL: ${resolvedImageUrl}`);
+      
+      res.json({ imageUrl: resolvedImageUrl });
     } catch (error) {
       console.error("Generate single scene error:", error);
       const message = error instanceof Error ? error.message : 'Unknown error';
