@@ -117,7 +117,38 @@ export async function downloadAndStoreImage(
   
   console.log(`Storing image as: ${filename}`);
   
-  // Get object storage service
+  // Always use ImageKit as primary storage if configured (for all environments)
+  if (isImageKitConfigured()) {
+    try {
+      console.log(`[ImageKit] Uploading image to ImageKit: ${filename}`);
+      const imagekitResult = await uploadImageToImageKit(imageBuffer, filename.split('/').pop() || filename, `/${category}`);
+      
+      console.log(`[ImageKit] Image uploaded successfully: ${imagekitResult.url}`);
+      
+      // Return ImageKit URL as primary, with storedUrl as fallback path format
+      const storedUrl = `/objects/${filename}`;
+      
+      // Record the backup in the database (for compatibility)
+      await storage.recordImagekitBackup({
+        originalPath: storedUrl,
+        imagekitUrl: imagekitResult.url,
+        imagekitFileId: imagekitResult.fileId,
+        fileType: "character"
+      });
+      
+      return {
+        storedUrl: imagekitResult.url, // Return ImageKit URL as primary
+        originalUrl: imageUrl,
+        imagekitUrl: imagekitResult.url,
+      };
+    } catch (error) {
+      console.error(`[ImageKit] Failed to upload image to ImageKit:`, error);
+      // Fall through to Google Cloud Storage fallback
+    }
+  }
+  
+  // Fallback to Google Cloud Storage only if ImageKit is not configured or failed
+  console.log("[Storage] ImageKit not configured or failed, falling back to Google Cloud Storage");
   const objectStorageService = new ObjectStorageService();
   const privateObjectDir = objectStorageService.getPrivateObjectDir();
   
@@ -155,33 +186,10 @@ export async function downloadAndStoreImage(
   // Return the stored URL that can be served via our API
   const storedUrl = `/objects/${filename}`;
   
-  // Also upload to ImageKit if configured
-  let imagekitUrl: string | undefined;
-  if (isImageKitConfigured()) {
-    try {
-      console.log(`[ImageKit] Uploading image to ImageKit: ${filename}`);
-      const imagekitResult = await uploadImageToImageKit(imageBuffer, filename.split('/').pop() || filename, `/${category}`);
-      imagekitUrl = imagekitResult.url;
-      
-      // Record the backup in the database
-      await storage.recordImagekitBackup({
-        originalPath: storedUrl,
-        imagekitUrl: imagekitResult.url,
-        imagekitFileId: imagekitResult.fileId,
-        fileType: "character"
-      });
-      
-      console.log(`[ImageKit] Image uploaded successfully: ${imagekitUrl}`);
-    } catch (error) {
-      console.error(`[ImageKit] Failed to upload image to ImageKit:`, error);
-      // Continue without ImageKit - we still have the internal storage URL
-    }
-  }
-  
   return {
     storedUrl,
     originalUrl: imageUrl,
-    imagekitUrl,
+    imagekitUrl: undefined,
   };
 }
 

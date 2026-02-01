@@ -1,3 +1,8 @@
+// Load environment variables from .env file before any other imports
+// Using side-effect import to ensure it runs before other imports
+// Safe for production: dotenv only loads .env files if they exist and won't override existing env vars
+import 'dotenv/config';
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -342,11 +347,23 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
+  
+  // Platform-specific server binding:
+  // - Windows (local dev): Use localhost and disable reusePort (not supported on Windows)
+  // - Linux/Unix (production/Replit): Use 0.0.0.0 with reusePort (original behavior preserved)
+  const isWindows = process.platform === 'win32';
+  const host = isWindows ? 'localhost' : '0.0.0.0';
+  const listenOptions: any = {
     port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+    host,
+  };
+  
+  // reusePort is not supported on Windows, but required for production/Replit
+  if (!isWindows) {
+    listenOptions.reusePort = true;
+  }
+  
+  server.listen(listenOptions, () => {
     log(`serving on port ${port}`);
   });
 

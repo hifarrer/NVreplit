@@ -1,3 +1,7 @@
+// Load environment variables first, before any other imports
+// Safe for production: dotenv only loads .env files if they exist and won't override existing env vars
+import 'dotenv/config';
+
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import ws from "ws";
@@ -5,8 +9,14 @@ import * as schema from "@shared/schema";
 
 neonConfig.webSocketConstructor = ws;
 
-// Construct proper DATABASE_URL from individual components
+// Construct proper DATABASE_URL from individual components or use DATABASE_URL directly
 const constructDatabaseUrl = () => {
+  // First, check if DATABASE_URL is provided directly
+  if (process.env.DATABASE_URL) {
+    return process.env.DATABASE_URL;
+  }
+  
+  // Otherwise, construct from individual components
   const host = process.env.PGHOST;
   const user = process.env.PGUSER;
   const password = process.env.PGPASSWORD;
@@ -14,7 +24,7 @@ const constructDatabaseUrl = () => {
   const port = process.env.PGPORT || '5432';
   
   if (!host || !user || !password || !database) {
-    throw new Error("Missing required PostgreSQL environment variables");
+    throw new Error("Missing required PostgreSQL environment variables. Please provide either DATABASE_URL or PGHOST, PGUSER, PGPASSWORD, and PGDATABASE");
   }
   
   // Construct the connection string with SSL required for Neon

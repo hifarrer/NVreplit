@@ -14,22 +14,93 @@ const __dirname = dirname(__filename);
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 
-export const objectStorageClient = new Storage({
-  credentials: {
-    audience: "replit",
-    subject_token_type: "access_token",
-    token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
-    type: "external_account",
-    credential_source: {
-      url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
-      format: {
-        type: "json",
-        subject_token_field_name: "access_token",
-      },
-    },
-    universe_domain: "googleapis.com",
-  },
-  projectId: "",
+// Determine if we're running in Replit environment
+const isReplit = !!(process.env.REPL_ID || process.env.REPL_SLUG || process.env.REPLIT_DEV_DOMAIN);
+
+// Lazy initialization of Google Cloud Storage client - only create if ImageKit is not configured
+// This prevents authentication errors when ImageKit is being used
+let _objectStorageClient: Storage | null = null;
+
+function getObjectStorageClient(): Storage {
+  // If ImageKit is configured, we don't need Google Cloud Storage
+  if (isImageKitConfigured()) {
+    throw new Error("Google Cloud Storage client should not be used when ImageKit is configured");
+  }
+  
+  if (!_objectStorageClient) {
+    // Configure Google Cloud Storage client based on environment
+    // - Replit: Use sidecar endpoint for authentication
+    // - Local (Windows/other): Use service account credentials from GOOGLE_APPLICATION_CREDENTIALS
+    let storageConfig: any;
+
+    if (isReplit) {
+      // Replit production environment - use sidecar endpoint
+      storageConfig = {
+        credentials: {
+          audience: "replit",
+          subject_token_type: "access_token",
+          token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
+          type: "external_account",
+          credential_source: {
+            url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
+            format: {
+              type: "json",
+              subject_token_field_name: "access_token",
+            },
+          },
+          universe_domain: "googleapis.com",
+        },
+        projectId: "",
+      };
+    } else {
+      // Local development environment - use service account credentials
+      // Supports GOOGLE_APPLICATION_CREDENTIALS env var or keyFilename
+      storageConfig = {
+        // If GOOGLE_APPLICATION_CREDENTIALS is set, it will be used automatically
+        // Otherwise, you can set keyFilename to point to a service account key file
+        keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS || undefined,
+        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || "",
+      };
+      
+      // If no credentials are provided, Storage will try to use Application Default Credentials
+      // which works if gcloud is configured locally
+      if (!process.env.GOOGLE_APPLICATION_CREDENTIALS && !process.env.GOOGLE_CLOUD_PROJECT_ID) {
+        console.warn("⚠️  Google Cloud Storage: No explicit credentials found. Will attempt to use Application Default Credentials.");
+        console.warn("   For local development, set GOOGLE_APPLICATION_CREDENTIALS to your service account key file path.");
+      }
+    }
+
+    _objectStorageClient = new Storage(storageConfig);
+  }
+  
+  return _objectStorageClient;
+}
+
+// Export a getter function for direct access
+export function getObjectStorageClientInstance(): Storage {
+  return getObjectStorageClient();
+}
+
+// For backward compatibility, export as objectStorageClient but make it lazy
+// Create a proxy that only initializes the client when actually accessed
+export const objectStorageClient = new Proxy({} as Storage, {
+  get(target, prop) {
+    // If ImageKit is configured, throw error on any access
+    if (isImageKitConfigured()) {
+      throw new Error(`Google Cloud Storage client accessed (${String(prop)}) but ImageKit is configured. This should not happen.`);
+    }
+    
+    // Otherwise, get the actual client and return the property
+    const client = getObjectStorageClient();
+    const value = (client as any)[prop];
+    
+    // If it's a function, bind it to the client
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    
+    return value;
+  }
 });
 
 export class ObjectStorageService {
@@ -214,6 +285,17 @@ export class ObjectStorageService {
 
   async uploadAudioBuffer(buffer: Buffer, path: string): Promise<string> {
     try {
+      // Always use ImageKit as primary storage if configured (for all environments)
+      if (isImageKitConfigured()) {
+        const fileName = path.split('/').pop() || path;
+        console.log(`[ImageKit] Uploading audio to ImageKit: ${fileName}`);
+        const imagekitResult = await uploadAudioToImageKit(buffer, fileName, "/audio");
+        console.log(`[ImageKit] Audio uploaded successfully: ${imagekitResult.url}`);
+        return imagekitResult.url;
+      }
+      
+      // Fallback to Google Cloud Storage only if ImageKit is not configured
+      console.log("[Storage] ImageKit not configured, falling back to Google Cloud Storage");
       const objectPath = `${this.getPrivateObjectDir()}/${path}`;
       
       // Parse the path to get bucket and object name
@@ -234,28 +316,6 @@ export class ObjectStorageService {
       // Return a permanent path that can be served through our application
       const permanentPath = `/objects/${path}`;
       console.log("Generated permanent audio path:", permanentPath);
-      
-      // Also upload to ImageKit if configured
-      if (isImageKitConfigured()) {
-        try {
-          const fileName = path.split('/').pop() || path;
-          console.log(`[ImageKit] Uploading audio to ImageKit: ${fileName}`);
-          const imagekitResult = await uploadAudioToImageKit(buffer, fileName, "/audio");
-          
-          // Record the backup in the database
-          await storage.recordImagekitBackup({
-            originalPath: permanentPath,
-            imagekitUrl: imagekitResult.url,
-            imagekitFileId: imagekitResult.fileId,
-            fileType: "song"
-          });
-          
-          console.log(`[ImageKit] Audio uploaded successfully: ${imagekitResult.url}`);
-        } catch (error) {
-          console.error(`[ImageKit] Failed to upload audio to ImageKit:`, error);
-          // Continue without ImageKit - we still have the internal storage URL
-        }
-      }
       
       return permanentPath;
     } catch (error) {
@@ -353,8 +413,26 @@ export class ObjectStorageService {
   }
 
   async getSignedUrlForPath(objectPath: string, ttlSec: number = 3600): Promise<string> {
+    // If ImageKit is configured and the path is already an ImageKit URL, return it as-is
+    if (isImageKitConfigured() && (objectPath.startsWith('https://ik.imagekit.io/') || objectPath.startsWith('http'))) {
+      console.log(`[ObjectStorage] Path is already a full URL (likely ImageKit), returning as-is: ${objectPath}`);
+      return objectPath;
+    }
+    
     // Convert internal path like "/objects/videos/pip_segment_1.mp4" to signed URL
     console.log(`[ObjectStorage] getSignedUrlForPath called with: ${objectPath}`);
+    
+    // If ImageKit is configured, we shouldn't need signed URLs (ImageKit URLs are public)
+    if (isImageKitConfigured()) {
+      console.warn(`[ObjectStorage] ImageKit is configured but getSignedUrlForPath was called. This might indicate the file wasn't uploaded to ImageKit.`);
+      // Try to resolve from ImageKit backup
+      const backup = await storage.getImagekitBackupByPath(objectPath);
+      if (backup && backup.imagekitUrl) {
+        console.log(`[ObjectStorage] Found ImageKit backup, returning: ${backup.imagekitUrl}`);
+        return backup.imagekitUrl;
+      }
+      throw new Error(`Cannot generate signed URL for ${objectPath} - ImageKit is configured but no backup found. File may need to be re-uploaded.`);
+    }
     
     if (!objectPath.startsWith("/objects/")) {
       const error = `Invalid object path for signed URL generation: ${objectPath} (must start with /objects/)`;
@@ -425,31 +503,46 @@ export class ObjectStorageService {
     method: "GET" | "PUT" | "DELETE" | "HEAD";
     ttlSec: number;
   }): Promise<string> {
-    const request = {
-      bucket_name: bucketName,
-      object_name: objectName,
-      method,
-      expires_at: new Date(Date.now() + ttlSec * 1000).toISOString(),
-    };
-    const response = await fetch(
-      `${REPLIT_SIDECAR_ENDPOINT}/object-storage/signed-object-url`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(request),
-      }
-    );
-    if (!response.ok) {
-      throw new Error(
-        `Failed to sign object URL, errorcode: ${response.status}, ` +
-          `make sure you're running on Replit`
+    // Use Replit sidecar endpoint if in Replit environment
+    if (isReplit) {
+      const request = {
+        bucket_name: bucketName,
+        object_name: objectName,
+        method,
+        expires_at: new Date(Date.now() + ttlSec * 1000).toISOString(),
+      };
+      const response = await fetch(
+        `${REPLIT_SIDECAR_ENDPOINT}/object-storage/signed-object-url`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(request),
+        }
       );
-    }
+      if (!response.ok) {
+        throw new Error(
+          `Failed to sign object URL, errorcode: ${response.status}, ` +
+            `make sure you're running on Replit`
+        );
+      }
 
-    const result = await response.json() as { signed_url: string };
-    const signedURL = result.signed_url;
-    return signedURL;
+      const result = await response.json() as { signed_url: string };
+      const signedURL = result.signed_url;
+      return signedURL;
+    } else {
+      // Local development: Use Google Cloud Storage client's built-in signing
+      const bucket = objectStorageClient.bucket(bucketName);
+      const file = bucket.file(objectName);
+      
+      const [signedUrl] = await file.getSignedUrl({
+        version: 'v4',
+        action: method.toLowerCase() as 'read' | 'write' | 'delete' | 'resumable',
+        expires: Date.now() + (ttlSec * 1000),
+      });
+      
+      return signedUrl;
+    }
   }
 }

@@ -84,6 +84,32 @@ export async function uploadAudioToImageKit(
   };
 }
 
+export async function uploadTextFileToImageKit(
+  textContent: string,
+  fileName: string,
+  folder: string = "/subtitles"
+): Promise<ImageKitUploadResult> {
+  const imagekit = getImageKit();
+  
+  // Convert text to base64
+  const textBuffer = Buffer.from(textContent, "utf-8");
+  
+  const response = await imagekit.upload({
+    file: textBuffer.toString("base64"),
+    fileName: fileName,
+    folder: folder
+  });
+  
+  console.log(`[ImageKit] Uploaded text file: ${response.url}`);
+  
+  return {
+    url: response.url,
+    fileId: response.fileId,
+    name: response.name,
+    filePath: response.filePath
+  };
+}
+
 export async function downloadAndUploadImageToImageKit(
   imageUrl: string,
   category: string = "characters"

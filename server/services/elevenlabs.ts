@@ -256,7 +256,23 @@ export async function storeElevenLabsSubtitleFile(
   try {
     console.log("Storing ElevenLabs subtitle file...");
 
-    // Get object storage service
+    // Always use ImageKit as primary storage if configured (for all environments)
+    const { isImageKitConfigured, uploadTextFileToImageKit } = await import("./imagekit");
+    
+    if (isImageKitConfigured()) {
+      // Generate filename using song ID if available, otherwise random UUID
+      const fileId = songId || randomUUID();
+      const filename = `${fileId}.ass`;
+      
+      console.log(`[ImageKit] Uploading subtitle file to ImageKit: ${filename}`);
+      const imagekitResult = await uploadTextFileToImageKit(assContent, filename, "/subtitles");
+      
+      console.log(`[ImageKit] Subtitle file uploaded successfully: ${imagekitResult.url}`);
+      return imagekitResult.url;
+    }
+
+    // Fallback to Google Cloud Storage only if ImageKit is not configured
+    console.log("[Storage] ImageKit not configured, falling back to Google Cloud Storage");
     const { ObjectStorageService, objectStorageClient } = await import(
       "../objectStorage"
     );
