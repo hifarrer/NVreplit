@@ -3377,40 +3377,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add anonymous avatar (default for new users)
       avatarOptions.push({
         id: 0,
-        url: `/public-objects/public/avatars/anonymous.png`,
-        localUrl: `/public-objects/public/avatars/anonymous.png`
+        url: `https://ik.imagekit.io/neonvideo/avatars/anonymous.png`,
+        localUrl: `https://ik.imagekit.io/neonvideo/avatars/anonymous.png`
       });
       
       for (let i = 1; i <= 19; i++) {
         avatarOptions.push({
           id: i,
-          url: `/public-objects/public/avatars/avatar${i}.png`,
-          localUrl: `/public-objects/public/avatars/avatar${i}.png`
+          url: `https://ik.imagekit.io/neonvideo/avatars/${i}.png`,
+          localUrl: `https://ik.imagekit.io/neonvideo/avatars/${i}.png`
         });
       }
       
-      if (process.env.NODE_ENV === 'production') {
-        // In production, try to enhance with signed URLs if files exist, but don't fail if they don't
-        const objectStorageService = new ObjectStorageService();
-        
-        // Try to get signed URLs for existing files, but keep fallbacks
-        for (let option of avatarOptions) {
-          try {
-            const fileName = option.id === 0 ? 'avatars/anonymous.png' : `avatars/avatar${option.id}.png`;
-            const avatarFile = await objectStorageService.searchPublicObject(fileName);
-            if (avatarFile) {
-              const signedUrl = await avatarFile.getSignedUrl({
-                action: 'read',
-                expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-              });
-              option.url = signedUrl[0]; // Update with signed URL, keep fallback as localUrl
-            }
-          } catch (error) {
-            // Keep the fallback URL if signed URL generation fails
-            console.log(`Using fallback URL for avatar ${option.id}`);
-          }
-        }
-      }
+      // Avatar URLs now use ImageKit, no need for signed URL generation
       // Development and production now use the same avatar array structure
       
       res.json({ avatarOptions });

@@ -12,6 +12,7 @@ import {
 import { Home as HomeIcon, Music, Video, User, LogOut, Menu, ChevronDown, HelpCircle, Gift, Users } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import logoImage from "@assets/neonlogo_1756693683433.png";
+import { convertAvatarUrlToImageKit } from "@/lib/utils";
 
 interface NavigationHeaderProps {
   currentPage?: "home" | "songs" | "videos" | "characters" | "community" | "plans" | "profile";
@@ -78,7 +79,7 @@ export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
                     <Button variant="ghost" size="sm" className="gap-2 p-1">
                       <Avatar className="h-6 w-6">
                         {user.avatarUrl ? (
-                          <AvatarImage src={user.avatarUrl} alt={user.username} />
+                          <AvatarImage src={convertAvatarUrlToImageKit(user.avatarUrl) || user.avatarUrl} alt={user.username} />
                         ) : (
                           <AvatarFallback className="text-xs bg-gradient-to-br from-primary/20 to-secondary/20">
                             {user.username?.charAt(0).toUpperCase()}
@@ -170,7 +171,7 @@ export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
                       >
                         <Avatar className="h-6 w-6 mr-3">
                           {user.avatarUrl ? (
-                            <AvatarImage src={user.avatarUrl} alt={user.username} />
+                            <AvatarImage src={convertAvatarUrlToImageKit(user.avatarUrl) || user.avatarUrl} alt={user.username} />
                           ) : (
                             <AvatarFallback className="text-xs">
                               {user.username?.charAt(0).toUpperCase()}

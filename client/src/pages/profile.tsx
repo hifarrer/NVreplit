@@ -14,6 +14,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
+import { convertAvatarUrlToImageKit } from "@/lib/utils";
 
 export default function ProfilePage() {
   const { user, logout, refreshUser } = useAuth();
@@ -82,14 +83,14 @@ export default function ProfilePage() {
     // Default anonymous avatar
     {
       id: 0,
-      url: `/public-objects/public/avatars/anonymous.png`,
-      localUrl: `/public-objects/public/avatars/anonymous.png`
+      url: `https://ik.imagekit.io/neonvideo/avatars/anonymous.png`,
+      localUrl: `https://ik.imagekit.io/neonvideo/avatars/anonymous.png`
     },
     // Numbered avatars 1-19 (total 20 with anonymous)
     ...Array.from({ length: 19 }, (_, i) => ({
       id: i + 1,
-      url: `/public-objects/public/avatars/avatar${i + 1}.png`,
-      localUrl: `/public-objects/public/avatars/avatar${i + 1}.png`
+      url: `https://ik.imagekit.io/neonvideo/avatars/${i + 1}.png`,
+      localUrl: `https://ik.imagekit.io/neonvideo/avatars/${i + 1}.png`
     }))
   ];
 
@@ -97,9 +98,14 @@ export default function ProfilePage() {
   const getDisplayAvatarUrl = (storedUrl: string | null | undefined): string | null => {
     if (!storedUrl) return null;
     
-    // Find matching avatar option to get production-safe URL
+    // First try to find matching avatar option
     const matchingAvatar = avatarOptions.find(avatar => avatar.localUrl === storedUrl);
-    return matchingAvatar?.url || storedUrl;
+    if (matchingAvatar) {
+      return matchingAvatar.url;
+    }
+    
+    // If no match, convert old format URLs to ImageKit
+    return convertAvatarUrlToImageKit(storedUrl);
   };
 
   const updateAvatarMutation = useMutation({

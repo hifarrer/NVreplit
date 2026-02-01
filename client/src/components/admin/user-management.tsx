@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard, Mail, MailCheck, Download, Plus, ChevronLeft, ChevronRight, Search, ChevronsRight, Ban, Check, Image, Wand2, Clock, Eye, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { convertAvatarUrlToImageKit } from "@/lib/utils";
 
 interface UserWithStats {
   id: string;
@@ -667,7 +668,7 @@ export function UserManagement() {
             >
               <div className="flex items-center space-x-4">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={user.avatarUrl || undefined} />
+                  <AvatarImage src={user.avatarUrl ? convertAvatarUrlToImageKit(user.avatarUrl) || user.avatarUrl : undefined} />
                   <AvatarFallback className="bg-purple-600 text-white">
                     {user.username.charAt(0).toUpperCase()}
                   </AvatarFallback>

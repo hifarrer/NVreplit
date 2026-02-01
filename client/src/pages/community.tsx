@@ -11,6 +11,7 @@ import { NavigationHeader } from "@/components/navigation-header";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { checkProfanity, getCategoryMessage } from "@/lib/profanity-filter";
 import { MuxVideoPlayer } from "@/components/mux-video-player";
+import { convertAvatarUrlToImageKit } from "@/lib/utils";
 
 type CommunityVideo = {
   id: string;
@@ -646,7 +647,7 @@ export default function CommunityPage() {
                     <div className="flex items-center gap-2">
                       {video.creator.avatarUrl ? (
                         <img
-                          src={video.creator.avatarUrl}
+                          src={convertAvatarUrlToImageKit(video.creator.avatarUrl) || video.creator.avatarUrl}
                           alt={video.creator.username}
                           className="w-8 h-8 rounded-full"
                           data-testid={`img-creator-avatar-${video.id}`}

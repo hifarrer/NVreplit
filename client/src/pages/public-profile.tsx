@@ -8,6 +8,7 @@ import { Play, Pause, Video, ArrowLeft, ExternalLink, Share2, Link as LinkIcon }
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import logoImage from "@assets/neonlogo_1756693683433.png";
+import { convertAvatarUrlToImageKit } from "@/lib/utils";
 
 interface PublicVideo {
   id: string;
@@ -166,7 +167,7 @@ export default function PublicProfilePage() {
         <div className="flex items-center gap-6 mb-8">
           <Avatar className="h-24 w-24 border-2 border-primary/20">
             {profile.user.avatarUrl ? (
-              <AvatarImage src={profile.user.avatarUrl} alt={profile.user.username} />
+              <AvatarImage src={convertAvatarUrlToImageKit(profile.user.avatarUrl) || profile.user.avatarUrl} alt={profile.user.username} />
             ) : (
               <AvatarFallback className="text-2xl bg-gradient-to-br from-primary/20 to-secondary/20">
                 {profile.user.username.charAt(0).toUpperCase()}

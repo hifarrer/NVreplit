@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { checkProfanity, getCategoryMessage, type ProfanityCheckResult } from "@/lib/profanity-filter";
 import { MuxVideoPlayer } from "@/components/mux-video-player";
 import logoImage from "@assets/neonlogo_1756693683433.png";
+import { convertAvatarUrlToImageKit } from "@/lib/utils";
 
 interface VideoData {
   id: string;
@@ -397,7 +398,7 @@ export default function VideoPage() {
                     <div className="flex items-center gap-4 hover:opacity-80 transition-opacity cursor-pointer">
                       <Avatar className="h-12 w-12 border-2 border-primary/20">
                         {video.creator.avatarUrl ? (
-                          <AvatarImage src={video.creator.avatarUrl} alt={video.creator.username} />
+                          <AvatarImage src={convertAvatarUrlToImageKit(video.creator.avatarUrl) || video.creator.avatarUrl} alt={video.creator.username} />
                         ) : (
                           <AvatarFallback className="text-lg bg-gradient-to-br from-primary/20 to-secondary/20">
                             {video.creator.username.charAt(0).toUpperCase()}
@@ -432,7 +433,7 @@ export default function VideoPage() {
                     <div className="flex gap-3">
                       <Avatar className="h-8 w-8 border border-border">
                         {user?.avatarUrl ? (
-                          <AvatarImage src={user.avatarUrl} alt={user.username} />
+                          <AvatarImage src={convertAvatarUrlToImageKit(user.avatarUrl) || user.avatarUrl} alt={user.username} />
                         ) : (
                           <AvatarFallback className="text-sm bg-gradient-to-br from-primary/20 to-secondary/20">
                             {user?.username.charAt(0).toUpperCase()}
@@ -496,7 +497,7 @@ export default function VideoPage() {
                       <div key={comment.id} className="flex gap-3" data-testid={`comment-${comment.id}`}>
                         <Avatar className="h-8 w-8 border border-border">
                           {comment.user.avatarUrl ? (
-                            <AvatarImage src={comment.user.avatarUrl} alt={comment.user.username} />
+                            <AvatarImage src={convertAvatarUrlToImageKit(comment.user.avatarUrl) || comment.user.avatarUrl} alt={comment.user.username} />
                           ) : (
                             <AvatarFallback className="text-sm bg-gradient-to-br from-primary/20 to-secondary/20">
                               {comment.user.username.charAt(0).toUpperCase()}

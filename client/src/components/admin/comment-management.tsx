@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Trash2, MessageCircle, Calendar, Video, Loader2, AlertTriangle, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { convertAvatarUrlToImageKit } from "@/lib/utils";
 
 interface CommentWithVideo {
   id: string;
@@ -133,7 +134,7 @@ export function CommentManagement() {
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8 border border-purple-500/20">
                           {comment.user.avatarUrl ? (
-                            <AvatarImage src={comment.user.avatarUrl} alt={comment.user.username} />
+                            <AvatarImage src={convertAvatarUrlToImageKit(comment.user.avatarUrl) || comment.user.avatarUrl} alt={comment.user.username} />
                           ) : (
                             <AvatarFallback className="bg-purple-600/20 text-purple-300">
                               {comment.user.username.charAt(0).toUpperCase()}
