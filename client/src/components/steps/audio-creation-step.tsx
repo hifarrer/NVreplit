@@ -94,15 +94,23 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   const [addSubtitles, setAddSubtitles] = useState(projectAddSubtitles ?? true); // Subtitle toggle - hydrated from project or default to enabled
   const [includeWatermark, setIncludeWatermark] = useState(projectIncludeWatermark ?? true); // Watermark toggle - hydrated from project or default to enabled
   const [isPublic, setIsPublic] = useState(projectIsPublic ?? true); // Privacy toggle - hydrated from project or default to public
-  const [isVertical, setIsVertical] = useState(aspectRatio ? aspectRatio === "3:4" : true); // Aspect ratio toggle - hydrated from project data, defaults to vertical (3:4)
+  // Default to vertical (3:4) - only use horizontal (16:9) if aspectRatio is explicitly "16:9"
+  const [isVertical, setIsVertical] = useState(true); // Always default to vertical (3:4)
   const [progress, setProgress] = useState(0);
+  const hasInitializedFromProps = useRef(false);
   
   // Hydrate state from project props when component mounts or props change
+  // Only update from aspectRatio prop if this is an existing project (has audioUrl)
+  // For new projects, always default to vertical regardless of aspectRatio value
   useEffect(() => {
-    if (aspectRatio) {
+    // If project has audioUrl, it's an existing project - respect saved aspectRatio
+    if (audioUrl && (aspectRatio === "3:4" || aspectRatio === "16:9")) {
       setIsVertical(aspectRatio === "3:4");
+      hasInitializedFromProps.current = true;
     }
-  }, [aspectRatio]);
+    // For new projects (no audioUrl), keep default vertical and don't update from prop
+    // This ensures new projects always start with vertical, even if aspectRatio is "16:9" in DB
+  }, [aspectRatio, audioUrl]);
   
   useEffect(() => {
     if (projectAddSubtitles !== undefined) setAddSubtitles(projectAddSubtitles);
