@@ -8543,6 +8543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Always use ImageKit as primary storage if configured (for all environments)
       let imagekitUrl: string | undefined;
+      let imagekitFileId: string | undefined;
       let permanentPath: string;
       
       if (isImageKitConfigured()) {
