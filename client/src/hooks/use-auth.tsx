@@ -5,6 +5,7 @@ import { User, Plan } from '@shared/schema';
 // Extended user type that includes credit and plan information from API
 interface AuthUser extends User {
   creditsRemaining?: number;
+  createdAt?: string | Date;
   plan?: {
     id: string;
     name: string;

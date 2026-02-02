@@ -2175,6 +2175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         planId: userWithPlan.planId,
         creditsUsed: userWithPlan.creditsUsed || 0,
         creditsRemaining,
+        createdAt: userWithPlan.createdAt,
         plan: userWithPlan.plan ? {
           id: userWithPlan.plan.id,
           name: userWithPlan.plan.name,

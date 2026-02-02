@@ -40,6 +40,7 @@ import RedeemGiftPage from "@/pages/redeem-gift";
 import GreetingCardPage from "@/pages/greeting-card-page";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
+import { WelcomePromoBanner } from "@/components/welcome-promo-banner";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
   const { user, isLoading } = useAuth();
@@ -77,42 +78,50 @@ function AppRouter() {
   }
 
   return (
-    <Switch>
-      <Route path="/" component={user ? () => <ProtectedRoute component={Home} /> : LandingPage} />
-      <Route path="/create" component={() => <ProtectedRoute component={Home} />} />
-      <Route path="/my-songs" component={() => <ProtectedRoute component={MySongsPage} />} />
-      <Route path="/my-videos" component={() => <ProtectedRoute component={MyVideosPage} />} />
-      <Route path="/characters" component={() => <ProtectedRoute component={CharactersPage} />} />
-      <Route path="/profile" component={() => <ProtectedRoute component={ProfilePage} />} />
-      <Route path="/referrals" component={() => <ProtectedRoute component={ReferralsPage} />} />
-      <Route path="/affiliates" component={() => <ProtectedRoute component={AffiliatesPage} />} />
-      <Route path="/u/:username" component={PublicProfilePage} />
-      <Route path="/v/:videoId" component={VideoPage} />
-      <Route path="/community" component={CommunityPage} />
-      <Route path="/plans" component={PlansPage} />
-      <Route path="/payment-success" component={() => <ProtectedRoute component={PaymentSuccessPage} />} />
-      <Route path="/privacy" component={PrivacyPage} />
-      <Route path="/terms" component={TermsPage} />
-      <Route path="/contact" component={ContactPage} />
-      <Route path="/blog" component={BlogPage} />
-      <Route path="/best-ai-music-generator-2025" component={BestAIMusicGenerator2025} />
-      <Route path="/version-2-0-1-release" component={Version201Release} />
-      <Route path="/version-2-1-1-release" component={Version211Release} />
-      <Route path="/version-2-3-1-release" component={Version231Release} />
-      <Route path="/version-2-4-1-release" component={Version241Release} />
-      <Route path="/version-2-5-1-release" component={Version251Release} />
-      <Route path="/christmas-postcard-video" component={ChristmasPostcardBlogPost} />
-      <Route path="/neon-single-prompt" component={() => <ProtectedRoute component={NeonSinglePrompt} />} />
-      <Route path="/gift" component={() => <ProtectedRoute component={GiftPage} />} />
-      <Route path="/gift-success" component={() => <ProtectedRoute component={GiftSuccessPage} />} />
-      <Route path="/redeem-gift" component={RedeemGiftPage} />
-      <Route path="/greeting/:token" component={GreetingCardPage} />
-      <Route path="/auth" component={AuthPage} />
-      <Route path="/admin" component={AdminLogin} />
-      <Route path="/admin/dashboard" component={AdminDashboard} />
-      <Route path="/admin/plans" component={AdminPlans} />
-      <Route component={NotFound} />
-    </Switch>
+    <>
+      <Switch>
+        <Route path="/" component={user ? () => <ProtectedRoute component={Home} /> : LandingPage} />
+        <Route path="/create" component={() => <ProtectedRoute component={Home} />} />
+        <Route path="/my-songs" component={() => <ProtectedRoute component={MySongsPage} />} />
+        <Route path="/my-videos" component={() => <ProtectedRoute component={MyVideosPage} />} />
+        <Route path="/characters" component={() => <ProtectedRoute component={CharactersPage} />} />
+        <Route path="/profile" component={() => <ProtectedRoute component={ProfilePage} />} />
+        <Route path="/referrals" component={() => <ProtectedRoute component={ReferralsPage} />} />
+        <Route path="/affiliates" component={() => <ProtectedRoute component={AffiliatesPage} />} />
+        <Route path="/u/:username" component={PublicProfilePage} />
+        <Route path="/v/:videoId" component={VideoPage} />
+        <Route path="/community" component={CommunityPage} />
+        <Route path="/plans" component={PlansPage} />
+        <Route path="/payment-success" component={() => <ProtectedRoute component={PaymentSuccessPage} />} />
+        <Route path="/privacy" component={PrivacyPage} />
+        <Route path="/terms" component={TermsPage} />
+        <Route path="/contact" component={ContactPage} />
+        <Route path="/blog" component={BlogPage} />
+        <Route path="/best-ai-music-generator-2025" component={BestAIMusicGenerator2025} />
+        <Route path="/version-2-0-1-release" component={Version201Release} />
+        <Route path="/version-2-1-1-release" component={Version211Release} />
+        <Route path="/version-2-3-1-release" component={Version231Release} />
+        <Route path="/version-2-4-1-release" component={Version241Release} />
+        <Route path="/version-2-5-1-release" component={Version251Release} />
+        <Route path="/christmas-postcard-video" component={ChristmasPostcardBlogPost} />
+        <Route path="/neon-single-prompt" component={() => <ProtectedRoute component={NeonSinglePrompt} />} />
+        <Route path="/gift" component={() => <ProtectedRoute component={GiftPage} />} />
+        <Route path="/gift-success" component={() => <ProtectedRoute component={GiftSuccessPage} />} />
+        <Route path="/redeem-gift" component={RedeemGiftPage} />
+        <Route path="/greeting/:token" component={GreetingCardPage} />
+        <Route path="/auth" component={AuthPage} />
+        <Route path="/admin" component={AdminLogin} />
+        <Route path="/admin/dashboard" component={AdminDashboard} />
+        <Route path="/admin/plans" component={AdminPlans} />
+        <Route component={NotFound} />
+      </Switch>
+      {user && (
+        <WelcomePromoBanner
+          userCreatedAt={user.createdAt}
+          userId={user.id}
+        />
+      )}
+    </>
   );
 }
 
