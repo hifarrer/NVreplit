@@ -8987,6 +8987,9 @@ Format your response as JSON:
     try {
       console.log(`[POSTIZ] Creating separate Reddit post...`);
       
+      // Get subreddit from environment variable or use default
+      const REDDIT_SUBREDDIT = process.env.REDDIT_SUBREDDIT || "videos";
+      
       const redditPostBody = {
         type: "now",
         date: new Date().toISOString(),
@@ -9007,7 +9010,19 @@ Format your response as JSON:
               }
             ],
             settings: {
-              title: redditTitle
+              "__type": "reddit",
+              "subreddit": [
+                {
+                  "value": {
+                    "subreddit": REDDIT_SUBREDDIT,
+                    "title": redditTitle,
+                    "type": "video",
+                    "url": "",
+                    "is_flair_required": false,
+                    "flair": null
+                  }
+                }
+              ]
             },
             group: `neonvideo-reddit-${Date.now()}`
           }
