@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { AudioPlayer } from "@/components/ui/audio-player";
+import { AudioTrimInterface } from "@/components/ui/audio-trim-interface";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock, X, Subtitles, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock, X, Subtitles, AlertCircle, Eye, EyeOff, Save, Scissors } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -58,10 +59,10 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   
   // Duration options based on user plan
   const durationOptions = isPaidUser 
-    ? [30, 60, 90, 120, 150, 180]
+    ? [30, 60, 90, 120, 150, 180, 210, 240]
     : [30]; // Free users can only make 30 second videos
   
-  const maxDuration = isPaidUser ? 180 : 30;
+  const maxDuration = isPaidUser ? 240 : 30; // Paid users: 4 minutes, Free users: 30 seconds
   
   const getDurationLabel = (value: number) => {
     if (value === 30) return "30 sec";
@@ -70,10 +71,29 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
     if (value === 120) return "2 min";
     if (value === 150) return "2.5 min";
     if (value === 180) return "3 min";
+    if (value === 210) return "3.5 min";
+    if (value === 240) return "4 min";
     return `${value} sec`;
   };
   const [currentAudioUrl, setCurrentAudioUrl] = useState(audioUrl);
   const [activeTab, setActiveTab] = useState("generate");
+  
+  // Track actual song duration after generation (may differ from requested duration)
+  // Declared early so it can be used in useEffect hooks
+  const [actualSongDuration, setActualSongDuration] = useState<number | null>(null);
+  
+  // Fetch project data to get audioDuration if audioUrl exists
+  const { data: projectData } = useQuery({
+    queryKey: [`/api/projects/${projectId}`],
+    enabled: !!audioUrl && !actualSongDuration, // Only fetch if we have audioUrl but no duration yet
+  });
+  
+  // Set duration from project data if available
+  useEffect(() => {
+    if (projectData?.audioDuration && !actualSongDuration) {
+      setActualSongDuration(projectData.audioDuration);
+    }
+  }, [projectData?.audioDuration, actualSongDuration]);
   
   // Upload tab state
   const [isDragOver, setIsDragOver] = useState(false);
@@ -85,12 +105,23 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   const [uploadAddSubtitles, setUploadAddSubtitles] = useState(true); // Subtitle toggle for uploaded songs - enabled by default
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Trim interface state (for upload tab)
+  const [showTrimInterface, setShowTrimInterface] = useState(false);
+  const [previewAudioUrl, setPreviewAudioUrl] = useState<string | null>(null);
+  const [previewAudioDuration, setPreviewAudioDuration] = useState<number>(0);
+  const [isTrimming, setIsTrimming] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  
+  // Trim interface state (for generate tab - after song selection)
+  const [showTrimInterfaceForGenerated, setShowTrimInterfaceForGenerated] = useState(false);
+  const [selectedGeneratedSongForTrim, setSelectedGeneratedSongForTrim] = useState<GeneratedSong | null>(null);
+  
   // Generate tab state
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [lyrics, setLyrics] = useState("");
   const [songTitle, setSongTitle] = useState(""); // Song title for generate tab
-  const [duration, setDuration] = useState([isPaidUser ? 60 : 30]); // Default: 30s for free, 60s for paid
+  // Duration removed - user will trim after song selection
   const [addSubtitles, setAddSubtitles] = useState(projectAddSubtitles ?? true); // Subtitle toggle - hydrated from project or default to enabled
   const [includeWatermark, setIncludeWatermark] = useState(projectIncludeWatermark ?? true); // Watermark toggle - hydrated from project or default to enabled
   const [isPublic, setIsPublic] = useState(projectIsPublic ?? true); // Privacy toggle - hydrated from project or default to public
@@ -132,13 +163,13 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   const [showSongSelection, setShowSongSelection] = useState(false);
   const [selectedGeneratedSongIndex, setSelectedGeneratedSongIndex] = useState<number>(0);
   
-  // Track actual song duration after generation (may differ from requested duration)
-  const [actualSongDuration, setActualSongDuration] = useState<number | null>(null);
-  
   // Library tab state
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
   const [librarySongTitle, setLibrarySongTitle] = useState(""); // Custom title for library song
+  const [showTrimInterfaceForLibrary, setShowTrimInterfaceForLibrary] = useState(false);
+  const [selectedLibrarySongForTrim, setSelectedLibrarySongForTrim] = useState<GeneratedSong | null>(null);
+  const libraryTrimInterfaceRef = useRef<HTMLDivElement>(null);
   
   // Calculate credit costs based on duration
   // Song generation is free, only video generation costs credits
@@ -148,9 +179,9 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
     return Math.max(units, 1) * 1000; // Minimum 1000 credits
   };
   
-  // Use actual song duration if available (after generation), otherwise use slider duration
-  const effectiveDuration = actualSongDuration ?? duration[0];
-  const totalCreditsNeeded = getVideoCreditCost(effectiveDuration);
+    // Use actual song duration if available (after generation/trimming), otherwise default to 30s
+    const effectiveDuration = actualSongDuration ?? 30;
+    const totalCreditsNeeded = getVideoCreditCost(effectiveDuration);
   const userCreditsRemaining = user?.creditsRemaining || 0;
   const hasEnoughCredits = userCreditsRemaining >= totalCreditsNeeded;
 
@@ -160,9 +191,136 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
     enabled: activeTab === "library",
   });
 
+  // Trim audio mutation
+  const trimAudioMutation = useMutation({
+    mutationFn: async ({ audioUrl, startTime, endTime, title, description }: { 
+      audioUrl: string; 
+      startTime: number; 
+      endTime: number;
+      title?: string;
+      description?: string;
+    }) => {
+      setUploadProgress(50);
+      setUploadStatus("Trimming audio...");
+      const response = await apiRequest("POST", `/api/projects/${projectId}/trim-audio`, {
+        audioUrl,
+        startTime,
+        endTime,
+        title: title || uploadSongTitle.trim() || undefined,
+        description: description || uploadSongDescription.trim() || undefined
+      });
+      return response.json();
+    },
+    onSuccess: async (data) => {
+      setUploadProgress(80);
+      setUploadStatus("Finalizing...");
+      
+      // After trimming, update the project with the trimmed audio
+      try {
+        // Determine if this is for upload, generated song, or library song
+        const isGeneratedSong = !!selectedGeneratedSongForTrim;
+        const isLibrarySong = !!selectedLibrarySongForTrim;
+        
+        // Use select-song endpoint to update project (it handles all the project updates)
+        // Don't save to library here since this is the trimmed version (already saved by trim-audio endpoint)
+        const updateResponse = await apiRequest("POST", `/api/projects/${projectId}/select-song`, {
+          audioUrl: data.audioUrl,
+          audioType: isGeneratedSong ? 'generated' : (isLibrarySong ? 'library' : 'uploaded'),
+          duration: data.duration,
+          audioPrompt: isGeneratedSong ? (description || null) : (isLibrarySong ? null : (uploadSongDescription || null)),
+          audioTags: isGeneratedSong ? (tags || null) : (isLibrarySong ? selectedLibrarySongForTrim?.audioTags || null : null),
+          audioLyrics: isGeneratedSong ? (lyrics || null) : (isLibrarySong ? selectedLibrarySongForTrim?.audioLyrics || null : null),
+          aspectRatio: isVertical ? "3:4" : "16:9",
+          addSubtitles: isGeneratedSong ? (addSubtitles ? 'true' : 'false') : (isLibrarySong ? (addSubtitles ? 'true' : 'false') : (uploadAddSubtitles ? 'true' : 'false')),
+          includeWatermark: includeWatermark ? 'true' : 'false',
+          isPublic: isPublic ? 'true' : 'false',
+          saveToLibrary: false // Don't save trimmed version here (already saved by trim-audio endpoint)
+        });
+        
+        const updateData = await updateResponse.json();
+        
+        // Update title if provided
+        const titleToUse = isGeneratedSong 
+          ? (songTitle.trim() || selectedGeneratedSongForTrim?.title || description || tags)
+          : (isLibrarySong 
+            ? (librarySongTitle.trim() || selectedLibrarySongForTrim?.title || undefined)
+            : uploadSongTitle.trim());
+        
+        if (titleToUse) {
+          await apiRequest("PATCH", `/api/projects/${projectId}`, {
+            title: titleToUse
+          });
+        }
+        
+        setUploadProgress(100);
+        setUploadStatus("Complete!");
+        
+        setCurrentAudioUrl(data.audioUrl);
+        setIsUploading(false);
+        setIsTrimming(false);
+        setUploadProgress(0);
+        setUploadStatus("");
+        setShowTrimInterface(false);
+        setShowTrimInterfaceForGenerated(false);
+        setShowTrimInterfaceForLibrary(false);
+        
+        // Clean up preview URL (for upload tab)
+        if (previewAudioUrl && previewAudioUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(previewAudioUrl);
+        }
+        
+        setPreviewAudioUrl(null);
+        setPendingFile(null);
+        setSelectedGeneratedSongForTrim(null);
+        setSelectedLibrarySongForTrim(null);
+        
+        // Update actual duration
+        if (data.duration) {
+          setActualSongDuration(data.duration);
+        }
+        
+        const sceneCount = Math.ceil(data.duration / 10);
+        let successDescription = `Audio trimmed successfully! Duration: ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')} (${sceneCount} scenes will be generated)`;
+        
+        // Both full and trimmed versions are saved to library
+        if (isGeneratedSong) {
+          successDescription += ` Both the full and trimmed versions have been saved to your songs library.`;
+        } else if (isLibrarySong) {
+          successDescription += ` The trimmed audio has been saved to your songs library as a new song.`;
+        } else {
+          successDescription += ` The trimmed audio has been saved to your songs library.`;
+        }
+        // Invalidate songs query to refresh library
+        queryClient.invalidateQueries({ queryKey: ["/api/my-songs"] });
+        
+        toast({
+          title: "Success",
+          description: successDescription,
+        });
+      } catch (error) {
+        setIsUploading(false);
+        setIsTrimming(false);
+        toast({
+          title: "Update Failed",
+          description: (error as Error).message,
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (error) => {
+      setIsUploading(false);
+      setIsTrimming(false);
+      toast({
+        title: "Trim Failed",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Upload mutations
   const uploadAudioMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async (file: File, options?: { trimmedAudioUrl?: string }) => {
       return new Promise((resolve, reject) => {
         const formData = new FormData();
         formData.append('audio', file);
@@ -252,6 +410,9 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
       setIsUploading(false);
       setUploadProgress(0);
       setUploadStatus("");
+      setShowTrimInterface(false);
+      setPreviewAudioUrl(null);
+      setPendingFile(null);
       // Update actual duration from uploaded audio
       if (data.duration) {
         setActualSongDuration(data.duration);
@@ -283,9 +444,10 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   // Generate mutations
   const generateLyricsMutation = useMutation({
     mutationFn: async () => {
+      // Use a default duration of 120 seconds for lyrics generation (user will trim later)
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-lyrics`, {
         description,
-        duration: duration[0]
+        duration: 120
       });
       return response.json();
     },
@@ -330,11 +492,12 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         });
       }, 2000);
 
+      // Generate songs with a default duration of 120 seconds (user will trim after selection)
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-song`, {
         description,
         tags,
         lyrics,
-        duration: duration[0],
+        duration: 120, // Default duration - user will trim after selection
         addSubtitles,
         includeWatermark,
         isPublic,
@@ -379,7 +542,44 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
       setProgress(0);
       toast({
         title: "Error",
-        description: "Failed to generate song",
+        description: "Failed to generate songs",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Save generated song to library mutation
+  const saveSongToLibraryMutation = useMutation({
+    mutationFn: async (song: GeneratedSong) => {
+      const response = await apiRequest("POST", `/api/projects/${projectId}/select-song`, {
+        audioUrl: song.audioUrl,
+        audioTags: song.audioTags,
+        audioLyrics: song.audioLyrics,
+        title: song.title,
+        duration: song.duration,
+        subtitleFileUrl: song.subtitleFileUrl,
+        kieTaskId: song.kieTaskId,
+        kieAudioId: song.kieAudioId,
+        audioType: "generated",
+        aspectRatio: isVertical ? "3:4" : "16:9",
+        saveToLibrary: true // Flag to save full version to library
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.savedFullSongToLibrary) {
+        toast({
+          title: "Success",
+          description: "Song saved to your library!",
+        });
+        // Invalidate songs query to refresh library
+        queryClient.invalidateQueries({ queryKey: ["/api/my-songs"] });
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Save Failed",
+        description: (error as Error).message,
         variant: "destructive",
       });
     }
@@ -398,24 +598,30 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         subtitleFileUrl: selectedSong.subtitleFileUrl,
         kieTaskId: selectedSong.kieTaskId,
         kieAudioId: selectedSong.kieAudioId,
-        aspectRatio: isVertical ? "3:4" : "16:9"
+        audioType: "generated",
+        aspectRatio: isVertical ? "3:4" : "16:9",
+        saveToLibrary: true // Flag to save full version to library
       });
       return response.json();
     },
     onSuccess: (data, songIndex) => {
       // Use the passed songIndex (which is the mutation variable)
       const selectedSong = generatedSongs[songIndex] ?? generatedSongs[selectedGeneratedSongIndex];
-      setCurrentAudioUrl(data.audioUrl || selectedSong?.audioUrl);
-      // Update actual duration from selected song
-      if (selectedSong?.duration) {
-        setActualSongDuration(selectedSong.duration);
-      }
+      
+      // Show trim interface instead of directly selecting
+      setSelectedGeneratedSongForTrim(selectedSong);
+      setShowTrimInterfaceForGenerated(true);
       setShowSongSelection(false);
-      setGeneratedSongs([]);
-      toast({
-        title: "Success",
-        description: "Song selected for your project!",
-      });
+      
+      // Show message if full song was saved to library
+      if (data.savedFullSongToLibrary) {
+        toast({
+          title: "Song Selected",
+          description: "Full version saved to your library. Now select the portion you want to use.",
+        });
+        // Invalidate songs query to refresh library
+        queryClient.invalidateQueries({ queryKey: ["/api/my-songs"] });
+      }
     },
     onError: (error) => {
       toast({
@@ -477,7 +683,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   });
 
   // Upload handlers
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = async (file: File) => {
     const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/mp3'];
     const isValidType = allowedTypes.includes(file.type) || 
                        file.name.match(/\.(mp3|wav|aac)$/i);
@@ -500,8 +706,163 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
       return;
     }
     
+    // Create preview URL and get duration
+    const previewUrl = URL.createObjectURL(file);
+    setPendingFile(file);
+    
+    // Get audio duration for preview
+    const audio = new Audio(previewUrl);
+    audio.addEventListener('loadedmetadata', () => {
+      const duration = audio.duration;
+      setPreviewAudioDuration(duration);
+      setPreviewAudioUrl(previewUrl);
+      setShowTrimInterface(true);
+    });
+    
+    audio.addEventListener('error', () => {
+      // If preview fails, just upload directly
+      setIsUploading(true);
+      uploadAudioMutation.mutate(file);
+    });
+  };
+
+  const handleTrim = async (startTime: number, endTime: number) => {
+    if (!previewAudioUrl || !pendingFile) return;
+    
+    setIsTrimming(true);
     setIsUploading(true);
-    uploadAudioMutation.mutate(file);
+    setUploadStatus("Uploading audio file...");
+    
+    // Upload file first to get a URL for trimming
+    const formData = new FormData();
+    formData.append('audio', pendingFile);
+    if (uploadSongTitle.trim()) {
+      formData.append('title', uploadSongTitle.trim());
+    }
+    if (uploadSongDescription.trim()) {
+      formData.append('description', uploadSongDescription.trim());
+    }
+    formData.append('addSubtitles', 'false'); // Don't generate subtitles yet, we'll do it after trimming
+    formData.append('aspectRatio', isVertical ? "3:4" : "16:9");
+    formData.append('includeWatermark', includeWatermark ? 'true' : 'false');
+    formData.append('isPublic', isPublic ? 'true' : 'false');
+    
+    try {
+      const xhr = new XMLHttpRequest();
+      
+      // Track upload progress
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100);
+          setUploadProgress(percentComplete * 0.3); // Upload takes 30% of total progress
+          setUploadStatus("Uploading audio file...");
+        }
+      });
+      
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const uploadData = JSON.parse(xhr.responseText);
+            setUploadProgress(30);
+            setUploadStatus("Trimming audio...");
+            
+            // Now trim the uploaded audio
+            trimAudioMutation.mutate({
+              audioUrl: uploadData.audioUrl,
+              startTime,
+              endTime
+            });
+          } catch (error) {
+            setIsUploading(false);
+            setIsTrimming(false);
+            toast({
+              title: "Upload Failed",
+              description: 'Failed to parse response',
+              variant: "destructive",
+            });
+          }
+        } else {
+          setIsUploading(false);
+          setIsTrimming(false);
+          try {
+            const error = JSON.parse(xhr.responseText);
+            toast({
+              title: "Upload Failed",
+              description: error.error || 'Upload failed',
+              variant: "destructive",
+            });
+          } catch {
+            toast({
+              title: "Upload Failed",
+              description: 'Upload failed',
+              variant: "destructive",
+            });
+          }
+        }
+      });
+      
+      xhr.addEventListener('error', () => {
+        setIsUploading(false);
+        setIsTrimming(false);
+        toast({
+          title: "Upload Failed",
+          description: 'Upload failed due to network error',
+          variant: "destructive",
+        });
+      });
+      
+      xhr.open('POST', `/api/projects/${projectId}/upload-audio`);
+      xhr.send(formData);
+    } catch (error) {
+      setIsUploading(false);
+      setIsTrimming(false);
+      toast({
+        title: "Upload Failed",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelTrim = () => {
+    setShowTrimInterface(false);
+    if (previewAudioUrl) {
+      URL.revokeObjectURL(previewAudioUrl);
+    }
+    setPreviewAudioUrl(null);
+    setPendingFile(null);
+  };
+
+  // Handle trim for generated songs
+  const handleTrimGeneratedSong = async (startTime: number, endTime: number) => {
+    if (!selectedGeneratedSongForTrim) return;
+    
+    setIsTrimming(true);
+    setUploadProgress(50);
+    setUploadStatus("Trimming audio...");
+    
+    try {
+      // Trim the generated song
+      trimAudioMutation.mutate({
+        audioUrl: selectedGeneratedSongForTrim.audioUrl,
+        startTime,
+        endTime,
+        title: songTitle.trim() || selectedGeneratedSongForTrim.title || undefined,
+        description: description.trim() || undefined
+      });
+    } catch (error) {
+      setIsTrimming(false);
+      toast({
+        title: "Trim Failed",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelTrimGenerated = () => {
+    setShowTrimInterfaceForGenerated(false);
+    setSelectedGeneratedSongForTrim(null);
   };
 
   const handleAudioUpload = () => {
@@ -569,6 +930,38 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
     }
   };
 
+  // Handle trim for library songs
+  const handleTrimLibrarySong = async (startTime: number, endTime: number) => {
+    if (!selectedLibrarySongForTrim) return;
+    
+    setIsTrimming(true);
+    setUploadProgress(50);
+    setUploadStatus("Trimming audio...");
+    
+    try {
+      // Trim the library song - the trim-audio endpoint will save it as a new song
+      trimAudioMutation.mutate({
+        audioUrl: selectedLibrarySongForTrim.audioUrl,
+        startTime,
+        endTime,
+        title: librarySongTitle.trim() || selectedLibrarySongForTrim.title || undefined,
+        description: undefined
+      });
+    } catch (error) {
+      setIsTrimming(false);
+      toast({
+        title: "Trim Failed",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelTrimLibrary = () => {
+    setShowTrimInterfaceForLibrary(false);
+    setSelectedLibrarySongForTrim(null);
+  };
+
   return (
     <div className="max-w-5xl mx-auto mb-12 bg-card rounded-lg p-2 sm:p-4" data-testid="audio-creation-step">
       <div className="bg-background border border-border rounded-lg p-4 sm:p-8">
@@ -612,6 +1005,41 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
 
           {/* Generate with AI Tab */}
           <TabsContent value="generate" className="mt-6 space-y-6">
+            {/* Show trim interface if a generated song was selected */}
+            {showTrimInterfaceForGenerated && selectedGeneratedSongForTrim && (
+              <>
+                {/* Song Title Input */}
+                <div>
+                  <Label className="flex items-center text-sm font-semibold mb-2">
+                    <Music className="w-4 h-4 text-accent mr-2" />
+                    Song Title (Optional)
+                  </Label>
+                  <Input
+                    value={songTitle}
+                    onChange={(e) => setSongTitle(e.target.value)}
+                    placeholder="Enter a title for your song..."
+                    className="w-full"
+                    disabled={isTrimming}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Give your song a memorable title (optional)
+                  </p>
+                </div>
+                
+                <AudioTrimInterface
+                  audioUrl={selectedGeneratedSongForTrim.audioUrl}
+                  audioDuration={selectedGeneratedSongForTrim.duration || 120}
+                  onTrim={handleTrimGeneratedSong}
+                  onCancel={handleCancelTrimGenerated}
+                  isTrimming={isTrimming}
+                  isPaidUser={isPaidUser}
+                />
+              </>
+            )}
+            
+            {/* Show form fields when not in trim interface */}
+            {!showTrimInterfaceForGenerated && (
+              <div className="space-y-6">
             <div>
               <Label className="flex items-center text-sm font-semibold mb-2">
                 <Lightbulb className="w-4 h-4 text-accent mr-2" />
@@ -656,42 +1084,6 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
               </p>
             </div>
 
-            {/* Song Duration */}
-            <div>
-              <Label className="flex items-center text-sm font-semibold mb-2">
-                <i className="fas fa-clock text-accent mr-2"></i>
-                Song Duration
-              </Label>
-              <div className="space-y-3">
-                <div className="px-3">
-                  <Slider
-                    value={duration}
-                    onValueChange={setDuration}
-                    max={maxDuration}
-                    min={30}
-                    step={30}
-                    className="w-full"
-                    data-testid="duration-slider"
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-muted-foreground px-1 flex-wrap gap-1">
-                  {durationOptions.map(option => (
-                    <span 
-                      key={option}
-                      className={duration[0] === option ? "text-primary font-medium" : ""}
-                    >
-                      {getDurationLabel(option)}
-                    </span>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Current: {getDurationLabel(duration[0])}
-                  {!isPaidUser && (
-                    <span className="ml-2 text-orange-500">• Free users can only make 30 sec videos</span>
-                  )}
-                </p>
-              </div>
-            </div>
 
             {/* Subtitles, Watermark & Privacy Toggles - Single row */}
             <div className="flex flex-wrap gap-6">
@@ -844,7 +1236,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
             {generateSongMutation.isPending && (
               <div className="bg-muted/30 rounded-lg p-4" data-testid="song-generation-progress">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="font-semibold">Generating Song...</span>
+                  <span className="font-semibold">Generating Songs...</span>
                   <div className="loading-spinner"></div>
                 </div>
                 <Progress value={progress} className="mb-2" />
@@ -863,7 +1255,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
               <div className="bg-orange-500/10 border border-orange-500/30 rounded-md p-3">
                 <p className="text-sm text-orange-600 dark:text-orange-400">
                   <i className="fas fa-info-circle mr-2"></i>
-                  To generate a song, you need:
+                  To generate songs, you need:
                   <span className="block mt-1 ml-6">
                     {description.trim().length < 5 && (
                       <span className="block">• At least 5 characters in description (currently: {description.trim().length})</span>
@@ -910,66 +1302,81 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                       ? "Please enter at least 5 characters in description and add at least one tag" 
                       : !hasEnoughCredits 
                         ? "Not enough credits for this video duration" 
-                        : "Generate your AI song"
+                        : "Generate your AI songs"
               }
             >
               <Sparkles className="w-4 h-4 mr-2" />
-              Generate Song
+              Generate Songs (Free)
             </Button>
             
-            {/* Credit Info/Warning Message */}
-            <div className="mt-3">
-              {!hasEnoughCredits ? (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-md p-3">
-                  <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-                    Credits Required to Generate Video: {totalCreditsNeeded.toLocaleString()} (You have {userCreditsRemaining.toLocaleString()} remaining)
+              {/* Credit Info/Warning Message */}
+              <div className="mt-3">
+                {!hasEnoughCredits ? (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-md p-3">
+                    <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                      Credits Required to Generate Video: {totalCreditsNeeded.toLocaleString()} (You have {userCreditsRemaining.toLocaleString()} remaining)
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center">
+                    Credits Required to Generate Video: {totalCreditsNeeded.toLocaleString()}
                   </p>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center">
-                  Credits Required to Generate Video: {totalCreditsNeeded.toLocaleString()}
-                </p>
-              )}
-            </div>
+                )}
+              </div>
+              </div>
+            )}
           </TabsContent>
 
           {/* Upload Audio File Tab */}
           <TabsContent value="upload" className="mt-6 space-y-4">
-            <div 
-              className={`upload-zone rounded-lg p-12 text-center cursor-pointer transition-colors ${
-                isDragOver ? 'border-primary bg-primary/10' : ''
-              } ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
-              data-testid="audio-upload-zone"
-              onClick={handleAudioUpload}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-              <Music className="w-12 h-12 text-muted-foreground mb-4 mx-auto" />
-              {isUploading ? (
-                <p className="text-muted-foreground mb-2">Processing audio file...</p>
-              ) : (
-                <>
-                  <p className="text-muted-foreground mb-2">Drag and drop your audio file here</p>
-                  <p className="text-sm text-muted-foreground">or click to browse</p>
-                </>
-              )}
-              <p className="text-xs text-muted-foreground mt-2">Supports MP3, WAV, AAC (Max 10MB)</p>
-            </div>
+            {showTrimInterface && previewAudioUrl && previewAudioDuration > 0 ? (
+              <AudioTrimInterface
+                audioUrl={previewAudioUrl}
+                audioDuration={previewAudioDuration}
+                onTrim={handleTrim}
+                onCancel={handleCancelTrim}
+                isTrimming={isTrimming}
+                isPaidUser={isPaidUser}
+              />
+            ) : (
+              <div 
+                className={`upload-zone rounded-lg p-12 text-center cursor-pointer transition-colors ${
+                  isDragOver ? 'border-primary bg-primary/10' : ''
+                } ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
+                data-testid="audio-upload-zone"
+                onClick={handleAudioUpload}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <Music className="w-12 h-12 text-muted-foreground mb-4 mx-auto" />
+                {isUploading ? (
+                  <p className="text-muted-foreground mb-2">Processing audio file...</p>
+                ) : (
+                  <>
+                    <p className="text-muted-foreground mb-2">Drag and drop your audio file here</p>
+                    <p className="text-sm text-muted-foreground">or click to browse</p>
+                  </>
+                )}
+                <p className="text-xs text-muted-foreground mt-2">Supports MP3, WAV, AAC (Max 10MB)</p>
+              </div>
+            )}
             
-            {/* Upload Progress */}
-            {isUploading && (
+            {/* Upload Progress - Show when uploading/trimming */}
+            {(isUploading || isTrimming) && (
               <div className="bg-muted/30 rounded-lg p-4" data-testid="upload-progress">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="font-semibold">{uploadStatus}</span>
+                  <span className="font-semibold">{uploadStatus || "Processing..."}</span>
                   <Loader2 className="w-4 h-4 animate-spin text-primary" />
                 </div>
                 <Progress value={uploadProgress} className="mb-2" />
                 <p className="text-sm text-muted-foreground">
-                  {uploadProgress < 50 ? "Uploading your audio file..." :
-                   uploadProgress < 95 ? "Processing audio file..." :
-                   "Finalizing..."}
+                  {uploadProgress < 30 ? "Uploading your audio file..." :
+                   uploadProgress < 50 ? "Preparing to trim..." :
+                   uploadProgress < 80 ? "Trimming audio..." :
+                   uploadProgress < 100 ? "Finalizing..." :
+                   "Complete!"}
                 </p>
               </div>
             )}
@@ -979,7 +1386,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
               <p className="text-sm text-blue-600 dark:text-blue-400 flex items-start">
                 <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
                 <span>
-                  Upload your audio file and we'll automatically detect its duration. Maximum allowed: <strong>3 minutes</strong>. The number of scenes will be determined by your audio length (10 seconds per scene).
+                  Upload your audio file and we'll automatically detect its duration. Maximum allowed: <strong>{isPaidUser ? '4 minutes' : '2 minutes'}</strong>. The number of scenes will be determined by your audio length (10 seconds per scene).
                   {!isPaidUser && (
                     <span className="block mt-1 text-orange-600 dark:text-orange-400">• Free plan users: maximum 2 minutes</span>
                   )}
@@ -987,42 +1394,48 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
               </p>
             </div>
             
-            {/* Song Description for Upload */}
-            <div>
-              <Label className="flex items-center text-sm font-semibold mb-2">
-                <Lightbulb className="w-4 h-4 text-accent mr-2" />
-                What is your song about?
-              </Label>
-              <Textarea
-                value={uploadSongDescription}
-                onChange={(e) => setUploadSongDescription(e.target.value)}
-                placeholder="e.g., A lonely cowboy cat riding through the desert at sunset..."
-                rows={3}
-                className="resize-none"
-                data-testid="upload-song-description-input"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Describe the theme, mood, or story of your song - this will help generate relevant video scenes
-              </p>
-            </div>
-            
-            {/* Song Title for Upload */}
-            <div>
-              <Label className="flex items-center text-sm font-semibold mb-2">
-                <i className="fas fa-music text-primary mr-2"></i>
-                Song Title
-              </Label>
-              <Input
-                value={uploadSongTitle}
-                onChange={(e) => setUploadSongTitle(e.target.value)}
-                placeholder="Enter a title for your uploaded song..."
-                className="w-full"
-                data-testid="upload-song-title-input"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Give your uploaded song a memorable title
-              </p>
-            </div>
+            {/* Song Description for Upload - Show when not in trim interface or when trimming */}
+            {(!showTrimInterface || isTrimming) && (
+              <>
+                <div>
+                  <Label className="flex items-center text-sm font-semibold mb-2">
+                    <Lightbulb className="w-4 h-4 text-accent mr-2" />
+                    What is your song about?
+                  </Label>
+                  <Textarea
+                    value={uploadSongDescription}
+                    onChange={(e) => setUploadSongDescription(e.target.value)}
+                    placeholder="e.g., A lonely cowboy cat riding through the desert at sunset..."
+                    rows={3}
+                    className="resize-none"
+                    data-testid="upload-song-description-input"
+                    disabled={isTrimming}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Describe the theme, mood, or story of your song - this will help generate relevant video scenes
+                  </p>
+                </div>
+                
+                {/* Song Title for Upload */}
+                <div>
+                  <Label className="flex items-center text-sm font-semibold mb-2">
+                    <i className="fas fa-music text-primary mr-2"></i>
+                    Song Title
+                  </Label>
+                  <Input
+                    value={uploadSongTitle}
+                    onChange={(e) => setUploadSongTitle(e.target.value)}
+                    placeholder="Enter a title for your uploaded song..."
+                    className="w-full"
+                    data-testid="upload-song-title-input"
+                    disabled={isTrimming}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Give your uploaded song a memorable title
+                  </p>
+                </div>
+              </>
+            )}
             
             
             {/* Video Settings Toggles for Upload */}
@@ -1143,18 +1556,42 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                               </div>
                             </div>
                           </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              togglePlay(song.id);
-                            }}
-                            data-testid={`button-preview-${song.id}`}
-                          >
-                            <Play className="h-3 w-3 mr-1" />
-                            {playingSongId === song.id ? 'Stop' : 'Preview'}
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePlay(song.id);
+                              }}
+                              data-testid={`button-preview-${song.id}`}
+                            >
+                              <Play className="h-3 w-3 mr-1" />
+                              {playingSongId === song.id ? 'Stop' : 'Preview'}
+                            </Button>
+                            {song.duration && song.duration > 30 && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedLibrarySongForTrim(song);
+                                  setShowTrimInterfaceForLibrary(true);
+                                  // Scroll to trim interface after a short delay to ensure it's rendered
+                                  setTimeout(() => {
+                                  libraryTrimInterfaceRef.current?.scrollIntoView({ 
+                                    behavior: 'smooth', 
+                                    block: 'center' 
+                                  });
+                                  }, 100);
+                                }}
+                                data-testid={`button-trim-${song.id}`}
+                              >
+                                <Scissors className="h-3 w-3 mr-1" />
+                                Trim
+                              </Button>
+                            )}
+                          </div>
                         </div>
                         {playingSongId === song.id && (
                           <audio
@@ -1171,6 +1608,20 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                     </Card>
                   ))}
                 </div>
+                
+                {/* Trim Interface for Library Songs */}
+                {showTrimInterfaceForLibrary && selectedLibrarySongForTrim && (
+                  <div ref={libraryTrimInterfaceRef} className="mt-6">
+                    <AudioTrimInterface
+                      audioUrl={selectedLibrarySongForTrim.audioUrl}
+                      audioDuration={selectedLibrarySongForTrim.duration || 0}
+                      onTrim={handleTrimLibrarySong}
+                      onCancel={handleCancelTrimLibrary}
+                      isTrimming={isTrimming}
+                      isPaidUser={isPaidUser}
+                    />
+                  </div>
+                )}
                 
                 {/* Song Title for Library */}
                 {selectedSongId && (
@@ -1265,6 +1716,17 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
           </div>
         )}
 
+        {/* Credit Cost Display for Library Songs */}
+        {currentAudioUrl && actualSongDuration && (
+          <div className="mt-6 px-4">
+            <p className="text-sm text-muted-foreground text-center">
+              Minimum credits to generate a {Math.round(actualSongDuration)} seconds video:{" "}
+              <span className="font-semibold text-foreground">
+                {getVideoCreditCost(actualSongDuration).toLocaleString()} credits
+              </span>
+            </p>
+          </div>
+        )}
 
         {/* Next Step Button */}
         <div className="flex flex-col items-center gap-3 mt-8 px-4">
@@ -1325,7 +1787,33 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                         controls
                         className="w-full"
                         data-testid={`generated-song-audio-${index}`}
+                        onClick={(e) => e.stopPropagation()}
                       />
+                    </div>
+                    <div className="ml-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          saveSongToLibraryMutation.mutate(song);
+                        }}
+                        disabled={saveSongToLibraryMutation.isPending}
+                        className="flex items-center gap-2"
+                        data-testid={`save-song-to-library-${index}`}
+                      >
+                        {saveSongToLibraryMutation.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            Save to Library
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </div>
                 </CardContent>

@@ -43,7 +43,7 @@ export async function generateSongWithMinimax(
   console.log("Requested duration:", durationSeconds, "seconds");
   console.log("Effective request duration (capped at 4 min):", effectiveRequestDuration, "seconds");
   console.log("Max acceptable duration (100% tolerance, capped at 4 min):", maxAcceptableDuration, "seconds");
-  console.log("Will generate 4 parallel songs and pick the closest");
+  console.log("Will generate 2 parallel songs");
 
   for (let retryAttempt = 0; retryAttempt <= maxRetries; retryAttempt++) {
     if (retryAttempt > 0) {
@@ -56,7 +56,7 @@ export async function generateSongWithMinimax(
         lyrics,
         effectiveRequestDuration,
         description,
-        4
+        2
       );
 
       if (songs.length === 0) {
@@ -86,7 +86,7 @@ export async function generateSongWithMinimax(
       console.log(`All ${songs.length} generated songs exceeded max acceptable duration of ${maxAcceptableDuration}s`);
       
       if (retryAttempt < maxRetries) {
-        console.log("Will retry with 4 more generations...");
+        console.log("Will retry with 2 more generations...");
       }
     } catch (error) {
       console.error(`Generation attempt ${retryAttempt + 1} failed:`, error);
@@ -160,6 +160,39 @@ async function generateMultipleSongsInParallel(
   return successfulSongs;
 }
 
+// Generate 2 songs for user selection (no automatic selection)
+export async function generateMultipleSongsForSelection(
+  tags: string,
+  lyrics: string | undefined,
+  durationSeconds: number,
+  description: string | undefined
+): Promise<MinimaxSongResult[]> {
+  const effectiveRequestDuration = Math.min(durationSeconds, MAX_SONG_DURATION);
+  
+  console.log("=== GENERATING 2 SONGS FOR USER SELECTION ===");
+  console.log("Requested duration:", durationSeconds, "seconds");
+  console.log("Effective request duration (capped at 4 min):", effectiveRequestDuration, "seconds");
+  
+  const songs = await generateMultipleSongsInParallel(
+    tags,
+    lyrics,
+    effectiveRequestDuration,
+    description,
+    2
+  );
+
+  if (songs.length === 0) {
+    throw new Error("No songs were generated successfully");
+  }
+
+  console.log(`\n=== GENERATED ${songs.length} SONG(S) FOR USER SELECTION ===`);
+  songs.forEach((song, i) => {
+    console.log(`  Song ${i + 1}: duration=${song.duration}s, url=${song.audioUrl.substring(0, 50)}...`);
+  });
+
+  return songs;
+}
+
 function selectBestSong(
   songs: MinimaxSongResult[],
   requestedDuration: number,
@@ -216,8 +249,7 @@ async function generateSingleSong(
     promptParts.push(description.trim());
   }
 
-  promptParts.push(`${durationSeconds} seconds`);
-
+  // Duration removed from prompt - let the model generate naturally
   const prompt = promptParts.join(", ");
 
   console.log(`[Song ${songIndex}] Starting generation...`);
@@ -408,9 +440,14 @@ export function calculateVideoSegments(durationSeconds: number): {
   }
 
   // Add remainder as the last segment if there's any remaining time
-  // The last segment can be any length (will use infinitetalk which supports any audio length)
+  // BUT: If remainder is less than 2 seconds, skip it (AI models require minimum 2 seconds)
   if (remainder > 0) {
-    segmentDurations.push(remainder);
+    if (remainder >= 2) {
+      segmentDurations.push(remainder);
+    } else {
+      console.log(`⚠️ Last segment would be ${remainder}s (less than 2s minimum) - skipping it`);
+      console.log(`Total coverage: ${segmentDurations.reduce((a, b) => a + b, 0)}s (original: ${durationSeconds}s)`);
+    }
   }
 
   // If we ended up with no segments (shouldn't happen), add one 10s segment

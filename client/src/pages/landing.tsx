@@ -1,48 +1,94 @@
-import { useState, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Video, Sparkles, Music, Wand2, Play, Calendar, User, ArrowRight, Volume2, VolumeX } from "lucide-react";
+import { Video, Sparkles, Music, Wand2, Play, ArrowRight, Volume2, VolumeX } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { format } from "date-fns";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 import { useAuth } from "@/hooks/use-auth";
 import { SiTiktok, SiFacebook, SiYoutube } from "react-icons/si";
 
 const heroVideo = "https://res.cloudinary.com/dqemas8ht/video/upload/v1769200552/hero_video-BLAd97Wv_urt68e.mp4";
 
-interface TrendingVideo {
-  id: string;
-  title: string;
-  videoUrl: string;
-  thumbnailUrl?: string | null;
-  createdAt: string;
-  duration: number;
-  creator: {
-    username: string;
-    avatarUrl?: string | null;
-  };
+// TikTok embed has a fixed width of 325px, we use height 538px to hide bottom UI
+function TikTokEmbed({ videoId }: { videoId: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const updateScale = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.offsetWidth;
+        const containerHeight = containerRef.current.offsetHeight;
+        // TikTok embed is 325x538 (reduced height to hide bottom UI)
+        const scaleX = containerWidth / 325;
+        const scaleY = containerHeight / 538;
+        // Use the smaller scale to fit everything (1.00x - no extra scaling)
+        const newScale = Math.min(scaleX, scaleY);
+        setScale(newScale);
+      }
+    };
+
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    // Use ResizeObserver for more accurate container size tracking
+    const resizeObserver = new ResizeObserver(updateScale);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+    return () => {
+      window.removeEventListener('resize', updateScale);
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  return (
+    <Card 
+      className="overflow-hidden bg-card/50 backdrop-blur-sm"
+      data-testid={`tiktok-video-${videoId}`}
+    >
+      <div 
+        ref={containerRef}
+        className="bg-black relative"
+        style={{
+          aspectRatio: '325 / 538', // Match the iframe aspect ratio (325:538)
+        }}
+      >
+        <div
+          className="absolute"
+          style={{
+            width: '325px',
+            height: '538px',
+            left: '50%',
+            top: '50%',
+            transform: `translate(-50%, -50%) scale(${scale})`,
+            transformOrigin: 'center center',
+          }}
+        >
+          <iframe
+            src={`https://www.tiktok.com/embed/v2/${videoId}`}
+            className="w-full h-full"
+            style={{
+              width: '325px',
+              height: '538px',
+              pointerEvents: 'auto',
+            }}
+            frameBorder="0"
+            scrolling="no"
+            allow="encrypted-media"
+            allowFullScreen
+            title={`TikTok video ${videoId}`}
+          />
+        </div>
+      </div>
+    </Card>
+  );
 }
 
 export default function LandingPage() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
-  const [selectedVideo, setSelectedVideo] = useState<TrendingVideo | null>(null);
-  const [videoError, setVideoError] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState(true);
   const heroVideoRef = useRef<HTMLVideoElement>(null);
-
-  const { data: videos = [], isLoading } = useQuery<TrendingVideo[]>({
-    queryKey: ["/api/trending-videos"],
-  });
-
-  const formatDuration = (seconds: number): string => {
-    if (seconds < 60) return `${seconds}s`;
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
-  };
 
   const handleGetStarted = () => {
     if (user) {
@@ -229,78 +275,63 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Trending Videos Section */}
+      {/* TikTok Videos Section */}
       <section className="container mx-auto px-4 py-12">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold mb-3">Trending Videos</h2>
+          <h2 className="text-3xl font-bold mb-3">Featured Videos</h2>
           <p className="text-muted-foreground">
-            Discover amazing AI-generated music videos created by our community
+            Check out our latest AI-generated music videos on TikTok
           </p>
         </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="loading-spinner w-6 h-6"></div>
-          </div>
-        ) : videos.length === 0 ? (
-          <div className="text-center py-12">
-            <Video className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
-            <p className="text-muted-foreground mb-4">
-              No videos available yet
-            </p>
-            <Button 
-              onClick={handleGetStarted}
-              className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-            >
-              <Video className="h-4 w-4 mr-2" />
-              Be the First to Create
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {videos.map((video) => (
-              <Card 
-                key={video.id} 
-                className="overflow-hidden hover:border-primary/50 transition-all hover:scale-105 cursor-pointer bg-card/50 backdrop-blur-sm"
-                onClick={() => setSelectedVideo(video)}
-                data-testid={`trending-video-${video.id}`}
-              >
-                <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center relative overflow-hidden group">
-                  <video
-                    className="absolute inset-0 w-full h-full object-cover"
-                    src={video.videoUrl}
-                    preload="metadata"
-                    muted
-                    onError={() => setVideoError(true)}
-                  />
-                  <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                    <Play className="h-12 w-12 text-white opacity-80 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                    {formatDuration(video.duration)}
-                  </div>
-                </div>
-                <CardContent className="p-4">
-                  <h3 className="font-semibold mb-2 line-clamp-1">
-                    {video.title || "Untitled Video"}
-                  </h3>
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <User className="h-3 w-3" />
-                      <span className="truncate max-w-[120px]">
-                        {video.creator.username}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      {format(new Date(video.createdAt), "MMM d")}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+          {[
+            "7599078362769886494",
+            "7575338797584469279",
+            "7574658234779208991",
+            "7602994316557978893",
+            "7598756835025227039",
+            "7561092405684915470",
+            "7596083992202349837",
+            "7573353727168433422",
+            "7566720433408445709",
+            "7592820321829276983",
+            "7575203893395623198",
+            "7578919925947895095",
+            "7579090130250632462",
+            "7592341002602515767",
+            "7600984196785523999",
+            "7574420688082144525",
+            "7596167634417143070",
+            "7559368462649281806",
+            "7559236974125583629",
+            "7559190585400167735",
+            "7582630957912542477",
+            "7576044166963023159",
+            "7562576600429120781",
+            "7593021385451113741",
+            "7602437689744428318",
+            "7600814100892896543",
+            "7600659726912769311",
+            "7582058866762943758",
+            "7598649418065169677",
+            "7598587535555693837",
+            "7560303418946981175",
+            "7560457124677963022",
+            "7560544083698027790",
+            "7560546740261227831",
+            "7560860394026274061",
+            "7564231136319147277",
+            "7566983387001474359",
+            "7564973260727782669",
+            "7579059252707347725",
+            "7564571361318882615",
+            "7569271658574269751",
+            "7581950539068411150",
+          ].map((videoId) => (
+            <TikTokEmbed key={videoId} videoId={videoId} />
+          ))}
+        </div>
       </section>
 
       {/* CTA Section */}
@@ -332,31 +363,6 @@ export default function LandingPage() {
           <img width="300" src="https://media.theresanaiforthat.com/featured-on-taaft.png?width=600" alt="Featured on There's An AI For That" />
         </a>
       </section>
-
-      {/* Video Player Modal */}
-      {selectedVideo && (
-        <Dialog open={!!selectedVideo} onOpenChange={() => setSelectedVideo(null)}>
-          <DialogContent className="max-w-4xl p-0 overflow-hidden" data-testid="video-player-modal">
-            <div className="relative aspect-video bg-black">
-              <video
-                className="w-full h-full"
-                src={selectedVideo.videoUrl}
-                controls
-                autoPlay
-                onError={() => setVideoError(true)}
-                data-testid="video-player"
-              />
-            </div>
-            <div className="p-4">
-              <h3 className="text-lg font-semibold mb-2">{selectedVideo.title}</h3>
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>By {selectedVideo.creator.username}</span>
-                <span>{format(new Date(selectedVideo.createdAt), "MMM d, yyyy")}</span>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
 
       {/* Footer */}
       <footer className="border-t border-border/50 bg-card/30 backdrop-blur-sm mt-16">

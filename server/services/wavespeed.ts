@@ -242,9 +242,13 @@ async function generateVideoSegmentInternal(
       statusResult.data.outputs.length > 0
     ) {
       return statusResult.data.outputs[0];
-    } else if (statusResult.data?.status === "failed") {
+    } else if (statusResult.status === "failed" || statusResult.data?.status === "failed") {
+      // Handle both response formats: statusResult.status or statusResult.data.status
+      const errorDetails = statusResult.error || statusResult.data?.error || "Unknown error";
+      const errorMessage = typeof errorDetails === 'string' ? errorDetails : JSON.stringify(errorDetails);
+      console.error(`Video generation failed with error: ${errorMessage}`);
       throw new Error(
-        `Video generation failed: ${statusResult.data.error || "Unknown error"}`,
+        `Video generation failed: ${errorMessage}`,
       );
     }
 
@@ -264,7 +268,7 @@ function isSensitiveContentError(error: Error): boolean {
          errorMessage.includes('inappropriate');
 }
 
-// Check if error is a transient/retryable network error
+// Check if error is a transient/retryable network error or processing error
 function isTransientError(error: Error): boolean {
   const errorMessage = error.message.toLowerCase();
   return errorMessage.includes('connection aborted') ||
@@ -276,7 +280,10 @@ function isTransientError(error: Error): boolean {
          errorMessage.includes('timeout') ||
          errorMessage.includes('502') ||
          errorMessage.includes('503') ||
-         errorMessage.includes('504');
+         errorMessage.includes('504') ||
+         errorMessage.includes('ffmpeg') || // FFmpeg processing errors are often transient
+         errorMessage.includes('error during processing') || // Processing errors can be retried
+         errorMessage.includes('video generation failed'); // Failed status from API can be retried
 }
 
 // Maximum number of retries for transient errors
@@ -426,7 +433,7 @@ export async function generateAllVideoSegmentsDynamic(
   }
   
   // Helper function to determine if a scene should use lipsync
-  // Priority: 1) Explicit per-scene setting, 2) Default pattern based on scene number/duration
+  // Priority: 1) Explicit per-scene setting, 2) Duration check for last segment, 3) Default pattern based on scene number
   const shouldUseLipsync = (index: number, segDuration: number): { useLipsync: boolean; reason: string } => {
     const isLastSegment = index === audioSegments.length - 1;
     const sceneNumber = index + 1; // 1-indexed
@@ -440,9 +447,18 @@ export async function generateAllVideoSegmentsDynamic(
       };
     }
     
-    // Seedance requires minimum 10 seconds, so for shorter segments force lipsync
+    // IMPORTANT: If last segment is less than 4 seconds, do NOT use lipsync (infinitetalk)
+    // Very short audio segments can cause FFmpeg errors in infinitetalk
+    if (isLastSegment && segDuration < 4) {
+      console.log(`⚠️ Last segment duration (${segDuration}s) is too short for lipsync - forcing REGULAR (seedance)`);
+      return { useLipsync: false, reason: `last segment ${segDuration}s < 4s → forcing REGULAR (too short for lipsync)` };
+    }
+    
+    // For last segment between 4-10 seconds, we can use lipsync if needed
+    // Seedance requires minimum 2 seconds, so segments < 10s can still use seedance
     if (isLastSegment && segDuration < 10) {
-      return { useLipsync: true, reason: `last segment ${segDuration}s < 10s → forcing LIPSYNC for sync` };
+      // Use default pattern for segments 4-10 seconds (can use either model)
+      // Continue to pattern logic below
     }
     
     // Default pattern for 30-second videos (3 segments): Scene 1 = regular, Scenes 2-3 = lipsync
@@ -450,6 +466,10 @@ export async function generateAllVideoSegmentsDynamic(
       if (index === 0) {
         return { useLipsync: false, reason: '30s pattern: Scene 1 → REGULAR' };
       } else {
+        // For scene 2-3, check if it's the last segment and too short
+        if (isLastSegment && segDuration < 4) {
+          return { useLipsync: false, reason: `30s pattern: Scene ${sceneNumber} → REGULAR (${segDuration}s too short for lipsync)` };
+        }
         return { useLipsync: true, reason: `30s pattern: Scene ${sceneNumber} → LIPSYNC` };
       }
     }
@@ -458,6 +478,10 @@ export async function generateAllVideoSegmentsDynamic(
     if (sceneNumber % 2 === 1) {
       return { useLipsync: false, reason: 'ODD scene → REGULAR' };
     } else {
+      // For even scenes, check if it's the last segment and too short
+      if (isLastSegment && segDuration < 4) {
+        return { useLipsync: false, reason: `EVEN scene → REGULAR (${segDuration}s too short for lipsync)` };
+      }
       return { useLipsync: true, reason: 'EVEN scene → LIPSYNC' };
     }
   };

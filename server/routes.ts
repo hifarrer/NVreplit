@@ -4883,8 +4883,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userWithPlan = await storage.getUserWithPlan(project.userId);
       const isPaidUser = userWithPlan?.plan && userWithPlan.plan.monthlyPrice > 0;
       
-      // Cap duration based on user plan: Free users max 120s (2 min), Paid users max 180s (3 min)
-      const maxDuration = isPaidUser ? 180 : 120;
+      // Cap duration based on user plan: Free users max 120s (2 min), Paid users max 240s (4 min)
+      const maxDuration = isPaidUser ? 240 : 120;
       
       // Get song title, description, lyrics, subtitles toggle and aspect ratio from request (optional)
       const songTitle = req.body.title || "";
@@ -5198,6 +5198,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Trim audio file using split_audio_time endpoint
+  app.post("/api/projects/:id/trim-audio", async (req, res) => {
+    try {
+      const { audioUrl, startTime, endTime, title, description } = req.body; // startTime and endTime in milliseconds
+      
+      if (!audioUrl || startTime === undefined || endTime === undefined) {
+        return res.status(400).json({ error: "Missing required parameters: audioUrl, startTime, endTime" });
+      }
+
+      if (startTime >= endTime) {
+        return res.status(400).json({ error: "startTime must be less than endTime" });
+      }
+
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      // Subtract 10ms from endTime to ensure the trimmed audio doesn't exceed the requested duration
+      // This prevents cases where FFmpeg might include a bit more audio due to frame boundaries
+      // Ensure adjustedEndTime is still greater than startTime (with at least 10ms difference)
+      const adjustedEndTime = Math.max(startTime + 10, endTime - 10);
+      
+      console.log(`Trimming audio: ${audioUrl} from ${startTime}ms to ${endTime}ms (adjusted endTime: ${adjustedEndTime}ms)`);
+
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "audio_trim",
+        message: `Trimming audio from ${Math.floor(startTime / 1000)}s to ${Math.floor(endTime / 1000)}s...`,
+        status: "progress",
+        metadata: { startTime, endTime, adjustedEndTime }
+      });
+
+      const { splitAudioByTime } = await import("./services/ffmpeg");
+      const result = await splitAudioByTime(audioUrl, startTime, adjustedEndTime);
+
+      // Download the trimmed audio
+      const trimmedResponse = await fetch(result.download_url);
+      const trimmedBuffer = Buffer.from(await trimmedResponse.arrayBuffer());
+
+      // Upload trimmed audio to object storage
+      const objectStorageService = new ObjectStorageService();
+      const audioPath = `songs/${crypto.randomUUID()}.mp3`;
+      const trimmedUrl = await objectStorageService.uploadAudioBuffer(trimmedBuffer, audioPath);
+
+      // Get public URL
+      const publicAudioUrl = trimmedUrl.startsWith('http') 
+        ? trimmedUrl 
+        : await objectStorageService.getSignedUrlForPath(`/objects/${audioPath}`, 86400);
+
+      // Get duration of trimmed audio
+      const { getAudioDurationFromFile } = await import("./services/ffmpeg");
+      const tempFilePath = path.join(uploadDir, `trimmed-${crypto.randomUUID()}.mp3`);
+      fs.writeFileSync(tempFilePath, trimmedBuffer);
+      const trimmedDuration = await getAudioDurationFromFile(tempFilePath);
+      fs.unlinkSync(tempFilePath); // Clean up temp file
+
+      // Save trimmed audio to user's library
+      let savedSong = null;
+      try {
+        const songTitle = title || `Trimmed Audio (${Math.floor(startTime / 1000)}s - ${Math.floor(endTime / 1000)}s)`;
+        const songData = {
+          userId: project.userId,
+          title: songTitle,
+          url: publicAudioUrl,
+          duration: trimmedDuration,
+          tags: null,
+          lyrics: null,
+          prompt: description || null,
+          subtitleFileUrl: null,
+          kieTaskId: null,
+          kieAudioId: null
+        };
+        
+        console.log("=== SAVING TRIMMED AUDIO TO USER LIBRARY ===");
+        console.log("Song data:", JSON.stringify(songData, null, 2));
+        
+        savedSong = await storage.addSong(songData);
+        console.log("✅ Trimmed audio successfully saved to user library!");
+        console.log("Saved song ID:", savedSong.id);
+        console.log("Saved song URL:", savedSong.url);
+      } catch (libraryError) {
+        console.error("❌ FAILED to save trimmed audio to library:", libraryError);
+        // Continue even if saving to library fails - the trim was successful
+      }
+
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "audio_trim",
+        message: `Audio trimmed successfully (${trimmedDuration}s)${savedSong ? ' and saved to library' : ''}`,
+        status: "completed",
+        metadata: { 
+          originalUrl: audioUrl,
+          trimmedUrl: publicAudioUrl,
+          duration: trimmedDuration,
+          startTime,
+          endTime,
+          savedToLibrary: !!savedSong,
+          songId: savedSong?.id || null
+        }
+      });
+
+      res.json({
+        audioUrl: publicAudioUrl,
+        duration: trimmedDuration,
+        startTime,
+        endTime,
+        songId: savedSong?.id || null,
+        savedToLibrary: !!savedSong
+      });
+    } catch (error) {
+      console.error("Trim audio error:", error);
+      
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "audio_trim",
+        message: `Audio trimming failed: ${(error as Error).message}`,
+        status: "error",
+        metadata: { error: (error as Error).message }
+      });
+
+      res.status(500).json({ error: "Failed to trim audio file" });
+    }
+  });
+
   // Generate lyrics with OpenAI and KIE.AI fallback
   app.post("/api/projects/:id/generate-lyrics", async (req, res) => {
     try {
@@ -5420,8 +5545,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isPaidUser = userWithPlan?.plan && userWithPlan.plan.monthlyPrice > 0;
       const isPremiumUser = userWithPlan?.plan?.name === "Premium";
       
-      // Validate duration based on user plan: Free users max 30s, Paid users max 180s (3 min)
-      const maxDuration = isPaidUser ? 180 : 30;
+      // Validate duration based on user plan: Free users max 30s, Paid users max 240s (4 min)
+      const maxDuration = isPaidUser ? 240 : 30;
       if (duration > maxDuration) {
         return res.status(400).json({ 
           error: `Duration exceeds maximum allowed for your plan. ${isPaidUser ? 'Paid users' : 'Free users'} can generate songs up to ${maxDuration} seconds${isPaidUser ? ` (${maxDuration / 60} minutes)` : ''}.`,
@@ -5452,172 +5577,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let kieTaskId = null;
       let kieAudioId = null;
       
-      // Use Minimax Music 02 for song generation with robust parallel generation
-      // The function internally generates 4 songs in parallel, selects the closest to requested duration,
-      // and retries if all exceed 100% of requested duration (up to 2 retries)
-      console.log("Using Minimax Music 02 for song generation...");
+      // Use Minimax Music 02 for song generation - generates 2 songs in parallel
+      // This ensures at least 1 song is available if one generation fails
+      console.log("Using Minimax Music 02 for song generation (2 songs)...");
       
-      const minimaxSong = await generateSongWithMinimax(tags, lyrics, duration, description);
-      const selectionReason = "robust_parallel_selection";
+      // Generate 2 songs in parallel - user will select one, then trim it
+      const { generateMultipleSongsForSelection } = await import("./services/minimax");
+      const minimaxSongs = await generateMultipleSongsForSelection(tags, lyrics, duration, description);
       
-      // The actual duration from Minimax may differ from the requested duration
-      // This is expected behavior - we'll use the actual duration for video segment calculation
-      const actualDuration = minimaxSong.duration;
-      console.log(`Final selected song duration: ${actualDuration}s (requested: ${duration}s)`);
+      if (minimaxSongs.length === 0) {
+        throw new Error("Failed to generate any songs");
+      }
+      
+      console.log(`Generated ${minimaxSongs.length} song(s) for user selection`);
       
       // Log song generation for traceability
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "song_generation",
-        message: `Generated song with duration ${actualDuration}s (requested: ${duration}s)`,
+        message: `Generated ${minimaxSongs.length} song(s) for user selection`,
         status: "completed",
         metadata: {
           requestedDuration: duration,
-          selectedDuration: actualDuration,
-          selectionReason
+          songsGenerated: minimaxSongs.length,
+          songDurations: minimaxSongs.map(s => s.duration)
         }
       });
       
-      // Create result format similar to KIE response but with single song
-      result = {
-        songs: [minimaxSong],
-        firstSongUrl: minimaxSong.audioUrl
-      };
-      
-      // Always generate subtitles using ElevenLabs forced alignment when lyrics are available
-      // (needed for timeline lyrics display, even if subtitles won't be shown in final video)
-      if (lyrics) {
-        console.log("Generating subtitles using ElevenLabs forced alignment...");
-        
-        try {
-          // Create forced alignment with ElevenLabs using the Minimax-generated song
-          const alignmentResponse = await createForcedAlignment(minimaxSong.audioUrl, lyrics);
-          
-          // Convert to .ass format
-          const assContent = convertElevenLabsAlignmentToASS(alignmentResponse);
-          generatedSubtitlesContent = assContent; // Store for debugging display
-          
-          // Store subtitle file with the song ID for proper association
-          const songId = minimaxSong.audioUrl.split('/').pop()?.replace('.mp3', '') || undefined;
-          subtitleFileUrl = await storeElevenLabsSubtitleFile(assContent, songId);
-          
-          console.log("Subtitle file stored at:", subtitleFileUrl);
-          
-          await storage.addGenerationLog({
-            projectId: req.params.id,
-            step: "subtitle_generation", 
-            message: "Subtitles generated successfully using ElevenLabs forced alignment",
-            status: "completed",
-            metadata: { subtitleFileUrl, wordCount: alignmentResponse.words?.length || 0 }
-          });
-        } catch (subtitleError) {
-          console.error("Subtitle generation failed:", subtitleError);
-          await storage.addGenerationLog({
-            projectId: req.params.id,
-            step: "subtitle_generation",
-            message: `Subtitle generation failed: ${(subtitleError as Error).message}`,
-            status: "error",
-            metadata: { error: (subtitleError as Error).message }
-          });
-          // Continue without subtitles
-        }
-      }
-      
-      // Save the song to the user's library
-      // Note: We already have 'project' from earlier in this endpoint
-      const selectedSong = result.songs[0];
-      const songData = {
-        userId: project.userId,
-        title: songTitle || description || tags || "NeonVideo Song",
-        url: selectedSong.audioUrl,
-        duration: actualDuration, // Use actual duration from Minimax (may differ from requested)
-        tags: tags || null,
-        lyrics: lyrics || null,
-        prompt: description || null,
-        subtitleFileUrl: subtitleFileUrl || null,
-        // Remove KIE fields since we're using Minimax
-        kieTaskId: null,
-        kieAudioId: null
-      };
-      
-      console.log("=== ATTEMPTING TO SAVE SONG TO LIBRARY ===");
-      console.log("Song data:", JSON.stringify(songData, null, 2));
-      
-      let savedSong;
-      try {
-        savedSong = await storage.addSong(songData);
-        console.log("✅ Song successfully saved to user library!");
-        console.log("Saved song ID:", savedSong.id);
-        console.log("Saved song URL:", savedSong.url);
-        
-        // If subtitles were generated but we have the song ID now, 
-        // re-store the subtitle file with the song ID as the filename
-        if (generatedSubtitlesContent && savedSong.id) {
-          try {
-            console.log("Re-storing ElevenLabs subtitle file with song ID...");
-            const namedSubtitleUrl = await storeElevenLabsSubtitleFile(generatedSubtitlesContent, savedSong.id);
-            subtitleFileUrl = namedSubtitleUrl;
-            
-            console.log("Updated ElevenLabs subtitle file URL:", namedSubtitleUrl);
-            
-          } catch (subtitleUpdateError) {
-            console.warn("Failed to re-store ElevenLabs subtitle with song ID:", subtitleUpdateError);
-            // Keep the original subtitle URL
-          }
-        }
-      } catch (libraryError) {
-        console.error("❌ FAILED to save song to library:");
-        console.error("Error details:", libraryError);
-        console.error("Error message:", (libraryError as Error).message);
-        console.error("Error stack:", (libraryError as Error).stack);
-        // Don't fail the entire request if saving to library fails
-      }
-      
-      // Update the project with the selected song
-      // IMPORTANT: Store the actual duration from Minimax (not the requested duration)
-      // This ensures correct video segment calculation later
-      await storage.updateProject(req.params.id, {
-        title: description || tags, // Use the full song description as the project title, fallback to tags
-        audioUrl: selectedSong.audioUrl,
-        audioType: "generated",
-        audioPrompt: description,
-        audioTags: tags,
-        audioLyrics: lyrics,
-        audioDuration: actualDuration, // Store the ACTUAL duration from Minimax (may differ from requested)
-        addSubtitles: addSubtitles,
-        includeWatermark: finalIncludeWatermark, // Server-side enforced watermark setting
-        isPublic: finalIsPublic, // Server-side enforced privacy setting (Premium only)
-        aspectRatio: aspectRatio, // Store the aspect ratio ('16:9' or '3:4')
-        subtitleFileUrl: subtitleFileUrl,
-        // Remove KIE fields since we're using ElevenLabs
+      // Create result format with multiple songs for user selection
+      // Format songs to match expected structure
+      const formattedSongs = minimaxSongs.map((song, index) => ({
+        id: `generated-${index}`,
+        title: song.title,
+        audioUrl: song.audioUrl,
+        audioTags: tags || null,
+        audioLyrics: lyrics || null,
+        duration: song.duration,
+        subtitleFileUrl: null, // Will be generated after selection if needed
         kieTaskId: null,
         kieAudioId: null,
-        currentStep: 2
-      });
-
-      await storage.addGenerationLog({
-        projectId: req.params.id,
-        step: "song_generation",
-        message: `Generated ${result.songs.length} songs successfully`,
-        status: "completed",
-        metadata: { songs: result.songs }
-      });
-
-      // Song generation is free - no credit deduction needed
-      // Credits are only consumed when generating the video
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }));
       
-      // Add actual duration and debugging subtitle content to response
-      // The actual duration is important since Minimax may generate songs
-      // with different durations than requested (typically ±15 seconds)
-      const responseData = {
-        ...result,
-        actualDuration, // Include the actual duration from Minimax
-        requestedDuration: duration, // Include the originally requested duration
-        subtitleFileUrl,
-        generatedSubtitlesContent // For debugging display
-      };
-      
-      res.json(responseData);
+      // Return the songs for user selection
+      // Note: Subtitles and library saving will happen after user selects a song and trims it
+      res.json({
+        songs: formattedSongs,
+        generatedSubtitlesContent: null,
+        subtitleFileUrl: null
+      });
     } catch (error) {
       console.error("Generate song error:", error);
       await storage.addGenerationLog({
@@ -5816,7 +5825,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Select song for project (handles both generated songs and library songs)
   app.post("/api/projects/:id/select-song", authenticateToken, async (req, res) => {
     try {
-      const { audioUrl, audioTags, audioLyrics, audioType, duration, subtitleFileUrl, kieTaskId, kieAudioId, title, aspectRatio, addSubtitles, includeWatermark, isPublic } = req.body;
+      const { audioUrl, audioTags, audioLyrics, audioType, duration, subtitleFileUrl, kieTaskId, kieAudioId, title, aspectRatio, addSubtitles, includeWatermark, isPublic, saveToLibrary } = req.body;
       
       console.log("=== SELECT-SONG REQUEST ===");
       console.log("Request body:", JSON.stringify(req.body, null, 2));
@@ -5854,17 +5863,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Project not found" });
       }
 
+      // Save full version of generated song to user's library (only when explicitly requested)
+      let savedFullSong = null;
+      if (saveToLibrary && audioType === "generated" && audioUrl) {
+        try {
+          const songData = {
+            userId: project.userId,
+            title: title || audioTags || "Generated Song",
+            url: audioUrl,
+            duration: duration || null,
+            tags: audioTags || null,
+            lyrics: audioLyrics || null,
+            prompt: null, // Will be set from project if needed
+            subtitleFileUrl: subtitleFileUrl || null,
+            kieTaskId: kieTaskId || null,
+            kieAudioId: kieAudioId || null
+          };
+          
+          console.log("=== SAVING FULL GENERATED SONG TO USER LIBRARY ===");
+          console.log("Song data:", JSON.stringify(songData, null, 2));
+          
+          savedFullSong = await storage.addSong(songData);
+          console.log("✅ Full generated song successfully saved to user library!");
+          console.log("Saved song ID:", savedFullSong.id);
+        } catch (libraryError) {
+          console.error("❌ FAILED to save full generated song to library:", libraryError);
+          // Continue even if saving to library fails - the selection was successful
+        }
+      }
+
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "song_selection",
         message: "Song selected for project",
         status: "completed",
-        metadata: { audioUrl, audioTags, audioLyrics, duration }
+        metadata: { 
+          audioUrl, 
+          audioTags, 
+          audioLyrics, 
+          duration,
+          savedFullSongToLibrary: !!savedFullSong,
+          fullSongId: savedFullSong?.id || null
+        }
       });
       
       res.json({ 
         audioUrl: project.audioUrl,
-        message: 'Song selected successfully' 
+        message: 'Song selected successfully',
+        savedFullSongToLibrary: !!savedFullSong,
+        fullSongId: savedFullSong?.id || null
       });
     } catch (error) {
       console.error("Select song error:", error);
@@ -6130,8 +6177,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Final audioDuration used:", audioDuration);
       
       // Calculate number of scenes dynamically based on 10-second segments
-      const numberOfScenes = Math.ceil(audioDuration / 10);
-      const numberOfAudioParts = Math.ceil(audioDuration / 10);
+      // Apply the new logic: segments must be 10s each, and last segment must be >= 2s
+      const fullSegments = Math.floor(audioDuration / 10);
+      const remainder = audioDuration % 10;
+      // Only include remainder if it's >= 2 seconds (minimum for AI models)
+      const numberOfScenes = remainder >= 2 ? fullSegments + 1 : fullSegments;
+      const numberOfAudioParts = numberOfScenes;
+      
+      if (remainder > 0 && remainder < 2) {
+        console.log(`⚠️ Last segment would be ${remainder}s (less than 2s minimum) - excluding it from scene generation`);
+        console.log(`   Will generate ${numberOfScenes} scenes instead of ${fullSegments + 1}`);
+      }
       
       console.log("Dynamically calculated scene count:", numberOfScenes);
       console.log("Number of audio parts:", numberOfAudioParts);
@@ -6958,14 +7014,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`Using audio duration: ${audioDuration} seconds for video generation`);
       
-          // IMPORTANT: Use the number of scene images as the source of truth for audio parts
-          // This ensures audio segments match scene images, avoiding mismatch errors
-          // The sceneImages were generated earlier based on audioDuration at that time
-          const sceneImagesCount = (project.sceneImages as string[])?.length || Math.ceil(audioDuration / 10);
-          const numberOfAudioParts = sceneImagesCount;
-          const numberOfScenes = sceneImagesCount;
+          // Calculate the correct number of scenes based on audio duration
+          // Apply the new logic: segments must be 10s each, and last segment must be >= 2s
+          const fullSegments = Math.floor(audioDuration / 10);
+          const remainder = audioDuration % 10;
+          // Only include remainder if it's >= 2 seconds (minimum for AI models)
+          const calculatedSceneCount = remainder >= 2 ? fullSegments + 1 : fullSegments;
+          
+          // Check if existing scene images match the calculated count
+          const existingSceneImagesCount = (project.sceneImages as string[])?.length || 0;
+          
+          // If scene images don't match the calculated count, we need to recalculate
+          // This handles cases where old projects had different segment logic
+          if (existingSceneImagesCount !== calculatedSceneCount) {
+            console.log(`⚠️ Scene images count mismatch: existing=${existingSceneImagesCount}, calculated=${calculatedSceneCount}`);
+            console.log(`   Audio duration: ${audioDuration}s → ${fullSegments} full segments + ${remainder}s remainder`);
+            if (remainder < 2) {
+              console.log(`   Remainder (${remainder}s) is < 2s, so it will be excluded`);
+            }
+          }
+          
+          // Use calculated scene count (not existing scene images count) to ensure correct splitting
+          const numberOfAudioParts = calculatedSceneCount;
+          const numberOfScenes = calculatedSceneCount;
       
-      console.log(`Scene images count from project: ${sceneImagesCount}`);
+      console.log(`Scene images count from project: ${existingSceneImagesCount}`);
+      console.log(`Calculated scene count: ${calculatedSceneCount}`);
       console.log(`Calculated from duration would be: ${Math.ceil(audioDuration / 10)}`);
       
       // Split roughly 50/50 between regular and lipsync videos
@@ -7028,13 +7102,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // This ensures proper lipsync synchronization when merging videos
       // Example: 45-second song → [10s, 10s, 10s, 10s, 5s] NOT [9s, 9s, 9s, 9s, 9s]
       console.log(`Splitting audio into fixed 10-second segments (audio type: ${project.audioType}, total duration: ${audioDuration}s)`);
-      const audioSegments = await splitAudio(audioUrl, numberOfAudioParts, audioDuration);
+      let audioSegments = await splitAudio(audioUrl, numberOfAudioParts, audioDuration);
       console.log("Audio segments result:", JSON.stringify(audioSegments, null, 2));
+      
+      // Filter out last segment if it's less than 2 seconds (minimum required by AI models)
+      // This prevents errors when trying to generate videos from very short audio segments
+      if (audioSegments.length > 0) {
+        const lastSegment = audioSegments[audioSegments.length - 1];
+        if (lastSegment.duration < 2) {
+          console.log(`⚠️ Last audio segment is ${lastSegment.duration}s (less than 2s minimum) - removing it from video generation`);
+          audioSegments = audioSegments.slice(0, -1); // Remove last segment
+          
+          // Update scene count to match filtered segments
+          const originalSceneCount = numberOfScenes;
+          const filteredSceneCount = audioSegments.length;
+          console.log(`Updated scene count: ${originalSceneCount} → ${filteredSceneCount} (removed 1 segment < 2s)`);
+          
+          // Note: We don't update numberOfScenes variable here as it's used for logging,
+          // but we'll use audioSegments.length for actual video generation
+        }
+      }
       
       const audioUrls = audioSegments.map(segment => segment.download_url);
       const segmentDurations = audioSegments.map(segment => segment.duration);
-      console.log("Audio URLs for video generation:", audioUrls);
-      console.log("Segment durations for video generation:", segmentDurations);
+      console.log("Audio URLs for video generation (after filtering):", audioUrls);
+      console.log("Segment durations for video generation (after filtering):", segmentDurations);
+      console.log(`Final segment count: ${audioSegments.length} (will generate ${audioSegments.length} scenes)`);
 
       await storage.updateProject(req.params.id, {
         audioSegments: audioSegments
@@ -7126,14 +7219,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sceneOrder = ((project as any).sceneOrder as number[]) || originalSceneImages.map((_, i) => i);
       
       // Apply custom scene order if provided (reorder scenes for video merge)
-      const sceneImages = sceneOrder.map(idx => originalSceneImages[idx]);
-      const orderedScenePrompts = sceneOrder.map(idx => originalScenePrompts[idx]);
+      let sceneImages = sceneOrder.map(idx => originalSceneImages[idx]);
+      let orderedScenePrompts = sceneOrder.map(idx => originalScenePrompts[idx]);
       // Apply scene order to lipsync settings as well
-      const orderedSceneLipsyncSettings = sceneOrder.map(idx => 
+      let orderedSceneLipsyncSettings = sceneOrder.map(idx => 
         originalSceneLipsyncSettings[idx] !== undefined ? originalSceneLipsyncSettings[idx] : null
       );
+      
+      // IMPORTANT: Filter scene images/prompts to match filtered audio segments
+      // This handles cases where:
+      // 1. Last audio segment was < 2s and removed
+      // 2. Old projects had different segment counts (e.g., 4 scenes for 31s instead of 3)
+      if (sceneImages.length !== audioSegments.length) {
+        console.log(`⚠️ Scene images count (${sceneImages.length}) doesn't match audio segments (${audioSegments.length}) - trimming to match`);
+        if (sceneImages.length > audioSegments.length) {
+          // Trim excess scenes (e.g., old 4-scene project now needs 3 scenes)
+          sceneImages = sceneImages.slice(0, audioSegments.length);
+          orderedScenePrompts = orderedScenePrompts.slice(0, audioSegments.length);
+          orderedSceneLipsyncSettings = orderedSceneLipsyncSettings.slice(0, audioSegments.length);
+          console.log(`   Trimmed to ${audioSegments.length} scenes to match audio segments`);
+          
+          // Save the filtered scenes back to the project so the UI shows the correct count
+          // This fixes old projects that had incorrect scene counts
+          await storage.updateProject(req.params.id, {
+            sceneImages: sceneImages,
+            scenePrompts: orderedScenePrompts,
+            sceneLipsyncSettings: orderedSceneLipsyncSettings
+          });
+          console.log(`   Updated project with filtered scene images (${sceneImages.length} scenes)`);
+        } else {
+          // This shouldn't happen, but log it if it does
+          console.warn(`   Scene images (${sceneImages.length}) are fewer than audio segments (${audioSegments.length}) - this may cause issues`);
+        }
+      }
+      
       console.log(`Applied scene order: [${sceneOrder.join(', ')}]`);
       console.log(`Ordered lipsync settings: [${orderedSceneLipsyncSettings.map(s => s === null ? 'null' : s).join(', ')}]`);
+      console.log(`Final scene count after filtering: ${sceneImages.length} scenes, ${audioSegments.length} audio segments`);
       
       const signedSceneUrls: string[] = [];
       

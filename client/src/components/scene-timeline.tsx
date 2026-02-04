@@ -96,7 +96,9 @@ export function SceneTimeline({
   }, [subtitleFileUrl]);
   
   const sceneCount = scenes.length;
-  const sceneDurationCalc = sceneCount > 0 ? audioDuration / sceneCount : 10;
+  // Calculate scene durations: each scene is 10 seconds, except the last one which may be shorter
+  // This matches the backend logic where audio is split into 10-second segments
+  const sceneDurationCalc = 10; // Standard scene duration
   
   interface LyricSegment {
     start: number;
@@ -243,7 +245,21 @@ export function SceneTimeline({
     };
   }, [audioUrl]);
   
-  const sceneDuration = sceneCount > 0 ? Math.ceil(audioDuration / sceneCount) : 10;
+  // Calculate scene durations: each scene is 10 seconds, except the last one which may be shorter
+  // This matches the backend logic where audio is split into 10-second segments
+  // The last scene gets the remainder (if >= 2 seconds), otherwise it's excluded
+  const getSceneDuration = (index: number): number => {
+    if (index < sceneCount - 1) {
+      return 10; // All scenes except the last are 10 seconds
+    }
+    // Last scene: calculate remainder
+    const usedDuration = (sceneCount - 1) * 10;
+    const remainder = audioDuration - usedDuration;
+    // If remainder is < 2, it should have been excluded, but handle it gracefully
+    return remainder >= 2 ? remainder : 10;
+  };
+  
+  const sceneDuration = 10; // Default duration for most scenes (used for width calculation)
   
   const isLipsyncScene = (originalIndex: number): boolean => {
     const scene = scenes[originalIndex];
@@ -613,8 +629,10 @@ export function SceneTimeline({
                   const isDragging = draggedIndex === orderPosition;
                   const isDragOver = dragOverIndex === orderPosition;
                   const isLipsync = isLipsyncScene(originalIndex);
-                  const startTime = orderPosition * sceneDuration;
-                  const endTime = Math.min((orderPosition + 1) * sceneDuration, audioDuration);
+                  // Calculate start/end times based on 10-second segments (except last)
+                  const startTime = orderPosition * 10;
+                  const actualSceneDuration = getSceneDuration(orderPosition);
+                  const endTime = Math.min(startTime + actualSceneDuration, audioDuration);
                   const hasLyrics = hasLyricsInTimeWindow(startTime, endTime);
                   const showLipsyncWarning = isLipsync && !hasLyrics && hasTimestampedLyrics;
                   

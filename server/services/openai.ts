@@ -39,7 +39,7 @@ export async function transcribeAudio(audioFilePath: string): Promise<string> {
 
 export async function generateLyrics(
   songDescription: string,
-  duration: number = 120,
+  duration: number = 120, // Parameter kept for backward compatibility but not used
 ): Promise<string> {
   try {
     const response = await openai.chat.completions.create({
@@ -48,120 +48,16 @@ export async function generateLyrics(
         {
           role: "system",
           content:
-            "You are a creative songwriter. Generate meaningful lyrics based on the provided description. Include verses, chorus, and bridge sections as appropriate for the song duration. IMPORTANT: Format section headers ONLY using square brackets like [Verse 1], [Chorus], [Bridge], [Verse 2], etc. NEVER use asterisks (**), markdown formatting, or any other symbols for section headers. Only use square brackets [ ].",
+            "You are a creative songwriter. Generate meaningful lyrics based on the provided description. Include verses, chorus, and bridge sections as appropriate. IMPORTANT: Format section headers ONLY using square brackets like [Verse 1], [Chorus], [Bridge], [Verse 2], etc. NEVER use asterisks (**), markdown formatting, or any other symbols for section headers. Only use square brackets [ ].",
         },
         {
           role: "user",
           content: `Generate lyrics for a song about: ${songDescription}
 
-CRITICAL: The song is EXACTLY ${duration} seconds long. You MUST follow these structures EXACTLY:
-
-${
-  duration === 30
-    ? `
-STRUCTURE FOR 30 SECONDS: ONLY 1 verse + 1 chorus (NO MORE!)
-[Verse 1]
-2 lines ONLY (keep it very short and concise)
-
-[Chorus] 
-2 lines ONLY (keep it very short and concise)
-`
-    : duration === 60
-      ? `
-STRUCTURE FOR 60 SECONDS: ONLY 2 verses + 2 choruses (NO bridge, NO extra verses!)
-[Verse 1]
-4 lines
-
-[Chorus]
-2 lines
-
-[Verse 2] 
-4 lines
-
-[Chorus]
-2 lines
-`
-      : duration === 90
-        ? `
-STRUCTURE FOR 90 SECONDS: ONLY 2 verses + 2 choruses + 1 bridge (NO extra verses!)
-[Verse 1]
-4 lines
-
-[Chorus]
-2 lines
-
-[Verse 2]
-2 lines
-
-[Bridge]
-2 lines
-
-`
-        : duration === 120
-          ? `
-STRUCTURE FOR 120 SECONDS: ONLY 2 verses + 2 choruses + 1 bridge
-[Verse 1]
-4 lines
-
-[Chorus]
-2 lines
-
-[Verse 2]
-2 lines
-
-[Bridge]
-2 lines
-
-`
-          : duration === 150
-            ? `
-STRUCTURE FOR 150 SECONDS: ONLY 3 verses + 3 choruses (NO bridge)
-[Verse 1]
-4 lines
-
-[Chorus]
-2 lines
-
-[Verse 2]
-4 lines
-
-[Chorus]
-2 lines
-
-[Verse 3]
-4 lines
-
-[Chorus]
-2 lines
-
-`
-            : `
-STRUCTURE FOR 180 SECONDS: ONLY 3 verses + 3 choruses + 1 bridge
-[Verse 1]
-4 lines
-
-[Chorus]
-2 lines
-
-[Verse 2]
-4 lines
-
-[Chorus]
-2 lines
-
-[Verse 3]
-4 lines
-
-[Bridge]
-2 lines
-
-`
-}
-
-Do NOT add extra sections. Follow the exact structure above.`,
+The song should be between 120 and 180 seconds long.`,
         },
       ],
-      max_completion_tokens: 3000, // Increased to support longer songs up to 180 seconds
+      max_completion_tokens: 3000,
     });
 
     const rawLyrics = response.choices[0].message.content || "";
@@ -176,10 +72,7 @@ Do NOT add extra sections. Follow the exact structure above.`,
       .replace(/\*{1,2}(Pre-Chorus)\*{1,2}:?/g, "[$1]")
       .replace(/\*{1,2}(Refrain)\*{1,2}:?/g, "[$1]");
 
-    // Trim lyrics based on duration to ensure proper length
-    const trimmedLyrics = trimLyricsByDuration(processedLyrics, duration);
-
-    return trimmedLyrics;
+    return processedLyrics;
   } catch (error) {
     console.error("OpenAI lyrics generation error:", error);
     throw new Error("Failed to generate lyrics: " + (error as Error).message);
@@ -189,7 +82,7 @@ Do NOT add extra sections. Follow the exact structure above.`,
 // Generate lyrics with a song title
 export async function generateLyricsWithTitle(
   songDescription: string,
-  duration: number = 120,
+  duration: number = 120, // Parameter kept for backward compatibility but not used
 ): Promise<{ lyrics: string; title: string }> {
   try {
     const systemPrompt = `You are a creative songwriter. You MUST respond with valid JSON containing exactly two fields: "title" and "lyrics".
@@ -204,111 +97,7 @@ Format section headers ONLY using square brackets like [Verse 1], [Chorus], [Bri
 
     const userPrompt = `Generate a song title and lyrics for a song about: ${songDescription}
 
-CRITICAL: The song is EXACTLY ${duration} seconds long. You MUST follow these structures EXACTLY:
-
-${
-  duration === 30
-    ? `
-STRUCTURE FOR 30 SECONDS: ONLY 1 verse + 1 chorus (NO MORE!)
-[Verse 1]
-2 lines ONLY (keep it very short and concise)
-
-[Chorus] 
-2 lines ONLY (keep it very short and concise)
-`
-    : duration === 60
-      ? `
-STRUCTURE FOR 60 SECONDS: ONLY 2 verses + 2 choruses (NO bridge, NO extra verses!)
-[Verse 1]
-4 lines
-
-[Chorus]
-2 lines
-
-[Verse 2] 
-4 lines
-
-[Chorus]
-2 lines
-`
-      : duration === 90
-        ? `
-STRUCTURE FOR 90 SECONDS: ONLY 2 verses + 2 choruses + 1 bridge (NO extra verses!)
-[Verse 1]
-4 lines
-
-[Chorus]
-2 lines
-
-[Verse 2]
-2 lines
-
-[Bridge]
-2 lines
-
-`
-        : duration === 120
-          ? `
-STRUCTURE FOR 120 SECONDS: ONLY 2 verses + 2 choruses + 1 bridge
-[Verse 1]
-4 lines
-
-[Chorus]
-2 lines
-
-[Verse 2]
-2 lines
-
-[Bridge]
-2 lines
-
-`
-          : duration === 150
-            ? `
-STRUCTURE FOR 150 SECONDS: ONLY 3 verses + 3 choruses (NO bridge)
-[Verse 1]
-4 lines
-
-[Chorus]
-2 lines
-
-[Verse 2]
-4 lines
-
-[Chorus]
-2 lines
-
-[Verse 3]
-4 lines
-
-[Chorus]
-2 lines
-
-`
-            : `
-STRUCTURE FOR 180 SECONDS: ONLY 3 verses + 3 choruses + 1 bridge
-[Verse 1]
-4 lines
-
-[Chorus]
-2 lines
-
-[Verse 2]
-4 lines
-
-[Chorus]
-2 lines
-
-[Verse 3]
-4 lines
-
-[Bridge]
-2 lines
-
-`
-}
-
-Do NOT add extra sections. Follow the exact structure above.
+The song should be between 120 and 180 seconds long.
 
 IMPORTANT: Return ONLY a valid JSON object with exactly these two fields:
 {
@@ -365,11 +154,8 @@ IMPORTANT: Return ONLY a valid JSON object with exactly these two fields:
       .replace(/\*{1,2}(Pre-Chorus)\*{1,2}:?/g, "[$1]")
       .replace(/\*{1,2}(Refrain)\*{1,2}:?/g, "[$1]");
 
-    // Trim lyrics based on duration to ensure proper length
-    const trimmedLyrics = trimLyricsByDuration(processedLyrics, duration);
-
     return {
-      lyrics: trimmedLyrics,
+      lyrics: processedLyrics,
       title: result.title,
     };
   } catch (error) {
@@ -378,74 +164,6 @@ IMPORTANT: Return ONLY a valid JSON object with exactly these two fields:
   }
 }
 
-// Function to trim lyrics to appropriate length while maintaining 4-section structure
-function trimLyricsByDuration(lyrics: string, duration: number): string {
-  // Split lyrics into sections
-  const sections = lyrics
-    .split(/(\[(?:Verse \d+|Chorus|Bridge|Outro|Intro|Pre-Chorus|Refrain)\])/i)
-    .filter((part) => part.trim().length > 0);
-
-  const processedSections: string[] = [];
-  let currentHeader = "";
-
-  for (let i = 0; i < sections.length; i++) {
-    const section = sections[i].trim();
-
-    if (
-      section.match(
-        /^\[(?:Verse \d+|Chorus|Bridge|Outro|Intro|Pre-Chorus|Refrain)\]$/i,
-      )
-    ) {
-      currentHeader = section;
-    } else if (currentHeader) {
-      processedSections.push(currentHeader + "\n" + section);
-      currentHeader = "";
-    }
-  }
-
-  // Define the expected structure based on duration
-  let targetStructure: string[];
-
-  if (duration === 30) {
-    targetStructure = ["[Verse 1]", "[Chorus]"];
-  } else if (duration === 60) {
-    targetStructure = ["[Verse 1]", "[Chorus]", "[Verse 2]", "[Chorus]"];
-  } else if (duration === 90) {
-    targetStructure = ["[Verse 1]", "[Chorus]", "[Verse 2]", "[Bridge]"];
-  } else if (duration === 120) {
-    targetStructure = ["[Verse 1]", "[Chorus]", "[Verse 2]", "[Bridge]"];
-  } else if (duration === 150) {
-    targetStructure = ["[Verse 1]", "[Chorus]", "[Verse 2]", "[Chorus]", "[Verse 3]", "[Chorus]"];
-  } else {
-    // 180 seconds and above
-    targetStructure = ["[Verse 1]", "[Chorus]", "[Verse 2]", "[Chorus]", "[Verse 3]", "[Bridge]"];
-  }
-
-  // Extract and organize sections according to target structure
-  const finalSections: string[] = [];
-
-  for (const target of targetStructure) {
-    const matchingSection = processedSections.find((section) =>
-      section.toLowerCase().startsWith(target.toLowerCase()),
-    );
-
-    if (matchingSection) {
-      // Trim each section to 3-4 lines for appropriate length
-      const lines = matchingSection
-        .split("\n")
-        .filter((line) => line.trim().length > 0);
-      const header = lines[0];
-      const content = lines.slice(1, Math.min(5, lines.length)); // Header + 4 lines max
-
-      finalSections.push([header, ...content].join("\n"));
-    } else {
-      // If section not found, create a placeholder that matches the target
-      finalSections.push(target + "\n(Missing section)");
-    }
-  }
-
-  return finalSections.join("\n\n");
-}
 
 // Helper function to split lyrics into sections dynamically
 export function splitLyricsIntoSections(

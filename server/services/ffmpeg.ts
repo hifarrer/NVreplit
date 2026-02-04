@@ -2,7 +2,7 @@ const FFMPEG_API_KEY = process.env.FFMPEG_API_KEY || "ffmpeg_KfTAf98EY9OCuriwBtL
 
 // Helper function to get watermark URL from public storage
 export async function getWatermarkUrl(): Promise<string | null> {
-  return "https://notifications.nusong.ai/neonlogo.png";
+  return "https://ik.imagekit.io/neonvideo/logos/neonlogo.png";
 }
 
 export async function getAudioDurationFromFile(filePath: string): Promise<number> {
@@ -60,6 +60,47 @@ export async function trimAudio(audioUrl: string, desiredLength: number): Promis
   } catch (error) {
     console.error("Audio trimming error:", error);
     throw new Error("Failed to trim audio: " + (error as Error).message);
+  }
+}
+
+// Split audio by time range using /api/split_audio_time (for user-selected portions)
+export async function splitAudioByTime(audioUrl: string, startTime: number, endTime: number): Promise<{ download_url: string; filename: string }> {
+  try {
+    console.log(`Splitting audio from ${startTime}ms to ${endTime}ms`);
+    console.log(`Audio URL: ${audioUrl}`);
+    
+    const response = await fetch("https://ffmpegapi.net/api/split_audio_time", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": FFMPEG_API_KEY,
+      },
+      body: JSON.stringify({
+        audio_url: audioUrl,
+        start_time: startTime, // in milliseconds
+        end_time: endTime, // in milliseconds
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`FFMPEG API error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(`Audio splitting failed: ${result.message || "Unknown error"}`);
+    }
+
+    console.log(`Audio split successfully: ${result.filename || result.download_url}`);
+    return {
+      download_url: result.download_url,
+      filename: result.filename || "trimmed_audio.mp3"
+    };
+  } catch (error) {
+    console.error("Audio splitting by time error:", error);
+    throw new Error("Failed to split audio by time: " + (error as Error).message);
   }
 }
 
