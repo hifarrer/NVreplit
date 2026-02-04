@@ -681,3 +681,63 @@ Respond with JSON in this format: {"prompts": [${Array(
     );
   }
 }
+
+/**
+ * Generate a sequential scene prompt formatted for seedream-v4.5/edit-sequential API
+ * This creates a single prompt that describes all scenes in sequence format
+ */
+export async function generateSequentialScenePrompt(
+  songDescription: string,
+  numberOfScenes: number = 8,
+  lyricsSections?: string[],
+): Promise<string> {
+  try {
+    // First, get individual scene prompts using existing logic
+    const individualPrompts = await generateScenePrompts(
+      songDescription,
+      numberOfScenes,
+      lyricsSections,
+    );
+
+    // Extract style from song description or default to "cartoon"
+    // Try to detect style keywords
+    const descriptionLower = songDescription.toLowerCase();
+    let style = "cartoon";
+    if (descriptionLower.includes("realistic") || descriptionLower.includes("real")) {
+      style = "realistic";
+    } else if (descriptionLower.includes("anime")) {
+      style = "anime";
+    } else if (descriptionLower.includes("3d") || descriptionLower.includes("3-d")) {
+      style = "3d";
+    }
+
+    // Extract character description from song description
+    // Try to find character mentions in the description
+    let characterDescription = songDescription;
+    // If description starts with character info, use it; otherwise use full description
+    const characterMatch = songDescription.match(/^(?:a|an|the)\s+([^,]+?)(?:\s+(?:having|doing|at|in|with|on))?/i);
+    if (characterMatch) {
+      characterDescription = characterMatch[1].trim();
+    }
+
+    // Build the sequential prompt
+    let sequentialPrompt = `Generate a sequence of ${numberOfScenes} ${style} images of ${characterDescription}.\n`;
+    sequentialPrompt += `Style: ${style}\n\n`;
+
+    // Add each scene description
+    individualPrompts.forEach((prompt, index) => {
+      sequentialPrompt += `Scene ${index + 1} – ${prompt}\n`;
+    });
+
+    // Add consistency instruction
+    sequentialPrompt += `\nKeep the ${characterDescription} and characters consistent across all ${numberOfScenes} images so they feel like same time of day in the exact same location.`;
+
+    console.log(`✓ Generated sequential prompt for ${numberOfScenes} scenes`);
+    return sequentialPrompt;
+  } catch (error) {
+    console.error("OpenAI sequential scene prompt generation error:", error);
+    throw new Error(
+      "Failed to generate sequential scene prompt: " + (error as Error).message,
+    );
+  }
+}

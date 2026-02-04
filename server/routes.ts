@@ -3427,9 +3427,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filePath = req.params.filePath;
       console.log(`Public object request: ${filePath}`);
       
-      // Skip object storage search in production if it's causing auth issues
-      // Go straight to fallbacks for known file types
+      // Check if ImageKit is configured
+      const { isImageKitConfigured } = await import("./services/imagekit");
+      const imageKitConfigured = isImageKitConfigured();
+      
+      // Skip object storage search if ImageKit is configured (especially for subtitles)
+      // or in production for certain file types
       let shouldSearchObjectStorage = true;
+      
+      if (imageKitConfigured) {
+        // ImageKit is configured - don't use GCS
+        // For subtitles, they should be in ImageKit, not GCS
+        if (filePath.includes('subtitles/')) {
+          shouldSearchObjectStorage = false;
+          console.log("ImageKit configured - skipping GCS search for subtitle file. Subtitle should be in ImageKit.");
+        }
+      }
       
       if (process.env.NODE_ENV === 'production') {
         // In production, skip object storage search for watermark to avoid auth errors
@@ -3439,11 +3452,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      if (shouldSearchObjectStorage) {
+      if (shouldSearchObjectStorage && !imageKitConfigured) {
         try {
           const objectStorageService = new ObjectStorageService();
           
-          // Try to find the file in object storage
+          // Try to find the file in object storage (only if ImageKit is not configured)
           const file = await objectStorageService.searchPublicObject(filePath);
           if (file) {
             console.log(`Found file in object storage: ${filePath}`);
@@ -3454,6 +3467,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (storageError) {
           console.warn(`Object storage search failed for ${filePath}:`, storageError);
         }
+      } else if (imageKitConfigured && filePath.includes('subtitles/')) {
+        // ImageKit is configured and this is a subtitle - return 404 since it should be accessed via ImageKit URL
+        console.log(`Subtitle file requested via /public-objects/ but ImageKit is configured. Subtitle should be accessed via ImageKit URL.`);
+        return res.status(404).json({ error: "Subtitle file not found. When ImageKit is configured, subtitles are stored in ImageKit and should be accessed via ImageKit URL." });
       }
       
       // If it's an avatar request and file doesn't exist, provide a generic fallback
@@ -7407,21 +7424,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get subtitle URL from project - only include if addSubtitles is enabled
       // (subtitleFileUrl is always generated for timeline display, but only shown in video when addSubtitles is true)
+      // Subtitles are now stored exclusively in ImageKit
       let subtitleUrl: string | undefined;
       if (project.addSubtitles && project.subtitleFileUrl) {
-        if (project.subtitleFileUrl.startsWith('/public-objects/')) {
-          // Public object URL - convert to full URL accessible by FFMPEG
-          const host = req.get('host') || 'localhost:5000';
-          subtitleUrl = host.includes('localhost') ? `http://${host}${project.subtitleFileUrl}` : `https://${host}${project.subtitleFileUrl}`;
-          console.log("Generated public URL for subtitles:", project.subtitleFileUrl, "->", subtitleUrl);
-        } else if (project.subtitleFileUrl.startsWith('/objects/')) {
-          // Legacy private object URL - convert to signed URL (for backward compatibility)
-          subtitleUrl = await objectStorageService.getSignedUrlForPath(project.subtitleFileUrl, 7200); // 2 hours
-          console.log("Generated signed URL for legacy subtitles:", project.subtitleFileUrl, "->", subtitleUrl);
-        } else {
-          // External URL - use as-is
+        // Check if it's already a full URL (ImageKit URL or other external URL)
+        if (project.subtitleFileUrl.startsWith('http://') || project.subtitleFileUrl.startsWith('https://')) {
+          // Already a full URL (ImageKit or external) - use as-is
           subtitleUrl = project.subtitleFileUrl;
-          console.log("Using external subtitle URL:", subtitleUrl);
+          console.log("Using ImageKit/external subtitle URL:", subtitleUrl);
+        } else if (project.subtitleFileUrl.startsWith('/public-objects/') || project.subtitleFileUrl.startsWith('/objects/')) {
+          // Legacy GCS paths - try to resolve to ImageKit URL if available
+          const { isImageKitConfigured, resolveImageKitUrl } = await import("./services/imagekit");
+          if (isImageKitConfigured()) {
+            // Try to find ImageKit URL for legacy subtitle
+            const imagekitUrl = await resolveImageKitUrl(project.subtitleFileUrl, storage);
+            if (imagekitUrl) {
+              subtitleUrl = imagekitUrl;
+              console.log("Resolved legacy subtitle to ImageKit URL:", project.subtitleFileUrl, "->", subtitleUrl);
+            } else {
+              // No ImageKit URL found for legacy subtitle - skip it
+              console.warn("Legacy subtitle path found but no ImageKit URL available. Subtitles should be stored in ImageKit. Skipping subtitle:", project.subtitleFileUrl);
+              subtitleUrl = undefined;
+            }
+          } else {
+            // ImageKit not configured - this shouldn't happen for new subtitles, but handle legacy
+            console.warn("Legacy subtitle path found but ImageKit is not configured. This should not happen for new subtitles.");
+            subtitleUrl = undefined;
+          }
+        } else {
+          // Unknown format - skip it
+          console.warn("Unknown subtitle URL format:", project.subtitleFileUrl);
+          subtitleUrl = undefined;
         }
       } else if (!project.addSubtitles) {
         console.log("Subtitles disabled by user - not including in final video");

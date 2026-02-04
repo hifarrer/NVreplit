@@ -414,43 +414,23 @@ export async function storeSubtitleFile(assContent: string, songId?: string): Pr
   try {
     console.log("Storing subtitle file...");
     
-    // Get object storage service
-    const { ObjectStorageService, objectStorageClient } = await import("../objectStorage");
-    const objectStorageService = new ObjectStorageService();
-    const privateObjectDir = objectStorageService.getPrivateObjectDir();
+    // Always use ImageKit for subtitle storage (required)
+    const { isImageKitConfigured, uploadTextFileToImageKit } = await import("./imagekit");
     
+    if (!isImageKitConfigured()) {
+      throw new Error("ImageKit must be configured to store subtitle files. Please configure ImageKit credentials.");
+    }
+
     // Generate filename using song ID if available, otherwise random UUID
     const { randomUUID } = await import("crypto");
     const fileId = songId || randomUUID();
-    const filename = `subtitles/${fileId}.ass`;
+    const filename = `${fileId}.ass`;
     
-    // Create full path in private directory
-    const fullPath = `${privateObjectDir}/${filename}`;
+    console.log(`[ImageKit] Uploading subtitle file to ImageKit: ${filename}`);
+    const imagekitResult = await uploadTextFileToImageKit(assContent, filename, "/subtitles");
     
-    // Parse the path to get bucket and object name
-    const { bucketName, objectName } = parseObjectPath(fullPath);
-    
-    // Upload the subtitle file
-    const bucket = objectStorageClient.bucket(bucketName);
-    const file = bucket.file(objectName);
-    
-    await file.save(Buffer.from(assContent, 'utf-8'), {
-      metadata: {
-        contentType: 'text/plain',
-        metadata: {
-          fileType: 'subtitle',
-          format: 'ass',
-          uploadedAt: new Date().toISOString(),
-        },
-      },
-    });
-    
-    console.log(`Subtitle file stored successfully at: ${fullPath}`);
-    
-    // Return the stored URL that can be served via our API
-    const storedUrl = `/objects/${filename}`;
-    
-    return storedUrl;
+    console.log(`[ImageKit] Subtitle file uploaded successfully: ${imagekitResult.url}`);
+    return imagekitResult.url;
   } catch (error) {
     console.error("Error storing subtitle file:", error);
     throw new Error(`Failed to store subtitle file: ${(error as Error).message}`);

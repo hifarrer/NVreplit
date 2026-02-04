@@ -256,66 +256,22 @@ export async function storeElevenLabsSubtitleFile(
   try {
     console.log("Storing ElevenLabs subtitle file...");
 
-    // Always use ImageKit as primary storage if configured (for all environments)
+    // Always use ImageKit for subtitle storage (required)
     const { isImageKitConfigured, uploadTextFileToImageKit } = await import("./imagekit");
     
-    if (isImageKitConfigured()) {
-      // Generate filename using song ID if available, otherwise random UUID
-      const fileId = songId || randomUUID();
-      const filename = `${fileId}.ass`;
-      
-      console.log(`[ImageKit] Uploading subtitle file to ImageKit: ${filename}`);
-      const imagekitResult = await uploadTextFileToImageKit(assContent, filename, "/subtitles");
-      
-      console.log(`[ImageKit] Subtitle file uploaded successfully: ${imagekitResult.url}`);
-      return imagekitResult.url;
-    }
-
-    // Fallback to Google Cloud Storage only if ImageKit is not configured
-    console.log("[Storage] ImageKit not configured, falling back to Google Cloud Storage");
-    const { ObjectStorageService, objectStorageClient } = await import(
-      "../objectStorage"
-    );
-    const objectStorageService = new ObjectStorageService();
-    const publicPaths = objectStorageService.getPublicObjectSearchPaths();
-
-    if (publicPaths.length === 0) {
-      throw new Error("No public object search paths configured");
+    if (!isImageKitConfigured()) {
+      throw new Error("ImageKit must be configured to store subtitle files. Please configure ImageKit credentials.");
     }
 
     // Generate filename using song ID if available, otherwise random UUID
     const fileId = songId || randomUUID();
-    const filename = `subtitles/${fileId}.ass`;
-
-    // Store in public directory so it's permanently accessible without signed URLs
-    const publicPath = publicPaths[0];
-    const fullPath = `${publicPath}/${filename}`;
-
-    // Parse the path to get bucket and object name
-    const { bucketName, objectName } = parseObjectPath(fullPath);
-
-    // Upload the subtitle file
-    const bucket = objectStorageClient.bucket(bucketName);
-    const file = bucket.file(objectName);
-
-    await file.save(Buffer.from(assContent, "utf-8"), {
-      metadata: {
-        contentType: "text/plain",
-        metadata: {
-          fileType: "subtitle",
-          format: "ass",
-          source: "elevenlabs",
-          uploadedAt: new Date().toISOString(),
-        },
-      },
-    });
-
-    console.log(`ElevenLabs subtitle file stored successfully at: ${fullPath}`);
-
-    // Return the public URL that never expires
-    const storedUrl = `/public-objects/${filename}`;
-
-    return storedUrl;
+    const filename = `${fileId}.ass`;
+    
+    console.log(`[ImageKit] Uploading subtitle file to ImageKit: ${filename}`);
+    const imagekitResult = await uploadTextFileToImageKit(assContent, filename, "/subtitles");
+    
+    console.log(`[ImageKit] Subtitle file uploaded successfully: ${imagekitResult.url}`);
+    return imagekitResult.url;
   } catch (error) {
     console.error("Error storing ElevenLabs subtitle file:", error);
     throw new Error(

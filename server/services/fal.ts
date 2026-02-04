@@ -1067,107 +1067,335 @@ export async function generateSingleSceneImage(
   return storedImage.storedUrl;
 }
 
+/**
+ * Generate scene images using sequential batch generation (seedream-v4.5/edit-sequential)
+ * This generates multiple images in a single API call
+ */
+async function generateSceneImagesSequential(
+  prompts: string[],
+  characterImageUrl: string,
+  aspectRatio: string = "16:9",
+): Promise<string[]> {
+  const batchId = `SEQUENTIAL-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const batchStartTime = Date.now();
+  
+  console.log(`\n========================================`);
+  console.log(`[SEQUENTIAL-GEN ${new Date().toISOString()}] SEQUENTIAL BATCH STARTED`);
+  console.log(`[SEQUENTIAL-GEN] Batch ID: ${batchId}`);
+  console.log(`[SEQUENTIAL-GEN] Scene count: ${prompts.length}`);
+  console.log(`[SEQUENTIAL-GEN] Character Image: ${characterImageUrl?.substring(0, 80)}...`);
+  console.log(`[SEQUENTIAL-GEN] Aspect Ratio: ${aspectRatio}`);
+  console.log(`========================================\n`);
+
+  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
+
+  // Ensure we have a valid public HTTP/HTTPS URL for Wavespeed API
+  const publicCharacterImageUrl = await ensurePublicImageUrl(characterImageUrl, 86400);
+  console.log(`✓ Using validated character image URL for sequential generation`);
+
+  // Determine size parameter based on aspect ratio
+  // The sequential model only accepts these fixed sizes:
+  // Vertical (3:4): 1728*2304
+  // Horizontal (16:9): 2560*1440
+  const size = aspectRatio === "3:4" ? "1728*2304" : "2560*1440";
+  console.log(`[SEQUENTIAL-GEN] Using size: ${size} for aspect ratio: ${aspectRatio}`);
+
+  // Format the prompts directly into the sequential format matching user's example
+  // Format: "Generate a sequence of N images using the same style as the reference image.\n\nScene 1 – ...\n..."
+  let sequentialPrompt = `Generate a sequence of ${prompts.length} images using the same style as the reference image.\n\n`;
+  
+  prompts.forEach((prompt, index) => {
+    sequentialPrompt += `Scene ${index + 1} – ${prompt}\n`;
+  });
+  
+  sequentialPrompt += `\nKeep the characters and setting consistent across all ${prompts.length} images so they feel like same time of day in the exact same location.`;
+
+  // Handle batching: max 15 images per API call (using 12 for safety)
+  const MAX_IMAGES_PER_CALL = 12;
+  const batches: string[][] = [];
+  for (let i = 0; i < prompts.length; i += MAX_IMAGES_PER_CALL) {
+    batches.push(prompts.slice(i, i + MAX_IMAGES_PER_CALL));
+  }
+
+  console.log(`[SEQUENTIAL-GEN] Split into ${batches.length} batch(es) (max ${MAX_IMAGES_PER_CALL} images per batch)`);
+
+  const allImageUrls: string[] = [];
+
+  // Process each batch
+  for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+    const batch = batches[batchIndex];
+    const batchStartIndex = batchIndex * MAX_IMAGES_PER_CALL;
+    
+    console.log(`[SEQUENTIAL-GEN] Processing batch ${batchIndex + 1}/${batches.length} (scenes ${batchStartIndex + 1}-${batchStartIndex + batch.length})`);
+
+    // Create sequential prompt for this batch (same format as main prompt)
+    let batchSequentialPrompt = `Generate a sequence of ${batch.length} images using the same style as the reference image.\n\n`;
+    
+    batch.forEach((prompt, index) => {
+      batchSequentialPrompt += `Scene ${batchStartIndex + index + 1} – ${prompt}\n`;
+    });
+    
+    batchSequentialPrompt += `\nKeep the characters and setting consistent across all ${batch.length} images so they feel like same time of day in the exact same location.`;
+
+    const requestId = `SEQ-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    console.log(`[SEQUENTIAL-GEN] Batch ${batchIndex + 1} request ID: ${requestId}`);
+
+    // Submit sequential generation request
+    const requestBody = {
+      enable_base64_output: false,
+      enable_sync_mode: false,
+      images: [publicCharacterImageUrl],
+      max_images: batch.length,
+      prompt: batchSequentialPrompt,
+      size: size,
+    };
+
+    console.log(`[SEQUENTIAL-GEN] Submitting batch ${batchIndex + 1} with ${batch.length} images...`);
+    console.log(`[SEQUENTIAL-GEN] Prompt preview: ${batchSequentialPrompt.substring(0, 100)}...`);
+
+    const response = await fetch(
+      "https://api.wavespeed.ai/api/v3/bytedance/seedream-v4.5/edit-sequential",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${WAVESPEED_API_KEY}`,
+        },
+        body: JSON.stringify(requestBody),
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[SEQUENTIAL-GEN] Batch ${batchIndex + 1} submission failed:`, errorText);
+      throw new Error(
+        `Sequential generation submission failed for batch ${batchIndex + 1}: ${response.status} - ${errorText}`,
+      );
+    }
+
+    const result = await response.json();
+    console.log(
+      `[SEQUENTIAL-GEN] Batch ${batchIndex + 1} submission result:`,
+      JSON.stringify(result, null, 2),
+    );
+
+    const apiRequestId = result.data?.id;
+    if (!apiRequestId) {
+      console.error(`[SEQUENTIAL-GEN] No request ID in response for batch ${batchIndex + 1}:`, result);
+      throw new Error(`No request ID received from sequential API for batch ${batchIndex + 1}`);
+    }
+
+    console.log(`[SEQUENTIAL-GEN] Batch ${batchIndex + 1} got request ID: ${apiRequestId}`);
+
+    // Poll for results
+    let attempts = 0;
+    const maxAttempts = 300; // 25 minutes with 5-second intervals (longer for batch)
+
+    while (attempts < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
+
+      const statusResponse = await fetch(
+        `https://api.wavespeed.ai/api/v3/predictions/${apiRequestId}/result`,
+        {
+          headers: {
+            Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+          },
+        },
+      );
+
+      if (!statusResponse.ok) {
+        const errorText = await statusResponse.text();
+        console.error(`[SEQUENTIAL-GEN] Batch ${batchIndex + 1} status check failed:`, errorText);
+        throw new Error(
+          `Status check failed for batch ${batchIndex + 1}: ${statusResponse.status} - ${errorText}`,
+        );
+      }
+
+      const statusResult = await statusResponse.json();
+
+      if (statusResult.data?.status === "completed") {
+        console.log(`[SEQUENTIAL-GEN] Batch ${batchIndex + 1} generation COMPLETED`);
+
+        if (statusResult.data.outputs && Array.isArray(statusResult.data.outputs)) {
+          const batchImageUrls = statusResult.data.outputs;
+          console.log(`[SEQUENTIAL-GEN] Batch ${batchIndex + 1} returned ${batchImageUrls.length} images`);
+          allImageUrls.push(...batchImageUrls);
+          break; // Exit polling loop
+        } else {
+          console.error(
+            `[SEQUENTIAL-GEN] No outputs found in batch ${batchIndex + 1} results:`,
+            statusResult,
+          );
+          throw new Error(`No outputs in batch ${batchIndex + 1} results from sequential API`);
+        }
+      } else if (statusResult.data?.status === "failed") {
+        const errorMsg = statusResult.data?.error || "Unknown error";
+        console.error(`[SEQUENTIAL-GEN] Batch ${batchIndex + 1} generation failed:`, statusResult);
+        throw new Error(`Batch ${batchIndex + 1} generation failed: ${errorMsg}`);
+      }
+
+      attempts++;
+      if (attempts % 12 === 0) {
+        console.log(`[SEQUENTIAL-GEN] Batch ${batchIndex + 1} still processing... (${attempts * 5}s elapsed)`);
+      }
+    }
+
+    if (attempts >= maxAttempts) {
+      throw new Error(
+        `Batch ${batchIndex + 1} generation timed out after ${maxAttempts} attempts (${maxAttempts * 5}s)`,
+      );
+    }
+  }
+
+  // Validate we got the expected number of images
+  if (allImageUrls.length !== prompts.length) {
+    console.warn(
+      `[SEQUENTIAL-GEN] Expected ${prompts.length} images but got ${allImageUrls.length}. This may indicate an issue.`,
+    );
+  }
+
+  console.log(
+    `✓ All ${allImageUrls.length} scenes generated successfully via sequential API`,
+  );
+
+  // Download and store all scene images permanently
+  console.log(`[SEQUENTIAL-GEN ${batchId}] Downloading and storing ${allImageUrls.length} scene images permanently...`);
+  const { downloadAndStoreImage } = await import("./imageStorage");
+
+  const storePromises = allImageUrls.map(async (sceneUrl, index) => {
+    console.log(`[SEQUENTIAL-GEN ${batchId}] Storing scene ${index + 1}...`);
+    const storedImage = await downloadAndStoreImage(sceneUrl, "scenes");
+    console.log(`[SEQUENTIAL-GEN ${batchId}] Scene ${index + 1} stored permanently at: ${storedImage.storedUrl}`);
+    return storedImage.storedUrl;
+  });
+
+  const storedSceneUrls = await Promise.all(storePromises);
+
+  const batchDuration = Date.now() - batchStartTime;
+  console.log(`\n========================================`);
+  console.log(`[SEQUENTIAL-GEN ${new Date().toISOString()}] SEQUENTIAL BATCH COMPLETED`);
+  console.log(`[SEQUENTIAL-GEN] Batch ID: ${batchId}`);
+  console.log(`[SEQUENTIAL-GEN] Duration: ${batchDuration}ms`);
+  console.log(`[SEQUENTIAL-GEN] Scenes stored: ${storedSceneUrls.length}`);
+  console.log(`========================================\n`);
+
+  return storedSceneUrls;
+}
+
 export async function generateSceneImages(
   prompts: string[],
   characterImageUrl: string,
   aspectRatio: string = "16:9",
 ): Promise<string[]> {
-  const batchId = `BATCH-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-  const batchStartTime = Date.now();
+  // Use sequential generation for initial scene generation
+  // This generates all scenes in a single (or batched) API call using seedream-v4.5/edit-sequential
+  console.log(`[generateSceneImages] Using sequential generation for ${prompts.length} scenes`);
   
-  console.log(`\n========================================`);
-  console.log(`[FAL-SERVICE ${new Date().toISOString()}] SCENE BATCH STARTED`);
-  console.log(`[FAL-SERVICE] Batch ID: ${batchId}`);
-  console.log(`[FAL-SERVICE] Scene count: ${prompts.length}`);
-  console.log(`[FAL-SERVICE] Character Image: ${characterImageUrl?.substring(0, 80)}...`);
-  console.log(`[FAL-SERVICE] Aspect Ratio: ${aspectRatio}`);
-  console.log(`========================================\n`);
-  
-  console.log(
-    `Starting parallel scene generation for ${prompts.length} scenes`,
-  );
-  console.log(`Input character image URL: ${characterImageUrl}`);
-  console.log(`Aspect ratio: ${aspectRatio}`);
-
-  // Ensure we have a valid public HTTP/HTTPS URL for Wavespeed API
-  const publicCharacterImageUrl = await ensurePublicImageUrl(characterImageUrl, 86400);
-  console.log(`✓ Using validated character image URL for ${prompts.length} scenes`);
-
-  // Generate all scenes in parallel using the fallback system
-  // Each scene will automatically try google/nano-banana/edit first, then alibaba/wan-2.5/image-edit if it fails
-  const sceneGenerationPromises = prompts.map((prompt, index) =>
-    generateSceneWithFallback(
-      publicCharacterImageUrl,
-      prompt,
-      `scene ${index + 1}`,
-      aspectRatio,
-    ),
-  );
-
-  console.log(
-    `Submitting ${prompts.length} scene generation requests in parallel with automatic fallback...`,
-  );
-
-  // Wait for all scenes to complete (with automatic retries/fallback built-in)
-  const results = await Promise.allSettled(sceneGenerationPromises);
-
-  // Process results
-  const successfulScenes: string[] = [];
-  const failedScenes: { index: number; reason: string }[] = [];
-
-  results.forEach((result, index) => {
-    if (result.status === "fulfilled") {
-      successfulScenes.push(result.value.imageUrl);
-      console.log(
-        `✓ Scene ${index + 1} generated successfully using ${result.value.modelUsed}`,
-      );
-    } else {
-      failedScenes.push({
-        index: index + 1,
-        reason: result.reason instanceof Error ? result.reason.message : String(result.reason),
-      });
-      console.error(`✗ Scene ${index + 1} failed:`, result.reason);
-    }
-  });
-
-  // If any scenes failed, throw an error with details
-  if (failedScenes.length > 0) {
-    const failedIndices = failedScenes.map((f) => f.index).join(", ");
-    const failureDetails = failedScenes
-      .map((f) => `Scene ${f.index}: ${f.reason}`)
-      .join("\n");
-
-    throw new Error(
-      `Failed to generate ${failedScenes.length} scene(s) after trying both models.\n` +
-        `Failed scenes: ${failedIndices}\n\n` +
-        `Details:\n${failureDetails}`,
+  try {
+    return await generateSceneImagesSequential(prompts, characterImageUrl, aspectRatio);
+  } catch (error) {
+    console.error(`[generateSceneImages] Sequential generation failed, falling back to parallel generation:`, error);
+    // Fallback to parallel generation if sequential fails
+    const batchId = `BATCH-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const batchStartTime = Date.now();
+    
+    console.log(`\n========================================`);
+    console.log(`[FAL-SERVICE ${new Date().toISOString()}] SCENE BATCH STARTED (FALLBACK)`);
+    console.log(`[FAL-SERVICE] Batch ID: ${batchId}`);
+    console.log(`[FAL-SERVICE] Scene count: ${prompts.length}`);
+    console.log(`[FAL-SERVICE] Character Image: ${characterImageUrl?.substring(0, 80)}...`);
+    console.log(`[FAL-SERVICE] Aspect Ratio: ${aspectRatio}`);
+    console.log(`========================================\n`);
+    
+    console.log(
+      `Starting parallel scene generation for ${prompts.length} scenes (fallback mode)`,
     );
-  }
+    console.log(`Input character image URL: ${characterImageUrl}`);
+    console.log(`Aspect ratio: ${aspectRatio}`);
 
-  console.log(
-    `✓ All ${prompts.length} scenes generated successfully (with automatic fallback support)`,
-  );
-  
-  // Download and store all scene images permanently
-  console.log(`[FAL-SERVICE ${batchId}] Downloading and storing ${successfulScenes.length} scene images permanently...`);
-  const { downloadAndStoreImage } = await import("./imageStorage");
-  
-  const storePromises = successfulScenes.map(async (sceneUrl, index) => {
-    console.log(`[FAL-SERVICE ${batchId}] Storing scene ${index + 1}...`);
-    const storedImage = await downloadAndStoreImage(sceneUrl, "scenes");
-    console.log(`[FAL-SERVICE ${batchId}] Scene ${index + 1} stored permanently at: ${storedImage.storedUrl}`);
-    return storedImage.storedUrl;
-  });
-  
-  const storedSceneUrls = await Promise.all(storePromises);
-  
-  const batchDuration = Date.now() - batchStartTime;
-  console.log(`\n========================================`);
-  console.log(`[FAL-SERVICE ${new Date().toISOString()}] SCENE BATCH COMPLETED`);
-  console.log(`[FAL-SERVICE] Batch ID: ${batchId}`);
-  console.log(`[FAL-SERVICE] Duration: ${batchDuration}ms`);
-  console.log(`[FAL-SERVICE] Scenes stored: ${storedSceneUrls.length}`);
-  console.log(`========================================\n`);
-  
-  return storedSceneUrls;
+    // Ensure we have a valid public HTTP/HTTPS URL for Wavespeed API
+    const publicCharacterImageUrl = await ensurePublicImageUrl(characterImageUrl, 86400);
+    console.log(`✓ Using validated character image URL for ${prompts.length} scenes`);
+
+    // Generate all scenes in parallel using the fallback system
+    // Each scene will automatically try google/nano-banana/edit first, then alibaba/wan-2.5/image-edit if it fails
+    const sceneGenerationPromises = prompts.map((prompt, index) =>
+      generateSceneWithFallback(
+        publicCharacterImageUrl,
+        prompt,
+        `scene ${index + 1}`,
+        aspectRatio,
+      ),
+    );
+
+    console.log(
+      `Submitting ${prompts.length} scene generation requests in parallel with automatic fallback...`,
+    );
+
+    // Wait for all scenes to complete (with automatic retries/fallback built-in)
+    const results = await Promise.allSettled(sceneGenerationPromises);
+
+    // Process results
+    const successfulScenes: string[] = [];
+    const failedScenes: { index: number; reason: string }[] = [];
+
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled") {
+        successfulScenes.push(result.value.imageUrl);
+        console.log(
+          `✓ Scene ${index + 1} generated successfully using ${result.value.modelUsed}`,
+        );
+      } else {
+        failedScenes.push({
+          index: index + 1,
+          reason: result.reason instanceof Error ? result.reason.message : String(result.reason),
+        });
+        console.error(`✗ Scene ${index + 1} failed:`, result.reason);
+      }
+    });
+
+    // If any scenes failed, throw an error with details
+    if (failedScenes.length > 0) {
+      const failedIndices = failedScenes.map((f) => f.index).join(", ");
+      const failureDetails = failedScenes
+        .map((f) => `Scene ${f.index}: ${f.reason}`)
+        .join("\n");
+
+      throw new Error(
+        `Failed to generate ${failedScenes.length} scene(s) after trying both models.\n` +
+          `Failed scenes: ${failedIndices}\n\n` +
+          `Details:\n${failureDetails}`,
+      );
+    }
+
+    console.log(
+      `✓ All ${prompts.length} scenes generated successfully (with automatic fallback support)`,
+    );
+    
+    // Download and store all scene images permanently
+    console.log(`[FAL-SERVICE ${batchId}] Downloading and storing ${successfulScenes.length} scene images permanently...`);
+    const { downloadAndStoreImage } = await import("./imageStorage");
+    
+    const storePromises = successfulScenes.map(async (sceneUrl, index) => {
+      console.log(`[FAL-SERVICE ${batchId}] Storing scene ${index + 1}...`);
+      const storedImage = await downloadAndStoreImage(sceneUrl, "scenes");
+      console.log(`[FAL-SERVICE ${batchId}] Scene ${index + 1} stored permanently at: ${storedImage.storedUrl}`);
+      return storedImage.storedUrl;
+    });
+    
+    const storedSceneUrls = await Promise.all(storePromises);
+    
+    const batchDuration = Date.now() - batchStartTime;
+    console.log(`\n========================================`);
+    console.log(`[FAL-SERVICE ${new Date().toISOString()}] SCENE BATCH COMPLETED`);
+    console.log(`[FAL-SERVICE] Batch ID: ${batchId}`);
+    console.log(`[FAL-SERVICE] Duration: ${batchDuration}ms`);
+    console.log(`[FAL-SERVICE] Scenes stored: ${storedSceneUrls.length}`);
+    console.log(`========================================\n`);
+    
+    return storedSceneUrls;
+  }
 }
