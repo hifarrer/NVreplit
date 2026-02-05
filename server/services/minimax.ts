@@ -102,7 +102,7 @@ export async function generateSongWithMinimax(
   );
 }
 
-const SONG_GENERATION_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes per song
+const SONG_GENERATION_TIMEOUT_MS = 200 * 1000; // 200 seconds per song
 
 function withTimeout<T>(
   promise: Promise<T>,
@@ -136,7 +136,7 @@ async function generateMultipleSongsInParallel(
   count: number
 ): Promise<MinimaxSongResult[]> {
   console.log(`\nStarting ${count} parallel song generations...`);
-  console.log(`Per-song timeout: ${SONG_GENERATION_TIMEOUT_MS / 1000}s (3 minutes)`);
+  console.log(`Per-song timeout: ${SONG_GENERATION_TIMEOUT_MS / 1000}s (200 seconds)`);
 
   const generationPromises = Array.from({ length: count }, (_, i) =>
     withTimeout(
@@ -168,29 +168,44 @@ export async function generateMultipleSongsForSelection(
   description: string | undefined
 ): Promise<MinimaxSongResult[]> {
   const effectiveRequestDuration = Math.min(durationSeconds, MAX_SONG_DURATION);
+  const maxRetries = 2; // Retry up to 2 times if both songs fail/timeout
   
   console.log("=== GENERATING 2 SONGS FOR USER SELECTION ===");
   console.log("Requested duration:", durationSeconds, "seconds");
   console.log("Effective request duration (capped at 4 min):", effectiveRequestDuration, "seconds");
+  console.log("Per-song timeout: 200 seconds");
   
-  const songs = await generateMultipleSongsInParallel(
-    tags,
-    lyrics,
-    effectiveRequestDuration,
-    description,
-    2
-  );
+  for (let retryAttempt = 0; retryAttempt <= maxRetries; retryAttempt++) {
+    if (retryAttempt > 0) {
+      console.log(`\n=== RETRY ATTEMPT ${retryAttempt}/${maxRetries} (both songs failed or timed out) ===`);
+    }
+    
+    const songs = await generateMultipleSongsInParallel(
+      tags,
+      lyrics,
+      effectiveRequestDuration,
+      description,
+      2
+    );
 
-  if (songs.length === 0) {
-    throw new Error("No songs were generated successfully");
+    // If at least 1 song was generated, return it immediately
+    if (songs.length > 0) {
+      console.log(`\n=== GENERATED ${songs.length} SONG(S) FOR USER SELECTION ===`);
+      songs.forEach((song, i) => {
+        console.log(`  Song ${i + 1}: duration=${song.duration}s, url=${song.audioUrl.substring(0, 50)}...`);
+      });
+      return songs;
+    }
+
+    // If both songs failed or timed out, retry if we have attempts left
+    if (retryAttempt < maxRetries) {
+      console.log(`\n=== BOTH SONGS FAILED OR TIMED OUT ===`);
+      console.log(`Retrying generation (attempt ${retryAttempt + 1}/${maxRetries})...`);
+    }
   }
 
-  console.log(`\n=== GENERATED ${songs.length} SONG(S) FOR USER SELECTION ===`);
-  songs.forEach((song, i) => {
-    console.log(`  Song ${i + 1}: duration=${song.duration}s, url=${song.audioUrl.substring(0, 50)}...`);
-  });
-
-  return songs;
+  // If we exhausted all retries and still have no songs, throw error
+  throw new Error("Failed to generate any songs after retries. Both songs timed out or failed.");
 }
 
 function selectBestSong(

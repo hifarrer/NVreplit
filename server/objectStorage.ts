@@ -6,7 +6,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import { isImageKitConfigured, uploadAudioToImageKit } from "./services/imagekit";
+import { isImageKitConfigured, uploadAudioToImageKit, uploadVideoToImageKit } from "./services/imagekit";
 import { storage } from "./storage";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -137,6 +137,12 @@ export class ObjectStorageService {
 
   // Search for a public object from the search paths.
   async searchPublicObject(filePath: string): Promise<File | null> {
+    // If ImageKit is configured, we should not access Google Cloud Storage
+    if (isImageKitConfigured()) {
+      console.warn(`[ObjectStorage] searchPublicObject called for ${filePath} but ImageKit is configured. Public objects should be served from ImageKit.`);
+      return null;
+    }
+
     const searchPaths = this.getPublicObjectSearchPaths();
     
     for (const searchPath of searchPaths) {
@@ -193,6 +199,11 @@ export class ObjectStorageService {
 
   // Gets the object entity file from the object path.
   async getObjectEntityFile(objectPath: string): Promise<File> {
+    // If ImageKit is configured, we should not access Google Cloud Storage
+    if (isImageKitConfigured()) {
+      throw new Error("Cannot access Google Cloud Storage when ImageKit is configured. File should be served from ImageKit.");
+    }
+
     if (!objectPath.startsWith("/objects/")) {
       throw new Error("Object not found");
     }
@@ -364,6 +375,28 @@ export class ObjectStorageService {
       
       // Generate a unique filename if not provided
       const videoFilename = filename || `video_${randomUUID()}.mp4`;
+      
+      // Always use ImageKit as primary storage if configured (for all environments)
+      if (isImageKitConfigured()) {
+        console.log(`[ImageKit] Uploading video to ImageKit: ${videoFilename}`);
+        const imagekitResult = await uploadVideoToImageKit(buffer, videoFilename, "/videos");
+        console.log(`[ImageKit] Video uploaded successfully: ${imagekitResult.url}`);
+        
+        // Record the backup in the database (for compatibility)
+        const permanentPath = `/objects/videos/${videoFilename}`;
+        await storage.recordImagekitBackup({
+          originalPath: permanentPath,
+          imagekitUrl: imagekitResult.url,
+          imagekitFileId: imagekitResult.fileId,
+          fileType: "video"
+        });
+        
+        // Return the ImageKit URL as the primary URL
+        return imagekitResult.url;
+      }
+      
+      // Fallback to Google Cloud Storage only if ImageKit is not configured
+      console.log("[Storage] ImageKit not configured, falling back to Google Cloud Storage");
       const objectPath = `${this.getPrivateObjectDir()}/videos/${videoFilename}`;
       
       // Parse the path to get bucket and object name
@@ -503,6 +536,11 @@ export class ObjectStorageService {
     method: "GET" | "PUT" | "DELETE" | "HEAD";
     ttlSec: number;
   }): Promise<string> {
+    // If ImageKit is configured, we should not generate signed URLs for Google Cloud Storage
+    if (isImageKitConfigured()) {
+      throw new Error("Cannot generate signed URLs for Google Cloud Storage when ImageKit is configured. Use ImageKit URLs directly.");
+    }
+
     // Use Replit sidecar endpoint if in Replit environment
     if (isReplit) {
       const request = {

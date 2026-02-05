@@ -3546,14 +3546,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.redirect(302, imagekitBackup.imagekitUrl);
       }
       
-      // Fall back to serving from internal object storage
+      // If ImageKit is configured but no backup found, the file doesn't exist in ImageKit
+      const { isImageKitConfigured } = await import("./services/imagekit");
+      if (isImageKitConfigured()) {
+        console.warn(`[ObjectStorage] ImageKit is configured but no backup found for ${req.path}. File may not exist or was not uploaded to ImageKit.`);
+        return res.sendStatus(404);
+      }
+      
+      // Fall back to serving from internal object storage (only if ImageKit is not configured)
       const objectStorageService = new ObjectStorageService();
       const objectFile = await objectStorageService.getObjectEntityFile(req.path);
       objectStorageService.downloadObject(objectFile, res);
     } catch (error) {
       console.error("Error serving object:", error);
-      if (error instanceof Error && error.message === "Object not found") {
-        return res.sendStatus(404);
+      if (error instanceof Error) {
+        if (error.message === "Object not found") {
+          return res.sendStatus(404);
+        }
+        // If error is about ImageKit being configured, return 404 (file doesn't exist in ImageKit)
+        if (error.message.includes("ImageKit is configured")) {
+          console.warn(`[ObjectStorage] ${error.message} for ${req.path}`);
+          return res.sendStatus(404);
+        }
       }
       return res.sendStatus(500);
     }

@@ -84,6 +84,29 @@ export async function uploadAudioToImageKit(
   };
 }
 
+export async function uploadVideoToImageKit(
+  videoBuffer: Buffer,
+  fileName: string,
+  folder: string = "/videos"
+): Promise<ImageKitUploadResult> {
+  const imagekit = getImageKit();
+  
+  const response = await imagekit.upload({
+    file: videoBuffer.toString("base64"),
+    fileName: fileName,
+    folder: folder
+  });
+  
+  console.log(`[ImageKit] Uploaded video: ${response.url}`);
+  
+  return {
+    url: response.url,
+    fileId: response.fileId,
+    name: response.name,
+    filePath: response.filePath
+  };
+}
+
 export async function uploadTextFileToImageKit(
   textContent: string,
   fileName: string,
