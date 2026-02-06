@@ -110,6 +110,16 @@ export default function Version260Release() {
                         Audio Trimming Tool
                       </CardTitle>
                     </CardHeader>
+                    <div className="px-6 pt-0 pb-4">
+                      <div className="rounded-lg overflow-hidden border border-purple-500/20">
+                        <img 
+                          src="https://res.cloudinary.com/dqemas8ht/image/upload/v1770401890/trimmedsong_j37cfj.jpg" 
+                          alt="Audio Trimming Tool Interface"
+                          className="w-full h-auto"
+                          data-testid="image-audio-trimming-tool"
+                        />
+                      </div>
+                    </div>
                     <CardContent className="text-gray-300">
                       <p className="mb-4">
                         Take full control of your audio with our new intuitive audio trimming interface. Select exactly the portion of your song you want to use in your video.
