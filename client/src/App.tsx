@@ -32,6 +32,7 @@ import Version201Release from "@/pages/blog-post-version-2-0-1";
 import Version211Release from "@/pages/blog-post-version-2-1-1";
 import Version231Release from "@/pages/blog-post-version-2-3-1";
 import Version241Release from "@/pages/blog-post-version-2-4-1";
+import Version250Release from "@/pages/blog-post-version-2-5-0";
 import Version251Release from "@/pages/blog-post-version-2-5-1";
 import ChristmasPostcardBlogPost from "@/pages/blog-post-christmas-postcard";
 import GiftPage from "@/pages/gift";
@@ -102,6 +103,7 @@ function AppRouter() {
         <Route path="/version-2-1-1-release" component={Version211Release} />
         <Route path="/version-2-3-1-release" component={Version231Release} />
         <Route path="/version-2-4-1-release" component={Version241Release} />
+        <Route path="/version-2-5-0-release" component={Version250Release} />
         <Route path="/version-2-5-1-release" component={Version251Release} />
         <Route path="/christmas-postcard-video" component={ChristmasPostcardBlogPost} />
         <Route path="/neon-single-prompt" component={() => <ProtectedRoute component={NeonSinglePrompt} />} />

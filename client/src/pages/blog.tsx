@@ -17,6 +17,14 @@ interface BlogPost {
 
 const blogPosts: BlogPost[] = [
   {
+    title: "Version 2.5.0 Released: New Character Generator, Audio Trimming & More",
+    slug: "/version-2-5-0-release",
+    excerpt: "NeonVideo.ai version 2.5.0 is here! Discover the new character generator with expanded styles and AI models, powerful audio trimming tool, plus bug fixes and video generation improvements.",
+    date: "January 15, 2026",
+    category: "Product Update",
+    readTime: "5 min read"
+  },
+  {
     title: "Version 2.5.1 Released: More Realistic Characters & New AI Models",
     slug: "/version-2-5-1-release",
     excerpt: "NeonVideo.ai version 2.5.1 is here! Experience more realistic AI characters, choose from new Medium and Premium AI models, plus enjoy bug fixes and UI improvements.",
