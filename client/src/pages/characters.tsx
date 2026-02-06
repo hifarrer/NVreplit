@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Search, Trash2, Users, Loader2, Plus, Edit3, AlertTriangle, Crown } from "lucide-react";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
-import { CharacterGeneratorModal } from "@/components/modals/character-generator-modal";
+import { StandaloneCharacterCreator } from "@/components/standalone-character-creator";
 
 interface SavedCharacter {
   id: string;
@@ -345,12 +345,11 @@ export default function CharactersPage() {
         </div>
       </div>
 
-      {/* Character Generator Modal */}
-      <CharacterGeneratorModal
+      {/* Character Creator Modal */}
+      <StandaloneCharacterCreator
         isOpen={showCharacterModal}
         onClose={() => setShowCharacterModal(false)}
         onCharacterGenerated={handleCharacterGenerated}
-        projectId="" // Empty project ID since we're creating standalone characters
       />
       <Footer />
     </div>

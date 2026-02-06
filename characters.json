@@ -1,0 +1,182 @@
+[
+  {
+    "style_name": "Realistic Cinematic",
+    "model": "wavespeed-ai/qwen-image/text-to-image-2512-lora",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/realistic1.jpg",
+    "prompt_enhancer": "ultra-realistic portrait, photorealistic skin texture, natural facial proportions, cinematic film style, cinematic dslr photography style"
+  },
+  {
+    "style_name": "Realistic Natural",
+    "model": "wavespeed-ai/z-image/turbo",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/realistic2.jpg",
+    "prompt_enhancer": "ultra-realistic portrait, photorealistic skin texture, natural facial proportions"
+  },
+  {
+    "style_name": "3D Animated",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/3danimted_film.jpg",
+    "prompt_enhancer": "high-quality 3D animated character, soft studio lighting, smooth materials, subsurface scattering skin, expressive facial features, cinematic render"
+  },
+  {
+    "style_name": "3D Toon",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/3dtoon.jpg",
+    "prompt_enhancer": "stylized 3D toon character, simplified shapes, smooth shading, vibrant colors, soft lighting, playful proportions, high quality render"
+  },
+  {
+    "style_name": "Anime Clean Cel",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/anime_cleancel.jpg",
+    "prompt_enhancer": "anime character, clean cel shading, sharp lineart, expressive eyes, smooth gradients, vibrant colors, modern anime style, studio quality illustration"
+  },
+  {
+    "style_name": "Anime Realistic",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/anime_realistic.jpg",
+    "prompt_enhancer": "detailed anime style, semi-realistic anime, soft lighting, highly detailed eyes, smooth skin, painterly shading, high quality illustration"
+  },
+  {
+    "style_name": "Black and White",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/bnw.jpg",
+    "prompt_enhancer": "film noir character, black and white, dramatic shadows, high contrast lighting, cinematic mood"
+  },
+  {
+    "style_name": "Cartoon",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/cartoon.jpg",
+    "prompt_enhancer": "2D cartoon character, disney style, hand-drawn animation style, clean bold outlines, flat colors, simple shading, expressive facial features, smooth shapes, vibrant color palette, classic animation look, music video aesthetic"
+  },
+  {
+    "style_name": "Clay",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/clay.jpg",
+    "prompt_enhancer": "clay character style, stop-motion aesthetic, handcrafted look, soft lighting, subtle texture, playful proportions"
+  },
+  {
+    "style_name": "Comic",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/comic.jpg",
+    "prompt_enhancer": "comic book character, bold ink lines, dynamic pose, dramatic lighting, halftone texture, vibrant colors, graphic novel style"
+  },
+  {
+    "style_name": "Cyberpunk",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/cyberpunk.jpg",
+    "prompt_enhancer": "cyberpunk character, neon lights, dark futuristic city vibe, high contrast lighting, glowing accents, dystopian atmosphere"
+  },
+  {
+    "style_name": "Digital Painting",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/digitalpainting.jpg",
+    "prompt_enhancer": "digital painting, painterly brush strokes, soft blending, artistic lighting, high detail, concept art quality, professional illustration"
+  },
+  {
+    "style_name": "Fantasy",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/fantasy.jpg",
+    "prompt_enhancer": "fantasy character illustration, magical atmosphere, dramatic lighting, detailed costume, epic style, high fantasy artwork"
+  },
+  {
+    "style_name": "Futuristic",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/futuristic.jpg",
+    "prompt_enhancer": "futuristic sci-fi character, cyberpunk elements, neon accents, advanced technology aesthetic, cinematic lighting, high detail"
+  },
+  {
+    "style_name": "Goth",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/goth.jpg",
+    "prompt_enhancer": "dark gothic character, moody lighting, deep shadows, dramatic atmosphere, high contrast, mysterious aesthetic"
+  },
+  {
+    "style_name": "Toy Blocks",
+    "model": "bytedance/seedream-v4",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/lego.jpg",
+    "prompt_enhancer": "LEGO character style, stop-motion aesthetic, handcrafted look, soft lighting, subtle texture, playful proportions"
+  },
+  {
+    "style_name": "Manga",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/manga.jpg",
+    "prompt_enhancer": "manga style illustration, black and white, clean ink lines, screentone shading, high contrast, expressive linework, comic panel aesthetic"
+  },
+  {
+    "style_name": "Miniature Toy",
+    "model": "z-ai/cogview-4",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/miniature_toy.jpg",
+    "prompt_enhancer": "miniature toy character, plastic and vinyl textures, smooth molded details, toy-like proportions, shallow depth of field, tilt-shift effect, studio tabletop lighting, playful aesthetic, high detail, cinematic macro look"
+  },
+  {
+    "style_name": "Oil Painting",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/oil_painting.jpg",
+    "prompt_enhancer": "oil painting portrait, rich colors, visible brush strokes, classical painting style, dramatic lighting, fine art aesthetic"
+  },
+  {
+    "style_name": "Pixelated",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/pixelated.jpg",
+    "prompt_enhancer": "pixel art character, retro 16-bit style, limited color palette, crisp pixels, video game sprite aesthetic"
+  },
+  {
+    "style_name": "Psychodelic",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/psychodelic.jpg",
+    "prompt_enhancer": "psychedelic character, surreal colors, warped reality, dreamlike visuals, flowing shapes, trippy aesthetic"
+  },
+  {
+    "style_name": "Punk",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/punk.jpg",
+    "prompt_enhancer": "punk rock character, edgy fashion, bold attitude, dramatic lighting, gritty textures, high contrast, rebellious aesthetic"
+  },
+  {
+    "style_name": "Retro",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/retro.jpg",
+    "prompt_enhancer": "1970s aesthetic, disco era style, warm golden tones, analog film grain, soft focus, stylish fashion, cinematic lighting, retro photography look, smooth textures, music video atmosphere"
+  },
+  {
+    "style_name": "Sketch",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/sketch.jpg",
+    "prompt_enhancer": "character concept sketch, pencil drawing style, loose linework, minimal shading, early concept art aesthetic"
+  },
+  {
+    "style_name": "Steampunk",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/steampunk.jpg",
+    "prompt_enhancer": "steampunk character, victorian-era aesthetic, brass and copper mechanical elements, intricate gears and clockwork details, leather and metal accessories, retro-futuristic design, industrial elegance, warm sepia tones, cinematic lighting, highly detailed, concept art quality"
+  },
+  {
+    "style_name": "Watercolor",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/watercolor.jpg",
+    "prompt_enhancer": "watercolor illustration, soft washes, light paper texture, gentle colors, loose brush strokes, artistic style"
+  },
+  {
+    "style_name": "Ultra Surreal",
+    "model": "alibaba/wan-2.5/text-to-image",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/Ultra_Surreal.jpg",
+    "prompt_enhancer": "flowing reflective surfaces, organic motion, cinematic lighting, surreal aesthetic"
+  },
+  {
+    "style_name": "1960",
+    "model": "bytedance/seedream-v4",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/1960.jpg",
+    "prompt_enhancer": "1960s aesthetic, psychedelic style, bold vibrant colors, swirling patterns, mod fashion, soft analog lighting, artistic expression, dreamy atmosphere, retro film look, music video aesthetic"
+  },
+  {
+    "style_name": "1970",
+    "model": "bytedance/seedream-v4",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/1970.jpg",
+    "prompt_enhancer": "1970s aesthetic, psychedelic style, bold vibrant colors, swirling patterns, mod fashion, soft analog lighting, artistic expression, dreamy atmosphere, retro film look, music video aesthetic"
+  },
+  {
+    "style_name": "1980",
+    "model": "bytedance/seedream-v4",
+    "thumbnail_image": "https://ik.imagekit.io/neonvideo/characterthumbs/1980.jpg",
+    "prompt_enhancer": "retro 1980s aesthetic, glowing highlights, soft film grain, dramatic backlighting, futuristic retro fashion, cinematic atmosphere, high contrast, music video style"
+  }
+]

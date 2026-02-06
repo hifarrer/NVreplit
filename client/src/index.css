@@ -236,4 +236,23 @@
       transform: translateX(100%);
     }
   }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #000000;
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #ec4899 0%, #be185d 100%);
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #f472b6 0%, #ec4899 100%);
+  }
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #ec4899 #000000;
+  }
 }

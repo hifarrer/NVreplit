@@ -858,12 +858,328 @@ export async function generateCharacterImageArtistic(
 }
 
 // Updated to use Wavespeed.ai for character generation with style support
+// Generic function to generate character image using any Wavespeed model
+async function generateCharacterImageWithModel(
+  prompt: string,
+  model: string,
+  promptEnhancer: string | null,
+  aspectRatio: string = "16:9",
+): Promise<string> {
+  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
+
+  // Build enhanced prompt: "front shot of a " + user_prompt + prompt_enhancer
+  let enhancedPrompt = `front shot of a ${prompt}`;
+  if (promptEnhancer) {
+    enhancedPrompt += `, ${promptEnhancer}`;
+  }
+
+  // Determine image size based on aspect ratio
+  const imageSize = aspectRatio === "3:4" ? "720*960" : "1024*1024";
+
+  console.log(`Starting character generation with model: ${model}`);
+  console.log(`Enhanced prompt: ${enhancedPrompt}`);
+  console.log(`Using aspect ratio: ${aspectRatio}, image size: ${imageSize}`);
+
+  const endpoint = `https://api.wavespeed.ai/api/v3/${model}`;
+
+  // Build request body based on model type
+  let requestBody: any = {
+    enable_base64_output: false,
+    enable_sync_mode: false,
+    prompt: enhancedPrompt,
+    size: imageSize,
+  };
+
+  // Model-specific request body configurations
+  if (model === "z-ai/cogview-4") {
+    requestBody.quality = "hd";
+  } else if (model === "wavespeed-ai/qwen-image/text-to-image-2512-lora") {
+    requestBody.loras = [];
+    requestBody.output_format = "jpeg";
+    requestBody.seed = -1;
+  } else if (model === "alibaba/wan-2.5/text-to-image") {
+    requestBody.enable_prompt_expansion = false;
+    requestBody.seed = -1;
+  } else if (model === "bytedance/seedream-v4") {
+    // seedream-v4 uses default config
+  } else if (model === "wavespeed-ai/z-image/turbo") {
+    // z-image/turbo uses default config
+  }
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Wavespeed.ai submission failed for ${model}:`, errorText);
+      throw new Error(
+        `Wavespeed.ai submission error: ${response.status} - ${errorText}`,
+      );
+    }
+
+    const result = await response.json();
+    console.log(
+      `Wavespeed.ai submission result for ${model}:`,
+      JSON.stringify(result, null, 2),
+    );
+
+    if (result.code !== 200) {
+      throw new Error(
+        `Wavespeed.ai API error: ${result.message || "Unknown error"}`,
+      );
+    }
+
+    const requestId = result.data?.id;
+    if (!requestId) {
+      console.error("No request ID in response:", result);
+      throw new Error("No request ID received from Wavespeed.ai");
+    }
+
+    console.log("Got request ID:", requestId);
+
+    // Poll for results
+    let attempts = 0;
+    const maxAttempts = 180; // 15 minutes with 5-second intervals
+
+    console.log("Starting polling for completion...");
+
+    while (attempts < maxAttempts) {
+      console.log(`Polling attempt ${attempts + 1}/${maxAttempts}...`);
+      await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
+
+      const statusUrl = `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`;
+      console.log("Checking status at:", statusUrl);
+
+      const statusResponse = await fetch(statusUrl, {
+        headers: {
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+      });
+
+      if (!statusResponse.ok) {
+        const errorText = await statusResponse.text();
+        console.error("Status check failed:", errorText);
+        throw new Error(
+          `Status check failed: ${statusResponse.status} - ${errorText}`,
+        );
+      }
+
+      const statusResult = await statusResponse.json();
+      console.log("Status result:", JSON.stringify(statusResult, null, 2));
+
+      if (
+        statusResult.code === 200 &&
+        statusResult.data?.status === "completed"
+      ) {
+        console.log("Generation completed! Processing results...");
+
+        const outputs = statusResult.data?.outputs;
+        if (outputs && Array.isArray(outputs) && outputs.length > 0) {
+          const imageUrl = outputs[0];
+          console.log("Found image URL:", imageUrl);
+          return imageUrl;
+        } else {
+          console.error("No output URLs found:", statusResult);
+          throw new Error("No images in results");
+        }
+      } else if (statusResult.data?.status === "failed") {
+        console.error(
+          "Wavespeed.ai generation failed:",
+          statusResult.data.error || "Unknown error",
+        );
+        throw new Error(
+          `Image generation failed: ${statusResult.data.error || "Unknown error"}`,
+        );
+      } else {
+        console.log(
+          `Task still in progress (status: ${statusResult.data?.status}), continuing to poll...`,
+        );
+      }
+
+      attempts++;
+    }
+
+    throw new Error("Image generation timed out");
+  } catch (error) {
+    console.error(`Wavespeed.ai character generation error for ${model}:`, error);
+    throw new Error(
+      `Failed to generate character image: ${(error as Error).message}`,
+    );
+  }
+}
+
+// Image-to-image generation using seedream-v4.5/edit model
+export async function generateCharacterImageToImage(
+  imageUrl: string,
+  prompt: string,
+  promptEnhancer: string | null,
+): Promise<string> {
+  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
+
+  // Ensure we have a valid public HTTP/HTTPS URL for Wavespeed API
+  const publicImageUrl = await ensurePublicImageUrl(imageUrl, 86400);
+  console.log(`✓ Using validated image URL for Wavespeed API`);
+
+  // Build enhanced prompt: "front shot of a " + user_prompt + prompt_enhancer
+  let enhancedPrompt = `front shot of a ${prompt}`;
+  if (promptEnhancer) {
+    enhancedPrompt += `, ${promptEnhancer}`;
+  }
+
+  console.log(`Starting image-to-image generation with seedream-v4.5/edit`);
+  console.log(`Image URL: ${publicImageUrl}`);
+  console.log(`Enhanced prompt: ${enhancedPrompt}`);
+
+  const endpoint = "https://api.wavespeed.ai/api/v3/bytedance/seedream-v4.5/edit";
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+      },
+      body: JSON.stringify({
+        enable_base64_output: false,
+        enable_sync_mode: false,
+        images: [publicImageUrl],
+        prompt: enhancedPrompt,
+        size: "2048*2048",
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Wavespeed.ai image-to-image submission failed:`, errorText);
+      throw new Error(
+        `Wavespeed.ai image-to-image submission error: ${response.status} - ${errorText}`,
+      );
+    }
+
+    const result = await response.json();
+    console.log(
+      `Wavespeed.ai image-to-image submission result:`,
+      JSON.stringify(result, null, 2),
+    );
+
+    if (result.code !== 200) {
+      throw new Error(
+        `Wavespeed.ai API error: ${result.message || "Unknown error"}`,
+      );
+    }
+
+    const requestId = result.data?.id;
+    if (!requestId) {
+      console.error("No request ID in response:", result);
+      throw new Error("No request ID received from Wavespeed.ai");
+    }
+
+    console.log("Got request ID:", requestId);
+
+    // Poll for results
+    let attempts = 0;
+    const maxAttempts = 180; // 15 minutes with 5-second intervals
+
+    console.log("Starting polling for completion...");
+
+    while (attempts < maxAttempts) {
+      console.log(`Polling attempt ${attempts + 1}/${maxAttempts}...`);
+      await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
+
+      const statusUrl = `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`;
+      console.log("Checking status at:", statusUrl);
+
+      const statusResponse = await fetch(statusUrl, {
+        headers: {
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+      });
+
+      if (!statusResponse.ok) {
+        const errorText = await statusResponse.text();
+        console.error("Status check failed:", errorText);
+        throw new Error(
+          `Status check failed: ${statusResponse.status} - ${errorText}`,
+        );
+      }
+
+      const statusResult = await statusResponse.json();
+      console.log("Status result:", JSON.stringify(statusResult, null, 2));
+
+      if (
+        statusResult.code === 200 &&
+        statusResult.data?.status === "completed"
+      ) {
+        console.log("Image-to-image generation completed! Processing results...");
+
+        const outputs = statusResult.data?.outputs;
+        if (outputs && Array.isArray(outputs) && outputs.length > 0) {
+          const resultImageUrl = outputs[0];
+          console.log("Found image URL:", resultImageUrl);
+          return resultImageUrl;
+        } else {
+          console.error("No output URLs found:", statusResult);
+          throw new Error("No images in results");
+        }
+      } else if (statusResult.data?.status === "failed") {
+        console.error(
+          "Wavespeed.ai image-to-image generation failed:",
+          statusResult.data.error || "Unknown error",
+        );
+        throw new Error(
+          `Image-to-image generation failed: ${statusResult.data.error || "Unknown error"}`,
+        );
+      } else {
+        console.log(
+          `Task still in progress (status: ${statusResult.data?.status}), continuing to poll...`,
+        );
+      }
+
+      attempts++;
+    }
+
+    throw new Error("Image-to-image generation timed out");
+  } catch (error) {
+    console.error(`Wavespeed.ai image-to-image generation error:`, error);
+    throw new Error(
+      `Failed to generate image-to-image: ${(error as Error).message}`,
+    );
+  }
+}
+
 export async function generateCharacterImages(
   prompt: string,
   aspectRatio: string = "16:9",
   style: string = "3d",
+  model?: string,
+  promptEnhancer?: string | null,
 ): Promise<string[]> {
-  // Use different models based on style
+  // If model and promptEnhancer are provided, use the new style-based approach
+  if (model !== undefined) {
+    console.log(`Using style-based generation with model: ${model}`);
+    const imageUrl = await generateCharacterImageWithModel(
+      prompt,
+      model,
+      promptEnhancer || null,
+      aspectRatio,
+    );
+    return [imageUrl];
+  }
+
+  // Fallback to old style-based logic for backward compatibility
   if (style === "realistic") {
     console.log("Using REALISTIC model (text-to-image-2512-lora) for character generation");
     const imageUrl = await generateCharacterImageRealistic(prompt, aspectRatio);

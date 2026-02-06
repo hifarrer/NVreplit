@@ -15,7 +15,7 @@ import { generateSongWithMinimax, calculateVideoSegments } from "./services/mini
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
 import { createForcedAlignment, convertElevenLabsAlignmentToASS, storeElevenLabsSubtitleFile } from "./services/elevenlabs";
-import { generateCharacterImage, generateCharacterImages, generateSceneImages, generateSingleSceneImage } from "./services/fal";
+import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage } from "./services/fal";
 import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal } from "./services/wavespeed";
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
@@ -5708,14 +5708,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get character styles from characters.json
+  app.get("/api/characters/styles", async (req, res) => {
+    try {
+      const charactersJsonPath = path.join(process.cwd(), "characters.json");
+      const charactersData = JSON.parse(fs.readFileSync(charactersJsonPath, "utf-8"));
+      
+      // Add "No style" option at the beginning
+      const noStyleOption = {
+        style_name: "No style",
+        model: "alibaba/wan-2.5/text-to-image",
+        thumbnail_image: "https://ik.imagekit.io/neonvideo/characterthumbs/no_style.jpg",
+        prompt_enhancer: null
+      };
+      
+      const styles = [
+        noStyleOption,
+        ...charactersData
+      ];
+      
+      console.log("Serving character styles. First style (No style):", JSON.stringify(noStyleOption, null, 2));
+      console.log(`Total styles: ${styles.length}`);
+      
+      res.json(styles);
+    } catch (error) {
+      console.error("Get character styles error:", error);
+      res.status(500).json({ error: "Failed to get character styles" });
+    }
+  });
+
   // Generate multiple character options (KIE.ai API)
   app.post("/api/projects/:id/generate-character-options", async (req, res) => {
     try {
       console.log("Character options generation route called with body:", req.body);
-      const { prompt, aspectRatio = "16:9", style = "3d" } = req.body;
+      const { prompt, aspectRatio = "16:9", style = "3d", model, promptEnhancer } = req.body;
       console.log("Extracted prompt:", prompt);
       console.log("Aspect ratio:", aspectRatio);
       console.log("Style:", style);
+      console.log("Model:", model);
+      console.log("Prompt enhancer:", promptEnhancer);
       
       if (!prompt || !prompt.trim()) {
         throw new Error("No prompt provided");
@@ -5726,11 +5757,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         step: "character_generation",
         message: "Starting character options generation",
         status: "started",
-        metadata: { prompt, style }
+        metadata: { prompt, style, model, promptEnhancer }
       });
 
-      console.log("About to call generateCharacterImages with aspect ratio:", aspectRatio, "and style:", style);
-      const imageUrls = await generateCharacterImages(prompt, aspectRatio, style);
+      // Use new style-based approach if model is provided, otherwise fallback to old style-based logic
+      let imageUrls: string[];
+      if (model !== undefined) {
+        console.log("About to call generateCharacterImages with model:", model, "and prompt enhancer:", promptEnhancer);
+        imageUrls = await generateCharacterImages(prompt, aspectRatio, style, model, promptEnhancer);
+      } else {
+        console.log("About to call generateCharacterImages with aspect ratio:", aspectRatio, "and style:", style);
+        imageUrls = await generateCharacterImages(prompt, aspectRatio, style);
+      }
       console.log("generateCharacterImages returned:", imageUrls);
 
       await storage.addGenerationLog({
@@ -5805,6 +5843,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Save character option error:", error);
       res.status(500).json({ error: "Failed to save character option" });
+    }
+  });
+
+  // Generate character image-to-image with style
+  app.post("/api/projects/:id/generate-character-image-to-image", async (req, res) => {
+    try {
+      console.log("Character image-to-image generation route called with body:", req.body);
+      const { imageUrl, prompt, promptEnhancer } = req.body;
+      console.log("Image URL:", imageUrl);
+      console.log("Prompt:", prompt);
+      console.log("Prompt enhancer:", promptEnhancer);
+      
+      if (!imageUrl || !prompt || !prompt.trim()) {
+        throw new Error("Image URL and prompt are required");
+      }
+      
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "character_generation",
+        message: "Starting character image-to-image generation",
+        status: "started",
+        metadata: { imageUrl, prompt, promptEnhancer }
+      });
+
+      console.log("About to call generateCharacterImageToImage");
+      const resultImageUrl = await generateCharacterImageToImage(
+        imageUrl,
+        prompt,
+        promptEnhancer || null
+      );
+      console.log("generateCharacterImageToImage returned:", resultImageUrl);
+
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "character_generation",
+        message: "Character image-to-image generation completed successfully",
+        status: "completed",
+        metadata: { resultImageUrl }
+      });
+
+      res.json({ imageUrl: resultImageUrl, prompt });
+    } catch (error) {
+      console.error("Generate character image-to-image error:", error);
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "character_generation",
+        message: `Character image-to-image generation failed: ${(error as Error).message}`,
+        status: "error",
+        metadata: { error: (error as Error).message }
+      });
+      res.status(500).json({ error: "Failed to generate character image-to-image" });
     }
   });
 
@@ -7783,23 +7872,161 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/characters/generate-options", authenticateToken, async (req, res) => {
     try {
       console.log("Standalone character options generation route called with body:", req.body);
-      const { prompt, aspectRatio = "16:9", style = "3d" } = req.body;
+      const { prompt, aspectRatio = "16:9", style = "3d", model, promptEnhancer } = req.body;
       console.log("Extracted prompt:", prompt);
       console.log("Aspect ratio:", aspectRatio);
       console.log("Style:", style);
+      console.log("Model:", model);
+      console.log("Prompt enhancer:", promptEnhancer);
       
       if (!prompt || !prompt.trim()) {
         throw new Error("No prompt provided");
       }
 
-      console.log("About to call generateCharacterImages with aspect ratio:", aspectRatio, "and style:", style);
-      const imageUrls = await generateCharacterImages(prompt, aspectRatio, style);
+      // Use new style-based approach if model is provided, otherwise fallback to old style-based logic
+      let imageUrls: string[];
+      if (model !== undefined) {
+        console.log("About to call generateCharacterImages with model:", model, "and prompt enhancer:", promptEnhancer);
+        imageUrls = await generateCharacterImages(prompt, aspectRatio, style, model, promptEnhancer);
+      } else {
+        console.log("About to call generateCharacterImages with aspect ratio:", aspectRatio, "and style:", style);
+        imageUrls = await generateCharacterImages(prompt, aspectRatio, style);
+      }
       console.log("generateCharacterImages returned:", imageUrls);
 
       res.json({ imageUrls, prompt });
     } catch (error) {
       console.error("Generate standalone character options error:", error);
       res.status(500).json({ error: "Failed to generate character options" });
+    }
+  });
+
+  // Standalone character image-to-image generation
+  app.post("/api/characters/generate-image-to-image", authenticateToken, async (req, res) => {
+    try {
+      console.log("Standalone character image-to-image generation route called with body:", req.body);
+      const { imageUrl, prompt, promptEnhancer } = req.body;
+      console.log("Image URL:", imageUrl);
+      console.log("Prompt:", prompt);
+      console.log("Prompt enhancer:", promptEnhancer);
+      
+      if (!imageUrl || !prompt || !prompt.trim()) {
+        throw new Error("Image URL and prompt are required");
+      }
+
+      console.log("About to call generateCharacterImageToImage");
+      const resultImageUrl = await generateCharacterImageToImage(
+        imageUrl,
+        prompt,
+        promptEnhancer || null
+      );
+      console.log("generateCharacterImageToImage returned:", resultImageUrl);
+
+      res.json({ imageUrl: resultImageUrl, prompt });
+    } catch (error) {
+      console.error("Generate standalone character image-to-image error:", error);
+      res.status(500).json({ error: "Failed to generate character image-to-image" });
+    }
+  });
+
+  // Standalone character upload
+  app.post("/api/characters/upload", authenticateToken, upload.single('image'), async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "No image file provided" });
+      }
+
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+      if (!allowedTypes.includes(file.mimetype)) {
+        return res.status(400).json({ error: "Invalid file type. Please upload JPEG, PNG, or GIF images." });
+      }
+
+      // Validate file size (5MB limit)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        return res.status(400).json({ error: "File too large. Please upload images under 5MB." });
+      }
+
+      // Process the image with sharp (resize to square for character images)
+      let processedBuffer: Buffer;
+      try {
+        processedBuffer = await sharp(file.buffer)
+          .resize(1024, 1024, { fit: 'cover', position: 'center' })
+          .jpeg({ quality: 90 })
+          .toBuffer();
+        console.log(`Image processed to 1024x1024`);
+      } catch (sharpError) {
+        console.error("Error processing image with sharp:", sharpError);
+        // If sharp processing fails, use original buffer
+        processedBuffer = file.buffer;
+      }
+
+      // Generate unique filename
+      const filename = `character_${nanoid()}.jpg`;
+      const imagePath = `characters/${filename}`;
+
+      // Always use ImageKit as primary storage if configured
+      let imagekitUrl: string | undefined;
+      let imagekitFileId: string | undefined;
+      let permanentPath: string;
+      
+      if (isImageKitConfigured()) {
+        // Upload to ImageKit first
+        console.log(`[ImageKit] Uploading character image to ImageKit: ${filename}`);
+        const imagekitResult = await uploadImageToImageKit(processedBuffer, filename, '/characters');
+        imagekitUrl = imagekitResult.url;
+        imagekitFileId = imagekitResult.fileId;
+        permanentPath = imagekitUrl; // Use ImageKit URL as permanent path
+        
+        console.log(`[ImageKit] Character image uploaded: ${imagekitUrl}`);
+        
+        // Run content moderation on the ImageKit URL
+        const moderationResult = await moderateImageContent(imagekitUrl);
+        
+        if (!moderationResult.safe) {
+          console.log(`[Content Moderation] Image rejected but already uploaded to ImageKit: ${imagekitUrl}`);
+          
+          if (moderationResult.error) {
+            return res.status(503).json({ 
+              error: moderationResult.error
+            });
+          }
+          
+          const violationList = moderationResult.violations.join(", ");
+          return res.status(400).json({ 
+            error: `Image rejected: Our AI detected content that doesn't comply with our policies (${violationList}). Please upload a different image.`
+          });
+        }
+      } else {
+        // Fallback to Google Cloud Storage only if ImageKit is not configured
+        console.log("[Storage] ImageKit not configured, falling back to Google Cloud Storage");
+        const objectPath = `${objectStorage.getPrivateObjectDir()}/${imagePath}`;
+        const { bucketName, objectName } = objectStorage.parseObjectPath(objectPath);
+        
+        const bucket = objectStorageClient.bucket(bucketName);
+        const fileObj = bucket.file(objectName);
+        
+        await fileObj.save(processedBuffer, {
+          metadata: {
+            contentType: 'image/jpeg',
+          },
+        });
+        
+        permanentPath = `/objects/${imagePath}`;
+        console.log(`Character image stored at: ${permanentPath}`);
+      }
+
+      res.json({ imageUrl: permanentPath });
+    } catch (error) {
+      console.error("Character upload error:", error);
+      res.status(500).json({ error: "Failed to upload character image" });
     }
   });
 
