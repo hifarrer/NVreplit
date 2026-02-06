@@ -167,6 +167,8 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
   const [librarySongTitle, setLibrarySongTitle] = useState(""); // Custom title for library song
+  const [librarySongDescription, setLibrarySongDescription] = useState(""); // Song description for library tab
+  const [libraryDescriptionProfanityCheck, setLibraryDescriptionProfanityCheck] = useState<ProfanityCheckResult | null>(null);
   const [showTrimInterfaceForLibrary, setShowTrimInterfaceForLibrary] = useState(false);
   const [selectedLibrarySongForTrim, setSelectedLibrarySongForTrim] = useState<GeneratedSong | null>(null);
   const libraryTrimInterfaceRef = useRef<HTMLDivElement>(null);
@@ -227,7 +229,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
           audioUrl: data.audioUrl,
           audioType: isGeneratedSong ? 'generated' : (isLibrarySong ? 'library' : 'uploaded'),
           duration: data.duration,
-          audioPrompt: isGeneratedSong ? (description || null) : (isLibrarySong ? null : (uploadSongDescription || null)),
+          audioPrompt: isGeneratedSong ? (description || null) : (isLibrarySong ? (librarySongDescription.trim() || null) : (uploadSongDescription || null)),
           audioTags: isGeneratedSong ? (tags || null) : (isLibrarySong ? selectedLibrarySongForTrim?.audioTags || null : null),
           audioLyrics: isGeneratedSong ? (lyrics || null) : (isLibrarySong ? selectedLibrarySongForTrim?.audioLyrics || null : null),
           aspectRatio: isVertical ? "3:4" : "16:9",
@@ -655,6 +657,11 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         requestData.title = librarySongTitle.trim();
       }
       
+      // Include song description if provided
+      if (librarySongDescription.trim()) {
+        requestData.audioPrompt = librarySongDescription.trim();
+      }
+      
       const response = await apiRequest("POST", `/api/projects/${projectId}/select-song`, requestData);
       return response.json();
     },
@@ -945,7 +952,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         startTime,
         endTime,
         title: librarySongTitle.trim() || selectedLibrarySongForTrim.title || undefined,
-        description: undefined
+        description: librarySongDescription.trim() || undefined
       });
     } catch (error) {
       setIsTrimming(false);
@@ -1623,6 +1630,51 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                   </div>
                 )}
                 
+                {/* Song Description for Library */}
+                {selectedSongId && (
+                  <div>
+                    <Label className="flex items-center text-sm font-semibold mb-2">
+                      <Lightbulb className="w-4 h-4 text-accent mr-2" />
+                      What is your song about?
+                    </Label>
+                    <Textarea
+                      value={librarySongDescription}
+                      onChange={(e) => {
+                        const newDescription = e.target.value;
+                        setLibrarySongDescription(newDescription);
+                        // Check for profanity when description changes
+                        const profanityResult = checkProfanity(newDescription);
+                        setLibraryDescriptionProfanityCheck(profanityResult);
+                      }}
+                      placeholder="e.g., A lonely cowboy cat riding through the desert at sunset..."
+                      rows={3}
+                      className={`resize-none ${
+                        libraryDescriptionProfanityCheck?.isClean === false 
+                          ? 'border-red-500 focus:border-red-500' 
+                          : librarySongDescription.trim().length > 0 && librarySongDescription.trim().length < 5 
+                            ? 'border-red-500' 
+                            : ''
+                      }`}
+                      data-testid="library-song-description-input"
+                    />
+                    {libraryDescriptionProfanityCheck?.isClean === false && (
+                      <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded-md mt-2">
+                        <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                        <span>{libraryDescriptionProfanityCheck.category ? getCategoryMessage(libraryDescriptionProfanityCheck.category) : 'Please remove inappropriate content from your description.'}</span>
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {libraryDescriptionProfanityCheck?.isClean === false ? (
+                        <span className="text-red-500">Please remove inappropriate content from your description before proceeding.</span>
+                      ) : librarySongDescription.trim().length > 0 && librarySongDescription.trim().length < 5 ? (
+                        <span className="text-red-500">Description must be at least 5 characters (currently: {librarySongDescription.trim().length})</span>
+                      ) : (
+                        "Describe the theme, mood, or story of your song - this will help generate relevant video scenes"
+                      )}
+                    </p>
+                  </div>
+                )}
+                
                 {/* Song Title for Library */}
                 {selectedSongId && (
                   <div>
@@ -1697,10 +1749,28 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                 </div>
                 
                 <Button 
-                  onClick={handleSelectSong} 
-                  disabled={!selectedSongId}
+                  onClick={() => {
+                    // Check for profanity in description
+                    if (libraryDescriptionProfanityCheck?.isClean === false) {
+                      toast({
+                        title: "Content Policy Violation",
+                        description: libraryDescriptionProfanityCheck.category ? getCategoryMessage(libraryDescriptionProfanityCheck.category) : "Please remove inappropriate content from your description before proceeding.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    handleSelectSong();
+                  }}
+                  disabled={!selectedSongId || (libraryDescriptionProfanityCheck?.isClean === false)}
                   className="w-full floating-button"
                   data-testid="button-select-song"
+                  title={
+                    libraryDescriptionProfanityCheck?.isClean === false
+                      ? "Please remove inappropriate content from your description"
+                      : !selectedSongId
+                        ? "Please select a song from your library"
+                        : "Use the selected song"
+                  }
                 >
                   Use Selected Song
                 </Button>

@@ -212,6 +212,7 @@ export default function Home() {
             initialVideoQuality={(project as any)?.videoQuality || "quick"}
             isEditMode={isEditMode}
             finalVideoUrl={isEditMode ? project?.finalVideoUrl : undefined}
+            aspectRatio={project?.aspectRatio}
             onNext={() => handleStepChange(4)}
             onBack={() => handleStepChange(2)}
             onReset={resetProject}

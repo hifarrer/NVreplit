@@ -38,6 +38,7 @@ interface SceneGenerationStepProps {
   initialVideoQuality?: VideoQuality;
   isEditMode?: boolean;
   finalVideoUrl?: string;
+  aspectRatio?: string;
   onNext: () => void;
   onBack: () => void;
   onReset: () => void;
@@ -90,7 +91,7 @@ const isProjectLockInProgress = (projectId: string): boolean => {
   return lock.inProgress;
 };
 
-export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioLyrics, subtitleFileUrl, characterImageUrl, scenes = [], sceneOrder: initialSceneOrder, initialVideoQuality = "quick", isEditMode = false, finalVideoUrl, onNext, onBack, onReset }: SceneGenerationStepProps) {
+export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioLyrics, subtitleFileUrl, characterImageUrl, scenes = [], sceneOrder: initialSceneOrder, initialVideoQuality = "quick", isEditMode = false, finalVideoUrl, aspectRatio = "16:9", onNext, onBack, onReset }: SceneGenerationStepProps) {
   // Defensively copy scenes array to avoid mutating the original project data
   const [generatedScenes, setGeneratedScenes] = useState<SceneData[]>(() => 
     scenes.map(scene => ({ ...scene }))
@@ -452,7 +453,8 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
         // Call a standalone scene generation endpoint that doesn't update the project
         const response = await apiRequest("POST", `/api/generate-single-scene`, {
           prompt,
-          characterImageUrl
+          characterImageUrl,
+          aspectRatio
         });
         return response.json();
       }

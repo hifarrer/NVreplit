@@ -3602,7 +3602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate a single scene image without updating any project (for edit mode)
   app.post("/api/generate-single-scene", authenticateToken, async (req, res) => {
     try {
-      const { prompt, characterImageUrl } = req.body;
+      const { prompt, characterImageUrl, aspectRatio } = req.body;
       
       if (!prompt) {
         return res.status(400).json({ error: "Prompt is required" });
@@ -3612,10 +3612,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Character image URL is required" });
       }
 
-      console.log(`Generating single scene with prompt: ${prompt}`);
+      // Use the aspect ratio from the request, default to 16:9 for horizontal
+      const projectAspectRatio = aspectRatio || "16:9";
+
+      console.log(`Generating single scene with prompt: ${prompt}, aspect ratio: ${projectAspectRatio}`);
       
       // Generate scene image using the same method as regular scene generation
-      const storedImageUrl = await generateSingleSceneImage(prompt, characterImageUrl);
+      const storedImageUrl = await generateSingleSceneImage(prompt, characterImageUrl, projectAspectRatio);
       
       // Resolve to ImageKit URL for the response (internal storage URL is stored in database)
       const resolvedImageUrl = await resolveUrlWithImageKitFallback(storedImageUrl);
@@ -5928,7 +5931,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Select song for project (handles both generated songs and library songs)
   app.post("/api/projects/:id/select-song", authenticateToken, async (req, res) => {
     try {
-      const { audioUrl, audioTags, audioLyrics, audioType, duration, subtitleFileUrl, kieTaskId, kieAudioId, title, aspectRatio, addSubtitles, includeWatermark, isPublic, saveToLibrary } = req.body;
+      const { audioUrl, audioTags, audioLyrics, audioType, duration, subtitleFileUrl, kieTaskId, kieAudioId, title, aspectRatio, addSubtitles, includeWatermark, isPublic, saveToLibrary, audioPrompt } = req.body;
       
       console.log("=== SELECT-SONG REQUEST ===");
       console.log("Request body:", JSON.stringify(req.body, null, 2));
@@ -5946,6 +5949,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (audioType) updateData.audioType = audioType;
       if (duration) updateData.audioDuration = duration;
       if (title && title.trim()) updateData.title = title.trim();
+      if (audioPrompt && audioPrompt.trim()) updateData.audioPrompt = audioPrompt.trim();
       if (aspectRatio) updateData.aspectRatio = aspectRatio; // Store aspect ratio ('16:9' or '3:4')
       // Handle boolean values that might come as strings from JSON or form data
       if (addSubtitles !== undefined) updateData.addSubtitles = addSubtitles === true || addSubtitles === 'true';

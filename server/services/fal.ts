@@ -66,7 +66,9 @@ async function ensurePublicImageUrl(characterImageUrl: string, ttlSec: number = 
  */
 function aspectRatioToSize(aspectRatio: string = "16:9"): string {
   // Qwen model size format: "width*height"
-  if (aspectRatio === "9:16") {
+  if (aspectRatio === "3:4") {
+    return "768*1024"; // Vertical (portrait) - 3:4 aspect ratio
+  } else if (aspectRatio === "9:16") {
     return "612*1024"; // Vertical (portrait) - for TikTok/Reels/Shorts
   } else {
     return "1024*612"; // Horizontal (landscape) - default 16:9
