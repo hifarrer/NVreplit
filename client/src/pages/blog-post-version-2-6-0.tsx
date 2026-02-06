@@ -85,7 +85,7 @@ export default function Version260Release() {
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
-                          <span><strong className="text-white">New AI Models:</strong> Powered by cutting-edge models including Wavespeed AI's Qwen Image, Z-Image Turbo, Alibaba's WAN 2.5, and ByteDance's Seedream V4 for diverse character generation</span>
+                          <span><strong className="text-white">New AI Models:</strong> Powered by cutting-edge AI models from leading providers for diverse character generation</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
