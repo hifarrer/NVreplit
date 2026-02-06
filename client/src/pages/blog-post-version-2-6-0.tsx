@@ -6,19 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Rocket, Users, Sparkles, CheckCircle, Bug, Cpu, Scissors, Video } from "lucide-react";
 
-export default function Version250Release() {
+export default function Version260Release() {
   return (
     <>
       <Helmet>
-        <title>Version 2.5.0 Released - New Character Generator, Audio Trimming & More | NeonVideo.ai</title>
-        <meta name="description" content="NeonVideo.ai version 2.5.0 is here! Discover the new character generator with expanded styles and AI models, powerful audio trimming tool, plus bug fixes and video generation improvements." />
-        <meta property="og:title" content="Version 2.5.0 Released - New Character Generator, Audio Trimming & More" />
-        <meta property="og:description" content="NeonVideo.ai version 2.5.0 brings a new character generator with expanded styles and AI models, powerful audio trimming tool, plus bug fixes and video generation improvements." />
+        <title>Version 2.6.0 Released - New Character Generator, Audio Trimming & More | NeonVideo.ai</title>
+        <meta name="description" content="NeonVideo.ai version 2.6.0 is here! Discover the new character generator with expanded styles and AI models, powerful audio trimming tool, plus bug fixes and video generation improvements." />
+        <meta property="og:title" content="Version 2.6.0 Released - New Character Generator, Audio Trimming & More" />
+        <meta property="og:description" content="NeonVideo.ai version 2.6.0 brings a new character generator with expanded styles and AI models, powerful audio trimming tool, plus bug fixes and video generation improvements." />
         <meta property="og:type" content="article" />
-        <meta property="og:url" content="https://neonvideo.ai/version-2-5-0-release" />
+        <meta property="og:url" content="https://neonvideo.ai/version-2-6-0-release" />
         <meta property="og:image" content="https://res.cloudinary.com/dqemas8ht/image/upload/v1768700740/neonreal_xoobex.jpg" />
-        <meta name="keywords" content="NeonVideo.ai update, version 2.5.0, AI music video, character generator, audio trimming, AI models, bug fixes, video generation" />
-        <link rel="canonical" href="https://neonvideo.ai/version-2-5-0-release" />
+        <meta name="keywords" content="NeonVideo.ai update, version 2.6.0, AI music video, character generator, audio trimming, AI models, bug fixes, video generation" />
+        <link rel="canonical" href="https://neonvideo.ai/version-2-6-0-release" />
       </Helmet>
 
       <div className="min-h-screen flex flex-col bg-black dark:bg-black">
@@ -42,11 +42,11 @@ export default function Version250Release() {
               </div>
               
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">
-                NeonVideo.ai Version 2.5.0: New Character Generator, Audio Trimming & More
+                NeonVideo.ai Version 2.6.0: New Character Generator, Audio Trimming & More
               </h1>
               
               <p className="text-xl text-gray-300 leading-relaxed mb-8">
-                We're thrilled to announce version 2.5.0! This major update introduces a completely revamped character generator with new styles and AI models, a powerful audio trimming tool for precise control, and numerous bug fixes and video generation improvements to enhance your creative workflow.
+                We're thrilled to announce version 2.6.0! This major update introduces a completely revamped character generator with new styles and AI models, a powerful audio trimming tool for precise control, and numerous bug fixes and video generation improvements to enhance your creative workflow.
               </p>
 
               <div className="rounded-lg overflow-hidden border border-purple-500/20 mb-8">
@@ -63,7 +63,7 @@ export default function Version250Release() {
               <section className="mb-12">
                 <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
                   <Sparkles className="h-8 w-8 text-purple-400" />
-                  What's New in Version 2.5.0
+                  What's New in Version 2.6.0
                 </h2>
                 
                 <div className="space-y-6">
@@ -271,7 +271,7 @@ export default function Version250Release() {
               <section className="border-t border-purple-500/20 pt-8">
                 <h2 className="text-2xl font-bold text-white mb-4">Have Feedback?</h2>
                 <p className="text-gray-300">
-                  We'd love to hear what you think about version 2.5.0! Your feedback helps us build the features you need. Reach out to us through our <Link href="/contact" className="text-purple-400 hover:text-purple-300 underline" data-testid="link-contact">contact page</Link> or share your creations with us on social media.
+                  We'd love to hear what you think about version 2.6.0! Your feedback helps us build the features you need. Reach out to us through our <Link href="/contact" className="text-purple-400 hover:text-purple-300 underline" data-testid="link-contact">contact page</Link> or share your creations with us on social media.
                 </p>
               </section>
             </div>
