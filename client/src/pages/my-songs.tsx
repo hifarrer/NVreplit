@@ -21,6 +21,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { DownloadRestrictionModal } from "@/components/modals/download-restriction-modal";
 
 interface GeneratedSong {
   id: string;
@@ -37,6 +38,10 @@ export default function MySongsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
+  const [showDownloadRestriction, setShowDownloadRestriction] = useState(false);
+
+  // Check if user is on free plan
+  const isFreeUser = !user?.plan || user.plan.name.toLowerCase() === 'free';
 
   const { data: rawSongs = [], isLoading } = useQuery<GeneratedSong[]>({
     queryKey: ["/api/my-songs"],
@@ -46,6 +51,12 @@ export default function MySongsPage() {
   const songs = rawSongs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const handleDownload = (audioUrl: string, title: string) => {
+    // Check if user is on free plan
+    if (isFreeUser) {
+      setShowDownloadRestriction(true);
+      return;
+    }
+
     const link = document.createElement('a');
     link.href = audioUrl;
     link.download = `${title.replace(/\s+/g, '_')}.mp3`;
@@ -259,6 +270,10 @@ export default function MySongsPage() {
         </Card>
       </main>
       <Footer />
+      <DownloadRestrictionModal
+        isOpen={showDownloadRestriction}
+        onClose={() => setShowDownloadRestriction(false)}
+      />
     </div>
   );
 }

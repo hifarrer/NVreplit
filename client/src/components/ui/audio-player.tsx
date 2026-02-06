@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Play, Pause, Download } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { DownloadRestrictionModal } from "@/components/modals/download-restriction-modal";
 
 interface AudioPlayerProps {
   audioUrl: string;
@@ -10,12 +12,17 @@ interface AudioPlayerProps {
 }
 
 export function AudioPlayer({ audioUrl, title = "Audio Track", className }: AudioPlayerProps) {
+  const { user } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [showDownloadRestriction, setShowDownloadRestriction] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
+
+  // Check if user is on free plan
+  const isFreeUser = !user?.plan || user.plan.name.toLowerCase() === 'free';
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -115,6 +122,12 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
         </h4>
         <Button
           onClick={() => {
+            // Check if user is on free plan
+            if (isFreeUser) {
+              setShowDownloadRestriction(true);
+              return;
+            }
+
             const link = document.createElement('a');
             link.href = audioUrl;
             link.download = `${title}.mp3`;
@@ -170,6 +183,10 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
           </div>
         </div>
       </div>
+      <DownloadRestrictionModal
+        isOpen={showDownloadRestriction}
+        onClose={() => setShowDownloadRestriction(false)}
+      />
     </div>
   );
 }
