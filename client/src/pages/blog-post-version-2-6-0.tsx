@@ -89,6 +89,10 @@ export default function Version260Release() {
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
+                          <span><strong className="text-white">100% Free:</strong> All characters are generated for free</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
                           <span><strong className="text-white">Style-Specific Enhancements:</strong> Each style now includes optimized prompt enhancers for better results tailored to your chosen aesthetic</span>
                         </li>
                         <li className="flex items-start gap-2">
