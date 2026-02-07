@@ -411,14 +411,14 @@ async function downloadAndStoreMinimaxAudio(
 /**
  * Calculate the number of video segments needed for a given song duration.
  * 
- * CRITICAL RULE: ALL video segments MUST be exactly 10 seconds, ONLY the last segment
+ * CRITICAL RULE: ALL video segments MUST be exactly 6 seconds, ONLY the last segment
  * can be shorter (the remainder). This ensures proper lipsync synchronization.
  * 
  * Examples:
- * - 60 seconds = [10, 10, 10, 10, 10, 10] (6 segments)
- * - 45 seconds = [10, 10, 10, 10, 5] (5 segments, last is 5s)
- * - 68 seconds = [10, 10, 10, 10, 10, 10, 8] (7 segments, last is 8s)
- * - 73 seconds = [10, 10, 10, 10, 10, 10, 10, 3] (8 segments, last is 3s)
+ * - 30 seconds = [6, 6, 6, 6, 6] (5 segments)
+ * - 18 seconds = [6, 6, 6] (3 segments)
+ * - 20 seconds = [6, 6, 6, 2] (4 segments, last is 2s)
+ * - 25 seconds = [6, 6, 6, 6, 1] (5 segments, last is 1s - will be skipped if < 2s)
  */
 export function calculateVideoSegments(durationSeconds: number): {
   numberOfSegments: number;
@@ -426,32 +426,32 @@ export function calculateVideoSegments(durationSeconds: number): {
 } {
   // Guard against zero/invalid duration - minimum 2 seconds (shortest video segment for seedance)
   if (!durationSeconds || durationSeconds <= 0) {
-    console.warn(`Invalid duration ${durationSeconds}, defaulting to minimum 10s segment`);
+    console.warn(`Invalid duration ${durationSeconds}, defaulting to minimum 6s segment`);
     return {
       numberOfSegments: 1,
-      segmentDurations: [10],
+      segmentDurations: [6],
     };
   }
 
-  // For very short songs (< 2 seconds), use a single 10-second segment
+  // For very short songs (< 2 seconds), use a single 6-second segment
   // The video will be slightly longer than the audio
   if (durationSeconds < 2) {
-    console.log(`Very short duration ${durationSeconds}s, using minimum 10s segment`);
+    console.log(`Very short duration ${durationSeconds}s, using minimum 6s segment`);
     return {
       numberOfSegments: 1,
-      segmentDurations: [10],
+      segmentDurations: [6],
     };
   }
 
-  // Calculate number of full 10-second segments
-  const fullSegments = Math.floor(durationSeconds / 10);
-  const remainder = durationSeconds % 10;
+  // Calculate number of full 6-second segments
+  const fullSegments = Math.floor(durationSeconds / 6);
+  const remainder = durationSeconds % 6;
 
   let segmentDurations: number[] = [];
 
-  // Fill with 10-second segments first
+  // Fill with 6-second segments first
   for (let i = 0; i < fullSegments; i++) {
-    segmentDurations.push(10);
+    segmentDurations.push(6);
   }
 
   // Add remainder as the last segment if there's any remaining time
@@ -465,9 +465,9 @@ export function calculateVideoSegments(durationSeconds: number): {
     }
   }
 
-  // If we ended up with no segments (shouldn't happen), add one 10s segment
+  // If we ended up with no segments (shouldn't happen), add one 6s segment
   if (segmentDurations.length === 0) {
-    segmentDurations.push(10);
+    segmentDurations.push(6);
   }
 
   console.log(`Song duration: ${durationSeconds}s`);

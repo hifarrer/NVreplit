@@ -6283,10 +6283,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Project audioDuration:", project.audioDuration);
       console.log("Final audioDuration used:", audioDuration);
       
-      // Calculate number of scenes dynamically based on 10-second segments
-      // Apply the new logic: segments must be 10s each, and last segment must be >= 2s
-      const fullSegments = Math.floor(audioDuration / 10);
-      const remainder = audioDuration % 10;
+      // Calculate number of scenes dynamically based on 6-second segments
+      // Apply the new logic: segments must be 6s each, and last segment must be >= 2s
+      const fullSegments = Math.floor(audioDuration / 6);
+      const remainder = audioDuration % 6;
       // Only include remainder if it's >= 2 seconds (minimum for AI models)
       const numberOfScenes = remainder >= 2 ? fullSegments + 1 : fullSegments;
       const numberOfAudioParts = numberOfScenes;
@@ -7122,9 +7122,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Using audio duration: ${audioDuration} seconds for video generation`);
       
           // Calculate the correct number of scenes based on audio duration
-          // Apply the new logic: segments must be 10s each, and last segment must be >= 2s
-          const fullSegments = Math.floor(audioDuration / 10);
-          const remainder = audioDuration % 10;
+          // Apply the new logic: segments must be 6s each, and last segment must be >= 2s
+          const fullSegments = Math.floor(audioDuration / 6);
+          const remainder = audioDuration % 6;
           // Only include remainder if it's >= 2 seconds (minimum for AI models)
           const calculatedSceneCount = remainder >= 2 ? fullSegments + 1 : fullSegments;
           
@@ -7147,7 +7147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Scene images count from project: ${existingSceneImagesCount}`);
       console.log(`Calculated scene count: ${calculatedSceneCount}`);
-      console.log(`Calculated from duration would be: ${Math.ceil(audioDuration / 10)}`);
+      console.log(`Calculated from duration would be: ${Math.ceil(audioDuration / 6)}`);
       
       // Split roughly 50/50 between regular and lipsync videos
       const numberOfVideosLipsync = Math.floor(numberOfScenes / 2);
@@ -7204,11 +7204,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Audio type:", project.audioType);
       console.log("=== END DEBUG ===");
       
-      // Split audio into fixed 10-second segments for ALL audio types
-      // CRITICAL: All segments must be exactly 10 seconds, only the last segment can be shorter
+      // Split audio into fixed 6-second segments for ALL audio types
+      // CRITICAL: All segments must be exactly 6 seconds, only the last segment can be shorter
       // This ensures proper lipsync synchronization when merging videos
-      // Example: 45-second song → [10s, 10s, 10s, 10s, 5s] NOT [9s, 9s, 9s, 9s, 9s]
-      console.log(`Splitting audio into fixed 10-second segments (audio type: ${project.audioType}, total duration: ${audioDuration}s)`);
+      // Example: 30-second song → [6s, 6s, 6s, 6s, 6s, 0s] NOT [5s, 5s, 5s, 5s, 5s, 5s]
+      console.log(`Splitting audio into fixed 6-second segments (audio type: ${project.audioType}, total duration: ${audioDuration}s)`);
       let audioSegments = await splitAudio(audioUrl, numberOfAudioParts, audioDuration);
       console.log("Audio segments result:", JSON.stringify(audioSegments, null, 2));
       
@@ -10308,7 +10308,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       });
 
       // Calculate number of scenes dynamically based on ACTUAL song duration
-      // Video segments can be 5 or 10 seconds, so we use calculateVideoSegments
+      // Video segments are 6 seconds, so we use calculateVideoSegments
       const { numberOfSegments: numberOfScenes, segmentDurations } = calculateVideoSegments(actualSongDuration);
       console.log(`[NEON-SINGLE-PROMPT] Dynamically calculated ${numberOfScenes} scenes for ${actualSongDuration}s video (segments: ${segmentDurations.join(', ')}s)`);
 

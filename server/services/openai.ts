@@ -273,6 +273,7 @@ REQUIREMENTS FOR REGULAR SCENES:
 - Dynamic camera movements allowed (zoom, pan, dolly, etc.)
 - Character can be at various distances
 - More creative freedom with angles and movements
+- background description should be a description of the background of the scene.
 
 REQUIREMENTS FOR LIPSYNC SCENES:
 - MUST be CLOSEUP shots (head and shoulders, face clearly visible)
@@ -281,6 +282,7 @@ REQUIREMENTS FOR LIPSYNC SCENES:
 - Use SLIGHT camera movements (slowly panning to the side, gently rotating around character, subtle zoom in/out, slight tilt)
 - Focus on character's face for lip synchronization
 - Character should be singing, speaking, or emoting clearly
+- background description should match the background description in the other scenes.
 
 General Requirements:
 - Each prompt must include a specific CHARACTER ACTION
@@ -334,8 +336,8 @@ Example LIPSYNC scene: "Closeup of character's face singing emotionally. Camera 
           role: "system",
           content: `You are a creative director for music videos. Generate ${numberOfScenes} SHORT and CONCISE scene prompts (1-2 sentences each). 
 CRITICAL: Follow the REGULAR vs LIPSYNC pattern exactly as specified.
-- REGULAR scenes: wider shots, dynamic movements
-- LIPSYNC scenes: CLOSEUPS only, minimal camera movement, face clearly visible
+- REGULAR scenes: wider shots, dynamic movements, background description.
+- LIPSYNC scenes: CLOSEUPS only, minimal camera movement, face clearly visible, background description should match the background description in the other scenes.
 Each prompt must include a specific character action and appropriate camera positioning.
 Keep them simple and focused for video generation.
 Respond with JSON in this format: {"prompts": [${Array(

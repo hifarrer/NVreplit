@@ -148,7 +148,7 @@ export async function splitAudioByParts(audioUrl: string, parts: number, totalDu
     const segmentsWithDurations: AudioSegment[] = [];
     
     // Calculate duration per segment (equal parts)
-    const durationPerPart = totalDurationSeconds ? totalDurationSeconds / parts : 10;
+    const durationPerPart = totalDurationSeconds ? totalDurationSeconds / parts : 6;
     
     console.log(`API returned ${audioParts.length} audio parts (requested: ${parts})`);
     
@@ -170,18 +170,18 @@ export async function splitAudioByParts(audioUrl: string, parts: number, totalDu
   }
 }
 
-// Split audio into fixed 10-second segments using /api/split_audio_segments (for user-uploaded songs)
+// Split audio into fixed 6-second segments using /api/split_audio_segments (for user-uploaded songs)
 export async function splitAudio(audioUrl: string, parts: number = 4, totalDurationSeconds?: number): Promise<AudioSegment[]> {
   try {
-    // Split audio into fixed 10-second segments for consistent video generation
+    // Split audio into fixed 6-second segments for consistent video generation
     // This ensures both lipsync (infinitetalk-fast) and non-lipsync (bytedance/seedance) models
-    // work with 10-second segments as required by the non-lipsync model's limit
-    const segmentDuration = 10; // 10 seconds per segment
+    // work with 6-second segments
+    const segmentDuration = 6; // 6 seconds per segment
     
     console.log(`Splitting audio into ${segmentDuration}-second segments using /api/split_audio_segments (total duration: ${totalDurationSeconds || 'unknown'}s)`);
     
     // Use the new /api/split_audio_segments endpoint which properly splits by segment duration
-    // This ensures each segment is exactly 10 seconds (except the last one which is the remainder)
+    // This ensures each segment is exactly 6 seconds (except the last one which is the remainder)
     const response = await fetch("https://ffmpegapi.net/api/split_audio_segments", {
       method: "POST",
       headers: {
@@ -220,7 +220,7 @@ export async function splitAudio(audioUrl: string, parts: number = 4, totalDurat
     for (let i = 0; i < segments.length; i++) {
       let segDuration: number;
       
-      // Calculate duration: all segments except last are 10 seconds
+      // Calculate duration: all segments except last are 6 seconds
       if (totalDurationSeconds) {
         if (i < segments.length - 1) {
           segDuration = segmentDuration;
@@ -232,7 +232,7 @@ export async function splitAudio(audioUrl: string, parts: number = 4, totalDurat
           segDuration = Math.max(1, segDuration);
         }
       } else {
-        // Fallback: assume 10 seconds per segment
+        // Fallback: assume 6 seconds per segment
         segDuration = segmentDuration;
       }
       

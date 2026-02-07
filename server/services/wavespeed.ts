@@ -404,8 +404,8 @@ export async function generateAllVideoSegmentsDynamic(
   }
   
   // Use provided segment durations or calculate from total duration
-  // For proper sync, each segment should be 10 seconds except potentially the last one
-  const totalDuration = subtitleData?.totalDuration || (audioSegments.length * 10);
+  // For proper sync, each segment should be 6 seconds except potentially the last one
+  const totalDuration = subtitleData?.totalDuration || (audioSegments.length * 6);
   
   // Helper to get segment duration for a given index
   const getSegmentDuration = (index: number): number => {
@@ -414,16 +414,16 @@ export async function generateAllVideoSegmentsDynamic(
       return Math.max(1, segmentDurations[index]);
     }
     // Fallback: calculate based on total duration
-    const defaultDuration = 10;
+    const defaultDuration = 6;
     if (index < audioSegments.length - 1) {
       return defaultDuration;
     }
     // Last segment gets remainder - use actual remainder value for proper sync
-    // For exact multiples of 10, the remainder is 0 but the segment still exists,
-    // so default to 10 seconds in that case
+    // For exact multiples of 6, the remainder is 0 but the segment still exists,
+    // so default to 6 seconds in that case
     const usedDuration = (audioSegments.length - 1) * defaultDuration;
     const remainder = totalDuration - usedDuration;
-    // Cap at 10, minimum of 1 second (handle edge case of exact multiples)
+    // Cap at 6, minimum of 1 second (handle edge case of exact multiples)
     return Math.min(defaultDuration, Math.max(1, remainder));
   };
   
@@ -454,14 +454,15 @@ export async function generateAllVideoSegmentsDynamic(
       return { useLipsync: false, reason: `last segment ${segDuration}s < 4s → forcing REGULAR (too short for lipsync)` };
     }
     
-    // For last segment between 4-10 seconds, we can use lipsync if needed
-    // Seedance requires minimum 2 seconds, so segments < 10s can still use seedance
-    if (isLastSegment && segDuration < 10) {
-      // Use default pattern for segments 4-10 seconds (can use either model)
+    // For last segment between 4-6 seconds, we can use lipsync if needed
+    // Seedance requires minimum 2 seconds, so segments < 6s can still use seedance
+    if (isLastSegment && segDuration < 6) {
+      // Use default pattern for segments 4-6 seconds (can use either model)
       // Continue to pattern logic below
     }
     
-    // Default pattern for 30-second videos (3 segments): Scene 1 = regular, Scenes 2-3 = lipsync
+    // Default pattern for 18-second videos (3 segments): Scene 1 = regular, Scenes 2-3 = lipsync
+    // Note: With 6-second segments, 30-second videos have 5 segments and use ODD/EVEN pattern
     if (audioSegments.length === 3) {
       if (index === 0) {
         return { useLipsync: false, reason: '30s pattern: Scene 1 → REGULAR' };
@@ -539,12 +540,12 @@ export async function generateAllVideoSegmentsDynamic(
     }
   } else {
     // Only use seedance model when makeCharacterSing is disabled
-    // Note: For the last segment with duration < 10s, seedance will still generate 10s
+    // Note: For the last segment with duration < 6s, seedance will still generate 6s
     // but since there's no lipsync, sync issues are not a concern - the audio simply ends first
     for (let i = 0; i < audioSegments.length; i++) {
       const segDuration = getSegmentDuration(i);
-      // Seedance requires minimum 10 seconds, use full 10s for short last segment
-      const effectiveDuration = Math.max(10, segDuration);
+      // Seedance requires minimum 6 seconds, use full 6s for short last segment
+      const effectiveDuration = Math.max(6, segDuration);
       
       console.log(
         `Generating video segment ${i + 1} using seedance model (no lipsync, ${effectiveDuration}s)`,
@@ -666,7 +667,7 @@ export async function generateAllVideoSegments(
   for (let i = 0; i < 4; i++) {
     const segmentLabel = `${i + 1}b`;
     console.log(
-      `Generating video segment ${segmentLabel} using seedance model (no audio, 10 seconds)`,
+      `Generating video segment ${segmentLabel} using seedance model (no audio, 6 seconds)`,
     );
     console.log(`Image URL: ${imageUrls[i * 2 + 1]}`); // Use alternate images for 'b' videos
     console.log(`Prompt: ${prompts[i * 2 + 1]}`);

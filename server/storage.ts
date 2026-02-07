@@ -262,15 +262,15 @@ export class MemStorage implements IStorage {
   }
 
   private initializeDefaultConfigs() {
-    // All configs now use 10-second segments for both lipsync and non-lipsync models
-    // numberOfAudioParts and numberOfScenesCreated = ceil(duration / 10)
+    // All configs now use 6-second segments for both lipsync and non-lipsync models
+    // numberOfAudioParts and numberOfScenesCreated = ceil(duration / 6)
     const defaultConfigs = [
-      { id: '1', videoDurationSeconds: 30, numberOfAudioParts: 3, numberOfScenesCreated: 3, numberOfVideosRegularApi: 2, numberOfVideosLipsync: 1 },
-      { id: '2', videoDurationSeconds: 60, numberOfAudioParts: 6, numberOfScenesCreated: 6, numberOfVideosRegularApi: 3, numberOfVideosLipsync: 3 },
-      { id: '3', videoDurationSeconds: 90, numberOfAudioParts: 9, numberOfScenesCreated: 9, numberOfVideosRegularApi: 5, numberOfVideosLipsync: 4 },
-      { id: '4', videoDurationSeconds: 120, numberOfAudioParts: 12, numberOfScenesCreated: 12, numberOfVideosRegularApi: 6, numberOfVideosLipsync: 6 },
-      { id: '5', videoDurationSeconds: 150, numberOfAudioParts: 15, numberOfScenesCreated: 15, numberOfVideosRegularApi: 8, numberOfVideosLipsync: 7 },
-      { id: '6', videoDurationSeconds: 180, numberOfAudioParts: 18, numberOfScenesCreated: 18, numberOfVideosRegularApi: 9, numberOfVideosLipsync: 9 },
+      { id: '1', videoDurationSeconds: 30, numberOfAudioParts: 5, numberOfScenesCreated: 5, numberOfVideosRegularApi: 3, numberOfVideosLipsync: 2 },
+      { id: '2', videoDurationSeconds: 60, numberOfAudioParts: 10, numberOfScenesCreated: 10, numberOfVideosRegularApi: 5, numberOfVideosLipsync: 5 },
+      { id: '3', videoDurationSeconds: 90, numberOfAudioParts: 15, numberOfScenesCreated: 15, numberOfVideosRegularApi: 8, numberOfVideosLipsync: 7 },
+      { id: '4', videoDurationSeconds: 120, numberOfAudioParts: 20, numberOfScenesCreated: 20, numberOfVideosRegularApi: 10, numberOfVideosLipsync: 10 },
+      { id: '5', videoDurationSeconds: 150, numberOfAudioParts: 25, numberOfScenesCreated: 25, numberOfVideosRegularApi: 13, numberOfVideosLipsync: 12 },
+      { id: '6', videoDurationSeconds: 180, numberOfAudioParts: 30, numberOfScenesCreated: 30, numberOfVideosRegularApi: 15, numberOfVideosLipsync: 15 },
     ];
     
     defaultConfigs.forEach(config => {

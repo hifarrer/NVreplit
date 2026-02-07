@@ -281,7 +281,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
           setActualSongDuration(data.duration);
         }
         
-        const sceneCount = Math.ceil(data.duration / 10);
+        const sceneCount = Math.ceil(data.duration / 6);
         let successDescription = `Audio trimmed successfully! Duration: ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')} (${sceneCount} scenes will be generated)`;
         
         // Both full and trimmed versions are saved to library
@@ -419,7 +419,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
       if (data.duration) {
         setActualSongDuration(data.duration);
       }
-      const sceneCount = Math.ceil(data.duration / 10);
+      const sceneCount = Math.ceil(data.duration / 6);
       
       let description = `Audio uploaded successfully! Duration: ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')} (${sceneCount} scenes will be generated)`;
       if (data.hasSubtitles) {
@@ -1393,7 +1393,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
               <p className="text-sm text-blue-600 dark:text-blue-400 flex items-start">
                 <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
                 <span>
-                  Upload your audio file and we'll automatically detect its duration. Maximum allowed: <strong>{isPaidUser ? '4 minutes' : '2 minutes'}</strong>. The number of scenes will be determined by your audio length (10 seconds per scene).
+                  Upload your audio file and we'll automatically detect its duration. Maximum allowed: <strong>{isPaidUser ? '4 minutes' : '2 minutes'}</strong>. The number of scenes will be determined by your audio length (6 seconds per scene).
                   {!isPaidUser && (
                     <span className="block mt-1 text-orange-600 dark:text-orange-400">• Free plan users: maximum 2 minutes</span>
                   )}
