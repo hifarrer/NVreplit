@@ -5703,14 +5703,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ imageUrl });
     } catch (error) {
       console.error("Generate character error:", error);
+      const errorMessage = (error as Error).message;
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "character_generation",
-        message: `Character generation failed: ${(error as Error).message}`,
+        message: `Character generation failed: ${errorMessage}`,
         status: "error",
-        metadata: { error: (error as Error).message }
+        metadata: { error: errorMessage }
       });
-      res.status(500).json({ error: "Failed to generate character" });
+      res.status(500).json({ error: errorMessage });
     }
   });
 
@@ -5791,14 +5792,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ imageUrls, prompt });
     } catch (error) {
       console.error("Generate character options error:", error);
+      const errorMessage = (error as Error).message;
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "character_generation",
-        message: `Character options generation failed: ${(error as Error).message}`,
+        message: `Character options generation failed: ${errorMessage}`,
         status: "error",
-        metadata: { error: (error as Error).message }
+        metadata: { error: errorMessage }
       });
-      res.status(500).json({ error: "Failed to generate character options" });
+      res.status(500).json({ error: errorMessage });
     }
   });
 
@@ -5898,14 +5900,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ imageUrl: resultImageUrl, prompt });
     } catch (error) {
       console.error("Generate character image-to-image error:", error);
+      const errorMessage = (error as Error).message;
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "character_generation",
-        message: `Character image-to-image generation failed: ${(error as Error).message}`,
+        message: `Character image-to-image generation failed: ${errorMessage}`,
         status: "error",
-        metadata: { error: (error as Error).message }
+        metadata: { error: errorMessage }
       });
-      res.status(500).json({ error: "Failed to generate character image-to-image" });
+      res.status(500).json({ error: errorMessage });
     }
   });
 
@@ -7913,7 +7916,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ imageUrls, prompt });
     } catch (error) {
       console.error("Generate standalone character options error:", error);
-      res.status(500).json({ error: "Failed to generate character options" });
+      const errorMessage = (error as Error).message;
+      res.status(500).json({ error: errorMessage });
     }
   });
 
@@ -7944,7 +7948,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ imageUrl: resultImageUrl, prompt });
     } catch (error) {
       console.error("Generate standalone character image-to-image error:", error);
-      res.status(500).json({ error: "Failed to generate character image-to-image" });
+      const errorMessage = (error as Error).message;
+      res.status(500).json({ error: errorMessage });
     }
   });
 

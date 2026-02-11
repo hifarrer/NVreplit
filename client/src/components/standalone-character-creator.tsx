@@ -137,7 +137,7 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
       setProgress(0);
       toast({
         title: "Error",
-        description: "Failed to generate character",
+        description: (error as Error).message || "Failed to generate character",
         variant: "destructive",
       });
     }
@@ -185,7 +185,7 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
       setUploadProgress(0);
       toast({
         title: "Error",
-        description: "Failed to change character style",
+        description: (error as Error).message || "Failed to change character style",
         variant: "destructive",
       });
     }

@@ -103,7 +103,7 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
       setProgress(0);
       toast({
         title: "Error",
-        description: "Failed to generate character options",
+        description: (error as Error).message || "Failed to generate character options",
         variant: "destructive",
       });
     }

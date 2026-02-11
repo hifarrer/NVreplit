@@ -145,7 +145,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
       setProgress(0);
       toast({
         title: "Error",
-        description: "Failed to generate character",
+        description: (error as Error).message || "Failed to generate character",
         variant: "destructive",
       });
     }
