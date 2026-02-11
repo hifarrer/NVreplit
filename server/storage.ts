@@ -2,7 +2,7 @@ import { type User, type InsertUser, type Project, type InsertProject, type Gene
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { eq, asc, sql, and, inArray, ilike } from "drizzle-orm";
+import { eq, asc, desc, sql, and, inArray, ilike } from "drizzle-orm";
 import { withDbRetry } from "./db";
 
 export interface IStorage {
@@ -44,6 +44,7 @@ export interface IStorage {
   // Saved character methods
   getSavedCharacters(userId: string): Promise<SavedCharacter[]>;
   getAllSavedCharacters(): Promise<SavedCharacter[]>;
+  getAllSavedCharactersWithUsers(): Promise<Array<SavedCharacter & { user: { id: string; username: string; email: string } }>>;
   saveCharacter(character: InsertSavedCharacter): Promise<SavedCharacter>;
   updateSavedCharacter(id: string, userId: string, updates: Partial<SavedCharacter>): Promise<SavedCharacter | undefined>;
   deleteSavedCharacter(id: string): Promise<boolean>;
@@ -529,6 +530,23 @@ export class MemStorage implements IStorage {
   async getAllSavedCharacters(): Promise<SavedCharacter[]> {
     return Array.from(this.savedCharacters.values())
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getAllSavedCharactersWithUsers(): Promise<Array<SavedCharacter & { user: { id: string; username: string; email: string } }>> {
+    const allCharacters = Array.from(this.savedCharacters.values())
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    
+    return allCharacters.map(char => {
+      const user = this.users.get(char.userId);
+      return {
+        ...char,
+        user: {
+          id: user?.id || char.userId,
+          username: user?.username || 'Unknown',
+          email: user?.email || 'unknown@example.com',
+        },
+      };
+    });
   }
 
   async saveCharacter(insertCharacter: InsertSavedCharacter): Promise<SavedCharacter> {
@@ -1898,6 +1916,37 @@ export class DbStorage implements IStorage {
   async getAllSavedCharacters(): Promise<SavedCharacter[]> {
     return await this.db.select().from(savedCharacters)
       .orderBy(asc(savedCharacters.createdAt));
+  }
+
+  async getAllSavedCharactersWithUsers(): Promise<Array<SavedCharacter & { user: { id: string; username: string; email: string } }>> {
+    const characters = await this.db
+      .select({
+        id: savedCharacters.id,
+        userId: savedCharacters.userId,
+        name: savedCharacters.name,
+        prompt: savedCharacters.prompt,
+        imageUrl: savedCharacters.imageUrl,
+        createdAt: savedCharacters.createdAt,
+        username: users.username,
+        userEmail: users.email,
+      })
+      .from(savedCharacters)
+      .innerJoin(users, eq(savedCharacters.userId, users.id))
+      .orderBy(desc(savedCharacters.createdAt));
+    
+    return characters.map(char => ({
+      id: char.id,
+      userId: char.userId,
+      name: char.name,
+      prompt: char.prompt,
+      imageUrl: char.imageUrl,
+      createdAt: char.createdAt,
+      user: {
+        id: char.userId,
+        username: char.username,
+        email: char.userEmail,
+      },
+    }));
   }
 
   async saveCharacter(insertCharacter: InsertSavedCharacter): Promise<SavedCharacter> {

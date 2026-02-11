@@ -2381,6 +2381,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // CSV export endpoint for users (name and email only)
+  app.get("/api/admin/characters", authenticateAdmin, async (req, res) => {
+    try {
+      const characters = await storage.getAllSavedCharactersWithUsers();
+      res.json({ characters });
+    } catch (error) {
+      console.error("Admin get characters error:", error);
+      res.status(500).json({ error: "Failed to get characters" });
+    }
+  });
+
   app.get("/api/admin/users/export", authenticateAdmin, async (req, res) => {
     try {
       const users = await storage.getAllUsers();

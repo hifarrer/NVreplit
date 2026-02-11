@@ -15,6 +15,7 @@ import { AudioManagement } from "../components/admin/audio-management";
 import { CommentManagement } from "../components/admin/comment-management";
 import { MuxManagement } from "../components/admin/mux-management";
 import { CouponManagement } from "../components/admin/coupon-management";
+import { CharacterManagement } from "../components/admin/character-management";
 
 interface AdminUser {
   username: string;
@@ -215,10 +216,14 @@ export default function AdminDashboard() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-9 bg-black/30 border border-purple-500/20">
+          <TabsList className="grid w-full grid-cols-10 bg-black/30 border border-purple-500/20">
             <TabsTrigger value="users" className="data-[state=active]:bg-purple-600">
               <Users className="h-4 w-4 mr-2" />
               Users
+            </TabsTrigger>
+            <TabsTrigger value="characters" className="data-[state=active]:bg-purple-600">
+              <ImageIcon className="h-4 w-4 mr-2" />
+              Characters
             </TabsTrigger>
             <TabsTrigger value="videos" className="data-[state=active]:bg-purple-600">
               <Video className="h-4 w-4 mr-2" />
@@ -256,6 +261,10 @@ export default function AdminDashboard() {
 
           <TabsContent value="users" className="space-y-6">
             <UserManagement />
+          </TabsContent>
+
+          <TabsContent value="characters" className="space-y-6">
+            <CharacterManagement />
           </TabsContent>
 
           <TabsContent value="videos" className="space-y-6">
