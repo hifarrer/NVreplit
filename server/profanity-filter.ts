@@ -37,7 +37,71 @@ const PROFANITY_DATA = {
     "penis",
     "dick",
     "boner",
-    "rape"
+    "rape",
+    "nude",
+    "naked",
+    "nudity",
+    "bare",
+    "topless",
+    "bottomless",
+    "explicit",
+    "erotic",
+    "sex",
+    "sexual",
+    "sexy",
+    "seductive",
+    "provocative",
+    "lingerie",
+    "underwear",
+    "bra",
+    "panties",
+    "thong",
+    "bikini",
+    "swimsuit",
+    "undressed",
+    "undressing",
+    "stripping",
+    "strip",
+    "nipple",
+    "nipples",
+    "breast",
+    "breasts",
+    "boobs",
+    "tits",
+    "ass",
+    "butt",
+    "buttocks",
+    "genital",
+    "genitals",
+    "pubic",
+    "arousal",
+    "arous",
+    "horny",
+    "lust",
+    "desire",
+    "fetish",
+    "bdsm",
+    "kink",
+    "kinky",
+    "bondage",
+    "domination",
+    "submissive",
+    "slave",
+    "master",
+    "mistress",
+    "orgy",
+    "threesome",
+    "gangbang",
+    "hardcore",
+    "softcore",
+    "hentai",
+    "ecchi",
+    "yuri",
+    "yaoi",
+    "nsfw",
+    "adult content",
+    "18+",
+    "xxx content"
   ],
   "harassment": [
     "nazi",
@@ -113,5 +177,30 @@ export function getCategoryMessage(category: string): string {
       return 'Content is strictly prohibited.';
     default:
       return 'Content contains inappropriate material.';
+  }
+}
+
+/**
+ * Validates character generation prompts for inappropriate content
+ * @param prompt - The main prompt text
+ * @param promptEnhancer - Optional prompt enhancer text
+ * @throws Error if inappropriate content is detected
+ */
+export function validateCharacterGenerationPrompt(
+  prompt: string,
+  promptEnhancer?: string | null
+): void {
+  // Combine prompt and enhancer for checking
+  const fullText = promptEnhancer 
+    ? `${prompt} ${promptEnhancer}` 
+    : prompt;
+
+  const result = checkProfanity(fullText);
+  
+  if (!result.isClean) {
+    const message = getCategoryMessage(result.category || 'sexual');
+    throw new Error(
+      `Inappropriate content detected: ${message} Please use appropriate prompts for character generation.`
+    );
   }
 }

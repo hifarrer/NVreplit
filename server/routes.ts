@@ -28,7 +28,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import { checkProfanity, getCategoryMessage } from "./profanity-filter";
+import { checkProfanity, getCategoryMessage, validateCharacterGenerationPrompt } from "./profanity-filter";
 import { getJWKS, initializeOAuthKeys } from "./services/oauth";
 
 // Content moderation API for user-uploaded images
@@ -5669,6 +5669,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!prompt || !prompt.trim()) {
         throw new Error("No prompt provided");
       }
+
+      // Validate prompt for inappropriate content
+      validateCharacterGenerationPrompt(prompt);
       
       await storage.addGenerationLog({
         projectId: req.params.id,
@@ -5754,6 +5757,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!prompt || !prompt.trim()) {
         throw new Error("No prompt provided");
       }
+
+      // Validate prompt and enhancer for inappropriate content
+      validateCharacterGenerationPrompt(prompt, promptEnhancer);
       
       await storage.addGenerationLog({
         projectId: req.params.id,
@@ -5861,6 +5867,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!imageUrl || !prompt || !prompt.trim()) {
         throw new Error("Image URL and prompt are required");
       }
+
+      // Validate prompt and enhancer for inappropriate content
+      validateCharacterGenerationPrompt(prompt, promptEnhancer);
       
       await storage.addGenerationLog({
         projectId: req.params.id,
@@ -7887,6 +7896,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error("No prompt provided");
       }
 
+      // Validate prompt and enhancer for inappropriate content
+      validateCharacterGenerationPrompt(prompt, promptEnhancer);
+
       // Use new style-based approach if model is provided, otherwise fallback to old style-based logic
       let imageUrls: string[];
       if (model !== undefined) {
@@ -7917,6 +7929,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!imageUrl || !prompt || !prompt.trim()) {
         throw new Error("Image URL and prompt are required");
       }
+
+      // Validate prompt and enhancer for inappropriate content
+      validateCharacterGenerationPrompt(prompt, promptEnhancer);
 
       console.log("About to call generateCharacterImageToImage");
       const resultImageUrl = await generateCharacterImageToImage(
@@ -9767,6 +9782,10 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
 
       // Step 5: Generate character image
       const characterDescription = parsed.character || generatedPrompt;
+      
+      // Validate character description for inappropriate content
+      validateCharacterGenerationPrompt(characterDescription);
+      
       console.log(`[AUTO-GENERATE] Step 5: Generating character image...`);
       const characterImageUrls = await generateCharacterImages(characterDescription, aspectRatio, style);
       const characterImageUrl = characterImageUrls[0];
@@ -10023,6 +10042,9 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       console.log(`[NEON-SINGLE-PROMPT-GET] Song generated and uploaded (${actualSongDuration} seconds)`);
 
       // Step 5: Generate character image with style support
+      // Validate character description for inappropriate content
+      validateCharacterGenerationPrompt(parsed.character);
+      
       let characterImageUrl: string;
       
       if (style === "hyperrealistic") {
@@ -10279,6 +10301,9 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       console.log(`[NEON-SINGLE-PROMPT] Song generated and uploaded (${actualSongDuration} seconds)`);
 
       // Step 5: Generate character image with style support
+      // Validate character description for inappropriate content
+      validateCharacterGenerationPrompt(parsed.character);
+      
       let characterImageUrl: string;
       
       if (style === "hyperrealistic") {
