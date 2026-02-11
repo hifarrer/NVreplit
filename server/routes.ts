@@ -11,7 +11,7 @@ import { z } from "zod";
 import { generateLyrics, generateLyricsWithTitle, generateScenePrompts, splitLyricsIntoSections, openai } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
-import { generateSongWithMinimax, calculateVideoSegments } from "./services/minimax";
+import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments } from "./services/minimax";
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
 import { createForcedAlignment, convertElevenLabsAlignmentToASS, storeElevenLabsSubtitleFile } from "./services/elevenlabs";
@@ -2383,8 +2383,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // CSV export endpoint for users (name and email only)
   app.get("/api/admin/characters", authenticateAdmin, async (req, res) => {
     try {
-      const characters = await storage.getAllSavedCharactersWithUsers();
-      res.json({ characters });
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.max(1, Math.min(1000, parseInt(req.query.limit as string) || 100));
+      
+      const result = await storage.getAllSavedCharactersWithUsersPaginated({ page, limit });
+      
+      const totalPages = Math.ceil(result.totalCount / limit);
+      
+      res.json({
+        characters: result.characters,
+        pagination: {
+          page,
+          limit,
+          totalCount: result.totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+        },
+      });
     } catch (error) {
       console.error("Admin get characters error:", error);
       res.status(500).json({ error: "Failed to get characters" });
@@ -9779,21 +9795,60 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       });
       console.log(`[AUTO-GENERATE] Generated lyrics (${lyrics.length} chars) and title: ${aiGeneratedTitle}`);
 
-      // Step 4: Generate song with Minimax Music 02
-      console.log(`[AUTO-GENERATE] Step 4: Generating ~${targetDuration}-second song with Minimax Music 02...`);
+      // Step 4: Generate song with Minimax Music 02 (single song, then trim to 30 seconds)
+      console.log(`[AUTO-GENERATE] Step 4: Generating song with Minimax Music 02...`);
       const songTags = parsed.song_title 
         ? `${parsed.song_title}. ${parsed.video_description}`
         : parsed.video_description || generatedPrompt;
       
-      const songResult = await generateSongWithMinimax(songTags, lyrics, targetDuration, parsed.video_description);
-      const actualSongDuration = songResult.duration;
-      console.log(`[AUTO-GENERATE] Song generated: ${actualSongDuration}s`);
+      // Generate a single song (no longer generating 2 and picking the best)
+      const songResult = await generateSingleSong(songTags, lyrics, targetDuration, parsed.video_description, 1);
+      const originalSongDuration = songResult.duration;
+      console.log(`[AUTO-GENERATE] Song generated: ${originalSongDuration}s`);
       
+      // Step 4.5: Trim the generated song to exactly 30 seconds (0ms to 30000ms)
+      // Always trim to 30 seconds for auto-generate endpoint, regardless of requested duration
+      const trimDuration = 30; // Always 30 seconds for auto-generate
+      console.log(`[AUTO-GENERATE] Step 4.5: Trimming audio to exactly ${trimDuration} seconds (0ms to ${trimDuration * 1000}ms)...`);
+      
+      const startTime = 0; // Start at 0 seconds
+      const endTime = trimDuration * 1000; // End at 30 seconds (in milliseconds)
+      const adjustedEndTime = Math.max(startTime + 10, endTime - 10); // Subtract 10ms to prevent exceeding duration
+      
+      const { splitAudioByTime } = await import("./services/ffmpeg");
+      const trimResult = await splitAudioByTime(songResult.audioUrl, startTime, adjustedEndTime);
+      
+      // Download the trimmed audio
+      const trimmedResponse = await fetch(trimResult.download_url);
+      const trimmedBuffer = Buffer.from(await trimmedResponse.arrayBuffer());
+      
+      // Upload trimmed audio to object storage
+      const objectStorageService = new ObjectStorageService();
+      const audioPath = `songs/${crypto.randomUUID()}.mp3`;
+      const trimmedUrl = await objectStorageService.uploadAudioBuffer(trimmedBuffer, audioPath);
+      
+      // Get public URL
+      const publicAudioUrl = trimmedUrl.startsWith('http') 
+        ? trimmedUrl 
+        : await objectStorageService.getSignedUrlForPath(`/objects/${audioPath}`, 86400);
+      
+      // Get duration of trimmed audio
+      const { getAudioDurationFromFile } = await import("./services/ffmpeg");
+      const tempFilePath = path.join(uploadDir, `trimmed-${crypto.randomUUID()}.mp3`);
+      fs.writeFileSync(tempFilePath, trimmedBuffer);
+      const trimmedDuration = await getAudioDurationFromFile(tempFilePath);
+      fs.unlinkSync(tempFilePath); // Clean up temp file
+      
+      console.log(`[AUTO-GENERATE] Audio trimmed successfully: ${trimmedDuration}s`);
+      
+      // Update project with trimmed audio (always 30 seconds for auto-generate)
       await storage.updateProject(project.id, { 
-        audioUrl: songResult.audioUrl,
-        audioDuration: actualSongDuration,
+        audioUrl: publicAudioUrl,
+        audioDuration: trimmedDuration,
         currentStep: 2 
       });
+      
+      const actualSongDuration = trimmedDuration; // Use trimmed duration (30 seconds) for subsequent steps
 
       // Step 5: Generate character image
       const characterDescription = parsed.character || generatedPrompt;

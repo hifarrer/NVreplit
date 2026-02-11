@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ImageIcon, User, Calendar, Mail, CreditCard, Music, Video, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, ImageIcon, User, Calendar, Mail, CreditCard, Music, Video, Eye, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
 import { convertAvatarUrlToImageKit } from "@/lib/utils";
 
 interface CharacterWithUser {
@@ -40,18 +41,32 @@ interface UserWithStats {
 
 interface CharactersResponse {
   characters: CharacterWithUser[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalCount: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
 }
 
 export function CharacterManagement() {
   const [selectedUser, setSelectedUser] = useState<UserWithStats | null>(null);
   const [viewingCharacter, setViewingCharacter] = useState<CharacterWithUser | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(100);
 
-  // Fetch all characters with user info
+  // Fetch characters with pagination
   const { data: charactersData, isLoading } = useQuery<CharactersResponse>({
-    queryKey: ["/api/admin/characters"],
+    queryKey: ["/api/admin/characters", currentPage, pageSize],
     queryFn: async () => {
       const token = localStorage.getItem("adminToken");
-      const res = await fetch("/api/admin/characters", {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: pageSize.toString(),
+      });
+      const res = await fetch(`/api/admin/characters?${params}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -62,6 +77,7 @@ export function CharacterManagement() {
   });
 
   const characters = charactersData?.characters || [];
+  const pagination = charactersData?.pagination;
 
   const handleUsernameClick = async (character: CharacterWithUser) => {
     // Fetch user details
@@ -157,6 +173,54 @@ export function CharacterManagement() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {pagination && pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-600/20 mt-6">
+              <div className="text-sm text-gray-400">
+                Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.totalCount)} of {pagination.totalCount} characters
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(pagination.page - 1)}
+                  disabled={!pagination.hasPrev}
+                  className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                
+                <span className="text-sm text-gray-300 px-2">
+                  Page {pagination.page} of {pagination.totalPages}
+                </span>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(pagination.page + 1)}
+                  disabled={!pagination.hasNext}
+                  className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(pagination.totalPages)}
+                  disabled={!pagination.hasNext}
+                  className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                >
+                  Last
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

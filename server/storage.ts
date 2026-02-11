@@ -45,6 +45,10 @@ export interface IStorage {
   getSavedCharacters(userId: string): Promise<SavedCharacter[]>;
   getAllSavedCharacters(): Promise<SavedCharacter[]>;
   getAllSavedCharactersWithUsers(): Promise<Array<SavedCharacter & { user: { id: string; username: string; email: string } }>>;
+  getAllSavedCharactersWithUsersPaginated(options: { page: number; limit: number }): Promise<{
+    characters: Array<SavedCharacter & { user: { id: string; username: string; email: string } }>;
+    totalCount: number;
+  }>;
   saveCharacter(character: InsertSavedCharacter): Promise<SavedCharacter>;
   updateSavedCharacter(id: string, userId: string, updates: Partial<SavedCharacter>): Promise<SavedCharacter | undefined>;
   deleteSavedCharacter(id: string): Promise<boolean>;
@@ -547,6 +551,34 @@ export class MemStorage implements IStorage {
         },
       };
     });
+  }
+
+  async getAllSavedCharactersWithUsersPaginated(options: { page: number; limit: number }): Promise<{
+    characters: Array<SavedCharacter & { user: { id: string; username: string; email: string } }>;
+    totalCount: number;
+  }> {
+    const { page, limit } = options;
+    const allCharacters = Array.from(this.savedCharacters.values())
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    
+    const totalCount = allCharacters.length;
+    const offset = (page - 1) * limit;
+    const paginatedCharacters = allCharacters.slice(offset, offset + limit);
+    
+    return {
+      characters: paginatedCharacters.map(char => {
+        const user = this.users.get(char.userId);
+        return {
+          ...char,
+          user: {
+            id: user?.id || char.userId,
+            username: user?.username || 'Unknown',
+            email: user?.email || 'unknown@example.com',
+          },
+        };
+      }),
+      totalCount,
+    };
   }
 
   async saveCharacter(insertCharacter: InsertSavedCharacter): Promise<SavedCharacter> {
@@ -1947,6 +1979,55 @@ export class DbStorage implements IStorage {
         email: char.userEmail,
       },
     }));
+  }
+
+  async getAllSavedCharactersWithUsersPaginated(options: { page: number; limit: number }): Promise<{
+    characters: Array<SavedCharacter & { user: { id: string; username: string; email: string } }>;
+    totalCount: number;
+  }> {
+    const { page, limit } = options;
+    const offset = (page - 1) * limit;
+
+    // Get total count
+    const countResult = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(savedCharacters);
+    const totalCount = Number(countResult[0]?.count || 0);
+
+    // Get paginated characters
+    const characters = await this.db
+      .select({
+        id: savedCharacters.id,
+        userId: savedCharacters.userId,
+        name: savedCharacters.name,
+        prompt: savedCharacters.prompt,
+        imageUrl: savedCharacters.imageUrl,
+        createdAt: savedCharacters.createdAt,
+        username: users.username,
+        userEmail: users.email,
+      })
+      .from(savedCharacters)
+      .innerJoin(users, eq(savedCharacters.userId, users.id))
+      .orderBy(desc(savedCharacters.createdAt))
+      .limit(limit)
+      .offset(offset);
+    
+    return {
+      characters: characters.map(char => ({
+        id: char.id,
+        userId: char.userId,
+        name: char.name,
+        prompt: char.prompt,
+        imageUrl: char.imageUrl,
+        createdAt: char.createdAt,
+        user: {
+          id: char.userId,
+          username: char.username,
+          email: char.userEmail,
+        },
+      })),
+      totalCount,
+    };
   }
 
   async saveCharacter(insertCharacter: InsertSavedCharacter): Promise<SavedCharacter> {

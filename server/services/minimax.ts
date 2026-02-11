@@ -247,12 +247,12 @@ function selectBestSong(
   return null;
 }
 
-async function generateSingleSong(
+export async function generateSingleSong(
   tags: string,
   lyrics: string | undefined,
   durationSeconds: number,
   description: string | undefined,
-  songIndex: number
+  songIndex: number = 1
 ): Promise<MinimaxSongResult> {
   const promptParts: string[] = [];
 
