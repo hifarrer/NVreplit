@@ -378,21 +378,28 @@ export class ObjectStorageService {
       
       // Always use ImageKit as primary storage if configured (for all environments)
       if (isImageKitConfigured()) {
-        console.log(`[ImageKit] Uploading video to ImageKit: ${videoFilename}`);
-        const imagekitResult = await uploadVideoToImageKit(buffer, videoFilename, "/videos");
-        console.log(`[ImageKit] Video uploaded successfully: ${imagekitResult.url}`);
-        
-        // Record the backup in the database (for compatibility)
-        const permanentPath = `/objects/videos/${videoFilename}`;
-        await storage.recordImagekitBackup({
-          originalPath: permanentPath,
-          imagekitUrl: imagekitResult.url,
-          imagekitFileId: imagekitResult.fileId,
-          fileType: "video"
-        });
-        
-        // Return the ImageKit URL as the primary URL
-        return imagekitResult.url;
+        try {
+          console.log(`[ImageKit] Uploading video to ImageKit: ${videoFilename}`);
+          const imagekitResult = await uploadVideoToImageKit(buffer, videoFilename, "/videos");
+          console.log(`[ImageKit] Video uploaded successfully: ${imagekitResult.url}`);
+          
+          // Record the backup in the database (for compatibility)
+          const permanentPath = `/objects/videos/${videoFilename}`;
+          await storage.recordImagekitBackup({
+            originalPath: permanentPath,
+            imagekitUrl: imagekitResult.url,
+            imagekitFileId: imagekitResult.fileId,
+            fileType: "video"
+          });
+          
+          // Return the ImageKit URL as the primary URL
+          return imagekitResult.url;
+        } catch (imagekitError) {
+          console.error(`[ImageKit] Failed to upload video to ImageKit:`, imagekitError);
+          // Don't fall back to local storage if ImageKit is configured - throw the error
+          // This ensures we know when ImageKit upload fails
+          throw new Error(`ImageKit upload failed: ${(imagekitError as Error).message}`);
+        }
       }
       
       // Fallback to Google Cloud Storage only if ImageKit is not configured

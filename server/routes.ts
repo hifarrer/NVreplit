@@ -9270,17 +9270,34 @@ Format your response as JSON:
     // Build full Reddit content with link
     const redditContent = `${redditDescription}\n\nWatch the full video: ${shareableLink}`;
     
-    // Generate a signed URL for the video file (valid for 1 hour)
+    // Resolve video URL - use ImageKit URL if available, otherwise get signed URL
+    const { resolveUrlWithImageKitFallback } = await import('./services/imagekit.js');
     const { ObjectStorageService } = await import('./objectStorage.js');
     const objStorage = new ObjectStorageService();
     let fullVideoUrl: string;
     
     try {
-      // Get signed URL from object storage
-      fullVideoUrl = await objStorage.getSignedUrlForPath(videoUrl, 3600);
-      console.log(`[POSTIZ] Generated signed URL for video`);
+      // First try to resolve ImageKit URL from backup (if video was uploaded to ImageKit)
+      const resolvedUrl = await resolveUrlWithImageKitFallback(videoUrl, storage);
+      
+      if (resolvedUrl && resolvedUrl.startsWith('http')) {
+        // It's already an ImageKit URL or full URL, use it directly
+        fullVideoUrl = resolvedUrl;
+        console.log(`[POSTIZ] Using ImageKit URL for video: ${fullVideoUrl.substring(0, 50)}...`);
+      } else {
+        // Try to get signed URL from object storage (fallback for local storage)
+        try {
+          fullVideoUrl = await objStorage.getSignedUrlForPath(videoUrl, 3600);
+          console.log(`[POSTIZ] Generated signed URL for video`);
+        } catch (signedUrlError) {
+          console.error(`[POSTIZ] Failed to generate signed URL:`, signedUrlError);
+          // Final fallback to direct URL
+          const baseUrl = "https://neonvideo.ai";
+          fullVideoUrl = videoUrl.startsWith('http') ? videoUrl : `${baseUrl}${videoUrl}`;
+        }
+      }
     } catch (error) {
-      console.error(`[POSTIZ] Failed to generate signed URL:`, error);
+      console.error(`[POSTIZ] Failed to resolve video URL:`, error);
       // Fallback to direct URL (might not work but better than failing)
       const baseUrl = "https://neonvideo.ai";
       fullVideoUrl = videoUrl.startsWith('http') ? videoUrl : `${baseUrl}${videoUrl}`;
