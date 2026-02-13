@@ -448,18 +448,24 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
 
   const regenerateSceneMutation = useMutation({
     mutationFn: async ({ sceneIndex, prompt }: { sceneIndex: number; prompt: string }) => {
+      // Get the current scene image URL if it exists (for edit-plus model)
+      const currentScene = generatedScenes[sceneIndex];
+      const currentSceneImageUrl = currentScene?.imageUrl;
+      
       // In edit mode, generate scene locally without saving to original project
       if (isEditMode) {
         // Call a standalone scene generation endpoint that doesn't update the project
         const response = await apiRequest("POST", `/api/generate-single-scene`, {
           prompt,
           characterImageUrl,
-          aspectRatio
+          aspectRatio,
+          ...(currentSceneImageUrl && { currentSceneImageUrl })
         });
         return response.json();
       }
       
       // Normal mode: use the regular regenerate-scene endpoint that updates the project
+      // Note: The backend will automatically get the current scene image from the project
       const response = await apiRequest("POST", `/api/projects/${projectId}/regenerate-scene`, {
         sceneIndex,
         prompt

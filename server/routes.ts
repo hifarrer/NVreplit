@@ -3628,7 +3628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate a single scene image without updating any project (for edit mode)
   app.post("/api/generate-single-scene", authenticateToken, async (req, res) => {
     try {
-      const { prompt, characterImageUrl, aspectRatio } = req.body;
+      const { prompt, characterImageUrl, aspectRatio, currentSceneImageUrl } = req.body;
       
       if (!prompt) {
         return res.status(400).json({ error: "Prompt is required" });
@@ -3642,9 +3642,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projectAspectRatio = aspectRatio || "16:9";
 
       console.log(`Generating single scene with prompt: ${prompt}, aspect ratio: ${projectAspectRatio}`);
+      if (currentSceneImageUrl) {
+        console.log(`Current scene image URL provided for edit-plus model`);
+      }
       
       // Generate scene image using the same method as regular scene generation
-      const storedImageUrl = await generateSingleSceneImage(prompt, characterImageUrl, projectAspectRatio);
+      // If currentSceneImageUrl is provided, it will use edit-plus model with both images
+      const storedImageUrl = await generateSingleSceneImage(prompt, characterImageUrl, projectAspectRatio, currentSceneImageUrl);
       
       // Resolve to ImageKit URL for the response (internal storage URL is stored in database)
       const resolvedImageUrl = await resolveUrlWithImageKitFallback(storedImageUrl);
@@ -6463,8 +6467,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use the aspect ratio from the project (set in step 1) - defaults to 16:9 for horizontal
       const aspectRatio = project.aspectRatio || "16:9";
       
+      // Get the current scene image URL if it exists (for edit-plus model)
+      const currentSceneImageUrl = sceneImages[sceneIndex] || undefined;
+      if (currentSceneImageUrl) {
+        console.log(`Using current scene image for edit-plus model: ${currentSceneImageUrl}`);
+      }
+      
       // Generate a single scene image with the custom prompt
-      const imageUrl = await generateSingleSceneImage(prompt, project.characterImageUrl, aspectRatio);
+      // If currentSceneImageUrl exists, it will use edit-plus model with both images
+      const imageUrl = await generateSingleSceneImage(prompt, project.characterImageUrl, aspectRatio, currentSceneImageUrl);
 
       // Update the arrays with new values
       scenePrompts[sceneIndex] = prompt;

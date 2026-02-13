@@ -84,6 +84,15 @@ type WavespeedModel = {
   buildRequestBody: (imageUrl: string, prompt: string, aspectRatio?: string) => any;
 };
 
+/**
+ * Model configuration for edit-plus that supports multiple images
+ */
+type WavespeedEditPlusModel = {
+  name: string;
+  endpoint: string;
+  buildRequestBody: (imageUrls: string[], prompt: string, aspectRatio?: string) => any;
+};
+
 const WAVESPEED_MODELS: { primary: WavespeedModel; fallback: WavespeedModel } = {
   primary: {
     name: "wavespeed-ai/qwen-image/edit",
@@ -107,6 +116,20 @@ const WAVESPEED_MODELS: { primary: WavespeedModel; fallback: WavespeedModel } = 
       seed: -1,
     }),
   },
+};
+
+const WAVESPEED_EDIT_PLUS_MODEL: WavespeedEditPlusModel = {
+  name: "wavespeed-ai/qwen-image/edit-plus",
+  endpoint: "https://api.wavespeed.ai/api/v3/wavespeed-ai/qwen-image/edit-plus",
+  buildRequestBody: (imageUrls: string[], prompt: string, aspectRatio: string = "16:9") => ({
+    enable_base64_output: false,
+    enable_sync_mode: false,
+    images: imageUrls,
+    output_format: "jpeg",
+    prompt: prompt,
+    seed: -1,
+    size: aspectRatioToSize(aspectRatio),
+  }),
 };
 
 /**
@@ -133,6 +156,126 @@ async function submitAndPollSceneGeneration(
   }
 
   const requestBody = model.buildRequestBody(imageUrl, prompt, aspectRatio);
+
+  console.log(
+    `[${model.name}] Submitting ${sceneLabel} generation with prompt: "${prompt.substring(0, 50)}..."`,
+  );
+  console.log(
+    `[${model.name}] Request body:`,
+    JSON.stringify(requestBody, null, 2),
+  );
+
+  // Submit generation request
+  const response = await fetch(model.endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[${model.name}] ${sceneLabel} submission failed:`, errorText);
+    throw new Error(
+      `${model.name} submission failed: ${response.status} - ${errorText}`,
+    );
+  }
+
+  const result = await response.json();
+  console.log(
+    `[${model.name}] ${sceneLabel} submission result:`,
+    JSON.stringify(result, null, 2),
+  );
+
+  const requestId = result.data?.id;
+  if (!requestId) {
+    throw new Error(`No request ID received from ${model.name} for ${sceneLabel}`);
+  }
+
+  console.log(`[${model.name}] Got ${sceneLabel} request ID: ${requestId}`);
+
+  // Poll for results
+  let attempts = 0;
+  const maxAttempts = 180; // 15 minutes with 3-second intervals
+
+  while (attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, 3000)); // Wait 3 seconds
+
+    const statusResponse = await fetch(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      {
+        headers: {
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+      },
+    );
+
+    if (!statusResponse.ok) {
+      const errorText = await statusResponse.text();
+      console.error(`[${model.name}] ${sceneLabel} status check failed:`, errorText);
+      throw new Error(
+        `Status check failed for ${sceneLabel}: ${statusResponse.status} - ${errorText}`,
+      );
+    }
+
+    const statusResult = await statusResponse.json();
+
+    if (statusResult.data?.status === "completed") {
+      const sceneDuration = Date.now() - sceneStartTime;
+      console.log(`[WAVESPEED-API ${sceneRequestId}] ${sceneLabel} generation COMPLETED in ${sceneDuration}ms`);
+      console.log(`[${model.name}] ${sceneLabel} generation completed!`);
+
+      if (statusResult.data.outputs && statusResult.data.outputs.length > 0) {
+        const imageUrl = statusResult.data.outputs[0];
+        console.log(`[${model.name}] Found ${sceneLabel} image URL: ${imageUrl}`);
+        return imageUrl;
+      } else {
+        console.error(
+          `[${model.name}] No outputs found in ${sceneLabel} results:`,
+          statusResult,
+        );
+        throw new Error(`No outputs in ${sceneLabel} results from ${model.name}`);
+      }
+    } else if (statusResult.data?.status === "failed") {
+      const errorMsg = statusResult.data?.error || "Unknown error";
+      console.error(`[${model.name}] ${sceneLabel} generation failed:`, statusResult);
+      throw new Error(`${sceneLabel} generation failed with ${model.name}: ${errorMsg}`);
+    }
+
+    attempts++;
+  }
+
+  throw new Error(
+    `${sceneLabel} generation with ${model.name} timed out after ${maxAttempts} attempts`,
+  );
+}
+
+/**
+ * Helper function to submit and poll a scene generation request to Wavespeed using edit-plus model with multiple images
+ */
+async function submitAndPollSceneGenerationWithMultipleImages(
+  model: WavespeedEditPlusModel,
+  imageUrls: string[],
+  prompt: string,
+  sceneLabel: string = "scene",
+  aspectRatio: string = "16:9",
+): Promise<string> {
+  const sceneRequestId = `SCENE-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const sceneStartTime = Date.now();
+  
+  console.log(`[WAVESPEED-API ${new Date().toISOString()}] ${sceneLabel} API call started (edit-plus)`);
+  console.log(`[WAVESPEED-API] Request ID: ${sceneRequestId}`);
+  console.log(`[WAVESPEED-API] Model: ${model.name}`);
+  console.log(`[WAVESPEED-API] Number of images: ${imageUrls.length}`);
+  
+  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
+
+  const requestBody = model.buildRequestBody(imageUrls, prompt, aspectRatio);
 
   console.log(
     `[${model.name}] Submitting ${sceneLabel} generation with prompt: "${prompt.substring(0, 50)}..."`,
@@ -1357,29 +1500,55 @@ export async function generateSingleSceneImage(
   prompt: string,
   characterImageUrl: string,
   aspectRatio: string = "16:9",
+  currentSceneImageUrl?: string,
 ): Promise<string> {
   console.log(`Starting single scene generation with prompt: ${prompt}`);
   console.log(`Input character image URL: ${characterImageUrl}`);
   console.log(`Aspect ratio: ${aspectRatio}`);
+  if (currentSceneImageUrl) {
+    console.log(`Current scene image URL provided: ${currentSceneImageUrl}`);
+  }
 
   // Ensure we have a valid public HTTP/HTTPS URL for Wavespeed API
   const publicCharacterImageUrl = await ensurePublicImageUrl(characterImageUrl, 86400);
   console.log(`✓ Using validated character image URL for Wavespeed API`);
 
-  // Use the fallback system (tries google/nano-banana/edit first, falls back to alibaba/wan-2.5/image-edit if it fails)
-  const result = await generateSceneWithFallback(
-    publicCharacterImageUrl,
-    prompt,
-    "single scene",
-    aspectRatio,
-  );
+  let resultImageUrl: string;
+  let modelUsed: string;
 
-  console.log(`Single scene generated successfully using model: ${result.modelUsed}`);
+  // If currentSceneImageUrl is provided, use edit-plus model with both images
+  if (currentSceneImageUrl) {
+    // Ensure current scene image URL is also a valid public URL
+    const publicCurrentSceneImageUrl = await ensurePublicImageUrl(currentSceneImageUrl, 86400);
+    console.log(`✓ Using validated current scene image URL for Wavespeed API`);
+    
+    console.log(`Using edit-plus model with both current scene image and character image`);
+    resultImageUrl = await submitAndPollSceneGenerationWithMultipleImages(
+      WAVESPEED_EDIT_PLUS_MODEL,
+      [publicCurrentSceneImageUrl, publicCharacterImageUrl],
+      prompt,
+      "single scene (edit)",
+      aspectRatio,
+    );
+    modelUsed = WAVESPEED_EDIT_PLUS_MODEL.name;
+  } else {
+    // Use the fallback system (tries google/nano-banana/edit first, falls back to alibaba/wan-2.5/image-edit if it fails)
+    const result = await generateSceneWithFallback(
+      publicCharacterImageUrl,
+      prompt,
+      "single scene",
+      aspectRatio,
+    );
+    resultImageUrl = result.imageUrl;
+    modelUsed = result.modelUsed;
+  }
+
+  console.log(`Single scene generated successfully using model: ${modelUsed}`);
   
   // Download and store the scene image permanently
   console.log(`Downloading and storing scene image permanently...`);
   const { downloadAndStoreImage } = await import("./imageStorage");
-  const storedImage = await downloadAndStoreImage(result.imageUrl, "scenes");
+  const storedImage = await downloadAndStoreImage(resultImageUrl, "scenes");
   console.log(`Scene image stored permanently at: ${storedImage.storedUrl}`);
   
   return storedImage.storedUrl;
