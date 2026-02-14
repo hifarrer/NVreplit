@@ -40,7 +40,7 @@ If Nix doesn't work or you need to install dependencies manually:
    sudo apt-get update
    sudo apt-get install -y libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libdbus-1-3 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 libpango-1.0-0 libcairo2 libatspi2.0-0 libxshmfence1 libxss1 libxtst6
    ```
-
+  
 ### Option 3: For Autoscale Deployment
 If you're using Replit's autoscale deployment, you may need to:
 
