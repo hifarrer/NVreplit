@@ -207,6 +207,23 @@
     }
   }
 
+  @keyframes pink-glow-pulse {
+    0%, 100% {
+      box-shadow: 0 0 10px rgba(255, 0, 128, 0.6), 
+                  0 0 20px rgba(255, 0, 128, 0.4), 
+                  0 0 30px rgba(255, 0, 128, 0.2);
+    }
+    50% {
+      box-shadow: 0 0 15px rgba(255, 0, 128, 0.8), 
+                  0 0 30px rgba(255, 0, 128, 0.6), 
+                  0 0 45px rgba(255, 0, 128, 0.4);
+    }
+  }
+
+  .textarea-pink-glow {
+    animation: pink-glow-pulse 16s ease-in-out infinite;
+  }
+
   .button-glow {
     animation: glow-pulse 2s ease-in-out infinite;
     position: relative;

@@ -47,7 +47,7 @@ export function SongGeneratorModal({
   const [lyrics, setLyrics] = useState("");
   const [songTitle, setSongTitle] = useState("");
   const [duration, setDuration] = useState([60]); // Default 1 minute (60 seconds)
-  const [addSubtitles, setAddSubtitles] = useState(false);
+  const [addSubtitles, setAddSubtitles] = useState(true); // Enabled by default
   const [includeWatermark, setIncludeWatermark] = useState(true);
   const [progress, setProgress] = useState(0);
   const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(
@@ -435,11 +435,11 @@ export function SongGeneratorModal({
             </p>
           </div>
 
-          {/* Add Subtitles Toggle */}
+          {/* Captions Toggle */}
           <div>
             <Label className="flex items-center text-sm font-semibold mb-2">
               <Subtitles className="w-4 h-4 text-accent mr-2" />
-              Add Subtitles
+              Captions
             </Label>
             <div className="flex items-center space-x-2">
               <Switch

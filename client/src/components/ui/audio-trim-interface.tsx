@@ -406,7 +406,7 @@ export function AudioTrimInterface({
         >
           {isTrimming 
             ? "Trimming..." 
-            : `Generate ${formatDurationForButton(selectedDuration)} (${creditCost.toLocaleString()} credits)`
+            : `Trim to ${formatDurationForButton(selectedDuration)} (${creditCost.toLocaleString()} credits)`
           }
         </Button>
       </div>

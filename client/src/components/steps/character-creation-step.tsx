@@ -1194,16 +1194,16 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
         </div>
 
         <div className="mt-8">
-          <Button 
-            variant="ghost"
-            onClick={onBack}
-            className="w-full text-muted-foreground"
-            data-testid="back-to-audio-button"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Audio
-          </Button>
-          <div className="flex flex-col items-center gap-3 mt-3">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+            <Button 
+              variant="ghost"
+              onClick={onBack}
+              className="w-full sm:w-auto text-muted-foreground"
+              data-testid="back-to-audio-button"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
             <Button
               onClick={async () => {
                 try {
@@ -1220,11 +1220,13 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
                 }
               }}
               disabled={!currentCharacterUrl}
-              className={`floating-button py-4 px-8 text-base ${currentCharacterUrl ? 'button-glow' : ''}`}
+              className={`floating-button py-4 px-8 text-base w-full sm:w-auto ${currentCharacterUrl ? 'button-glow' : ''}`}
               data-testid="proceed-to-scenes-button"
             >
               Continue
             </Button>
+          </div>
+          <div className="flex flex-col items-center gap-3 mt-3">
             <StepCircles currentStep={2} />
           </div>
         </div>

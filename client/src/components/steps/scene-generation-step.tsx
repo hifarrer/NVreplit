@@ -109,6 +109,12 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   // Video quality selection - affects which AI model is used for video generation
   const [videoQuality, setVideoQuality] = useState<VideoQuality>(initialVideoQuality);
   const [progress, setProgress] = useState(0);
+  const progressRef = useRef(0);
+  
+  // Sync ref with state
+  useEffect(() => {
+    progressRef.current = progress;
+  }, [progress]);
   const [regeneratingScenes, setRegeneratingScenes] = useState<number[]>([]);
   const [uploadingScenes, setUploadingScenes] = useState<number[]>([]);
   const [regeneratingVideoScenes, setRegeneratingVideoScenes] = useState<number[]>([]);
@@ -265,6 +271,64 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
 
   // Dedicated loading state tied to the ref for accurate UI feedback
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // Ref to track progress simulation interval
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isGeneratingRef = useRef(false);
+
+  // Sync ref with state
+  useEffect(() => {
+    isGeneratingRef.current = isGenerating;
+  }, [isGenerating]);
+
+  // Start progress simulation as soon as the progress UI is shown
+  useEffect(() => {
+    // Only start if we're showing the progress UI (no scenes and not in edit mode)
+    const shouldShowProgress = generatedScenes.length === 0 && !isEditMode;
+    
+    if (shouldShowProgress && !isGenerating) {
+      // Start with a small initial progress to show activity
+      setProgress(5);
+      progressRef.current = 5;
+      
+      // Clear any existing interval first
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+      
+      // Start a gradual progress simulation that runs until isGenerating becomes true
+      let currentProgress = 5;
+      progressIntervalRef.current = setInterval(() => {
+        // Check the ref value to get the current state (not the closure value)
+        if (!isGeneratingRef.current && currentProgress < 20) {
+          currentProgress = Math.min(20, currentProgress + 1);
+          setProgress(currentProgress);
+          progressRef.current = currentProgress;
+        } else {
+          // Stop if we've reached the limit or generation has started
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+          }
+        }
+      }, 500); // Update every 500ms for smooth animation
+      
+      // Cleanup on unmount or when dependencies change
+      return () => {
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+        }
+      };
+    } else {
+      // Clean up interval if we shouldn't show progress
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    }
+  }, [generatedScenes.length, isEditMode, isGenerating]);
 
   const generateScenesMutation = useMutation({
     mutationFn: async () => {
@@ -274,13 +338,24 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
         startTime: generationStartTimeRef.current
       });
 
+      // Clear the initial progress simulation interval if it's still running
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+
       // Start fake progress in parallel with API call (don't wait for it)
       const progressSimulation = (async () => {
-        const progressSteps = [25, 50, 75];
+        // Start from current progress (should be around 20% from the initial simulation)
+        // Use ref to get the current value, not the closure value
+        const startProgress = progressRef.current;
+        const progressSteps = [Math.max(25, startProgress + 5), 50, 75];
         for (let i = 0; i < progressSteps.length; i++) {
           // Only update progress if API call is still in progress
           if (apiCallInProgressRef.current) {
-            setProgress(progressSteps[i]);
+            const newProgress = progressSteps[i];
+            setProgress(newProgress);
+            progressRef.current = newProgress;
           }
           await new Promise(resolve => setTimeout(resolve, 2500));
         }
@@ -294,6 +369,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
         // Wait for progress simulation to complete for better UX
         await progressSimulation;
         setProgress(100);
+        progressRef.current = 100;
         
         logSceneGeneration(`API call completed successfully`, {
           projectId,
@@ -364,6 +440,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       setIsGenerating(false);
       
       setProgress(0);
+      progressRef.current = 0;
       toast({
         title: "Error",
         description: "Failed to generate scenes",
@@ -402,6 +479,13 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
     hasGeneratedRef.current = true;
     apiCallInProgressRef.current = true;
     generationStartTimeRef.current = Date.now();
+    
+    // Ensure progress is at least 20% when we start generating (for smooth transition)
+    if (progressRef.current < 20) {
+      setProgress(20);
+      progressRef.current = 20;
+    }
+    
     setIsGenerating(true);
     
     generateScenesMutation.mutate();

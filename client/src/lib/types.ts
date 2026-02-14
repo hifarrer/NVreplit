@@ -32,6 +32,9 @@ export interface Project {
   audioTags?: string;
   audioLyrics?: string;
   audioDuration?: number;
+  addSubtitles?: boolean;
+  subtitleStyle?: string;
+  subtitleFileUrl?: string;
   characterImageUrl?: string;
   characterType?: 'uploaded' | 'generated';
   characterPrompt?: string;

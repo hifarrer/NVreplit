@@ -36,6 +36,13 @@
       "when": 1769720215163,
       "tag": "0004_clever_gambit",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1771000000000,
+      "tag": "0005_tiktok_caption_style",
+      "breakpoints": true
     }
   ]
 }

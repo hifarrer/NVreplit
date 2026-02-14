@@ -335,6 +335,47 @@ export class ObjectStorageService {
     }
   }
 
+  async uploadVideoBuffer(buffer: Buffer, filename?: string): Promise<string> {
+    try {
+      const videoFilename = filename || `video_${randomUUID()}.mp4`;
+
+      // Always use ImageKit as primary storage if configured (for all environments)
+      if (isImageKitConfigured()) {
+        console.log(`[ImageKit] Uploading video buffer to ImageKit: ${videoFilename}`);
+        const imagekitResult = await uploadVideoToImageKit(buffer, videoFilename, "/videos");
+        console.log(`[ImageKit] Video buffer uploaded successfully: ${imagekitResult.url}`);
+
+        const permanentPath = `/objects/videos/${videoFilename}`;
+        await storage.recordImagekitBackup({
+          originalPath: permanentPath,
+          imagekitUrl: imagekitResult.url,
+          imagekitFileId: imagekitResult.fileId,
+          fileType: "video",
+        });
+
+        return imagekitResult.url;
+      }
+
+      // Fallback to Google Cloud Storage only if ImageKit is not configured
+      const objectPath = `${this.getPrivateObjectDir()}/videos/${videoFilename}`;
+      const { bucketName, objectName } = this.parseObjectPath(objectPath);
+
+      const bucket = objectStorageClient.bucket(bucketName);
+      const file = bucket.file(objectName);
+
+      await file.save(buffer, {
+        metadata: {
+          contentType: "video/mp4",
+        },
+      });
+
+      return `/objects/videos/${videoFilename}`;
+    } catch (error) {
+      console.error("Error uploading video buffer to storage:", error);
+      throw error;
+    }
+  }
+
   async uploadVideoFromUrl(videoUrl: string, filename?: string): Promise<string> {
     try {
       console.log("Downloading video from URL:", videoUrl);

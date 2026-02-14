@@ -1,3 +1,5 @@
+import { parseAssToTimestampedWords } from "./captions";
+
 const WAVESPEED_API_KEY =
   process.env.WAVESPEED_API_KEY ||
   process.env.WAVESPEED_API_KEY_ENV_VAR ||
@@ -12,37 +14,7 @@ interface TimestampedWord {
 
 // Function to parse .ass subtitle file and extract timestamped words
 export function parseAssSubtitles(assContent: string): TimestampedWord[] {
-  const words: TimestampedWord[] = [];
-  const lines = assContent.split('\n');
-  
-  for (const line of lines) {
-    if (line.startsWith('Dialogue:')) {
-      // Format: Dialogue: Marked=0,0:00:00.00,0:00:01.00,Default,,0000,0000,0000,,word
-      const parts = line.split(',');
-      if (parts.length >= 10) {
-        const startTimeStr = parts[1];
-        const endTimeStr = parts[2];
-        const text = parts.slice(9).join(',').trim();
-        
-        // Convert ASS time format (H:MM:SS.CC) to seconds
-        const parseTime = (timeStr: string): number => {
-          const [hours, minutes, secondsAndCentiseconds] = timeStr.split(':');
-          const [seconds, centiseconds] = secondsAndCentiseconds.split('.');
-          return parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds) + parseInt(centiseconds || '0') / 100;
-        };
-        
-        if (text) {
-          words.push({
-            start: parseTime(startTimeStr),
-            end: parseTime(endTimeStr),
-            text
-          });
-        }
-      }
-    }
-  }
-  
-  return words;
+  return parseAssToTimestampedWords(assContent);
 }
 
 // Function to check if a time segment contains lyrics

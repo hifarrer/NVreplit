@@ -452,6 +452,7 @@ export class MemStorage implements IStorage {
       audioLyrics: insertProject.audioLyrics || null,
       audioDuration: insertProject.audioDuration || null,
       addSubtitles: insertProject.addSubtitles !== undefined ? insertProject.addSubtitles : false,
+      subtitleStyle: insertProject.subtitleStyle || "classic",
       subtitleFileUrl: insertProject.subtitleFileUrl || null,
       kieTaskId: insertProject.kieTaskId || null,
       kieAudioId: insertProject.kieAudioId || null,
@@ -688,6 +689,7 @@ export class MemStorage implements IStorage {
       tags: insertSong.tags || null,
       lyrics: insertSong.lyrics || null,
       subtitleFileUrl: insertSong.subtitleFileUrl || null,
+      subtitleStyle: insertSong.subtitleStyle || "classic",
       kieTaskId: insertSong.kieTaskId || null,
       kieAudioId: insertSong.kieAudioId || null,
       createdAt: new Date()

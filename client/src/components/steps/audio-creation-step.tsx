@@ -11,7 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock, X, Subtitles, AlertCircle, Eye, EyeOff, Save, Scissors } from "lucide-react";
+import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock, X, Subtitles, AlertCircle, Eye, EyeOff, Save, Scissors, ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -19,12 +19,19 @@ import { format } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
 import { checkProfanity, getCategoryMessage, type ProfanityCheckResult } from "@/lib/profanity-filter";
 import { StepCircles } from "@/components/ui/step-circles";
+import {
+  defaultSubtitleStyle,
+  isSubtitleStyle,
+  subtitleStyleOptions,
+  type SubtitleStyle,
+} from "@shared/subtitleStyles";
 
 interface AudioCreationStepProps {
   projectId: string;
   audioUrl?: string;
   aspectRatio?: string;
   projectAddSubtitles?: boolean;
+  projectSubtitleStyle?: string;
   projectIncludeWatermark?: boolean;
   projectIsPublic?: boolean;
   onNext: () => void;
@@ -38,6 +45,7 @@ interface GeneratedSong {
   audioTags: string | null;
   audioLyrics: string | null;
   duration: number | null;
+  subtitleStyle?: string | null;
   subtitleFileUrl?: string | null;
   kieTaskId?: string | null;
   kieAudioId?: string | null;
@@ -47,7 +55,7 @@ interface GeneratedSong {
 
 const suggestedTags = ["pop", "electronic", "rock", "upbeat", "hip-hop", "country", "reggae", "synthwave", "kpop", "female singer", "male singer"];
 
-export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAddSubtitles, projectIncludeWatermark, projectIsPublic, onNext, onReset }: AudioCreationStepProps) {
+export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAddSubtitles, projectSubtitleStyle, projectIncludeWatermark, projectIsPublic, onNext, onReset }: AudioCreationStepProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -122,13 +130,19 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   const [lyrics, setLyrics] = useState("");
   const [songTitle, setSongTitle] = useState(""); // Song title for generate tab
   // Duration removed - user will trim after song selection
-  const [addSubtitles, setAddSubtitles] = useState(projectAddSubtitles ?? true); // Subtitle toggle - hydrated from project or default to enabled
+  const [addSubtitles, setAddSubtitles] = useState(true); // Subtitle toggle - enabled by default in all tabs
+  const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(
+    isSubtitleStyle(projectSubtitleStyle) ? projectSubtitleStyle : defaultSubtitleStyle
+  );
   const [includeWatermark, setIncludeWatermark] = useState(projectIncludeWatermark ?? true); // Watermark toggle - hydrated from project or default to enabled
   const [isPublic, setIsPublic] = useState(projectIsPublic ?? true); // Privacy toggle - hydrated from project or default to public
   // Default to vertical (3:4) - only use horizontal (16:9) if aspectRatio is explicitly "16:9"
   const [isVertical, setIsVertical] = useState(true); // Always default to vertical (3:4)
   const [progress, setProgress] = useState(0);
   const hasInitializedFromProps = useRef(false);
+  const [showCaptionStyles, setShowCaptionStyles] = useState(false); // Control visibility of caption styles picker for Generate tab
+  const [showUploadCaptionStyles, setShowUploadCaptionStyles] = useState(false); // Control visibility of caption styles picker for Upload tab
+  const [showLibraryCaptionStyles, setShowLibraryCaptionStyles] = useState(false); // Control visibility of caption styles picker for Library tab
   
   // Hydrate state from project props when component mounts or props change
   // Only update from aspectRatio prop if this is an existing project (has audioUrl)
@@ -143,9 +157,25 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
     // This ensures new projects always start with vertical, even if aspectRatio is "16:9" in DB
   }, [aspectRatio, audioUrl]);
   
+  // Only respect projectAddSubtitles if this is an existing project (has audioUrl)
+  // For new projects, always default to true (enabled)
+  // This ensures the toggle stays enabled by default even when project data loads
   useEffect(() => {
-    if (projectAddSubtitles !== undefined) setAddSubtitles(projectAddSubtitles);
-  }, [projectAddSubtitles]);
+    // Only update if this is an existing project with audio AND projectAddSubtitles is explicitly false
+    // Otherwise, keep the default of true
+    if (audioUrl && projectAddSubtitles === false) {
+      setAddSubtitles(false);
+    } else if (!audioUrl) {
+      // For new projects, always ensure it's true
+      setAddSubtitles(true);
+    }
+  }, [projectAddSubtitles, audioUrl]);
+
+  useEffect(() => {
+    if (isSubtitleStyle(projectSubtitleStyle)) {
+      setSubtitleStyle(projectSubtitleStyle);
+    }
+  }, [projectSubtitleStyle]);
   
   useEffect(() => {
     if (projectIncludeWatermark !== undefined) setIncludeWatermark(projectIncludeWatermark);
@@ -172,6 +202,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   const [showTrimInterfaceForLibrary, setShowTrimInterfaceForLibrary] = useState(false);
   const [selectedLibrarySongForTrim, setSelectedLibrarySongForTrim] = useState<GeneratedSong | null>(null);
   const libraryTrimInterfaceRef = useRef<HTMLDivElement>(null);
+  const continueButtonRef = useRef<HTMLButtonElement>(null);
   
   // Calculate credit costs based on duration
   // Song generation is free, only video generation costs credits
@@ -187,6 +218,18 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   const userCreditsRemaining = user?.creditsRemaining || 0;
   const hasEnoughCredits = userCreditsRemaining >= totalCreditsNeeded;
 
+  // Helper function to check if description is valid based on active tab
+  const isDescriptionValid = () => {
+    if (activeTab === "generate") {
+      return description.trim().length >= 3 && (descriptionProfanityCheck?.isClean !== false);
+    } else if (activeTab === "upload") {
+      return uploadSongDescription.trim().length >= 3;
+    } else if (activeTab === "library") {
+      return librarySongDescription.trim().length >= 3 && (libraryDescriptionProfanityCheck?.isClean !== false);
+    }
+    return false;
+  };
+
   // Fetch user's songs for library tab
   const { data: songs = [], isLoading: songsLoading } = useQuery<GeneratedSong[]>({
     queryKey: ["/api/my-songs"],
@@ -195,12 +238,16 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
 
   // Trim audio mutation
   const trimAudioMutation = useMutation({
-    mutationFn: async ({ audioUrl, startTime, endTime, title, description }: { 
+    mutationFn: async ({ audioUrl, startTime, endTime, title, description, addSubtitles, subtitleStyle, lyrics, sourceSubtitleFileUrl }: { 
       audioUrl: string; 
       startTime: number; 
       endTime: number;
       title?: string;
       description?: string;
+      addSubtitles?: boolean;
+      subtitleStyle?: SubtitleStyle;
+      lyrics?: string | null;
+      sourceSubtitleFileUrl?: string | null;
     }) => {
       setUploadProgress(50);
       setUploadStatus("Trimming audio...");
@@ -209,7 +256,11 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         startTime,
         endTime,
         title: title || uploadSongTitle.trim() || undefined,
-        description: description || uploadSongDescription.trim() || undefined
+        description: description || uploadSongDescription.trim() || undefined,
+        addSubtitles,
+        subtitleStyle,
+        lyrics: lyrics ?? null,
+        sourceSubtitleFileUrl: sourceSubtitleFileUrl ?? null,
       });
       return response.json();
     },
@@ -225,15 +276,18 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         
         // Use select-song endpoint to update project (it handles all the project updates)
         // Don't save to library here since this is the trimmed version (already saved by trim-audio endpoint)
+        // Use trimmed lyrics from the trim-audio response instead of full lyrics
         const updateResponse = await apiRequest("POST", `/api/projects/${projectId}/select-song`, {
           audioUrl: data.audioUrl,
           audioType: isGeneratedSong ? 'generated' : (isLibrarySong ? 'library' : 'uploaded'),
           duration: data.duration,
           audioPrompt: isGeneratedSong ? (description || null) : (isLibrarySong ? (librarySongDescription.trim() || null) : (uploadSongDescription || null)),
           audioTags: isGeneratedSong ? (tags || null) : (isLibrarySong ? selectedLibrarySongForTrim?.audioTags || null : null),
-          audioLyrics: isGeneratedSong ? (lyrics || null) : (isLibrarySong ? selectedLibrarySongForTrim?.audioLyrics || null : null),
+          audioLyrics: data.lyrics || null, // Use trimmed lyrics from trim-audio response
+          subtitleFileUrl: data.subtitleFileUrl || null,
           aspectRatio: isVertical ? "3:4" : "16:9",
           addSubtitles: isGeneratedSong ? (addSubtitles ? 'true' : 'false') : (isLibrarySong ? (addSubtitles ? 'true' : 'false') : (uploadAddSubtitles ? 'true' : 'false')),
+          subtitleStyle,
           includeWatermark: includeWatermark ? 'true' : 'false',
           isPublic: isPublic ? 'true' : 'false',
           saveToLibrary: false // Don't save trimmed version here (already saved by trim-audio endpoint)
@@ -299,6 +353,14 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
           title: "Success",
           description: successDescription,
         });
+        
+        // Scroll to the "Continue to Character" button after a short delay to ensure DOM has updated
+        setTimeout(() => {
+          continueButtonRef.current?.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          });
+        }, 100);
       } catch (error) {
         setIsUploading(false);
         setIsTrimming(false);
@@ -333,6 +395,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
           formData.append('description', uploadSongDescription.trim());
         }
         formData.append('addSubtitles', uploadAddSubtitles ? 'true' : 'false');
+        formData.append('subtitleStyle', subtitleStyle);
         formData.append('aspectRatio', isVertical ? "3:4" : "16:9");
         formData.append('includeWatermark', includeWatermark ? 'true' : 'false');
         formData.append('isPublic', isPublic ? 'true' : 'false');
@@ -501,6 +564,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         lyrics,
         duration: 120, // Default duration - user will trim after selection
         addSubtitles,
+        subtitleStyle,
         includeWatermark,
         isPublic,
         aspectRatio: isVertical ? "3:4" : "16:9"
@@ -560,6 +624,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         title: song.title,
         duration: song.duration,
         subtitleFileUrl: song.subtitleFileUrl,
+        subtitleStyle,
         kieTaskId: song.kieTaskId,
         kieAudioId: song.kieAudioId,
         audioType: "generated",
@@ -598,6 +663,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         title: selectedSong.title,
         duration: selectedSong.duration,
         subtitleFileUrl: selectedSong.subtitleFileUrl,
+        subtitleStyle,
         kieTaskId: selectedSong.kieTaskId,
         kieAudioId: selectedSong.kieAudioId,
         audioType: "generated",
@@ -644,6 +710,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         audioType: 'library',
         duration: song.duration,
         subtitleFileUrl: song.subtitleFileUrl,
+        subtitleStyle,
         kieTaskId: song.kieTaskId,
         kieAudioId: song.kieAudioId,
         aspectRatio: isVertical ? "3:4" : "16:9",
@@ -750,6 +817,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
       formData.append('description', uploadSongDescription.trim());
     }
     formData.append('addSubtitles', 'false'); // Don't generate subtitles yet, we'll do it after trimming
+    formData.append('subtitleStyle', subtitleStyle);
     formData.append('aspectRatio', isVertical ? "3:4" : "16:9");
     formData.append('includeWatermark', includeWatermark ? 'true' : 'false');
     formData.append('isPublic', isPublic ? 'true' : 'false');
@@ -777,7 +845,11 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
             trimAudioMutation.mutate({
               audioUrl: uploadData.audioUrl,
               startTime,
-              endTime
+        endTime,
+        addSubtitles: uploadAddSubtitles,
+        subtitleStyle,
+        lyrics: null,
+        sourceSubtitleFileUrl: null,
             });
           } catch (error) {
             setIsUploading(false);
@@ -855,7 +927,11 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         startTime,
         endTime,
         title: songTitle.trim() || selectedGeneratedSongForTrim.title || undefined,
-        description: description.trim() || undefined
+        description: description.trim() || undefined,
+        addSubtitles,
+        subtitleStyle,
+        lyrics: selectedGeneratedSongForTrim.audioLyrics || lyrics || null,
+        sourceSubtitleFileUrl: selectedGeneratedSongForTrim.subtitleFileUrl || null,
       });
     } catch (error) {
       setIsTrimming(false);
@@ -930,6 +1006,34 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
     return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
   };
 
+  const renderSubtitleStylePicker = (isEnabled: boolean, testIdPrefix: string, showStyles: boolean) => {
+    if (!isEnabled || !showStyles) return null;
+
+    return (
+      <div className="bg-muted/30 border border-border rounded-lg p-4 mt-4">
+        <Label className="text-sm font-semibold mb-3 block">Caption Style</Label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {subtitleStyleOptions.map((option) => (
+            <button
+              type="button"
+              key={option.value}
+              onClick={() => setSubtitleStyle(option.value)}
+              className={`text-left p-3 rounded-md border transition-colors ${
+                subtitleStyle === option.value
+                  ? "border-primary bg-primary/10"
+                  : "border-border hover:border-primary/50"
+              }`}
+              data-testid={`${testIdPrefix}-${option.value}`}
+            >
+              <div className="text-sm font-medium">{option.label}</div>
+              <div className="text-xs text-muted-foreground mt-1">{option.preview}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const handleSelectSong = () => {
     const selectedSong = songs.find(s => s.id === selectedSongId);
     if (selectedSong) {
@@ -946,13 +1050,21 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
     setUploadStatus("Trimming audio...");
     
     try {
+      // If the library song has subtitles, always enable subtitles for trimming
+      // This ensures existing subtitles are trimmed to match the trimmed audio
+      const shouldAddSubtitles = addSubtitles || !!selectedLibrarySongForTrim.subtitleFileUrl;
+      
       // Trim the library song - the trim-audio endpoint will save it as a new song
       trimAudioMutation.mutate({
         audioUrl: selectedLibrarySongForTrim.audioUrl,
         startTime,
         endTime,
         title: librarySongTitle.trim() || selectedLibrarySongForTrim.title || undefined,
-        description: librarySongDescription.trim() || undefined
+        description: librarySongDescription.trim() || undefined,
+        addSubtitles: shouldAddSubtitles,
+        subtitleStyle,
+        lyrics: selectedLibrarySongForTrim.audioLyrics || null,
+        sourceSubtitleFileUrl: selectedLibrarySongForTrim.subtitleFileUrl || null,
       });
     } catch (error) {
       setIsTrimming(false);
@@ -1063,14 +1175,19 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                 }}
                 placeholder="e.g., A lonely cowboy cat riding through the desert at sunset..."
                 rows={3}
-                className={`resize-none ${
+                className={`resize-none transition-all duration-300 ${
                   descriptionProfanityCheck?.isClean === false 
                     ? 'border-red-500 focus:border-red-500' 
-                    : description.trim().length > 0 && description.trim().length < 5 
+                    : description.trim().length > 0 && description.trim().length < 3 
                       ? 'border-red-500' 
                       : ''
+                } ${
+                  description.trim().length < 3 && descriptionProfanityCheck?.isClean !== false
+                    ? 'textarea-pink-glow border-pink-500/50 focus:border-pink-500'
+                    : ''
                 }`}
                 data-testid="song-description-input"
+                required
               />
               {descriptionProfanityCheck?.isClean === false && (
                 <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded-md mt-2">
@@ -1081,12 +1198,12 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
               <p className="text-xs text-muted-foreground mt-1">
                 {descriptionProfanityCheck?.isClean === false ? (
                   <span className="text-red-500">Please remove inappropriate content from your description before proceeding.</span>
-                ) : description.trim().length > 0 && description.trim().length < 5 ? (
-                  <span className="text-red-500">Description must be at least 5 characters (currently: {description.trim().length})</span>
-                ) : description.trim().length >= 5 && tags.trim().length === 0 ? (
+                ) : description.trim().length > 0 && description.trim().length < 3 ? (
+                  <span className="text-red-500">Description must be at least 3 characters (currently: {description.trim().length})</span>
+                ) : description.trim().length >= 3 && tags.trim().length === 0 ? (
                   <span className="text-orange-500">Good! Now add at least one tag below to enable generation</span>
                 ) : (
-                  "Describe the theme, mood, or story of your song"
+                  "Describe the theme, mood, or story of your song (required, minimum 3 characters)"
                 )}
               </p>
             </div>
@@ -1094,18 +1211,6 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
 
             {/* Subtitles, Watermark & Privacy Toggles - Single row */}
             <div className="flex flex-wrap gap-6">
-              {/* Add Subtitles Toggle */}
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={addSubtitles}
-                  onCheckedChange={setAddSubtitles}
-                  data-testid="subtitles-toggle"
-                />
-                <Label className="text-sm font-medium cursor-pointer" onClick={() => setAddSubtitles(!addSubtitles)}>
-                  Add Subtitles
-                </Label>
-              </div>
-
               {/* Watermark Toggle */}
               <div className="flex items-center space-x-2">
                 <Switch
@@ -1140,10 +1245,37 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                   data-testid="aspect-ratio-toggle"
                 />
                 <Label className="text-sm font-medium cursor-pointer" onClick={() => setIsVertical(!isVertical)}>
-                  {isVertical ? "Vertical (3:4)" : "Horizontal (16:9)"}
+                  {isVertical ? "Portrait" : "Landscape"}
                 </Label>
               </div>
+
+              {/* Captions Toggle */}
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={addSubtitles}
+                  onCheckedChange={setAddSubtitles}
+                  data-testid="subtitles-toggle"
+                />
+                <Label className="text-sm font-medium cursor-pointer" onClick={() => setAddSubtitles(!addSubtitles)}>
+                  Captions
+                </Label>
+                {addSubtitles && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCaptionStyles(!showCaptionStyles)}
+                    className="h-8 px-2 text-xs"
+                    data-testid="caption-styles-button"
+                  >
+                    Styles
+                    <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showCaptionStyles ? 'rotate-180' : ''}`} />
+                  </Button>
+                )}
+              </div>
             </div>
+
+            {renderSubtitleStylePicker(addSubtitles, "generate-caption-style", showCaptionStyles)}
 
             <div>
               <Label className="flex items-center text-sm font-semibold mb-2">
@@ -1414,12 +1546,25 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                     onChange={(e) => setUploadSongDescription(e.target.value)}
                     placeholder="e.g., A lonely cowboy cat riding through the desert at sunset..."
                     rows={3}
-                    className="resize-none"
+                    className={`resize-none transition-all duration-300 ${
+                      uploadSongDescription.trim().length > 0 && uploadSongDescription.trim().length < 3 
+                        ? 'border-red-500' 
+                        : ''
+                    } ${
+                      uploadSongDescription.trim().length < 3
+                        ? 'textarea-pink-glow border-pink-500/50 focus:border-pink-500'
+                        : ''
+                    }`}
                     data-testid="upload-song-description-input"
                     disabled={isTrimming}
+                    required
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Describe the theme, mood, or story of your song - this will help generate relevant video scenes
+                    {uploadSongDescription.trim().length > 0 && uploadSongDescription.trim().length < 3 ? (
+                      <span className="text-red-500">Description must be at least 3 characters (currently: {uploadSongDescription.trim().length})</span>
+                    ) : (
+                      "Describe the theme, mood, or story of your song - this will help generate relevant video scenes (required, minimum 3 characters)"
+                    )}
                   </p>
                 </div>
                 
@@ -1447,18 +1592,6 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
             
             {/* Video Settings Toggles for Upload */}
             <div className="flex flex-wrap gap-6 py-3 px-4 bg-muted/30 rounded-lg">
-              {/* Add Subtitles Toggle */}
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={uploadAddSubtitles}
-                  onCheckedChange={setUploadAddSubtitles}
-                  data-testid="upload-subtitles-toggle"
-                />
-                <Label className="text-sm font-medium cursor-pointer" onClick={() => setUploadAddSubtitles(!uploadAddSubtitles)}>
-                  Add Subtitles
-                </Label>
-              </div>
-
               {/* Watermark Toggle */}
               <div className="flex items-center space-x-2">
                 <Switch
@@ -1493,10 +1626,37 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                   data-testid="upload-aspect-ratio-toggle"
                 />
                 <Label className="text-sm font-medium cursor-pointer" onClick={() => setIsVertical(!isVertical)}>
-                  {isVertical ? "Vertical (3:4)" : "Horizontal (16:9)"}
+                  {isVertical ? "Portrait" : "Landscape"}
                 </Label>
               </div>
+
+              {/* Captions Toggle */}
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={uploadAddSubtitles}
+                  onCheckedChange={setUploadAddSubtitles}
+                  data-testid="upload-subtitles-toggle"
+                />
+                <Label className="text-sm font-medium cursor-pointer" onClick={() => setUploadAddSubtitles(!uploadAddSubtitles)}>
+                  Captions
+                </Label>
+                {uploadAddSubtitles && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowUploadCaptionStyles(!showUploadCaptionStyles)}
+                    className="h-8 px-2 text-xs"
+                    data-testid="upload-caption-styles-button"
+                  >
+                    Styles
+                    <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showUploadCaptionStyles ? 'rotate-180' : ''}`} />
+                  </Button>
+                )}
+              </div>
             </div>
+
+            {renderSubtitleStylePicker(uploadAddSubtitles, "upload-caption-style", showUploadCaptionStyles)}
             
             <input
               ref={fileInputRef}
@@ -1631,7 +1791,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                 )}
                 
                 {/* Song Description for Library */}
-                {selectedSongId && (
+                {(selectedSongId || (currentAudioUrl && activeTab === "library")) && (
                   <div>
                     <Label className="flex items-center text-sm font-semibold mb-2">
                       <Lightbulb className="w-4 h-4 text-accent mr-2" />
@@ -1648,14 +1808,19 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                       }}
                       placeholder="e.g., A lonely cowboy cat riding through the desert at sunset..."
                       rows={3}
-                      className={`resize-none ${
+                      className={`resize-none transition-all duration-300 ${
                         libraryDescriptionProfanityCheck?.isClean === false 
                           ? 'border-red-500 focus:border-red-500' 
-                          : librarySongDescription.trim().length > 0 && librarySongDescription.trim().length < 5 
+                          : librarySongDescription.trim().length > 0 && librarySongDescription.trim().length < 3 
                             ? 'border-red-500' 
                             : ''
+                      } ${
+                        librarySongDescription.trim().length < 3 && libraryDescriptionProfanityCheck?.isClean !== false
+                          ? 'textarea-pink-glow border-pink-500/50 focus:border-pink-500'
+                          : ''
                       }`}
                       data-testid="library-song-description-input"
+                      required
                     />
                     {libraryDescriptionProfanityCheck?.isClean === false && (
                       <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded-md mt-2">
@@ -1666,10 +1831,10 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                     <p className="text-xs text-muted-foreground mt-1">
                       {libraryDescriptionProfanityCheck?.isClean === false ? (
                         <span className="text-red-500">Please remove inappropriate content from your description before proceeding.</span>
-                      ) : librarySongDescription.trim().length > 0 && librarySongDescription.trim().length < 5 ? (
-                        <span className="text-red-500">Description must be at least 5 characters (currently: {librarySongDescription.trim().length})</span>
+                      ) : librarySongDescription.trim().length > 0 && librarySongDescription.trim().length < 3 ? (
+                        <span className="text-red-500">Description must be at least 3 characters (currently: {librarySongDescription.trim().length})</span>
                       ) : (
-                        "Describe the theme, mood, or story of your song - this will help generate relevant video scenes"
+                        "Describe the theme, mood, or story of your song - this will help generate relevant video scenes (required, minimum 3 characters)"
                       )}
                     </p>
                   </div>
@@ -1697,18 +1862,6 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                 
                 {/* Video Settings Toggles for Library */}
                 <div className="flex flex-wrap gap-6 py-3 px-4 bg-muted/30 rounded-lg">
-                  {/* Add Subtitles Toggle */}
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={addSubtitles}
-                      onCheckedChange={setAddSubtitles}
-                      data-testid="library-subtitles-toggle"
-                    />
-                    <Label className="text-sm font-medium cursor-pointer" onClick={() => setAddSubtitles(!addSubtitles)}>
-                      Add Subtitles
-                    </Label>
-                  </div>
-
                   {/* Watermark Toggle */}
                   <div className="flex items-center space-x-2">
                     <Switch
@@ -1743,37 +1896,66 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                       data-testid="library-aspect-ratio-toggle"
                     />
                     <Label className="text-sm font-medium cursor-pointer" onClick={() => setIsVertical(!isVertical)}>
-                      {isVertical ? "Vertical (3:4)" : "Horizontal (16:9)"}
+                      {isVertical ? "Portrait" : "Landscape"}
                     </Label>
                   </div>
+
+                  {/* Captions Toggle */}
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={addSubtitles}
+                      onCheckedChange={setAddSubtitles}
+                      data-testid="library-subtitles-toggle"
+                    />
+                    <Label className="text-sm font-medium cursor-pointer" onClick={() => setAddSubtitles(!addSubtitles)}>
+                      Captions
+                    </Label>
+                    {addSubtitles && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowLibraryCaptionStyles(!showLibraryCaptionStyles)}
+                        className="h-8 px-2 text-xs"
+                        data-testid="library-caption-styles-button"
+                      >
+                        Styles
+                        <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showLibraryCaptionStyles ? 'rotate-180' : ''}`} />
+                      </Button>
+                    )}
+                  </div>
                 </div>
+
+                {renderSubtitleStylePicker(addSubtitles, "library-caption-style", showLibraryCaptionStyles)}
                 
-                <Button 
-                  onClick={() => {
-                    // Check for profanity in description
-                    if (libraryDescriptionProfanityCheck?.isClean === false) {
-                      toast({
-                        title: "Content Policy Violation",
-                        description: libraryDescriptionProfanityCheck.category ? getCategoryMessage(libraryDescriptionProfanityCheck.category) : "Please remove inappropriate content from your description before proceeding.",
-                        variant: "destructive",
-                      });
-                      return;
+                {!currentAudioUrl && (
+                  <Button 
+                    onClick={() => {
+                      // Check for profanity in description
+                      if (libraryDescriptionProfanityCheck?.isClean === false) {
+                        toast({
+                          title: "Content Policy Violation",
+                          description: libraryDescriptionProfanityCheck.category ? getCategoryMessage(libraryDescriptionProfanityCheck.category) : "Please remove inappropriate content from your description before proceeding.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      handleSelectSong();
+                    }}
+                    disabled={!selectedSongId || (libraryDescriptionProfanityCheck?.isClean === false)}
+                    className="w-full floating-button"
+                    data-testid="button-select-song"
+                    title={
+                      libraryDescriptionProfanityCheck?.isClean === false
+                        ? "Please remove inappropriate content from your description"
+                        : !selectedSongId
+                          ? "Please select a song from your library"
+                          : "Use the selected song"
                     }
-                    handleSelectSong();
-                  }}
-                  disabled={!selectedSongId || (libraryDescriptionProfanityCheck?.isClean === false)}
-                  className="w-full floating-button"
-                  data-testid="button-select-song"
-                  title={
-                    libraryDescriptionProfanityCheck?.isClean === false
-                      ? "Please remove inappropriate content from your description"
-                      : !selectedSongId
-                        ? "Please select a song from your library"
-                        : "Use the selected song"
-                  }
-                >
-                  Use Selected Song
-                </Button>
+                  >
+                    Use Selected Song
+                  </Button>
+                )}
               </div>
             )}
           </TabsContent>
@@ -1801,10 +1983,12 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         {/* Next Step Button */}
         <div className="flex flex-col items-center gap-3 mt-8 px-4">
           <Button
+            ref={continueButtonRef}
             onClick={onNext}
-            disabled={!currentAudioUrl}
-            className={`floating-button text-sm sm:text-lg py-3 px-6 sm:px-8 ${currentAudioUrl ? 'button-glow' : ''}`}
+            disabled={!currentAudioUrl || !isDescriptionValid()}
+            className={`floating-button text-sm sm:text-lg py-3 px-6 sm:px-8 ${currentAudioUrl && isDescriptionValid() ? 'button-glow' : ''}`}
             data-testid="continue-to-character-button"
+            title={!currentAudioUrl ? "Please select or upload an audio file" : !isDescriptionValid() ? "Please enter a description with at least 3 characters" : ""}
           >
             Continue to Character
           </Button>

@@ -59,6 +59,7 @@ export const projects = pgTable("projects", {
   audioLyrics: text("audio_lyrics"),
   audioDuration: integer("audio_duration"), // Duration in seconds
   addSubtitles: boolean("add_subtitles").default(false), // Whether to add subtitles
+  subtitleStyle: text("subtitle_style").default("classic"), // 'classic' | TikTok-style presets
   includeWatermark: boolean("include_watermark").default(true), // Whether to include watermark (Premium users can disable)
   isPublic: boolean("is_public").default(true), // Whether video is public (Premium users can make private)
   subtitleFileUrl: text("subtitle_file_url"), // URL to .ass subtitle file
@@ -148,6 +149,7 @@ export const songs = pgTable("songs", {
   tags: text("tags"),
   lyrics: text("lyrics"),
   prompt: text("prompt"),
+  subtitleStyle: text("subtitle_style").default("classic"), // Preferred caption style for this song
   subtitleFileUrl: text("subtitle_file_url"), // URL to .ass subtitle file
   kieTaskId: text("kie_task_id"), // KIE.ai task ID for getting timestamped lyrics
   kieAudioId: text("kie_audio_id"), // KIE.ai audio ID for getting timestamped lyrics
