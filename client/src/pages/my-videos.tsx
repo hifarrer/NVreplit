@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users, Share2, Edit3, Gift } from "lucide-react";
+import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users, Share2, Edit3, Edit, Gift } from "lucide-react";
 import { SendGreetingCardModal } from "@/components/modals/send-greeting-card-modal";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
@@ -302,28 +302,13 @@ export default function MyVideosPage() {
                           className="flex-1 text-xs px-2"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedVideo(video);
+                            handleEditVideo(video.id);
                           }}
-                          data-testid={`button-watch-${video.id}`}
+                          data-testid={`button-edit-${video.id}`}
                         >
-                          <Play className="h-3 w-3 mr-1" />
-                          Watch
+                          <Edit className="h-3 w-3 mr-1" />
+                          Edit
                         </Button>
-                        {hasValidSceneImages(video) && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 text-xs px-2"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditVideo(video.id);
-                            }}
-                            data-testid={`button-edit-${video.id}`}
-                          >
-                            <Edit3 className="h-3 w-3 mr-1" />
-                            Edit
-                          </Button>
-                        )}
                         <Button
                           size="sm"
                           variant="outline"

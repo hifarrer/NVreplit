@@ -19,7 +19,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SceneData } from "@/lib/types";
-import { RotateCcw, RefreshCw, Mic, Upload, Loader2, AlertTriangle, Sparkles, Pencil, Zap, Camera } from "lucide-react";
+import { RotateCcw, RefreshCw, Mic, Upload, Loader2, AlertTriangle, Sparkles, Pencil, Zap, Camera, X } from "lucide-react";
 import { CameraAngleModal } from "@/components/modals/camera-angle-modal";
 import { SceneTimeline } from "@/components/scene-timeline";
 import { StepCircles } from "@/components/ui/step-circles";
@@ -111,6 +111,8 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   const [progress, setProgress] = useState(0);
   const [regeneratingScenes, setRegeneratingScenes] = useState<number[]>([]);
   const [uploadingScenes, setUploadingScenes] = useState<number[]>([]);
+  const [regeneratingVideoScenes, setRegeneratingVideoScenes] = useState<number[]>([]);
+  const [regeneratedVideoScenes, setRegeneratedVideoScenes] = useState<Set<number>>(new Set());
   const [cameraAngleScenes, setCameraAngleScenes] = useState<number[]>([]);
   const [cameraAngleModalOpen, setCameraAngleModalOpen] = useState(false);
   const [cameraAngleSceneIndex, setCameraAngleSceneIndex] = useState<number | null>(null);
@@ -126,6 +128,13 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       })
       .filter(index => index !== -1);
   }, [generatedScenes, isEditMode]);
+  
+  // Check if a scene needs video regeneration (image was modified but video wasn't regenerated)
+  const needsVideoRegeneration = useCallback((index: number): boolean => {
+    if (!isEditMode) return false;
+    // If image was modified (in modifiedSceneIndices) but videoUrl doesn't exist, it needs regeneration
+    return modifiedSceneIndices.includes(index) && !generatedScenes[index]?.videoUrl;
+  }, [isEditMode, modifiedSceneIndices, generatedScenes]);
   
   // Check if project has existing video segments (meaning partial regeneration is possible)
   const hasExistingVideoSegments = useMemo(() => {
@@ -432,6 +441,14 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   useEffect(() => {
     if (scenes.length > 0 && generatedScenes.length === 0) {
       setGeneratedScenes(scenes.map(scene => ({ ...scene })));
+      // Initialize regeneratedVideoScenes with scenes that already have videoUrls
+      const existingVideoIndices = new Set<number>();
+      scenes.forEach((scene, index) => {
+        if (scene.videoUrl) {
+          existingVideoIndices.add(index);
+        }
+      });
+      setRegeneratedVideoScenes(existingVideoIndices);
     }
   }, [scenes]);
   
@@ -477,11 +494,17 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       setGeneratedScenes(prev => 
         prev.map((scene, index) => 
           index === sceneIndex 
-            ? { ...scene, imageUrl: data.imageUrl }
+            ? { ...scene, imageUrl: data.imageUrl, videoUrl: undefined } // Clear video URL when image is regenerated
             : scene
         )
       );
       setRegeneratingScenes(prev => prev.filter(i => i !== sceneIndex));
+      // Clear regenerated video flag when image is regenerated
+      setRegeneratedVideoScenes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(sceneIndex);
+        return newSet;
+      });
       toast({
         title: "Success",
         description: isEditMode 
@@ -532,11 +555,17 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       setGeneratedScenes(prev => 
         prev.map((scene, index) => 
           index === sceneIndex 
-            ? { ...scene, imageUrl: data.imageUrl }
+            ? { ...scene, imageUrl: data.imageUrl, videoUrl: undefined } // Clear video URL when image is uploaded
             : scene
         )
       );
       setUploadingScenes(prev => prev.filter(i => i !== sceneIndex));
+      // Clear regenerated video flag when image is uploaded
+      setRegeneratedVideoScenes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(sceneIndex);
+        return newSet;
+      });
       toast({
         title: "Success",
         description: isEditMode 
@@ -581,13 +610,19 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       setGeneratedScenes(prev => 
         prev.map((scene, index) => 
           index === sceneIndex 
-            ? { ...scene, imageUrl: data.imageUrl }
+            ? { ...scene, imageUrl: data.imageUrl, videoUrl: undefined } // Clear video URL when camera angle is changed
             : scene
         )
       );
       setCameraAngleScenes(prev => prev.filter(i => i !== sceneIndex));
       setCameraAngleModalOpen(false);
       setCameraAngleSceneIndex(null);
+      // Clear regenerated video flag when camera angle is changed
+      setRegeneratedVideoScenes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(sceneIndex);
+        return newSet;
+      });
       toast({
         title: "Success",
         description: isEditMode 
@@ -607,6 +642,68 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       });
     }
   });
+
+  // Regenerate scene video mutation
+  const regenerateSceneVideoMutation = useMutation({
+    mutationFn: async ({ sceneIndex }: { sceneIndex: number }) => {
+      const scene = generatedScenes[sceneIndex];
+      if (!scene?.imageUrl) {
+        throw new Error("No image URL available for this scene");
+      }
+      
+      // Check if video has already been regenerated
+      if (regeneratedVideoScenes.has(sceneIndex)) {
+        throw new Error("Video for this scene has already been regenerated");
+      }
+      
+      const response = await apiRequest("POST", `/api/projects/${projectId}/regenerate-scene-video`, {
+        sceneIndex,
+        imageUrl: scene.imageUrl,
+        prompt: scene.prompt,
+        lipsync: isLipsyncScene(sceneIndex),
+        videoQuality: videoQuality
+      });
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      const { sceneIndex } = variables;
+      setGeneratedScenes(prev => 
+        prev.map((scene, index) => 
+          index === sceneIndex 
+            ? { ...scene, videoUrl: data.videoUrl }
+            : scene
+        )
+      );
+      setRegeneratingVideoScenes(prev => prev.filter(i => i !== sceneIndex));
+      setRegeneratedVideoScenes(prev => new Set([...prev, sceneIndex]));
+      toast({
+        title: "Success",
+        description: `Scene ${sceneIndex + 1} video regenerated!`,
+      });
+    },
+    onError: (error, variables) => {
+      const { sceneIndex } = variables;
+      setRegeneratingVideoScenes(prev => prev.filter(i => i !== sceneIndex));
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to regenerate scene video",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const regenerateSceneVideo = (index: number) => {
+    // Only regenerate if video hasn't been regenerated yet
+    if (regeneratedVideoScenes.has(index)) {
+      toast({
+        title: "Info",
+        description: "Video for this scene has already been regenerated",
+      });
+      return;
+    }
+    setRegeneratingVideoScenes(prev => [...prev, index]);
+    regenerateSceneVideoMutation.mutate({ sceneIndex: index });
+  };
 
   const openCameraAngleModal = (index: number) => {
     setCameraAngleSceneIndex(index);
@@ -924,7 +1021,9 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
             {generatedScenes.map((scene, index) => (
               <div key={index} className="bg-muted/20 rounded-lg p-4 border border-border" data-testid={`scene-${index + 1}`}>
                 <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row items-start gap-4 sm:space-x-4">
+                  {/* Top row: [Image thumbnail][Video thumbnail] Scene 1 [lipsync icon] */}
+                  <div className="flex items-center gap-3">
+                    {/* Image Thumbnail */}
                     <div className="w-20 h-20 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center flex-shrink-0">
                       {regeneratingScenes.includes(index) || uploadingScenes.includes(index) ? (
                         <Loader2 className="w-6 h-6 animate-spin text-white" />
@@ -939,117 +1038,152 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                         <Loader2 className="w-6 h-6 animate-spin text-white" />
                       )}
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h5 className="font-semibold">Scene {index + 1}</h5>
-                        {/* Modified indicator - shows when scene image has been changed in edit mode */}
-                        {isEditMode && modifiedSceneIndices.includes(index) && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div 
-                                  className="px-2 py-0.5 rounded bg-orange-500/20 border border-orange-500/50 flex items-center gap-1"
-                                  data-testid={`scene-modified-${index + 1}`}
-                                >
-                                  <Pencil className="w-3 h-3 text-orange-500" />
-                                  <span className="text-xs text-orange-500 font-medium">Modified</span>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-[250px]">
-                                <p>This scene has been modified. You can regenerate only modified scene videos to save credits.</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                    {/* Video Preview - only show in edit mode */}
+                    {isEditMode && (
+                      <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center relative overflow-hidden flex-shrink-0">
+                        {regeneratingVideoScenes.includes(index) ? (
+                          <Loader2 className="w-6 h-6 animate-spin text-white" />
+                        ) : scene.videoUrl ? (
+                          <video 
+                            src={scene.videoUrl}
+                            className="w-full h-full object-cover rounded-lg"
+                            muted
+                            loop
+                            playsInline
+                            autoPlay
+                            data-testid={`scene-video-${index + 1}`}
+                          />
+                        ) : needsVideoRegeneration(index) ? (
+                          <div className="w-full h-full flex items-center justify-center bg-red-500/20 border-2 border-red-500/50 rounded-lg relative">
+                            <X className="w-8 h-8 text-red-400" strokeWidth={3} />
+                          </div>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-purple-500/20">
+                            <i className="fas fa-video text-purple-400 text-xs"></i>
+                          </div>
                         )}
+                      </div>
+                    )}
+                    {/* Scene title and icons */}
+                    <div className="flex items-center gap-2 flex-1">
+                      <h5 className="font-semibold">Scene {index + 1}</h5>
+                      {/* Modified indicator - shows when scene image has been changed in edit mode */}
+                      {isEditMode && modifiedSceneIndices.includes(index) && (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <button 
-                                className="focus:outline-none p-1 rounded hover:bg-muted/50 transition-colors"
-                                onClick={() => toggleLipsync(index)}
-                                data-testid={`lipsync-toggle-${index + 1}`}
+                              <div 
+                                className="px-2 py-0.5 rounded bg-orange-500/20 border border-orange-500/50 flex items-center gap-1"
+                                data-testid={`scene-modified-${index + 1}`}
                               >
-                                <Mic className={`w-4 h-4 ${isLipsyncScene(index) ? 'text-pink-500' : 'text-gray-400'}`} />
-                              </button>
+                                <Pencil className="w-3 h-3 text-orange-500" />
+                                <span className="text-xs text-orange-500 font-medium">Modified</span>
+                              </div>
                             </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{isLipsyncScene(index) 
-                                ? 'Lipsync enabled - uses AI lipsync model (click to disable)' 
-                                : 'Lipsync disabled - uses regular AI video model (click to enable)'}</p>
+                            <TooltipContent className="max-w-[250px]">
+                              <p>This scene has been modified. You can regenerate only modified scene videos to save credits.</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                        {showLipsyncWarning(index) && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div 
-                                  className="p-1 rounded bg-amber-500/20 border border-amber-500/50 animate-pulse"
-                                  data-testid={`lipsync-warning-${index + 1}`}
-                                >
-                                  <AlertTriangle className="w-4 h-4 text-amber-500" />
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-[250px] bg-amber-900 border-amber-700">
-                                <p>Lipsync is enabled but there are no lyrics during this scene. Consider disabling lipsync or reordering scenes.</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => regenerateScene(index, scene.prompt)}
-                          disabled={regeneratingScenes.includes(index) || uploadingScenes.includes(index) || cameraAngleScenes.includes(index)}
-                          className="flex items-center gap-2"
-                          data-testid={`regenerate-scene-${index + 1}`}
-                        >
-                          <RefreshCw className={`w-4 h-4 ${regeneratingScenes.includes(index) ? 'animate-spin' : ''}`} />
-                          {regeneratingScenes.includes(index) ? 'Regenerating...' : 'Regenerate'}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => triggerFileInput(index)}
-                          disabled={regeneratingScenes.includes(index) || uploadingScenes.includes(index) || cameraAngleScenes.includes(index)}
-                          className="flex items-center gap-2"
-                          data-testid={`upload-scene-${index + 1}`}
-                        >
-                          {uploadingScenes.includes(index) ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Upload className="w-4 h-4" />
-                          )}
-                          {uploadingScenes.includes(index) ? 'Uploading...' : 'Upload'}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openCameraAngleModal(index)}
-                          disabled={regeneratingScenes.includes(index) || uploadingScenes.includes(index) || cameraAngleScenes.includes(index) || !scene.imageUrl}
-                          className="flex items-center gap-2"
-                          data-testid={`camera-angle-scene-${index + 1}`}
-                        >
-                          {cameraAngleScenes.includes(index) ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Camera className="w-4 h-4" />
-                          )}
-                          {cameraAngleScenes.includes(index) ? 'Processing...' : 'Camera angle'}
-                        </Button>
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                          className="hidden"
-                          ref={(el) => { fileInputRefs.current[index] = el; }}
-                          onChange={(e) => handleFileSelect(index, e)}
-                          data-testid={`file-input-scene-${index + 1}`}
-                        />
-                      </div>
+                      )}
+                      {/* Lipsync icon */}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button 
+                              className="focus:outline-none p-1 rounded hover:bg-muted/50 transition-colors"
+                              onClick={() => toggleLipsync(index)}
+                              data-testid={`lipsync-toggle-${index + 1}`}
+                            >
+                              <Mic className={`w-4 h-4 ${isLipsyncScene(index) ? 'text-pink-500' : 'text-gray-400'}`} />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{isLipsyncScene(index) 
+                              ? 'Lipsync enabled - uses AI lipsync model (click to disable)' 
+                              : 'Lipsync disabled - uses regular AI video model (click to enable)'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      {showLipsyncWarning(index) && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div 
+                                className="p-1 rounded bg-amber-500/20 border border-amber-500/50 animate-pulse"
+                                data-testid={`lipsync-warning-${index + 1}`}
+                              >
+                                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-[250px] bg-amber-900 border-amber-700">
+                              <p>Lipsync is enabled but there are no lyrics during this scene. Consider disabling lipsync or reordering scenes.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
                     </div>
                   </div>
+
+                  {/* Image Options: [Regenerate Image button][Upload][Camera Angle] */}
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                      Image Options:
+                    </label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => regenerateScene(index, scene.prompt)}
+                        disabled={regeneratingScenes.includes(index) || uploadingScenes.includes(index) || cameraAngleScenes.includes(index) || regeneratingVideoScenes.includes(index)}
+                        className="flex items-center gap-2"
+                        data-testid={`regenerate-scene-${index + 1}`}
+                      >
+                        <RefreshCw className={`w-4 h-4 ${regeneratingScenes.includes(index) ? 'animate-spin' : ''}`} />
+                        {regeneratingScenes.includes(index) ? 'Regenerating...' : 'Regenerate Image'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => triggerFileInput(index)}
+                        disabled={regeneratingScenes.includes(index) || uploadingScenes.includes(index) || cameraAngleScenes.includes(index) || regeneratingVideoScenes.includes(index)}
+                        className="flex items-center gap-2"
+                        data-testid={`upload-scene-${index + 1}`}
+                      >
+                        {uploadingScenes.includes(index) ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Upload className="w-4 h-4" />
+                        )}
+                        {uploadingScenes.includes(index) ? 'Uploading...' : 'Upload'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openCameraAngleModal(index)}
+                        disabled={regeneratingScenes.includes(index) || uploadingScenes.includes(index) || cameraAngleScenes.includes(index) || regeneratingVideoScenes.includes(index) || !scene.imageUrl}
+                        className="flex items-center gap-2"
+                        data-testid={`camera-angle-scene-${index + 1}`}
+                      >
+                        {cameraAngleScenes.includes(index) ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Camera className="w-4 h-4" />
+                        )}
+                        {cameraAngleScenes.includes(index) ? 'Processing...' : 'Camera angle'}
+                      </Button>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                        className="hidden"
+                        ref={(el) => { fileInputRefs.current[index] = el; }}
+                        onChange={(e) => handleFileSelect(index, e)}
+                        data-testid={`file-input-scene-${index + 1}`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Scene Prompt */}
                   <div>
                     <label className="text-sm font-medium text-muted-foreground mb-2 block">
                       Scene Prompt:
@@ -1062,6 +1196,37 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                       placeholder="Describe the scene in detail..."
                     />
                   </div>
+
+                  {/* Regenerate Video button - on its own row */}
+                  {isEditMode && (
+                    <div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => regenerateSceneVideo(index)}
+                        disabled={regeneratingScenes.includes(index) || uploadingScenes.includes(index) || cameraAngleScenes.includes(index) || regeneratingVideoScenes.includes(index) || regeneratedVideoScenes.has(index)}
+                        className={`flex items-center gap-2 w-full sm:w-auto ${needsVideoRegeneration(index) ? 'border-pink-500/80 shadow-[0_0_20px_rgba(236,72,153,0.8),0_0_40px_rgba(236,72,153,0.4)] hover:shadow-[0_0_25px_rgba(236,72,153,1),0_0_50px_rgba(236,72,153,0.6)] animate-pulse bg-pink-500/10' : ''}`}
+                        data-testid={`regenerate-video-${index + 1}`}
+                      >
+                        {regeneratingVideoScenes.includes(index) ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Regenerating Video...
+                          </>
+                        ) : regeneratedVideoScenes.has(index) ? (
+                          <>
+                            <i className="fas fa-check w-4 h-4 text-green-500"></i>
+                            Video Regenerated
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-4 h-4" />
+                            Regenerate Video
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -1117,22 +1282,13 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
         {isEditMode && audioDuration && (
           <div className="bg-muted/30 border border-border rounded-lg p-4 mb-6" data-testid="regeneration-cost-info">
             <div className="flex flex-col gap-3">
-              {/* Full regeneration cost */}
-              <div className="flex items-center gap-2 text-sm">
-                <i className="fas fa-coins text-primary"></i>
-                <span className="font-medium">Full Video Regeneration:</span>
-                <span className="text-muted-foreground">
-                  {calculateRegenerationCost().toLocaleString()} credits
-                </span>
-              </div>
-              
               {/* Partial regeneration cost - only show if there are modified scenes */}
               {hasExistingVideoSegments && modifiedSceneIndices.length > 0 && (
                 <div className="flex items-center gap-2 text-sm bg-green-500/10 border border-green-500/30 rounded-md p-3">
                   <Zap className="w-4 h-4 text-green-500" />
                   <div className="flex-1">
                     <span className="font-medium text-green-600 dark:text-green-400">
-                      Regenerate Modified Scenes Only:
+                      Regenerate Final Video:
                     </span>
                     <span className="text-green-600 dark:text-green-400 ml-2">
                       {calculatePartialRegenerationCost().toLocaleString()} credits
@@ -1148,7 +1304,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
               {/* No modifications message */}
               {hasExistingVideoSegments && modifiedSceneIndices.length === 0 && (
                 <div className="text-xs text-muted-foreground italic">
-                  No scenes have been modified. Change a scene image to enable partial regeneration and save credits.
+                  No scenes have been modified. Change a scene image to enable regeneration and save credits.
                 </div>
               )}
             </div>
@@ -1170,32 +1326,16 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
             
             {/* Action buttons for edit mode */}
             {isEditMode && hasExistingVideoSegments && modifiedSceneIndices.length > 0 ? (
-              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                {/* Partial regeneration button - primary action when scenes are modified */}
-                <Button
-                  onClick={() => partialRegenerateMutation.mutate()}
-                  disabled={generatedScenes.length === 0 || partialRegenerateMutation.isPending || regenerateVideoMutation.isPending}
-                  className={`floating-button py-3 px-4 sm:px-6 text-sm sm:text-base flex items-center gap-2 ${generatedScenes.length > 0 && !partialRegenerateMutation.isPending ? 'button-glow' : ''}`}
-                  data-testid="partial-regenerate-button"
-                >
-                  <Zap className="w-4 h-4" />
-                  {partialRegenerateMutation.isPending ? "Regenerating..." : 
-                    `Regenerate ${modifiedSceneIndices.length} Scene${modifiedSceneIndices.length > 1 ? 's' : ''} (${calculatePartialRegenerationCost().toLocaleString()} credits)`}
-                </Button>
-                
-                {/* Full regeneration button - secondary option */}
-                <Button
-                  variant="outline"
-                  onClick={handleProceedToVideo}
-                  disabled={generatedScenes.length === 0 || saveScenesMutation.isPending || regenerateVideoMutation.isPending}
-                  className="py-3 px-4 text-sm"
-                  data-testid="full-regenerate-button"
-                >
-                  <i className="fas fa-video mr-2"></i>
-                  {regenerateVideoMutation.isPending ? "Regenerating..." : 
-                   `Full Regeneration (${calculateRegenerationCost().toLocaleString()} credits)`}
-                </Button>
-              </div>
+              <Button
+                onClick={() => partialRegenerateMutation.mutate()}
+                disabled={generatedScenes.length === 0 || partialRegenerateMutation.isPending || regenerateVideoMutation.isPending}
+                className={`floating-button py-3 px-4 sm:px-6 text-sm sm:text-base flex items-center gap-2 w-full sm:w-auto ${generatedScenes.length > 0 && !partialRegenerateMutation.isPending ? 'button-glow' : ''}`}
+                data-testid="partial-regenerate-button"
+              >
+                <Zap className="w-4 h-4" />
+                {partialRegenerateMutation.isPending ? "Regenerating..." : 
+                  `Regenerate Final Video (${calculatePartialRegenerationCost().toLocaleString()} credits)`}
+              </Button>
             ) : (
               <Button
                 onClick={handleProceedToVideo}

@@ -7,6 +7,7 @@ export interface SceneData {
   prompt: string;
   imageUrl: string;
   lipsync?: boolean;
+  videoUrl?: string; // Optional video preview URL for the scene
 }
 
 export interface GenerationLog {

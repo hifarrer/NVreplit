@@ -16,7 +16,7 @@ import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimes
 import { nanoid } from "nanoid";
 import { createForcedAlignment, convertElevenLabsAlignmentToASS, storeElevenLabsSubtitleFile } from "./services/elevenlabs";
 import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage } from "./services/fal";
-import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal } from "./services/wavespeed";
+import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment } from "./services/wavespeed";
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
@@ -3634,6 +3634,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Prompt is required" });
       }
       
+      // Check for profanity in prompt
+      const profanityCheck = checkProfanity(prompt);
+      if (!profanityCheck.isClean) {
+        console.log("Scene prompt contains inappropriate content:", profanityCheck.detectedWords);
+        return res.status(400).json({ 
+          error: "Content Policy Violation",
+          details: getCategoryMessage(profanityCheck.category || 'unknown'),
+          category: profanityCheck.category
+        });
+      }
+      
       if (!characterImageUrl) {
         return res.status(400).json({ error: "Character image URL is required" });
       }
@@ -3695,6 +3706,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? updatedScenes.map((s: any) => s.lipsync !== undefined ? s.lipsync : null)
         : ((sourceProject as any).sceneLipsyncSettings ? JSON.parse(JSON.stringify((sourceProject as any).sceneLipsyncSettings)) : undefined);
       
+      // Extract regenerated video URLs from updated scenes if they exist
+      // This allows using the latest regenerated video parts when creating the final video
+      const regeneratedVideoUrls = updatedScenes
+        ? updatedScenes.map((s: any) => s.videoUrl || null)
+        : null;
+      
       // Use provided scene order or copy from source project
       const sceneOrder = providedSceneOrder 
         ? providedSceneOrder 
@@ -3743,6 +3760,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (sceneOrder !== undefined) clonedProjectData.sceneOrder = sceneOrder;
       if (sceneLipsyncSettings !== undefined) clonedProjectData.sceneLipsyncSettings = sceneLipsyncSettings;
       if (audioSegments !== undefined) clonedProjectData.audioSegments = audioSegments;
+      
+      // If regenerated video URLs are provided, use them instead of source project's video segments
+      // This allows using the latest regenerated video parts when creating the final video
+      if (regeneratedVideoUrls && regeneratedVideoUrls.some((url: string | null) => url !== null)) {
+        // Start with source project's video segments (if they exist)
+        const sourceVideoSegments = (sourceProject.videoSegments as string[]) || [];
+        const finalVideoSegments = regeneratedVideoUrls.map((url: string | null, index: number) => {
+          // Use regenerated URL if available, otherwise use source project's video segment
+          return url || sourceVideoSegments[index] || "";
+        });
+        clonedProjectData.videoSegments = finalVideoSegments;
+        console.log(`Using regenerated video URLs: ${regeneratedVideoUrls.filter((url: string | null) => url !== null).length} out of ${regeneratedVideoUrls.length} scenes have regenerated videos`);
+      }
       
       const validatedData = insertProjectSchema.parse(clonedProjectData);
       const clonedProject = await storage.createProject(validatedData);
@@ -3901,8 +3931,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (audioSegments !== undefined) clonedProjectData.audioSegments = audioSegments;
       
       // Store video segments from source project to reuse unchanged ones
-      // Also store the modified scene indices for the video generation step
-      clonedProjectData.videoSegments = JSON.parse(JSON.stringify(sourceVideoSegments));
+      // Also check if any scenes already have regenerated video URLs from "Regenerate Video" button
+      const finalVideoSegments = JSON.parse(JSON.stringify(sourceVideoSegments));
+      
+      console.log(`\n=== CLONING PROJECT WITH VIDEO SEGMENTS ===`);
+      console.log(`Source video segments count: ${sourceVideoSegments.length}`);
+      console.log(`Updated scenes count: ${updatedScenes.length}`);
+      
+      // Check updatedScenes for videoUrls that were regenerated via "Regenerate Video" button
+      // Update videoSegments with any regenerated video URLs (for both modified and unmodified scenes)
+      updatedScenes.forEach((scene: any, index: number) => {
+        if (scene.videoUrl && scene.videoUrl.trim() !== "") {
+          // This scene has a regenerated video URL (from "Regenerate Video" button)
+          console.log(`Scene ${index + 1} has regenerated video URL from updatedScenes, will use it: ${scene.videoUrl.substring(0, 50)}...`);
+          if (index < finalVideoSegments.length) {
+            const oldUrl = finalVideoSegments[index];
+            finalVideoSegments[index] = scene.videoUrl;
+            console.log(`  Updated videoSegments[${index}]: ${oldUrl ? oldUrl.substring(0, 30) + '...' : 'empty'} → ${scene.videoUrl.substring(0, 30)}...`);
+          } else {
+            // Pad array if needed
+            while (finalVideoSegments.length < index) {
+              finalVideoSegments.push("");
+            }
+            finalVideoSegments.push(scene.videoUrl);
+            console.log(`  Added new videoSegments[${index}]: ${scene.videoUrl.substring(0, 30)}...`);
+          }
+        } else {
+          console.log(`Scene ${index + 1} has no videoUrl in updatedScenes`);
+        }
+      });
+      
+      console.log(`Final video segments count after update: ${finalVideoSegments.length}`);
+      console.log(`Final video segments:`, finalVideoSegments.map((url, idx) => `${idx}: ${url ? url.substring(0, 30) + '...' : 'empty'}`).join(', '));
+      console.log(`=== END CLONING ===\n`);
+      
+      clonedProjectData.videoSegments = finalVideoSegments;
       
       const validatedData = insertProjectSchema.parse(clonedProjectData);
       const clonedProject = await storage.createProject(validatedData);
@@ -6439,6 +6502,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Scene index and prompt are required" });
       }
 
+      // Check for profanity in prompt
+      const profanityCheck = checkProfanity(prompt);
+      if (!profanityCheck.isClean) {
+        console.log("Scene regeneration prompt contains inappropriate content:", profanityCheck.detectedWords);
+        
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "scene_regeneration",
+          message: `Scene regeneration blocked: prompt contains inappropriate content (${profanityCheck.category})`,
+          status: "error",
+          metadata: { 
+            sceneIndex, 
+            detectedWords: profanityCheck.detectedWords,
+            category: profanityCheck.category
+          }
+        });
+        
+        return res.status(400).json({ 
+          error: "Content Policy Violation",
+          details: getCategoryMessage(profanityCheck.category || 'unknown'),
+          category: profanityCheck.category
+        });
+      }
+
       const project = await storage.getProject(req.params.id);
       if (!project) {
         return res.status(400).json({ error: "Project not found" });
@@ -6789,6 +6876,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Scene image upload error:", error);
       res.status(500).json({ error: "Failed to upload scene image" });
+    }
+  });
+
+  // Regenerate individual scene video endpoint
+  app.post("/api/projects/:id/regenerate-scene-video", authenticateToken, async (req, res) => {
+    try {
+      const { sceneIndex, imageUrl, prompt, lipsync, videoQuality } = req.body;
+      
+      if (sceneIndex === undefined || !imageUrl || !prompt) {
+        return res.status(400).json({ error: "Scene index, image URL, and prompt are required" });
+      }
+
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(400).json({ error: "Project not found" });
+      }
+
+      if (!project.audioUrl || !project.audioDuration) {
+        return res.status(400).json({ error: "Project audio is required" });
+      }
+
+      const sceneIndexNum = parseInt(sceneIndex);
+      if (isNaN(sceneIndexNum) || sceneIndexNum < 0) {
+        return res.status(400).json({ error: "Invalid scene index" });
+      }
+
+      const scenePrompts = (project.scenePrompts as string[]) || [];
+      if (sceneIndexNum >= scenePrompts.length) {
+        return res.status(400).json({ error: "Scene index out of range" });
+      }
+
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "scene_video_regeneration",
+        message: `Regenerating video for scene ${sceneIndexNum + 1}`,
+        status: "started",
+        metadata: { sceneIndex: sceneIndexNum, lipsync, videoQuality }
+      });
+
+      // Get or create audio segments
+      let audioSegments = project.audioSegments as any[];
+      if (!audioSegments || audioSegments.length === 0) {
+        // Need to split audio
+        const objectStorageService = new ObjectStorageService();
+        let audioUrl = project.audioUrl;
+        if (audioUrl.startsWith('/objects/')) {
+          audioUrl = await objectStorageService.getSignedUrlForPath(audioUrl, 3600);
+        } else if (audioUrl.startsWith('/')) {
+          const replitDevDomain = process.env.REPLIT_DEV_DOMAIN;
+          if (replitDevDomain) {
+            audioUrl = `https://${replitDevDomain}${audioUrl}`;
+          } else {
+            const replSlug = process.env.REPL_SLUG;
+            const replOwner = process.env.REPL_OWNER;
+            if (replSlug && replOwner) {
+              audioUrl = `https://${replSlug}-${replOwner}.replit.app${audioUrl}`;
+            } else {
+              const host = req.get('host') || 'localhost:5000';
+              audioUrl = host.includes('localhost') ? `http://${host}${audioUrl}` : `https://${host}${audioUrl}`;
+            }
+          }
+        }
+
+        // Calculate number of segments
+        const fullSegments = Math.floor(project.audioDuration! / 6);
+        const remainder = project.audioDuration! % 6;
+        const numberOfAudioParts = remainder >= 2 ? fullSegments + 1 : fullSegments;
+        
+        audioSegments = await splitAudio(audioUrl, numberOfAudioParts, project.audioDuration!);
+      }
+
+      // Get the audio segment for this scene
+      if (sceneIndexNum >= audioSegments.length) {
+        return res.status(400).json({ error: "Scene index exceeds available audio segments" });
+      }
+
+      const audioSegment = audioSegments[sceneIndexNum];
+      const audioSegmentUrl = audioSegment.download_url || audioSegment.part;
+      const segmentDuration = audioSegment.duration || 6;
+
+      // Determine model based on lipsync setting
+      const useLipsync = lipsync === true || lipsync === "true";
+      const model: "infinitetalk" | "seedance" = useLipsync ? "infinitetalk" : "seedance";
+      const quality = (videoQuality || project.videoQuality || "quick") as "quick" | "medium" | "premium";
+
+      console.log(`Regenerating scene ${sceneIndexNum + 1} video: model=${model}, quality=${quality}, duration=${segmentDuration}s`);
+
+      // Ensure image URL is a signed URL if it's an internal path
+      let publicImageUrl = imageUrl;
+      if (imageUrl.startsWith('/objects/')) {
+        const objectStorageService = new ObjectStorageService();
+        publicImageUrl = await objectStorageService.getSignedUrlForPath(imageUrl, 86400);
+      }
+
+      // Generate the video segment
+      const videoUrl = await generateVideoSegment(
+        audioSegmentUrl,
+        publicImageUrl,
+        prompt,
+        model,
+        segmentDuration,
+        quality
+      );
+
+      // Update the videoSegments array in the project
+      const videoSegments = (project.videoSegments as string[]) || [];
+      if (sceneIndexNum < videoSegments.length) {
+        videoSegments[sceneIndexNum] = videoUrl;
+      } else {
+        // Pad array if needed
+        while (videoSegments.length < sceneIndexNum) {
+          videoSegments.push("");
+        }
+        videoSegments.push(videoUrl);
+      }
+
+      // Save updated video segments to project
+      await storage.updateProject(req.params.id, {
+        videoSegments: videoSegments
+      } as any);
+
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "scene_video_regeneration",
+        message: `Scene ${sceneIndexNum + 1} video regenerated successfully`,
+        status: "completed",
+        metadata: { sceneIndex: sceneIndexNum, videoUrl, model, quality }
+      });
+
+      // Resolve URL for response
+      const resolvedVideoUrl = await resolveUrlWithImageKitFallback(videoUrl, storage);
+
+      res.json({ 
+        videoUrl: resolvedVideoUrl,
+        sceneIndex: sceneIndexNum
+      });
+    } catch (error) {
+      console.error("Scene video regeneration error:", error);
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "scene_video_regeneration",
+        message: "Scene video regeneration failed",
+        status: "error",
+        metadata: { error: (error as Error).message }
+      });
+      res.status(500).json({ error: "Failed to regenerate scene video: " + (error as Error).message });
     }
   });
 
@@ -7461,6 +7694,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingVideoSegments = project.videoSegments as string[];
       let partialRegenError: string | null = null;
       
+      // Check if we have existing video segments that can be reused
+      // This happens when videos were regenerated via "Regenerate Video" button
+      const hasExistingValidVideoSegments = existingVideoSegments && 
+        existingVideoSegments.length === sceneImages.length &&
+        existingVideoSegments.every(url => url && url.trim() !== "");
+      
       // Safety validation for partial regeneration - MUST pass all checks
       if (shouldUsePartialRegeneration) {
         const currentSceneCount = originalSceneImages.length;
@@ -7531,15 +7770,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`\n=== PARTIAL REGENERATION MODE ===`);
         console.log(`Modified scene indices: [${modifiedIndices.join(', ')}]`);
         console.log(`Existing video segments count: ${existingVideoSegments?.length || 0}`);
+        console.log(`Existing video segments:`, existingVideoSegments?.map((url, idx) => `${idx}: ${url ? url.substring(0, 50) + '...' : 'empty'}`).join(', '));
         
         // Map scene order positions to actual scene indices for video generation
         // When scenes are reordered, we need to know which positions in the final video correspond to modified scenes
         const modifiedPositions = modifiedIndices.map(originalIndex => sceneOrder.indexOf(originalIndex));
         console.log(`Modified scene positions in ordered video: [${modifiedPositions.join(', ')}]`);
         
-        // Generate videos only for modified scenes
-        // Filter to only include scenes that need regeneration
-        const scenesToRegenerate = modifiedPositions.filter(pos => pos >= 0);
+        // Filter to only include scenes that need video regeneration
+        // Only regenerate videos for scenes that don't already have video URLs
+        // IMPORTANT: Check videoSegments by original scene index, not ordered position
+        const scenesToRegenerate = modifiedPositions.filter((pos, idx) => {
+          if (pos < 0) {
+            console.log(`Position ${pos} is invalid (negative)`);
+            return false;
+          }
+          // Get the original scene index for this position
+          const originalIndex = modifiedIndices[idx];
+          if (originalIndex < 0 || originalIndex >= existingVideoSegments.length) {
+            console.log(`Original index ${originalIndex} is out of bounds (max: ${existingVideoSegments.length - 1})`);
+            return false;
+          }
+          // Check videoSegments by original index (videoSegments array is indexed by original scene index)
+          const videoUrl = existingVideoSegments[originalIndex];
+          // If video URL exists and is not empty, skip regeneration
+          if (videoUrl && videoUrl.trim() !== "") {
+            console.log(`Scene at original index ${originalIndex} (position ${pos}) already has video URL: ${videoUrl.substring(0, 50)}..., skipping regeneration`);
+            return false;
+          }
+          console.log(`Scene at original index ${originalIndex} (position ${pos}) needs video regeneration (no video URL)`);
+          return true;
+        });
+        
+        console.log(`Scenes that need video regeneration: [${scenesToRegenerate.join(', ')}] out of ${modifiedPositions.length} modified scenes`);
         
         if (scenesToRegenerate.length > 0) {
           await storage.addGenerationLog({
@@ -7583,14 +7846,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
           
           // Merge regenerated videos with existing ones
-          // Start with existing video segments and replace only the modified ones
+          // Start with existing video segments (which may already include regenerated videos from "Regenerate Video" button)
           allVideoUrls = [...existingVideoSegments];
           
           for (let i = 0; i < scenesToRegenerate.length; i++) {
             const position = scenesToRegenerate[i];
-            if (position < allVideoUrls.length) {
-              console.log(`Replacing video at position ${position} with regenerated video`);
+            if (position < allVideoUrls.length && position < regeneratedVideoUrls.length) {
+              console.log(`Replacing video at position ${position} with newly regenerated video`);
               allVideoUrls[position] = regeneratedVideoUrls[i];
+            } else if (position < allVideoUrls.length) {
+              console.log(`Warning: Position ${position} is valid but no regenerated video available at index ${i}`);
             } else {
               console.log(`Position ${position} out of bounds, appending regenerated video`);
               allVideoUrls.push(regeneratedVideoUrls[i]);
@@ -7599,13 +7864,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`Final merged video URLs count: ${allVideoUrls.length}`);
         } else {
-          // No scenes to regenerate, use existing segments
-          console.log(`No valid modified positions found, using existing video segments`);
+          // All modified scenes already have video URLs (from "Regenerate Video" button)
+          // Skip video generation and use existing segments directly
+          console.log(`All modified scenes already have video URLs, skipping video generation and proceeding to merge`);
           allVideoUrls = existingVideoSegments;
+          
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "video_generation",
+            message: `All modified scenes already have video URLs, skipping regeneration and proceeding to merge`,
+            status: "progress",
+            metadata: { 
+              step: 2, 
+              total: 4,
+              skippedRegeneration: true,
+              modifiedPositions: modifiedPositions
+            }
+          });
         }
         
         segmentPairs = null; // Not used in partial regeneration
         console.log(`=== PARTIAL REGENERATION COMPLETE ===\n`);
+      } else if (hasExistingValidVideoSegments) {
+        // Full regeneration but we have existing valid video segments (from "Regenerate Video" button)
+        // Use them instead of regenerating everything
+        console.log(`\n=== USING EXISTING VIDEO SEGMENTS ===`);
+        console.log(`Found ${existingVideoSegments.length} existing video segments, using them for final video merge`);
+        allVideoUrls = existingVideoSegments;
+        segmentPairs = null;
+        
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "video_generation",
+          message: `Using ${existingVideoSegments.length} existing video segments for final video`,
+          status: "progress",
+          metadata: { 
+            step: 2, 
+            total: 4,
+            usingExistingSegments: true
+          }
+        });
       } else {
         // Full video generation - use existing logic with per-scene lipsync settings
         const result = await generateAllVideoSegmentsDynamic(
@@ -9671,6 +9969,273 @@ Format your response as JSON:
     next();
   }
 
+  // Background function to process auto-generated video
+  async function processAutoGenerateVideo(
+    userId: string,
+    projectId: string,
+    generatedPrompt: string,
+    parsed: any,
+    style: string,
+    aspectRatio: string,
+    videoQuality: string,
+    targetDuration: number
+  ): Promise<void> {
+    try {
+      const user = await storage.getUser(userId);
+      const userEmail = user?.email;
+      const baseUrl = process.env.FRONTEND_URL || 'https://neonvideo.ai';
+
+      // Step 3: Generate lyrics and title
+      const lyricsPrompt = parsed.song_title 
+        ? `${parsed.song_title}. ${parsed.video_description}`
+        : parsed.video_description || generatedPrompt;
+      console.log(`[AUTO-GENERATE] Step 3: Generating lyrics and title with OpenAI for ${targetDuration}s...`);
+      const { lyrics, title: aiGeneratedTitle } = await generateLyricsWithTitle(lyricsPrompt, targetDuration);
+      await storage.updateProject(projectId, { 
+        audioLyrics: lyrics,
+        title: aiGeneratedTitle,
+        audioDuration: targetDuration,
+        currentStep: 1
+      });
+      console.log(`[AUTO-GENERATE] Generated lyrics (${lyrics.length} chars) and title: ${aiGeneratedTitle}`);
+
+      // Step 4: Generate song with Minimax Music 02 (single song, then trim to 30 seconds)
+      console.log(`[AUTO-GENERATE] Step 4: Generating song with Minimax Music 02...`);
+      const songTags = parsed.song_title 
+        ? `${parsed.song_title}. ${parsed.video_description}`
+        : parsed.video_description || generatedPrompt;
+      
+      // Generate a single song (no longer generating 2 and picking the best)
+      const songResult = await generateSingleSong(songTags, lyrics, targetDuration, parsed.video_description, 1);
+      const originalSongDuration = songResult.duration;
+      console.log(`[AUTO-GENERATE] Song generated: ${originalSongDuration}s`);
+      
+      // Step 4.5: Trim the generated song to exactly 30 seconds (0ms to 30000ms)
+      // Always trim to 30 seconds for auto-generate endpoint, regardless of requested duration
+      const trimDuration = 30; // Always 30 seconds for auto-generate
+      console.log(`[AUTO-GENERATE] Step 4.5: Trimming audio to exactly ${trimDuration} seconds (0ms to ${trimDuration * 1000}ms)...`);
+      
+      const startTime = 0; // Start at 0 seconds
+      const endTime = trimDuration * 1000; // End at 30 seconds (in milliseconds)
+      const adjustedEndTime = Math.max(startTime + 10, endTime - 10); // Subtract 10ms to prevent exceeding duration
+      
+      const { splitAudioByTime } = await import("./services/ffmpeg");
+      const trimResult = await splitAudioByTime(songResult.audioUrl, startTime, adjustedEndTime);
+      
+      // Download the trimmed audio
+      const trimmedResponse = await fetch(trimResult.download_url);
+      const trimmedBuffer = Buffer.from(await trimmedResponse.arrayBuffer());
+      
+      // Upload trimmed audio to object storage
+      const objectStorageService = new ObjectStorageService();
+      const audioPath = `songs/${crypto.randomUUID()}.mp3`;
+      const trimmedUrl = await objectStorageService.uploadAudioBuffer(trimmedBuffer, audioPath);
+      
+      // Get public URL
+      const publicAudioUrl = trimmedUrl.startsWith('http') 
+        ? trimmedUrl 
+        : await objectStorageService.getSignedUrlForPath(`/objects/${audioPath}`, 86400);
+      
+      // Get duration of trimmed audio
+      const { getAudioDurationFromFile } = await import("./services/ffmpeg");
+      const tempFilePath = path.join(uploadDir, `trimmed-${crypto.randomUUID()}.mp3`);
+      fs.writeFileSync(tempFilePath, trimmedBuffer);
+      const trimmedDuration = await getAudioDurationFromFile(tempFilePath);
+      fs.unlinkSync(tempFilePath); // Clean up temp file
+      
+      console.log(`[AUTO-GENERATE] Audio trimmed successfully: ${trimmedDuration}s`);
+      
+      // Update project with trimmed audio (always 30 seconds for auto-generate)
+      await storage.updateProject(projectId, { 
+        audioUrl: publicAudioUrl,
+        audioDuration: trimmedDuration,
+        currentStep: 2 
+      });
+      
+      const actualSongDuration = trimmedDuration; // Use trimmed duration (30 seconds) for subsequent steps
+
+      // Step 5: Generate character image
+      const characterDescription = parsed.character || generatedPrompt;
+      
+      // Validate character description for inappropriate content
+      validateCharacterGenerationPrompt(characterDescription);
+      
+      console.log(`[AUTO-GENERATE] Step 5: Generating character image...`);
+      const characterImageUrls = await generateCharacterImages(characterDescription, aspectRatio, style);
+      const characterImageUrl = characterImageUrls[0];
+      
+      await storage.updateProject(projectId, { 
+        characterImageUrl,
+        currentStep: 3
+      });
+      console.log(`[AUTO-GENERATE] Character image generated`);
+
+      const { numberOfSegments: numberOfScenes, segmentDurations } = calculateVideoSegments(actualSongDuration);
+      console.log(`[AUTO-GENERATE] Calculated ${numberOfScenes} scenes for ${actualSongDuration}s video`);
+
+      // Step 6: Generate scene prompts
+      console.log(`[AUTO-GENERATE] Step 6: Generating scene prompts...`);
+      const scenePrompts = await generateScenePrompts(
+        parsed.video_description || generatedPrompt,
+        numberOfScenes
+      );
+
+      // Step 7: Generate scene images
+      console.log(`[AUTO-GENERATE] Step 7: Generating scene images...`);
+      const sceneImages = await generateSceneImages(
+        scenePrompts,
+        characterImageUrl,
+        aspectRatio
+      );
+
+      await storage.updateProject(projectId, {
+        scenePrompts: scenePrompts,
+        sceneImages: sceneImages,
+        currentStep: 4
+      });
+      console.log(`[AUTO-GENERATE] Generated ${sceneImages.length} scene images`);
+
+      // Step 8: Generate final video
+      console.log(`[AUTO-GENERATE] Step 8: Triggering final video generation...`);
+      
+      await storage.updateProject(projectId, {
+        currentStep: 5,
+        isCompleted: false
+      });
+
+      // Trigger video generation asynchronously
+      let finalVideoUrl: string | null = null;
+      let videoError: string | null = null;
+      
+      try {
+        const videoGenResponse = await fetch(`http://localhost:5000/api/projects/${projectId}/generate-video`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+
+        if (videoGenResponse.ok) {
+          console.log(`[AUTO-GENERATE] Video generation completed for project ${projectId}`);
+          // Fetch the updated project to get the final video URL
+          const updatedProject = await storage.getProject(projectId);
+          if (updatedProject && updatedProject.finalVideoUrl) {
+            finalVideoUrl = updatedProject.finalVideoUrl;
+            console.log(`[AUTO-GENERATE] Final video URL retrieved: ${finalVideoUrl}`);
+          } else {
+            console.log(`[AUTO-GENERATE] Warning: Project updated but finalVideoUrl is missing. isCompleted: ${updatedProject?.isCompleted}`);
+          }
+        } else {
+          const errorData = await videoGenResponse.json();
+          console.error(`[AUTO-GENERATE] Video generation failed:`, errorData);
+          videoError = errorData.error || errorData.message || "Video generation failed";
+        }
+      } catch (error) {
+        console.error(`[AUTO-GENERATE] Video generation failed:`, error);
+        videoError = error instanceof Error ? error.message : String(error);
+      }
+
+      console.log(`[AUTO-GENERATE] All steps completed! Project ${projectId} finished.`);
+
+      // Send email notification
+      if (userEmail) {
+        if (videoError) {
+          // Send failure email
+          await emailService.sendEmail({
+            to: userEmail,
+            subject: 'Your auto-generated video failed',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: #f44336; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+                  <h1 style="color: white; margin: 0;">Video Generation Failed</h1>
+                </div>
+                <div style="background: #fff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
+                  <p style="font-size: 16px; color: #333;">
+                    We're sorry, but your auto-generated video failed to complete.
+                  </p>
+                  <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 0;"><strong>Error:</strong> ${videoError}</p>
+                  </div>
+                  <p style="font-size: 14px; color: #666;">
+                    You can try generating a new video or contact support if this issue persists.
+                  </p>
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${baseUrl}/projects/${projectId}" style="background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+                      View Project
+                    </a>
+                  </div>
+                </div>
+              </div>
+            `
+          });
+        } else if (finalVideoUrl) {
+          // Send success email
+          await emailService.sendEmail({
+            to: userEmail,
+            subject: 'Your auto-generated video is ready! 🎉',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+                  <h1 style="color: white; margin: 0;">Your Video is Ready! 🎉</h1>
+                </div>
+                <div style="background: #fff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
+                  <p style="font-size: 16px; color: #333;">
+                    Great news! Your auto-generated music video has been completed successfully.
+                  </p>
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${baseUrl}/projects/${projectId}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">
+                      Watch Your Video
+                    </a>
+                  </div>
+                  <p style="font-size: 14px; color: #666; text-align: center;">
+                    Or copy this link: <a href="${baseUrl}/projects/${projectId}">${baseUrl}/projects/${projectId}</a>
+                  </p>
+                </div>
+              </div>
+            `
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error(`[AUTO-GENERATE] Background processing error:`, error);
+      
+      // Send error email if user email is available
+      try {
+        const user = await storage.getUser(userId);
+        if (user?.email) {
+          const baseUrl = process.env.FRONTEND_URL || 'https://neonvideo.ai';
+          await emailService.sendEmail({
+            to: user.email,
+            subject: 'Your auto-generated video encountered an error',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: #f44336; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+                  <h1 style="color: white; margin: 0;">Video Generation Error</h1>
+                </div>
+                <div style="background: #fff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
+                  <p style="font-size: 16px; color: #333;">
+                    We encountered an error while processing your auto-generated video.
+                  </p>
+                  <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 0;"><strong>Error:</strong> ${error.message || "Unknown error occurred"}</p>
+                  </div>
+                  <p style="font-size: 14px; color: #666;">
+                    Please try generating a new video or contact support if this issue persists.
+                  </p>
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${baseUrl}/projects/${projectId}" style="background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+                      View Project
+                    </a>
+                  </div>
+                </div>
+              </div>
+            `
+          });
+        }
+      } catch (emailError) {
+        console.error(`[AUTO-GENERATE] Failed to send error email:`, emailError);
+      }
+    }
+  }
+
   // Auto-generate random video - generates a creative prompt with OpenAI and creates a video
   app.get("/api/auto-generate-video", extractTokenFromUrl, authenticateToken, async (req: any, res) => {
     res.header("Access-Control-Allow-Origin", "*");
@@ -9809,175 +10374,35 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       });
       console.log(`[AUTO-GENERATE] Created project ${project.id}`);
 
-      // Step 3: Generate lyrics and title
-      const lyricsPrompt = parsed.song_title 
-        ? `${parsed.song_title}. ${parsed.video_description}`
-        : parsed.video_description || generatedPrompt;
-      console.log(`[AUTO-GENERATE] Step 3: Generating lyrics and title with OpenAI for ${targetDuration}s...`);
-      const { lyrics, title: aiGeneratedTitle } = await generateLyricsWithTitle(lyricsPrompt, targetDuration);
-      await storage.updateProject(project.id, { 
-        audioLyrics: lyrics,
-        title: aiGeneratedTitle,
-        audioDuration: targetDuration,
-        currentStep: 1
-      });
-      console.log(`[AUTO-GENERATE] Generated lyrics (${lyrics.length} chars) and title: ${aiGeneratedTitle}`);
-
-      // Step 4: Generate song with Minimax Music 02 (single song, then trim to 30 seconds)
-      console.log(`[AUTO-GENERATE] Step 4: Generating song with Minimax Music 02...`);
-      const songTags = parsed.song_title 
-        ? `${parsed.song_title}. ${parsed.video_description}`
-        : parsed.video_description || generatedPrompt;
-      
-      // Generate a single song (no longer generating 2 and picking the best)
-      const songResult = await generateSingleSong(songTags, lyrics, targetDuration, parsed.video_description, 1);
-      const originalSongDuration = songResult.duration;
-      console.log(`[AUTO-GENERATE] Song generated: ${originalSongDuration}s`);
-      
-      // Step 4.5: Trim the generated song to exactly 30 seconds (0ms to 30000ms)
-      // Always trim to 30 seconds for auto-generate endpoint, regardless of requested duration
-      const trimDuration = 30; // Always 30 seconds for auto-generate
-      console.log(`[AUTO-GENERATE] Step 4.5: Trimming audio to exactly ${trimDuration} seconds (0ms to ${trimDuration * 1000}ms)...`);
-      
-      const startTime = 0; // Start at 0 seconds
-      const endTime = trimDuration * 1000; // End at 30 seconds (in milliseconds)
-      const adjustedEndTime = Math.max(startTime + 10, endTime - 10); // Subtract 10ms to prevent exceeding duration
-      
-      const { splitAudioByTime } = await import("./services/ffmpeg");
-      const trimResult = await splitAudioByTime(songResult.audioUrl, startTime, adjustedEndTime);
-      
-      // Download the trimmed audio
-      const trimmedResponse = await fetch(trimResult.download_url);
-      const trimmedBuffer = Buffer.from(await trimmedResponse.arrayBuffer());
-      
-      // Upload trimmed audio to object storage
-      const objectStorageService = new ObjectStorageService();
-      const audioPath = `songs/${crypto.randomUUID()}.mp3`;
-      const trimmedUrl = await objectStorageService.uploadAudioBuffer(trimmedBuffer, audioPath);
-      
-      // Get public URL
-      const publicAudioUrl = trimmedUrl.startsWith('http') 
-        ? trimmedUrl 
-        : await objectStorageService.getSignedUrlForPath(`/objects/${audioPath}`, 86400);
-      
-      // Get duration of trimmed audio
-      const { getAudioDurationFromFile } = await import("./services/ffmpeg");
-      const tempFilePath = path.join(uploadDir, `trimmed-${crypto.randomUUID()}.mp3`);
-      fs.writeFileSync(tempFilePath, trimmedBuffer);
-      const trimmedDuration = await getAudioDurationFromFile(tempFilePath);
-      fs.unlinkSync(tempFilePath); // Clean up temp file
-      
-      console.log(`[AUTO-GENERATE] Audio trimmed successfully: ${trimmedDuration}s`);
-      
-      // Update project with trimmed audio (always 30 seconds for auto-generate)
-      await storage.updateProject(project.id, { 
-        audioUrl: publicAudioUrl,
-        audioDuration: trimmedDuration,
-        currentStep: 2 
-      });
-      
-      const actualSongDuration = trimmedDuration; // Use trimmed duration (30 seconds) for subsequent steps
-
-      // Step 5: Generate character image
-      const characterDescription = parsed.character || generatedPrompt;
-      
-      // Validate character description for inappropriate content
-      validateCharacterGenerationPrompt(characterDescription);
-      
-      console.log(`[AUTO-GENERATE] Step 5: Generating character image...`);
-      const characterImageUrls = await generateCharacterImages(characterDescription, aspectRatio, style);
-      const characterImageUrl = characterImageUrls[0];
-      
-      await storage.updateProject(project.id, { 
-        characterImageUrl,
-        currentStep: 3
-      });
-      console.log(`[AUTO-GENERATE] Character image generated`);
-
-      const { numberOfSegments: numberOfScenes, segmentDurations } = calculateVideoSegments(actualSongDuration);
-      console.log(`[AUTO-GENERATE] Calculated ${numberOfScenes} scenes for ${actualSongDuration}s video`);
-
-      // Step 6: Generate scene prompts
-      console.log(`[AUTO-GENERATE] Step 6: Generating scene prompts...`);
-      const scenePrompts = await generateScenePrompts(
-        parsed.video_description || generatedPrompt,
-        numberOfScenes
-      );
-
-      // Step 7: Generate scene images
-      console.log(`[AUTO-GENERATE] Step 7: Generating scene images...`);
-      const sceneImages = await generateSceneImages(
-        scenePrompts,
-        characterImageUrl,
-        aspectRatio
-      );
-
-      await storage.updateProject(project.id, {
-        scenePrompts: scenePrompts,
-        sceneImages: sceneImages,
-        currentStep: 4
-      });
-      console.log(`[AUTO-GENERATE] Generated ${sceneImages.length} scene images`);
-
-      // Step 8: Generate final video
-      console.log(`[AUTO-GENERATE] Step 8: Triggering final video generation...`);
-      
-      await storage.updateProject(project.id, {
-        currentStep: 5,
-        isCompleted: false
+      // Start background processing (fire and forget)
+      processAutoGenerateVideo(
+        userId,
+        project.id,
+        generatedPrompt,
+        parsed,
+        style,
+        aspectRatio,
+        videoQuality,
+        targetDuration
+      ).catch((error) => {
+        console.error(`[AUTO-GENERATE] Background processing failed:`, error);
       });
 
-      // Trigger video generation synchronously (wait for completion)
-      let finalVideoUrl: string | null = null;
-      let videoError: string | null = null;
-      
-      try {
-        const videoGenResponse = await fetch(`http://localhost:5000/api/projects/${project.id}/generate-video`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" }
-        });
-
-        if (videoGenResponse.ok) {
-          console.log(`[AUTO-GENERATE] Video generation completed for project ${project.id}`);
-          // Fetch the updated project to get the final video URL
-          const updatedProject = await storage.getProject(project.id);
-          if (updatedProject && updatedProject.finalVideoUrl) {
-            finalVideoUrl = updatedProject.finalVideoUrl;
-            console.log(`[AUTO-GENERATE] Final video URL retrieved: ${finalVideoUrl}`);
-          } else {
-            console.log(`[AUTO-GENERATE] Warning: Project updated but finalVideoUrl is missing. isCompleted: ${updatedProject?.isCompleted}`);
-          }
-        } else {
-          const errorData = await videoGenResponse.json();
-          console.error(`[AUTO-GENERATE] Video generation failed:`, errorData);
-          videoError = errorData.error || errorData.message || "Video generation failed";
-        }
-      } catch (error) {
-        console.error(`[AUTO-GENERATE] Video generation failed:`, error);
-        videoError = error instanceof Error ? error.message : String(error);
-      }
-
-      console.log(`[AUTO-GENERATE] All steps completed! Project ${project.id} finished.`);
-
+      // Return immediately with project info
       const timestamp = new Date().toISOString();
-      
       res.json({
-        success: !videoError,
+        success: true,
         projectId: project.id,
-        message: videoError ? "Video generation failed" : "Auto-generated music video completed!",
+        message: "Auto-generated video is being processed. You will receive an email when it's ready!",
         generatedPrompt: generatedPrompt,
-        videoUrl: finalVideoUrl,
-        finalVideoUrl: finalVideoUrl,
-        error: videoError,
         timestamp: timestamp,
         statusUrl: `/api/neon-single-prompt/status/${project.id}`,
+        projectUrl: `${process.env.FRONTEND_URL || 'https://neonvideo.ai'}/projects/${project.id}`,
         details: {
           character: parsed.character,
-          song_title: aiGeneratedTitle,
           video_description: parsed.video_description,
           style: style,
-          quality: videoQuality,
-          sceneCount: sceneImages.length
+          quality: videoQuality
         }
       });
       

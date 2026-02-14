@@ -206,7 +206,8 @@ export default function Home() {
             characterImageUrl={project?.characterImageUrl}
             scenes={project?.scenePrompts?.map((prompt, index) => ({
               prompt,
-              imageUrl: project.sceneImages?.[index] || ""
+              imageUrl: project.sceneImages?.[index] || "",
+              videoUrl: project.videoSegments?.[index] || undefined
             }))}
             sceneOrder={(project as any)?.sceneOrder}
             initialVideoQuality={(project as any)?.videoQuality || "quick"}
