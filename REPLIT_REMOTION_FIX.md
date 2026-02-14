@@ -56,7 +56,7 @@ After applying the fix, test video generation with subtitles. You should see:
 - No fallback to videos without TikTok overlay
 
 ## Troubleshooting
-
+ 
 If subtitles still don't render:
 
 1. Check the console for any remaining library errors
