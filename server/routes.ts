@@ -8215,10 +8215,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isTikTokSubtitleStyle(projectSubtitleStyle) &&
         !!project.subtitleFileUrl;
 
-      // Get subtitle URL from project - only include if addSubtitles is enabled
+      // Resolve subtitle URL (used by FFmpeg path and as fallback when Remotion fails).
       // (subtitleFileUrl is always generated for timeline display, but only shown in video when addSubtitles is true)
-      // Subtitles are now stored exclusively in ImageKit
-      let subtitleUrl: string | undefined;
+      // Subtitles are now stored exclusively in ImageKit.
+      let resolvedSubtitleUrl: string | undefined;
       if (shouldRenderTikTokCaptions) {
         console.log(
           `Using Remotion caption renderer for style "${projectSubtitleStyle}" - skipping FFmpeg subtitle overlay`,
@@ -8226,12 +8226,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!subtitleData?.assContent) {
           console.warn("TikTok-style captions requested but subtitle ASS content could not be loaded. Falling back to base merged video.");
         }
-      } else if (project.addSubtitles && project.subtitleFileUrl) {
+      }
+
+      if (project.addSubtitles && project.subtitleFileUrl) {
         // Check if it's already a full URL (ImageKit URL or other external URL)
         if (project.subtitleFileUrl.startsWith('http://') || project.subtitleFileUrl.startsWith('https://')) {
           // Already a full URL (ImageKit or external) - use as-is
-          subtitleUrl = project.subtitleFileUrl;
-          console.log("Using ImageKit/external subtitle URL:", subtitleUrl);
+          resolvedSubtitleUrl = project.subtitleFileUrl;
+          console.log("Using ImageKit/external subtitle URL:", resolvedSubtitleUrl);
         } else if (project.subtitleFileUrl.startsWith('/public-objects/') || project.subtitleFileUrl.startsWith('/objects/')) {
           // Legacy GCS paths - try to resolve to ImageKit URL if available
           const { isImageKitConfigured, resolveImageKitUrl } = await import("./services/imagekit");
@@ -8239,27 +8241,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Try to find ImageKit URL for legacy subtitle
             const imagekitUrl = await resolveImageKitUrl(project.subtitleFileUrl, storage);
             if (imagekitUrl) {
-              subtitleUrl = imagekitUrl;
-              console.log("Resolved legacy subtitle to ImageKit URL:", project.subtitleFileUrl, "->", subtitleUrl);
+              resolvedSubtitleUrl = imagekitUrl;
+              console.log("Resolved legacy subtitle to ImageKit URL:", project.subtitleFileUrl, "->", resolvedSubtitleUrl);
             } else {
               // No ImageKit URL found for legacy subtitle - skip it
               console.warn("Legacy subtitle path found but no ImageKit URL available. Subtitles should be stored in ImageKit. Skipping subtitle:", project.subtitleFileUrl);
-              subtitleUrl = undefined;
+              resolvedSubtitleUrl = undefined;
             }
           } else {
             // ImageKit not configured - this shouldn't happen for new subtitles, but handle legacy
             console.warn("Legacy subtitle path found but ImageKit is not configured. This should not happen for new subtitles.");
-            subtitleUrl = undefined;
+            resolvedSubtitleUrl = undefined;
           }
         } else {
           // Unknown format - skip it
           console.warn("Unknown subtitle URL format:", project.subtitleFileUrl);
-          subtitleUrl = undefined;
+          resolvedSubtitleUrl = undefined;
         }
       } else if (!project.addSubtitles) {
         console.log("Subtitles disabled by user - not including in final video");
       }
-      console.log("Subtitle URL for FFMPEG merge:", subtitleUrl || "Not provided (disabled or no file)");
+      console.log(
+        "Subtitle URL for FFMPEG merge:",
+        resolvedSubtitleUrl || "Not provided (disabled or no file)",
+      );
       
       let finalVideo;
       let savedFinalVideoUrl: string;
@@ -8276,7 +8281,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           watermarkUrl = await getWatermarkUrl() || undefined;
         }
         
-        finalVideo = await mergeVideos(signedVideoUrls, finalAudioUrl, subtitleUrl, watermarkUrl);
+        const subtitleUrlForInitialMerge = shouldRenderTikTokCaptions
+          ? undefined
+          : resolvedSubtitleUrl;
+        finalVideo = await mergeVideos(
+          signedVideoUrls,
+          finalAudioUrl,
+          subtitleUrlForInitialMerge,
+          watermarkUrl,
+        );
         console.log("Final video merge successful:", finalVideo.download_url);
 
         if (shouldRenderTikTokCaptions && subtitleData?.assContent) {
@@ -8301,6 +8314,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
               "Remotion caption render failed, falling back to merged video without TikTok overlay:",
               captionRenderError,
             );
+            // If Remotion fails, attempt a normal FFmpeg subtitle merge so subtitles are still present.
+            if (resolvedSubtitleUrl) {
+              try {
+                await storage.addGenerationLog({
+                  projectId: req.params.id,
+                  step: "video_generation",
+                  message: "Remotion captions failed, retrying with FFmpeg subtitle overlay",
+                  status: "progress",
+                  metadata: { captionStyle: projectSubtitleStyle },
+                });
+                finalVideo = await mergeVideos(
+                  signedVideoUrls,
+                  finalAudioUrl,
+                  resolvedSubtitleUrl,
+                  watermarkUrl,
+                );
+                console.log(
+                  "FFmpeg subtitle fallback merge successful:",
+                  finalVideo.download_url,
+                );
+              } catch (ffmpegSubtitleFallbackError) {
+                console.warn(
+                  "FFmpeg subtitle fallback merge also failed:",
+                  ffmpegSubtitleFallbackError,
+                );
+              }
+            }
             await storage.addGenerationLog({
               projectId: req.params.id,
               step: "video_generation",
