@@ -11,6 +11,37 @@ const __dirname = path.dirname(__filename);
 
 let cachedServeUrl: string | null = null;
 
+// Set up library path for Chrome headless shell dependencies
+// This helps find libnspr4.so and other required libraries on Linux systems
+// Note: If using Nix (shell.nix), the LD_LIBRARY_PATH should be set by the shell environment
+const setupLibraryPath = () => {
+  if (process.platform === "linux") {
+    const currentLdPath = process.env.LD_LIBRARY_PATH || "";
+    const commonLibPaths = [
+      "/usr/lib",
+      "/usr/lib/x86_64-linux-gnu",
+      "/lib/x86_64-linux-gnu",
+      "/lib64",
+    ];
+    
+    const libPaths = commonLibPaths.filter(Boolean).join(":");
+    
+    // Only append if not already in the path and if shell.nix hasn't set it
+    if (currentLdPath && !currentLdPath.includes("/nix/store")) {
+      // If shell.nix set it, don't override; otherwise add common paths
+      if (!currentLdPath.includes(libPaths)) {
+        process.env.LD_LIBRARY_PATH = `${currentLdPath}:${libPaths}`;
+      }
+    } else if (!currentLdPath) {
+      // No LD_LIBRARY_PATH set, use common paths as fallback
+      process.env.LD_LIBRARY_PATH = libPaths;
+    }
+  }
+};
+
+// Initialize library path on module load
+setupLibraryPath();
+
 const getCaptionResolution = (
   aspectRatio: string | undefined,
 ): { width: number; height: number } => {
