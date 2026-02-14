@@ -57,8 +57,37 @@ const getServeUrl = async (): Promise<string> => {
     return cachedServeUrl;
   }
 
-  const entryPoint = path.resolve(__dirname, "../remotion/Root.tsx");
-  cachedServeUrl = await bundle(entryPoint);
+  // Use absolute path based on project root
+  // This works in both dev (where __dirname is server/services)
+  // and production (where __dirname might be dist/services or bundled differently)
+  const projectRoot = process.cwd();
+  
+  // Try multiple possible locations for the Remotion Root.tsx file
+  const possiblePaths = [
+    path.resolve(projectRoot, "server/remotion/Root.tsx"), // Production: project root
+    path.resolve(__dirname, "../remotion/Root.tsx"), // Dev: relative to current file
+    path.resolve(projectRoot, "dist/remotion/Root.tsx"), // Production: if copied to dist
+    path.resolve(__dirname, "../../server/remotion/Root.tsx"), // Alternative relative path
+  ];
+  
+  let finalEntryPoint: string | null = null;
+  for (const possiblePath of possiblePaths) {
+    if (fs.existsSync(possiblePath)) {
+      finalEntryPoint = possiblePath;
+      break;
+    }
+  }
+  
+  if (!finalEntryPoint) {
+    throw new Error(
+      `Remotion entry point not found. Tried:\n` +
+      possiblePaths.map(p => `  - ${p}`).join("\n") +
+      `\nCurrent working directory: ${projectRoot}\n` +
+      `__dirname: ${__dirname}`
+    );
+  }
+  
+  cachedServeUrl = await bundle(finalEntryPoint);
   return cachedServeUrl;
 };
 
