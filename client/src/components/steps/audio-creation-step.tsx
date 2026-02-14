@@ -221,13 +221,23 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   // Helper function to check if description is valid based on active tab
   const isDescriptionValid = () => {
     if (activeTab === "generate") {
-      return description.trim().length >= 3 && (descriptionProfanityCheck?.isClean !== false);
+      return description.trim().length >= 5 && (descriptionProfanityCheck?.isClean !== false);
     } else if (activeTab === "upload") {
-      return uploadSongDescription.trim().length >= 3;
+      return uploadSongDescription.trim().length >= 5;
     } else if (activeTab === "library") {
-      return librarySongDescription.trim().length >= 3 && (libraryDescriptionProfanityCheck?.isClean !== false);
+      return librarySongDescription.trim().length >= 5 && (libraryDescriptionProfanityCheck?.isClean !== false);
     }
     return false;
+  };
+
+  // Helper function to check if lyrics is valid
+  // Only validate lyrics in generate tab where they are manually entered
+  const isLyricsValid = () => {
+    if (activeTab === "generate") {
+      return lyrics.trim().length >= 10;
+    }
+    // For upload/library tabs, lyrics come from the song, so validation not needed here
+    return true;
   };
 
   // Fetch user's songs for library tab
@@ -987,7 +997,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
     }
   };
 
-  const canGenerate = description.trim().length >= 5 && tags.trim().length > 0;
+  const canGenerate = description.trim().length >= 5 && tags.trim().length > 0 && lyrics.trim().length >= 10;
 
   // Library handlers
   const togglePlay = (songId: string) => {
@@ -1178,11 +1188,11 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                 className={`resize-none transition-all duration-300 ${
                   descriptionProfanityCheck?.isClean === false 
                     ? 'border-red-500 focus:border-red-500' 
-                    : description.trim().length > 0 && description.trim().length < 3 
+                    : description.trim().length > 0 && description.trim().length < 5 
                       ? 'border-red-500' 
                       : ''
                 } ${
-                  description.trim().length < 3 && descriptionProfanityCheck?.isClean !== false
+                  description.trim().length < 5 && descriptionProfanityCheck?.isClean !== false
                     ? 'textarea-pink-glow border-pink-500/50 focus:border-pink-500'
                     : ''
                 }`}
@@ -1198,12 +1208,12 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
               <p className="text-xs text-muted-foreground mt-1">
                 {descriptionProfanityCheck?.isClean === false ? (
                   <span className="text-red-500">Please remove inappropriate content from your description before proceeding.</span>
-                ) : description.trim().length > 0 && description.trim().length < 3 ? (
-                  <span className="text-red-500">Description must be at least 3 characters (currently: {description.trim().length})</span>
-                ) : description.trim().length >= 3 && tags.trim().length === 0 ? (
+                ) : description.trim().length > 0 && description.trim().length < 5 ? (
+                  <span className="text-red-500">Description must be at least 5 characters (currently: {description.trim().length})</span>
+                ) : description.trim().length >= 5 && tags.trim().length === 0 ? (
                   <span className="text-orange-500">Good! Now add at least one tag below to enable generation</span>
                 ) : (
-                  "Describe the theme, mood, or story of your song (required, minimum 3 characters)"
+                  "Describe the theme, mood, or story of your song (required, minimum 5 characters)"
                 )}
               </p>
             </div>
@@ -1347,9 +1357,24 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                     const profanityResult = checkProfanity(newLyrics);
                     setProfanityCheck(profanityResult);
                   }}
-                  placeholder="Enter your lyrics here or click 'Generate Lyrics' to create them automatically..."
+                  placeholder="[Verse 1]
+Out in the fields where the tumbleweeds roll,
+Lives a little critter with a heart of gold.
+[Chorus]
+Yeehaw, cowboy hamster, running so free,
+Chasing after dreams as big as the sea."
                   rows={6}
-                  className={`resize-none ${profanityCheck?.isClean === false ? 'border-red-500 focus:border-red-500' : ''}`}
+                  className={`resize-none transition-all duration-300 ${
+                    profanityCheck?.isClean === false 
+                      ? 'border-red-500 focus:border-red-500' 
+                      : lyrics.trim().length > 0 && lyrics.trim().length < 10
+                        ? 'border-red-500'
+                        : ''
+                  } ${
+                    lyrics.trim().length < 10 && profanityCheck?.isClean !== false
+                      ? 'textarea-pink-glow border-pink-500/50 focus:border-pink-500'
+                      : ''
+                  }`}
                   data-testid="lyrics-textarea"
                 />
                 {profanityCheck?.isClean === false && (
@@ -1357,6 +1382,16 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                     <AlertCircle className="h-4 w-4 flex-shrink-0" />
                     <span>{profanityCheck.category ? getCategoryMessage(profanityCheck.category) : 'Please remove inappropriate content from your lyrics.'}</span>
                   </div>
+                )}
+                {lyrics.trim().length > 0 && lyrics.trim().length < 10 && (
+                  <p className="text-xs text-red-500">
+                    Lyrics must be at least 10 characters (currently: {lyrics.trim().length})
+                  </p>
+                )}
+                {lyrics.trim().length === 0 && profanityCheck?.isClean !== false && (
+                  <p className="text-xs text-muted-foreground">
+                    Enter your lyrics in the format shown above, or click 'Generate Lyrics' to create them automatically (required, minimum 10 characters)
+                  </p>
                 )}
               </div>
             </div>
@@ -1389,23 +1424,6 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
               </div>
             )}
 
-            {/* Requirements indicator */}
-            {(description.trim().length > 0 || tags.trim().length > 0) && !canGenerate && (
-              <div className="bg-orange-500/10 border border-orange-500/30 rounded-md p-3">
-                <p className="text-sm text-orange-600 dark:text-orange-400">
-                  <i className="fas fa-info-circle mr-2"></i>
-                  To generate songs, you need:
-                  <span className="block mt-1 ml-6">
-                    {description.trim().length < 5 && (
-                      <span className="block">• At least 5 characters in description (currently: {description.trim().length})</span>
-                    )}
-                    {tags.trim().length === 0 && (
-                      <span className="block">• At least one tag</span>
-                    )}
-                  </span>
-                </p>
-              </div>
-            )}
 
             <Button
               onClick={() => {
@@ -1438,7 +1456,13 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                   : profanityCheck?.isClean === false
                     ? "Please remove inappropriate content from your lyrics" 
                     : !canGenerate 
-                      ? "Please enter at least 5 characters in description and add at least one tag" 
+                      ? description.trim().length < 5
+                        ? "Please enter at least 5 characters in description"
+                        : tags.trim().length === 0
+                          ? "Please add at least one tag"
+                          : lyrics.trim().length < 10
+                            ? "Please enter at least 10 characters in lyrics"
+                            : "Please complete all required fields"
                       : !hasEnoughCredits 
                         ? "Not enough credits for this video duration" 
                         : "Generate your AI songs"
@@ -1547,11 +1571,11 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                     placeholder="e.g., A lonely cowboy cat riding through the desert at sunset..."
                     rows={3}
                     className={`resize-none transition-all duration-300 ${
-                      uploadSongDescription.trim().length > 0 && uploadSongDescription.trim().length < 3 
+                      uploadSongDescription.trim().length > 0 && uploadSongDescription.trim().length < 5 
                         ? 'border-red-500' 
                         : ''
                     } ${
-                      uploadSongDescription.trim().length < 3
+                      uploadSongDescription.trim().length < 5
                         ? 'textarea-pink-glow border-pink-500/50 focus:border-pink-500'
                         : ''
                     }`}
@@ -1560,10 +1584,10 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                     required
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    {uploadSongDescription.trim().length > 0 && uploadSongDescription.trim().length < 3 ? (
-                      <span className="text-red-500">Description must be at least 3 characters (currently: {uploadSongDescription.trim().length})</span>
+                    {uploadSongDescription.trim().length > 0 && uploadSongDescription.trim().length < 5 ? (
+                      <span className="text-red-500">Description must be at least 5 characters (currently: {uploadSongDescription.trim().length})</span>
                     ) : (
-                      "Describe the theme, mood, or story of your song - this will help generate relevant video scenes (required, minimum 3 characters)"
+                      "Describe the theme, mood, or story of your song - this will help generate relevant video scenes (required, minimum 5 characters)"
                     )}
                   </p>
                 </div>
@@ -1811,11 +1835,11 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                       className={`resize-none transition-all duration-300 ${
                         libraryDescriptionProfanityCheck?.isClean === false 
                           ? 'border-red-500 focus:border-red-500' 
-                          : librarySongDescription.trim().length > 0 && librarySongDescription.trim().length < 3 
+                          : librarySongDescription.trim().length > 0 && librarySongDescription.trim().length < 5 
                             ? 'border-red-500' 
                             : ''
                       } ${
-                        librarySongDescription.trim().length < 3 && libraryDescriptionProfanityCheck?.isClean !== false
+                        librarySongDescription.trim().length < 5 && libraryDescriptionProfanityCheck?.isClean !== false
                           ? 'textarea-pink-glow border-pink-500/50 focus:border-pink-500'
                           : ''
                       }`}
@@ -1831,10 +1855,10 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                     <p className="text-xs text-muted-foreground mt-1">
                       {libraryDescriptionProfanityCheck?.isClean === false ? (
                         <span className="text-red-500">Please remove inappropriate content from your description before proceeding.</span>
-                      ) : librarySongDescription.trim().length > 0 && librarySongDescription.trim().length < 3 ? (
-                        <span className="text-red-500">Description must be at least 3 characters (currently: {librarySongDescription.trim().length})</span>
+                      ) : librarySongDescription.trim().length > 0 && librarySongDescription.trim().length < 5 ? (
+                        <span className="text-red-500">Description must be at least 5 characters (currently: {librarySongDescription.trim().length})</span>
                       ) : (
-                        "Describe the theme, mood, or story of your song - this will help generate relevant video scenes (required, minimum 3 characters)"
+                        "Describe the theme, mood, or story of your song - this will help generate relevant video scenes (required, minimum 5 characters)"
                       )}
                     </p>
                   </div>
@@ -1985,14 +2009,22 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
           <Button
             ref={continueButtonRef}
             onClick={onNext}
-            disabled={!currentAudioUrl || !isDescriptionValid()}
-            className={`floating-button text-sm sm:text-lg py-3 px-6 sm:px-8 ${currentAudioUrl && isDescriptionValid() ? 'button-glow' : ''}`}
+            disabled={!currentAudioUrl || !isDescriptionValid() || !isLyricsValid()}
+            className={`floating-button text-sm sm:text-lg py-3 px-6 sm:px-8 ${currentAudioUrl && isDescriptionValid() && isLyricsValid() ? 'button-glow' : ''}`}
             data-testid="continue-to-character-button"
-            title={!currentAudioUrl ? "Please select or upload an audio file" : !isDescriptionValid() ? "Please enter a description with at least 3 characters" : ""}
+            title={
+              !currentAudioUrl 
+                ? "Please select or upload an audio file" 
+                : !isDescriptionValid() 
+                  ? "Please enter a description with at least 5 characters" 
+                  : !isLyricsValid()
+                    ? "Please enter lyrics with at least 10 characters"
+                    : ""
+            }
           >
             Continue to Character
           </Button>
-          <StepCircles currentStep={1} />
+            <StepCircles currentStep={1} />
         </div>
       </div>
 
