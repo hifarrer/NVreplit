@@ -11,9 +11,6 @@ const __dirname = path.dirname(__filename);
 
 let cachedServeUrl: string | null = null;
 
-// Set up library path for Chrome headless shell dependencies
-// This helps find libnspr4.so and other required libraries on Linux systems
-// Note: If using Nix (shell.nix), the LD_LIBRARY_PATH should be set by the shell environment
 const setupLibraryPath = () => {
   if (process.platform === "linux") {
     const currentLdPath = process.env.LD_LIBRARY_PATH || "";
@@ -22,25 +19,35 @@ const setupLibraryPath = () => {
       "/usr/lib/x86_64-linux-gnu",
       "/lib/x86_64-linux-gnu",
       "/lib64",
+      "/nix/store",
     ];
     
     const libPaths = commonLibPaths.filter(Boolean).join(":");
     
-    // Only append if not already in the path and if shell.nix hasn't set it
     if (currentLdPath && !currentLdPath.includes("/nix/store")) {
-      // If shell.nix set it, don't override; otherwise add common paths
       if (!currentLdPath.includes(libPaths)) {
         process.env.LD_LIBRARY_PATH = `${currentLdPath}:${libPaths}`;
       }
     } else if (!currentLdPath) {
-      // No LD_LIBRARY_PATH set, use common paths as fallback
       process.env.LD_LIBRARY_PATH = libPaths;
     }
+    
+    console.log(`[REMOTION] LD_LIBRARY_PATH: ${process.env.LD_LIBRARY_PATH}`);
   }
 };
 
-// Initialize library path on module load
 setupLibraryPath();
+
+// Chromium flags for constrained server environments (Replit production, Docker, etc.)
+const CHROMIUM_OPTIONS = {
+  disableWebSecurity: true,
+  gl: "swiftshader" as const,
+  headless: true,
+  enableMultiProcessOnLinux: false,
+};
+
+// Longer timeout for production where the browser may take longer to start
+const BROWSER_TIMEOUT_MS = 120_000;
 
 const getCaptionResolution = (
   aspectRatio: string | undefined,
@@ -175,6 +182,8 @@ export const renderVideoWithTikTokCaptions = async ({
       captionPosition: captionPosition || "bottom",
       fontFamily: fontFamily || undefined,
     },
+    chromiumOptions: CHROMIUM_OPTIONS,
+    timeoutInMilliseconds: BROWSER_TIMEOUT_MS,
   });
 
   await renderMedia({
@@ -200,6 +209,8 @@ export const renderVideoWithTikTokCaptions = async ({
     muted: false,
     imageFormat: "jpeg",
     crf: 18,
+    chromiumOptions: CHROMIUM_OPTIONS,
+    timeoutInMilliseconds: BROWSER_TIMEOUT_MS,
   });
 
   return outputLocation;
@@ -264,6 +275,8 @@ export const renderVideoWithTextOverlay = async ({
       fps,
       fontFamily: fontFamily || undefined,
     },
+    chromiumOptions: CHROMIUM_OPTIONS,
+    timeoutInMilliseconds: BROWSER_TIMEOUT_MS,
   });
 
   console.log(`[TEXT_OVERLAY] Starting render with ${textLines.length} text lines, duration: ${durationInFrames} frames, font: ${fontFamily || 'Inter'}`);
@@ -291,6 +304,8 @@ export const renderVideoWithTextOverlay = async ({
       muted: false,
       imageFormat: "jpeg",
       crf: 18,
+      chromiumOptions: CHROMIUM_OPTIONS,
+      timeoutInMilliseconds: BROWSER_TIMEOUT_MS,
     });
 
     console.log(`[TEXT_OVERLAY] Render completed successfully: ${outputLocation}`);
