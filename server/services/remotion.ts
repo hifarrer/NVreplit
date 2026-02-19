@@ -87,48 +87,38 @@ const getServeUrl = async (): Promise<string> => {
     );
   }
   
-  // Configure bundler to help resolve node_modules
-  // This is critical for resolving @remotion/google-fonts and other dependencies
-  // The bundler needs to know where to find node_modules relative to the project root
-  const nodeModulesPath = path.resolve(projectRoot, "node_modules");
-  
   // Verify node_modules exists (helpful for debugging)
+  const nodeModulesPath = path.resolve(projectRoot, "node_modules");
   if (!fs.existsSync(nodeModulesPath)) {
     console.warn(`[REMOTION] Warning: node_modules not found at ${nodeModulesPath}`);
   }
   
-  // Configure bundler with webpackOverride to help resolve node_modules
-  // This is critical for resolving @remotion/google-fonts on Replit
-  // Use a minimal override that only touches resolve.modules to avoid breaking webpack plugins
-  cachedServeUrl = await bundle(finalEntryPoint, {
-    webpackOverride: (config) => {
-      const projectNodeModules = path.resolve(projectRoot, "node_modules");
-      
-      // Only modify resolve.modules - be very careful not to break webpack's internal setup
-      if (config.resolve) {
-        const existingModules = config.resolve.modules;
-        if (Array.isArray(existingModules)) {
-          // Add project node_modules to the front if not already present
-          if (!existingModules.includes(projectNodeModules)) {
-            config.resolve.modules = [projectNodeModules, ...existingModules];
-          }
-        } else if (existingModules) {
-          // If it's a single value, convert to array
-          config.resolve.modules = [projectNodeModules, existingModules];
-        } else {
-          // If undefined, set to array with project node_modules first
-          config.resolve.modules = [projectNodeModules, "node_modules"];
-        }
-      } else {
-        // If resolve doesn't exist, create it (shouldn't happen but be safe)
-        config.resolve = {
-          modules: [projectNodeModules, "node_modules"],
-        };
-      }
-      
-      return config;
-    },
-  });
+  // Change to project root directory before bundling
+  // This ensures webpack can resolve node_modules from the project root
+  // Webpack looks for node_modules relative to the current working directory
+  const originalCwd = process.cwd();
+  let changedDir = false;
+  
+  try {
+    if (originalCwd !== projectRoot) {
+      process.chdir(projectRoot);
+      changedDir = true;
+      console.log(`[REMOTION] Changed working directory to ${projectRoot} for bundling`);
+    }
+    
+    // Use relative path from project root for entry point to help webpack resolve modules
+    const relativeEntryPoint = path.relative(projectRoot, finalEntryPoint);
+    const entryPointToUse = changedDir ? relativeEntryPoint : finalEntryPoint;
+    
+    // Bundle without webpackOverride to avoid breaking Remotion's internal webpack setup
+    // By changing to project root, webpack should be able to find node_modules naturally
+    cachedServeUrl = await bundle(entryPointToUse);
+  } finally {
+    // Restore original working directory
+    if (changedDir) {
+      process.chdir(originalCwd);
+    }
+  }
   return cachedServeUrl;
 };
 
