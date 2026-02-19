@@ -87,7 +87,41 @@ const getServeUrl = async (): Promise<string> => {
     );
   }
   
-  cachedServeUrl = await bundle(finalEntryPoint);
+  // Configure bundler to help resolve node_modules
+  // This is critical for resolving @remotion/google-fonts and other dependencies
+  // The bundler needs to know where to find node_modules relative to the project root
+  const nodeModulesPath = path.resolve(projectRoot, "node_modules");
+  
+  // Verify node_modules exists (helpful for debugging)
+  if (!fs.existsSync(nodeModulesPath)) {
+    console.warn(`[REMOTION] Warning: node_modules not found at ${nodeModulesPath}`);
+  }
+  
+  cachedServeUrl = await bundle(finalEntryPoint, {
+    webpackOverride: (config) => {
+      // Ensure webpack can resolve modules from the project root
+      config.resolve = config.resolve || {};
+      
+      // Set up module resolution to look in project root's node_modules first
+      const existingModules = config.resolve.modules || ["node_modules"];
+      const projectNodeModules = path.resolve(projectRoot, "node_modules");
+      
+      // Add project root node_modules to the beginning of the modules array
+      // This ensures it's checked first when resolving modules
+      config.resolve.modules = [
+        projectNodeModules,
+        ...existingModules.filter((m: string) => m !== projectNodeModules),
+      ];
+      
+      // Also ensure the project root is in the resolve paths
+      config.resolve.roots = config.resolve.roots || [];
+      if (!config.resolve.roots.includes(projectRoot)) {
+        config.resolve.roots.push(projectRoot);
+      }
+      
+      return config;
+    },
+  });
   return cachedServeUrl;
 };
 
