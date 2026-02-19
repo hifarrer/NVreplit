@@ -49,16 +49,48 @@ const CHROMIUM_OPTIONS = {
 // Longer timeout for production where the browser may take longer to start
 const BROWSER_TIMEOUT_MS = 120_000;
 
-// Retry when Chromium tab crashes (Target closed / ProtocolError) - common on Replit
+// Retry when Chromium/WebSocket connection drops - common on Replit and in local dev
 const REMOTION_CAPTION_MAX_RETRIES = 3;
 const REMOTION_RETRY_DELAY_MS = 3000;
 
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "object" && err !== null) {
+    const o = err as Record<string | symbol, unknown>;
+    if (typeof (o as Record<string, unknown>).message === "string") return (o as Record<string, string>).message;
+    if (o.error instanceof Error) return o.error.message;
+    // Node ErrorEvent exposes the real Error at a Symbol key (e.g. [Symbol(kError)])
+    for (const key of Object.getOwnPropertySymbols(o)) {
+      const v = o[key];
+      if (v instanceof Error) return v.message;
+    }
+  }
+  return String(err);
+}
+
+function getErrorCode(err: unknown): string | undefined {
+  if (err instanceof Error && "code" in err) return (err as Error & { code?: string }).code;
+  if (typeof err === "object" && err !== null) {
+    const o = err as Record<string | symbol, unknown>;
+    if (o.error instanceof Error && "code" in o.error) return (o.error as Error & { code?: string }).code;
+    for (const key of Object.getOwnPropertySymbols(o)) {
+      const v = o[key];
+      if (v instanceof Error && "code" in v) return (v as Error & { code?: string }).code;
+    }
+  }
+  return undefined;
+}
+
 function isRetryableRemotionError(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
+  const msg = getErrorMessage(err).toLowerCase();
+  const code = getErrorCode(err);
   return (
-    msg.includes("Target closed") ||
-    msg.includes("ProtocolError") ||
-    msg.includes("Protocol error")
+    msg.includes("target closed") ||
+    msg.includes("protocolerror") ||
+    msg.includes("protocol error") ||
+    msg.includes("socket hang up") ||
+    msg.includes("econnreset") ||
+    code === "ECONNRESET"
   );
 }
 
