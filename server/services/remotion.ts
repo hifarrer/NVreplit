@@ -12,10 +12,19 @@ const __dirname = path.dirname(__filename);
 let cachedServeUrl: string | null = null;
 
 const isRender = !!(process.env.RENDER || process.env.RENDER_EXTERNAL_URL || process.env.RENDER_SERVICE_ID);
+const isRailway = !!(process.env.RAILWAY_SERVICE_ID || process.env.RAILWAY_ENVIRONMENT_ID);
 const isReplit = !!(process.env.REPL_ID || process.env.REPL_SLUG || process.env.REPLIT_DEV_DOMAIN);
+const isCloudHost = isRender || isRailway;
+
+const getHostEnvName = (): string => {
+  if (isRender) return "Render";
+  if (isRailway) return "Railway";
+  if (isReplit) return "Replit";
+  return "local";
+};
 
 const getRenderConfig = () => {
-  if (isRender) {
+  if (isCloudHost) {
     return {
       concurrency: 1,
       timeoutInMilliseconds: 90000,
@@ -208,7 +217,7 @@ export const renderVideoWithTikTokCaptions = async ({
     fontFamily: fontFamily || undefined,
   };
 
-  console.log(`[REMOTION] Environment: ${isRender ? 'Render' : isReplit ? 'Replit' : 'local'}, concurrency: ${envConfig.concurrency ?? 'auto'}, timeout: ${envConfig.timeoutInMilliseconds}ms`);
+  console.log(`[REMOTION] Environment: ${getHostEnvName()}, concurrency: ${envConfig.concurrency ?? 'auto'}, timeout: ${envConfig.timeoutInMilliseconds}ms`);
 
   const composition = await selectComposition({
     serveUrl,
@@ -316,7 +325,7 @@ export const renderVideoWithTextOverlay = async ({
     timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
   });
 
-  console.log(`[TEXT_OVERLAY] Starting render with ${textLines.length} text lines, duration: ${durationInFrames} frames, font: ${fontFamily || 'Inter'}, env: ${isRender ? 'Render' : isReplit ? 'Replit' : 'local'}`);
+  console.log(`[TEXT_OVERLAY] Starting render with ${textLines.length} text lines, duration: ${durationInFrames} frames, font: ${fontFamily || 'Inter'}, env: ${getHostEnvName()}`);
   
   try {
     await renderMedia({
