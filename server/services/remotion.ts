@@ -49,9 +49,12 @@ const CHROMIUM_OPTIONS = {
 // Longer timeout for production where the browser may take longer to start
 const BROWSER_TIMEOUT_MS = 120_000;
 
-// Retry when Chromium/WebSocket connection drops - common on Replit and in local dev
-const REMOTION_CAPTION_MAX_RETRIES = 3;
-const REMOTION_RETRY_DELAY_MS = 3000;
+// Replit: use low concurrency and more retries to avoid "Target closed" (memory/process limits)
+const IS_REPLIT = Boolean(process.env.REPL_ID || process.env.REPL_SLUG);
+const REMOTION_CAPTION_MAX_RETRIES = IS_REPLIT ? 5 : 3;
+const REMOTION_RETRY_DELAY_MS = IS_REPLIT ? 5000 : 3000;
+// Single browser tab on Replit to reduce memory and Chromium crashes
+const REMOTION_CONCURRENCY = IS_REPLIT ? 1 : null;
 
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -216,6 +219,10 @@ export const renderVideoWithTikTokCaptions = async ({
 
   const serveUrl = await getServeUrl();
 
+  if (IS_REPLIT) {
+    console.log(`[REMOTION] Replit: using concurrency=1, up to ${REMOTION_CAPTION_MAX_RETRIES} retries (${REMOTION_RETRY_DELAY_MS}ms delay)`);
+  }
+
   let lastError: unknown;
   for (let attempt = 1; attempt <= REMOTION_CAPTION_MAX_RETRIES; attempt++) {
     try {
@@ -259,6 +266,7 @@ export const renderVideoWithTikTokCaptions = async ({
         crf: 18,
         chromiumOptions: CHROMIUM_OPTIONS,
         timeoutInMilliseconds: BROWSER_TIMEOUT_MS,
+        concurrency: REMOTION_CONCURRENCY,
       });
 
       return outputLocation;
