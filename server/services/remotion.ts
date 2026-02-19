@@ -27,12 +27,15 @@ const getRenderConfig = () => {
   if (isCloudHost) {
     return {
       concurrency: 1,
-      timeoutInMilliseconds: 90000,
+      timeoutInMilliseconds: 120000,
       chromiumOptions: {
         disableWebSecurity: true,
         gl: "angle" as const,
       },
-      offthreadVideoCacheSizeInBytes: 512 * 1024 * 1024,
+      offthreadVideoCacheSizeInBytes: 128 * 1024 * 1024,
+      jpegQuality: 65,
+      disallowParallelEncoding: true,
+      scale: 0.667,
       logLevel: "verbose" as const,
     };
   }
@@ -42,6 +45,9 @@ const getRenderConfig = () => {
       timeoutInMilliseconds: 60000,
       chromiumOptions: {},
       offthreadVideoCacheSizeInBytes: null,
+      jpegQuality: 80,
+      disallowParallelEncoding: false,
+      scale: 1,
       logLevel: "warn" as const,
     };
   }
@@ -50,6 +56,9 @@ const getRenderConfig = () => {
     timeoutInMilliseconds: 30000,
     chromiumOptions: {},
     offthreadVideoCacheSizeInBytes: null,
+    jpegQuality: 80,
+    disallowParallelEncoding: false,
+    scale: 1,
     logLevel: "warn" as const,
   };
 };
@@ -217,7 +226,9 @@ export const renderVideoWithTikTokCaptions = async ({
     fontFamily: fontFamily || undefined,
   };
 
-  console.log(`[REMOTION] Environment: ${getHostEnvName()}, concurrency: ${envConfig.concurrency ?? 'auto'}, timeout: ${envConfig.timeoutInMilliseconds}ms`);
+  const scaledWidth = Math.round(width * envConfig.scale);
+  const scaledHeight = Math.round(height * envConfig.scale);
+  console.log(`[REMOTION] Environment: ${getHostEnvName()}, concurrency: ${envConfig.concurrency ?? 'auto'}, timeout: ${envConfig.timeoutInMilliseconds}ms, resolution: ${scaledWidth}x${scaledHeight} (scale: ${envConfig.scale})`);
 
   const composition = await selectComposition({
     serveUrl,
@@ -232,8 +243,8 @@ export const renderVideoWithTikTokCaptions = async ({
     composition: {
       ...composition,
       fps,
-      width,
-      height,
+      width: scaledWidth,
+      height: scaledHeight,
       durationInFrames,
     },
     inputProps: sharedInputProps,
@@ -241,11 +252,13 @@ export const renderVideoWithTikTokCaptions = async ({
     overwrite: true,
     muted: false,
     imageFormat: "jpeg",
+    jpegQuality: envConfig.jpegQuality,
     crf: 18,
     concurrency: envConfig.concurrency,
     timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
     chromiumOptions: envConfig.chromiumOptions,
     ...(envConfig.offthreadVideoCacheSizeInBytes ? { offthreadVideoCacheSizeInBytes: envConfig.offthreadVideoCacheSizeInBytes } : {}),
+    disallowParallelEncoding: envConfig.disallowParallelEncoding,
     logLevel: envConfig.logLevel,
     onDownload: (src) => {
       console.log(`[REMOTION] Downloading: ${src}`);
@@ -325,7 +338,9 @@ export const renderVideoWithTextOverlay = async ({
     timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
   });
 
-  console.log(`[TEXT_OVERLAY] Starting render with ${textLines.length} text lines, duration: ${durationInFrames} frames, font: ${fontFamily || 'Inter'}, env: ${getHostEnvName()}`);
+  const scaledWidth = Math.round(width * envConfig.scale);
+  const scaledHeight = Math.round(height * envConfig.scale);
+  console.log(`[TEXT_OVERLAY] Starting render with ${textLines.length} text lines, duration: ${durationInFrames} frames, font: ${fontFamily || 'Inter'}, env: ${getHostEnvName()}, resolution: ${scaledWidth}x${scaledHeight}`);
   
   try {
     await renderMedia({
@@ -334,8 +349,8 @@ export const renderVideoWithTextOverlay = async ({
       composition: {
         ...composition,
         fps,
-        width,
-        height,
+        width: scaledWidth,
+        height: scaledHeight,
         durationInFrames,
       },
       inputProps: sharedInputProps,
@@ -343,11 +358,13 @@ export const renderVideoWithTextOverlay = async ({
       overwrite: true,
       muted: false,
       imageFormat: "jpeg",
+      jpegQuality: envConfig.jpegQuality,
       crf: 18,
       concurrency: envConfig.concurrency,
       timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
       chromiumOptions: envConfig.chromiumOptions,
       ...(envConfig.offthreadVideoCacheSizeInBytes ? { offthreadVideoCacheSizeInBytes: envConfig.offthreadVideoCacheSizeInBytes } : {}),
+      disallowParallelEncoding: envConfig.disallowParallelEncoding,
       logLevel: envConfig.logLevel,
     });
 
