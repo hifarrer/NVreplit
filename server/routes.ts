@@ -7224,64 +7224,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Processed image size: ${processedImageBuffer.length} bytes`);
 
+      // Store the processed image in object storage
       const { randomUUID } = await import("crypto");
       const filename = `scenes/${randomUUID()}.jpg`;
-      const storedUrl = `/objects/${filename}`;
-
-      if (isImageKitConfigured()) {
-        // ImageKit-only: upload to ImageKit and create backup so resolveUrlWithImageKitFallback works
-        const result = await uploadImageToImageKit(processedImageBuffer, filename.replace('scenes/', ''), '/scenes');
-        console.log(`[ImageKit] Scene image uploaded: ${result.url}`);
-        await storage.recordImagekitBackup({
-          originalPath: storedUrl,
-          imagekitUrl: result.url,
-          imagekitFileId: result.fileId,
-          fileType: 'image',
-          fileSize: processedImageBuffer.length,
-          mimeType: 'image/jpeg'
-        });
-        console.log(`Scene image stored at: ${storedUrl} (ImageKit)`);
-      } else {
-        // GCS: store in object storage, optionally dual-write to ImageKit
-        const objectStorageService = new ObjectStorageService();
-        const privateObjectDir = objectStorageService.getPrivateObjectDir();
-        const fullPath = `${privateObjectDir}/${filename}`;
-        const pathParts = fullPath.startsWith("/") ? fullPath.slice(1).split("/") : fullPath.split("/");
-        const bucketName = pathParts[0];
-        const objectName = pathParts.slice(1).join("/");
-        const bucket = objectStorageClient.bucket(bucketName);
-        const file = bucket.file(objectName);
-        await file.save(processedImageBuffer, {
+      
+      const objectStorageService = new ObjectStorageService();
+      const privateObjectDir = objectStorageService.getPrivateObjectDir();
+      const fullPath = `${privateObjectDir}/${filename}`;
+      
+      // Parse the path to get bucket and object name
+      const pathParts = fullPath.startsWith("/") ? fullPath.slice(1).split("/") : fullPath.split("/");
+      const bucketName = pathParts[0];
+      const objectName = pathParts.slice(1).join("/");
+      
+      const bucket = objectStorageClient.bucket(bucketName);
+      const file = bucket.file(objectName);
+      
+      await file.save(processedImageBuffer, {
+        metadata: {
+          contentType: 'image/jpeg',
           metadata: {
-            contentType: 'image/jpeg',
-            metadata: {
-              category: 'scenes',
-              uploadedAt: new Date().toISOString(),
-              projectId: req.params.id,
-              sceneIndex: sceneIndex.toString(),
-              isUserUpload: 'true'
-            },
+            category: 'scenes',
+            uploadedAt: new Date().toISOString(),
+            projectId: req.params.id,
+            sceneIndex: sceneIndex.toString(),
+            isUserUpload: 'true'
           },
-        });
-        console.log(`Scene image stored at: ${storedUrl}`);
-        uploadImageToImageKit(processedImageBuffer, filename.replace('scenes/', ''), '/scenes')
-          .then(async (result) => {
-            console.log(`[ImageKit] Scene image uploaded: ${result.url}`);
-            try {
-              await storage.recordImagekitBackup({
-                originalPath: storedUrl,
-                imagekitUrl: result.url,
-                imagekitFileId: result.fileId,
-                fileType: 'image',
-                fileSize: processedImageBuffer.length,
-                mimeType: 'image/jpeg'
-              });
-            } catch (err) {
-              console.error('[ImageKit] Failed to save backup record:', err);
-            }
-          })
-          .catch(err => console.error('[ImageKit] Upload failed (non-blocking):', err));
-      }
+        },
+      });
+
+      const storedUrl = `/objects/${filename}`;
+      console.log(`Scene image stored at: ${storedUrl}`);
+      
+      // Upload to ImageKit as well (non-blocking dual-write)
+      uploadImageToImageKit(processedImageBuffer, filename.replace('scenes/', ''), '/scenes')
+        .then(async (result) => {
+          console.log(`[ImageKit] Scene image uploaded: ${result.url}`);
+          try {
+            await storage.createImagekitBackup({
+              originalPath: storedUrl,
+              imagekitUrl: result.url,
+              imagekitFileId: result.fileId,
+              fileType: 'image',
+              fileSize: processedImageBuffer.length,
+              mimeType: 'image/jpeg'
+            });
+          } catch (err) {
+            console.error('[ImageKit] Failed to save backup record:', err);
+          }
+        })
+        .catch(err => console.error('[ImageKit] Upload failed (non-blocking):', err));
 
       // Update the scene image in the project
       sceneImages[sceneIndex] = storedUrl;
@@ -7383,43 +7375,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Processed image size: ${processedImageBuffer.length} bytes`);
 
+      // Store the processed image in object storage
       const { randomUUID } = await import("crypto");
       const filename = `scenes/${randomUUID()}.jpg`;
-      const storedUrl = `/objects/${filename}`;
-
-      if (isImageKitConfigured()) {
-        const result = await uploadImageToImageKit(processedImageBuffer, filename.replace('scenes/', ''), '/scenes');
-        console.log(`[ImageKit] Standalone scene image uploaded: ${result.url}`);
-        await storage.recordImagekitBackup({
-          originalPath: storedUrl,
-          imagekitUrl: result.url,
-          imagekitFileId: result.fileId,
-          fileType: 'image',
-          fileSize: processedImageBuffer.length,
-          mimeType: 'image/jpeg'
-        });
-        console.log(`Scene image stored at: ${storedUrl} (ImageKit)`);
-      } else {
-        const objectStorageService = new ObjectStorageService();
-        const privateObjectDir = objectStorageService.getPrivateObjectDir();
-        const fullPath = `${privateObjectDir}/${filename}`;
-        const pathParts = fullPath.startsWith("/") ? fullPath.slice(1).split("/") : fullPath.split("/");
-        const bucketName = pathParts[0];
-        const objectName = pathParts.slice(1).join("/");
-        const bucket = objectStorageClient.bucket(bucketName);
-        const file = bucket.file(objectName);
-        await file.save(processedImageBuffer, {
+      
+      const objectStorageService = new ObjectStorageService();
+      const privateObjectDir = objectStorageService.getPrivateObjectDir();
+      const fullPath = `${privateObjectDir}/${filename}`;
+      
+      // Parse the path to get bucket and object name
+      const pathParts = fullPath.startsWith("/") ? fullPath.slice(1).split("/") : fullPath.split("/");
+      const bucketName = pathParts[0];
+      const objectName = pathParts.slice(1).join("/");
+      
+      const bucket = objectStorageClient.bucket(bucketName);
+      const file = bucket.file(objectName);
+      
+      await file.save(processedImageBuffer, {
+        metadata: {
+          contentType: 'image/jpeg',
           metadata: {
-            contentType: 'image/jpeg',
-            metadata: {
-              category: 'scenes',
-              uploadedAt: new Date().toISOString(),
-              isUserUpload: 'true'
-            },
+            category: 'scenes',
+            uploadedAt: new Date().toISOString(),
+            isUserUpload: 'true'
           },
-        });
-        console.log(`Scene image stored at: ${storedUrl}`);
-      }
+        },
+      });
+
+      const storedUrl = `/objects/${filename}`;
+      console.log(`Scene image stored at: ${storedUrl}`);
 
       res.json({ 
         imageUrl: storedUrl
@@ -8916,46 +8900,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           } catch (captionRenderError) {
             console.warn(
-              "Remotion caption render failed (e.g. Target closed on Replit):",
+              "Remotion caption render failed. Not using FFmpeg fallback to prevent double captions:",
               captionRenderError,
             );
-            // Fallback: re-merge with FFmpeg subtitles so user still gets captions (single source, no double captions)
-            if (resolvedSubtitleUrl) {
-              try {
-                console.log("[VIDEO-GEN] Using FFmpeg subtitle fallback after Remotion failure");
-                finalVideo = await mergeVideos(
-                  signedVideoUrls,
-                  finalAudioUrl,
-                  resolvedSubtitleUrl ?? undefined,
-                  watermarkUrl,
-                );
-                console.log("Final video re-merged with FFmpeg captions:", finalVideo.download_url);
-                await storage.addGenerationLog({
-                  projectId: req.params.id,
-                  step: "video_generation",
-                  message: `TikTok caption render failed; used FFmpeg subtitle fallback for captions`,
-                  status: "warning",
-                  metadata: { captionStyle: projectSubtitleStyle, reason: (captionRenderError as Error).message },
-                });
-              } catch (ffmpegFallbackError) {
-                console.warn("FFmpeg subtitle fallback also failed:", ffmpegFallbackError);
-                await storage.addGenerationLog({
-                  projectId: req.params.id,
-                  step: "video_generation",
-                  message: `TikTok caption render failed, falling back to base merge: ${(captionRenderError as Error).message}`,
-                  status: "warning",
-                  metadata: { captionStyle: projectSubtitleStyle },
-                });
-              }
-            } else {
-              await storage.addGenerationLog({
-                projectId: req.params.id,
-                step: "video_generation",
-                message: `TikTok caption render failed, falling back to base merge: ${(captionRenderError as Error).message}`,
-                status: "warning",
-                metadata: { captionStyle: projectSubtitleStyle },
-              });
-            }
+            // CRITICAL: Do NOT use FFmpeg subtitles as fallback - we only want Remotion captions
+            // This prevents double captions from appearing (one from FFmpeg, one from Remotion)
+            await storage.addGenerationLog({
+              projectId: req.params.id,
+              step: "video_generation",
+              message: `TikTok caption render failed, falling back to base merge: ${(captionRenderError as Error).message}`,
+              status: "warning",
+              metadata: { captionStyle: projectSubtitleStyle },
+            });
           }
         }
 

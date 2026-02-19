@@ -11,6 +11,9 @@ const __dirname = path.dirname(__filename);
 
 let cachedServeUrl: string | null = null;
 
+// Set up library path for Chrome headless shell dependencies
+// This helps find libnspr4.so and other required libraries on Linux systems
+// Note: If using Nix (shell.nix), the LD_LIBRARY_PATH should be set by the shell environment
 const setupLibraryPath = () => {
   if (process.platform === "linux") {
     const currentLdPath = process.env.LD_LIBRARY_PATH || "";
@@ -19,83 +22,25 @@ const setupLibraryPath = () => {
       "/usr/lib/x86_64-linux-gnu",
       "/lib/x86_64-linux-gnu",
       "/lib64",
-      "/nix/store",
     ];
     
     const libPaths = commonLibPaths.filter(Boolean).join(":");
     
+    // Only append if not already in the path and if shell.nix hasn't set it
     if (currentLdPath && !currentLdPath.includes("/nix/store")) {
+      // If shell.nix set it, don't override; otherwise add common paths
       if (!currentLdPath.includes(libPaths)) {
         process.env.LD_LIBRARY_PATH = `${currentLdPath}:${libPaths}`;
       }
     } else if (!currentLdPath) {
+      // No LD_LIBRARY_PATH set, use common paths as fallback
       process.env.LD_LIBRARY_PATH = libPaths;
     }
-    
-    console.log(`[REMOTION] LD_LIBRARY_PATH: ${process.env.LD_LIBRARY_PATH}`);
   }
 };
 
+// Initialize library path on module load
 setupLibraryPath();
-
-// Chromium flags for constrained server environments (Replit production, Docker, etc.)
-const CHROMIUM_OPTIONS = {
-  disableWebSecurity: true,
-  gl: "swiftshader" as const,
-  headless: true,
-  enableMultiProcessOnLinux: false,
-};
-
-// Longer timeout for production where the browser may take longer to start
-const BROWSER_TIMEOUT_MS = 120_000;
-
-// Replit: use low concurrency and more retries to avoid "Target closed" (memory/process limits)
-const IS_REPLIT = Boolean(process.env.REPL_ID || process.env.REPL_SLUG);
-const REMOTION_CAPTION_MAX_RETRIES = IS_REPLIT ? 5 : 3;
-const REMOTION_RETRY_DELAY_MS = IS_REPLIT ? 5000 : 3000;
-// Single browser tab on Replit to reduce memory and Chromium crashes
-const REMOTION_CONCURRENCY = IS_REPLIT ? 1 : null;
-
-function getErrorMessage(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  if (typeof err === "object" && err !== null) {
-    const o = err as Record<string | symbol, unknown>;
-    if (typeof (o as Record<string, unknown>).message === "string") return (o as Record<string, string>).message;
-    if (o.error instanceof Error) return o.error.message;
-    // Node ErrorEvent exposes the real Error at a Symbol key (e.g. [Symbol(kError)])
-    for (const key of Object.getOwnPropertySymbols(o)) {
-      const v = o[key];
-      if (v instanceof Error) return v.message;
-    }
-  }
-  return String(err);
-}
-
-function getErrorCode(err: unknown): string | undefined {
-  if (err instanceof Error && "code" in err) return (err as Error & { code?: string }).code;
-  if (typeof err === "object" && err !== null) {
-    const o = err as Record<string | symbol, unknown>;
-    if (o.error instanceof Error && "code" in o.error) return (o.error as Error & { code?: string }).code;
-    for (const key of Object.getOwnPropertySymbols(o)) {
-      const v = o[key];
-      if (v instanceof Error && "code" in v) return (v as Error & { code?: string }).code;
-    }
-  }
-  return undefined;
-}
-
-function isRetryableRemotionError(err: unknown): boolean {
-  const msg = getErrorMessage(err).toLowerCase();
-  const code = getErrorCode(err);
-  return (
-    msg.includes("target closed") ||
-    msg.includes("protocolerror") ||
-    msg.includes("protocol error") ||
-    msg.includes("socket hang up") ||
-    msg.includes("econnreset") ||
-    code === "ECONNRESET"
-  );
-}
 
 const getCaptionResolution = (
   aspectRatio: string | undefined,
@@ -219,71 +164,45 @@ export const renderVideoWithTikTokCaptions = async ({
 
   const serveUrl = await getServeUrl();
 
-  if (IS_REPLIT) {
-    console.log(`[REMOTION] Replit: using concurrency=1, up to ${REMOTION_CAPTION_MAX_RETRIES} retries (${REMOTION_RETRY_DELAY_MS}ms delay)`);
-  }
+  const composition = await selectComposition({
+    serveUrl,
+    id: "CaptionedVideo",
+    inputProps: {
+      videoSrc,
+      pages,
+      fps,
+      stylePreset: style,
+      captionPosition: captionPosition || "bottom",
+      fontFamily: fontFamily || undefined,
+    },
+  });
 
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= REMOTION_CAPTION_MAX_RETRIES; attempt++) {
-    try {
-      const composition = await selectComposition({
-        serveUrl,
-        id: "CaptionedVideo",
-        inputProps: {
-          videoSrc,
-          pages,
-          fps,
-          stylePreset: style,
-          captionPosition: captionPosition || "bottom",
-          fontFamily: fontFamily || undefined,
-        },
-        chromiumOptions: CHROMIUM_OPTIONS,
-        timeoutInMilliseconds: BROWSER_TIMEOUT_MS,
-      });
+  await renderMedia({
+    serveUrl,
+    codec: "h264",
+    composition: {
+      ...composition,
+      fps,
+      width,
+      height,
+      durationInFrames,
+    },
+    inputProps: {
+      videoSrc,
+      pages,
+      fps,
+      stylePreset: style,
+      captionPosition: captionPosition || "bottom",
+      fontFamily: fontFamily || undefined,
+    },
+    outputLocation,
+    overwrite: true,
+    muted: false,
+    imageFormat: "jpeg",
+    crf: 18,
+  });
 
-      await renderMedia({
-        serveUrl,
-        codec: "h264",
-        composition: {
-          ...composition,
-          fps,
-          width,
-          height,
-          durationInFrames,
-        },
-        inputProps: {
-          videoSrc,
-          pages,
-          fps,
-          stylePreset: style,
-          captionPosition: captionPosition || "bottom",
-          fontFamily: fontFamily || undefined,
-        },
-        outputLocation,
-        overwrite: true,
-        muted: false,
-        imageFormat: "jpeg",
-        crf: 18,
-        chromiumOptions: CHROMIUM_OPTIONS,
-        timeoutInMilliseconds: BROWSER_TIMEOUT_MS,
-        concurrency: REMOTION_CONCURRENCY,
-      });
-
-      return outputLocation;
-    } catch (err) {
-      lastError = err;
-      if (attempt < REMOTION_CAPTION_MAX_RETRIES && isRetryableRemotionError(err)) {
-        console.warn(
-          `[REMOTION] Caption render attempt ${attempt}/${REMOTION_CAPTION_MAX_RETRIES} failed (Target closed/ProtocolError), retrying in ${REMOTION_RETRY_DELAY_MS}ms...`,
-          err instanceof Error ? err.message : err,
-        );
-        await new Promise((r) => setTimeout(r, REMOTION_RETRY_DELAY_MS));
-      } else {
-        throw err;
-      }
-    }
-  }
-  throw lastError;
+  return outputLocation;
 };
 
 export const renderVideoWithTextOverlay = async ({
@@ -345,8 +264,6 @@ export const renderVideoWithTextOverlay = async ({
       fps,
       fontFamily: fontFamily || undefined,
     },
-    chromiumOptions: CHROMIUM_OPTIONS,
-    timeoutInMilliseconds: BROWSER_TIMEOUT_MS,
   });
 
   console.log(`[TEXT_OVERLAY] Starting render with ${textLines.length} text lines, duration: ${durationInFrames} frames, font: ${fontFamily || 'Inter'}`);
@@ -374,8 +291,6 @@ export const renderVideoWithTextOverlay = async ({
       muted: false,
       imageFormat: "jpeg",
       crf: 18,
-      chromiumOptions: CHROMIUM_OPTIONS,
-      timeoutInMilliseconds: BROWSER_TIMEOUT_MS,
     });
 
     console.log(`[TEXT_OVERLAY] Render completed successfully: ${outputLocation}`);
