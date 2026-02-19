@@ -11,6 +11,40 @@ const __dirname = path.dirname(__filename);
 
 let cachedServeUrl: string | null = null;
 
+const isRender = !!(process.env.RENDER || process.env.RENDER_EXTERNAL_URL || process.env.RENDER_SERVICE_ID);
+const isReplit = !!(process.env.REPL_ID || process.env.REPL_SLUG || process.env.REPLIT_DEV_DOMAIN);
+
+const getRenderConfig = () => {
+  if (isRender) {
+    return {
+      concurrency: 1,
+      timeoutInMilliseconds: 90000,
+      chromiumOptions: {
+        disableWebSecurity: true,
+        gl: "angle" as const,
+      },
+      offthreadVideoCacheSizeInBytes: 512 * 1024 * 1024,
+      logLevel: "verbose" as const,
+    };
+  }
+  if (isReplit) {
+    return {
+      concurrency: 1,
+      timeoutInMilliseconds: 60000,
+      chromiumOptions: {},
+      offthreadVideoCacheSizeInBytes: null,
+      logLevel: "warn" as const,
+    };
+  }
+  return {
+    concurrency: null,
+    timeoutInMilliseconds: 30000,
+    chromiumOptions: {},
+    offthreadVideoCacheSizeInBytes: null,
+    logLevel: "warn" as const,
+  };
+};
+
 // Set up library path for Chrome headless shell dependencies
 // This helps find libnspr4.so and other required libraries on Linux systems
 // Note: If using Nix (shell.nix), the LD_LIBRARY_PATH should be set by the shell environment
@@ -163,18 +197,24 @@ export const renderVideoWithTikTokCaptions = async ({
   );
 
   const serveUrl = await getServeUrl();
+  const envConfig = getRenderConfig();
+
+  const sharedInputProps = {
+    videoSrc,
+    pages,
+    fps,
+    stylePreset: style,
+    captionPosition: captionPosition || "bottom",
+    fontFamily: fontFamily || undefined,
+  };
+
+  console.log(`[REMOTION] Environment: ${isRender ? 'Render' : isReplit ? 'Replit' : 'local'}, concurrency: ${envConfig.concurrency ?? 'auto'}, timeout: ${envConfig.timeoutInMilliseconds}ms`);
 
   const composition = await selectComposition({
     serveUrl,
     id: "CaptionedVideo",
-    inputProps: {
-      videoSrc,
-      pages,
-      fps,
-      stylePreset: style,
-      captionPosition: captionPosition || "bottom",
-      fontFamily: fontFamily || undefined,
-    },
+    inputProps: sharedInputProps,
+    timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
   });
 
   await renderMedia({
@@ -187,19 +227,25 @@ export const renderVideoWithTikTokCaptions = async ({
       height,
       durationInFrames,
     },
-    inputProps: {
-      videoSrc,
-      pages,
-      fps,
-      stylePreset: style,
-      captionPosition: captionPosition || "bottom",
-      fontFamily: fontFamily || undefined,
-    },
+    inputProps: sharedInputProps,
     outputLocation,
     overwrite: true,
     muted: false,
     imageFormat: "jpeg",
     crf: 18,
+    concurrency: envConfig.concurrency,
+    timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
+    chromiumOptions: envConfig.chromiumOptions,
+    ...(envConfig.offthreadVideoCacheSizeInBytes ? { offthreadVideoCacheSizeInBytes: envConfig.offthreadVideoCacheSizeInBytes } : {}),
+    logLevel: envConfig.logLevel,
+    onDownload: (src) => {
+      console.log(`[REMOTION] Downloading: ${src}`);
+      return ({ percent, downloaded }) => {
+        if (percent !== null && percent % 0.25 < 0.01) {
+          console.log(`[REMOTION] Download progress: ${Math.round(percent * 100)}%`);
+        }
+      };
+    },
   });
 
   return outputLocation;
@@ -253,20 +299,24 @@ export const renderVideoWithTextOverlay = async ({
   );
 
   const serveUrl = await getServeUrl();
+  const envConfig = getRenderConfig();
+
+  const sharedInputProps = {
+    videoSrc,
+    textLines,
+    textPosition,
+    fps,
+    fontFamily: fontFamily || undefined,
+  };
 
   const composition = await selectComposition({
     serveUrl,
     id: "TextOverlay",
-    inputProps: {
-      videoSrc,
-      textLines,
-      textPosition,
-      fps,
-      fontFamily: fontFamily || undefined,
-    },
+    inputProps: sharedInputProps,
+    timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
   });
 
-  console.log(`[TEXT_OVERLAY] Starting render with ${textLines.length} text lines, duration: ${durationInFrames} frames, font: ${fontFamily || 'Inter'}`);
+  console.log(`[TEXT_OVERLAY] Starting render with ${textLines.length} text lines, duration: ${durationInFrames} frames, font: ${fontFamily || 'Inter'}, env: ${isRender ? 'Render' : isReplit ? 'Replit' : 'local'}`);
   
   try {
     await renderMedia({
@@ -279,18 +329,17 @@ export const renderVideoWithTextOverlay = async ({
         height,
         durationInFrames,
       },
-      inputProps: {
-        videoSrc,
-        textLines,
-        textPosition,
-        fps,
-        fontFamily: fontFamily || undefined,
-      },
+      inputProps: sharedInputProps,
       outputLocation,
       overwrite: true,
       muted: false,
       imageFormat: "jpeg",
       crf: 18,
+      concurrency: envConfig.concurrency,
+      timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
+      chromiumOptions: envConfig.chromiumOptions,
+      ...(envConfig.offthreadVideoCacheSizeInBytes ? { offthreadVideoCacheSizeInBytes: envConfig.offthreadVideoCacheSizeInBytes } : {}),
+      logLevel: envConfig.logLevel,
     });
 
     console.log(`[TEXT_OVERLAY] Render completed successfully: ${outputLocation}`);
