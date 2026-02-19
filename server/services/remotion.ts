@@ -97,26 +97,33 @@ const getServeUrl = async (): Promise<string> => {
     console.warn(`[REMOTION] Warning: node_modules not found at ${nodeModulesPath}`);
   }
   
+  // Configure bundler with webpackOverride to help resolve node_modules
+  // This is critical for resolving @remotion/google-fonts on Replit
+  // Use a minimal override that only touches resolve.modules to avoid breaking webpack plugins
   cachedServeUrl = await bundle(finalEntryPoint, {
     webpackOverride: (config) => {
-      // Ensure webpack can resolve modules from the project root
-      config.resolve = config.resolve || {};
-      
-      // Set up module resolution to look in project root's node_modules first
-      const existingModules = config.resolve.modules || ["node_modules"];
       const projectNodeModules = path.resolve(projectRoot, "node_modules");
       
-      // Add project root node_modules to the beginning of the modules array
-      // This ensures it's checked first when resolving modules
-      config.resolve.modules = [
-        projectNodeModules,
-        ...existingModules.filter((m: string) => m !== projectNodeModules),
-      ];
-      
-      // Also ensure the project root is in the resolve paths
-      config.resolve.roots = config.resolve.roots || [];
-      if (!config.resolve.roots.includes(projectRoot)) {
-        config.resolve.roots.push(projectRoot);
+      // Only modify resolve.modules - be very careful not to break webpack's internal setup
+      if (config.resolve) {
+        const existingModules = config.resolve.modules;
+        if (Array.isArray(existingModules)) {
+          // Add project node_modules to the front if not already present
+          if (!existingModules.includes(projectNodeModules)) {
+            config.resolve.modules = [projectNodeModules, ...existingModules];
+          }
+        } else if (existingModules) {
+          // If it's a single value, convert to array
+          config.resolve.modules = [projectNodeModules, existingModules];
+        } else {
+          // If undefined, set to array with project node_modules first
+          config.resolve.modules = [projectNodeModules, "node_modules"];
+        }
+      } else {
+        // If resolve doesn't exist, create it (shouldn't happen but be safe)
+        config.resolve = {
+          modules: [projectNodeModules, "node_modules"],
+        };
       }
       
       return config;
