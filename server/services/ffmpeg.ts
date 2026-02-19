@@ -1,5 +1,25 @@
 const FFMPEG_API_KEY = process.env.FFMPEG_API_KEY || "ffmpeg_KfTAf98EY9OCuriwBtLT34ZtWZLJtnXX";
 
+const RETRYABLE_ERROR_CODES = new Set(["EAI_AGAIN", "ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT"]);
+
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fetch(url, options);
+    } catch (err: any) {
+      const causeCode = err?.cause?.code || err?.code;
+      const isRetryable = RETRYABLE_ERROR_CODES.has(causeCode) || err?.message?.includes("fetch failed");
+      if (!isRetryable || attempt === maxRetries) {
+        throw err;
+      }
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+      console.warn(`[FFMPEG] fetch attempt ${attempt}/${maxRetries} failed (${causeCode}), retrying in ${delay}ms...`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw new Error("fetchWithRetry: unreachable");
+}
+
 // Helper function to get watermark URL from public storage
 export async function getWatermarkUrl(): Promise<string | null> {
   return "https://ik.imagekit.io/neonvideo/logos/neonlogo.png";
@@ -27,7 +47,7 @@ export async function trimAudio(audioUrl: string, desiredLength: number): Promis
     console.log(`Trimming audio to ${desiredLength} seconds`);
     console.log(`Audio URL: ${audioUrl}`);
     
-    const response = await fetch("https://ffmpegapi.net/api/trim_audio", {
+    const response = await fetchWithRetry("https://ffmpegapi.net/api/trim_audio", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -69,7 +89,7 @@ export async function splitAudioByTime(audioUrl: string, startTime: number, endT
     console.log(`Splitting audio from ${startTime}ms to ${endTime}ms`);
     console.log(`Audio URL: ${audioUrl}`);
     
-    const response = await fetch("https://ffmpegapi.net/api/split_audio_time", {
+    const response = await fetchWithRetry("https://ffmpegapi.net/api/split_audio_time", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -115,7 +135,7 @@ export async function splitAudioByParts(audioUrl: string, parts: number, totalDu
   try {
     console.log(`Splitting audio into ${parts} equal parts using /api/split_audio (total duration: ${totalDurationSeconds || 'unknown'}s)`);
     
-    const response = await fetch("https://ffmpegapi.net/api/split_audio", {
+    const response = await fetchWithRetry("https://ffmpegapi.net/api/split_audio", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -182,7 +202,7 @@ export async function splitAudio(audioUrl: string, parts: number = 4, totalDurat
     
     // Use the new /api/split_audio_segments endpoint which properly splits by segment duration
     // This ensures each segment is exactly 6 seconds (except the last one which is the remainder)
-    const response = await fetch("https://ffmpegapi.net/api/split_audio_segments", {
+    const response = await fetchWithRetry("https://ffmpegapi.net/api/split_audio_segments", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -267,7 +287,7 @@ export async function pictureInPicture(mainVideoUrl: string, pipVideoUrl: string
     console.log("Endpoint: https://ffmpegapi.net/api/picture_in_picture");
     console.log("Request body:", JSON.stringify(requestBody, null, 2));
     
-    const response = await fetch("https://ffmpegapi.net/api/picture_in_picture", {
+    const response = await fetchWithRetry("https://ffmpegapi.net/api/picture_in_picture", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -327,7 +347,7 @@ export async function mergeVideos(videoUrls: string[], audioUrl?: string, subtit
     console.log("Watermark URL:", watermarkUrl || "Not provided");
     console.log("Request body:", JSON.stringify(requestBody, null, 2));
     
-    const response = await fetch("https://ffmpegapi.net/api/merge_videos", {
+    const response = await fetchWithRetry("https://ffmpegapi.net/api/merge_videos", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
