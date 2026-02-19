@@ -1,6 +1,6 @@
 { pkgs }: {
   deps = with pkgs; [
-    nodejs-20_x
+    nodejs_20
     postgresql_16
 
     # Chrome/Chromium dependencies required by Remotion's headless browser
