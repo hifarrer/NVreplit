@@ -55,6 +55,7 @@ async function generateVideoSegmentInternal(
   model: "infinitetalk" | "seedance" = "infinitetalk",
   segmentDuration: number = 10,
   videoQuality: VideoQuality = "quick",
+  aspectRatio: string = "16:9",
 ): Promise<string> {
   console.log("=== GENERATING VIDEO SEGMENT ===");
   console.log("Audio URL:", audioUrl);
@@ -63,6 +64,7 @@ async function generateVideoSegmentInternal(
   console.log("Model:", model);
   console.log("Video Quality:", videoQuality);
   console.log("Segment Duration:", segmentDuration, "seconds");
+  console.log("Aspect Ratio:", aspectRatio);
 
   // Determine endpoint and request body based on video quality and model type
   let endpoint: string;
@@ -106,9 +108,22 @@ async function generateVideoSegmentInternal(
     }
   } else {
     // Non-lipsync models (seedance for quick, Alibaba Wan 2.5 for medium/premium)
-    // Duration must be an integer between 2-12 for these models
-    const roundedDuration = Math.min(12, Math.max(2, Math.round(segmentDuration)));
-    console.log(`Video duration: ${segmentDuration}s → rounded to ${roundedDuration}s (valid range: 2-12)`);
+    // Seedance v1.5 Pro requires minimum 4 seconds, Wan 2.5 requires minimum 2 seconds
+    let minDuration: number;
+    let maxDuration: number;
+    
+    if (videoQuality === "quick") {
+      // Seedance v1.5 Pro requires minimum 4 seconds
+      minDuration = 4;
+      maxDuration = 12;
+    } else {
+      // Alibaba Wan 2.5 requires minimum 2 seconds
+      minDuration = 2;
+      maxDuration = 12;
+    }
+    
+    const roundedDuration = Math.min(maxDuration, Math.max(minDuration, Math.round(segmentDuration)));
+    console.log(`Video duration: ${segmentDuration}s → rounded to ${roundedDuration}s (valid range: ${minDuration}-${maxDuration})`);
     
     // Select model based on video quality
     switch (videoQuality) {
@@ -140,13 +155,17 @@ async function generateVideoSegmentInternal(
         break;
       case "quick":
       default:
-        // Seedance v1 Pro 480p - Quick quality (original)
-        endpoint = "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1-pro-i2v-480p";
+        // Seedance v1.5 Pro - Quick quality (new default)
+        // Backup model: seedance-v1-pro-i2v-480p (kept for fallback if needed)
+        endpoint = "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1.5-pro/image-to-video-fast";
         requestBody = {
+          aspect_ratio: aspectRatio, // Dynamic aspect ratio from project settings
           camera_fixed: false,
           duration: roundedDuration,
+          generate_audio: false,
           image: imageUrl,
           prompt: prompt,
+          resolution: "720p",
           seed: -1,
         };
         break;
@@ -269,6 +288,7 @@ export async function generateVideoSegment(
   model: "infinitetalk" | "seedance" = "infinitetalk",
   segmentDuration: number = 10,
   videoQuality: VideoQuality = "quick",
+  aspectRatio: string = "16:9",
 ): Promise<string> {
   let lastError: Error | null = null;
   let currentPrompt = prompt;
@@ -277,7 +297,7 @@ export async function generateVideoSegment(
   for (let attempt = 1; attempt <= MAX_TRANSIENT_RETRIES; attempt++) {
     try {
       console.log(`Video segment generation attempt ${attempt}/${MAX_TRANSIENT_RETRIES}`);
-      return await generateVideoSegmentInternal(audioUrl, imageUrl, currentPrompt, model, segmentDuration, videoQuality);
+      return await generateVideoSegmentInternal(audioUrl, imageUrl, currentPrompt, model, segmentDuration, videoQuality, aspectRatio);
     } catch (error) {
       const err = error as Error;
       lastError = err;
@@ -328,6 +348,8 @@ export async function generateAllVideoSegmentsDynamic(
     makeCharacterSing: boolean;
     videoQuality?: VideoQuality;
     sceneLipsyncSettings?: (boolean | null)[]; // Per-scene lipsync toggle settings (null means use default pattern)
+    isInstrumental?: boolean; // Flag to indicate instrumental videos (never use infinitetalk)
+    aspectRatio?: string; // Aspect ratio for video generation (e.g., "16:9", "9:16", "3:4")
   },
   subtitleData?: {
     assContent?: string;
@@ -340,6 +362,16 @@ export async function generateAllVideoSegmentsDynamic(
 }> {
   const videoQuality = config.videoQuality || "quick";
   const sceneLipsyncSettings = config.sceneLipsyncSettings;
+  const aspectRatio = config.aspectRatio || "16:9";
+  
+  // CRITICAL: For instrumental videos, never use infinitetalk
+  const isInstrumental = config.isInstrumental === true;
+  if (isInstrumental) {
+    console.log(`⚠️ INSTRUMENTAL VIDEO DETECTED - Forcing seedance only (no infinitetalk)`);
+    config.makeCharacterSing = false;
+    config.numberOfVideosLipsync = 0;
+  }
+  
   console.log(`Starting dynamic video generation:`);
   console.log(`- Audio segments: ${audioSegments.length}`);
   console.log(`- Scene images: ${imageUrls.length}`);
@@ -348,6 +380,7 @@ export async function generateAllVideoSegmentsDynamic(
   );
   console.log(`- Lipsync videos (infinitetalk): ${config.numberOfVideosLipsync}`);
   console.log(`- Make character sing: ${config.makeCharacterSing}`);
+  console.log(`- Is instrumental: ${isInstrumental}`);
   console.log(`- Video quality: ${videoQuality}`);
   console.log(`- Has subtitle data: ${!!subtitleData?.assContent}`);
   console.log(`- Segment durations provided: ${segmentDurations ? segmentDurations.join(', ') + 's' : 'using defaults'}`);
@@ -498,6 +531,7 @@ export async function generateAllVideoSegmentsDynamic(
             "infinitetalk",
             segDuration,
             videoQuality,
+            aspectRatio,
           ),
         );
       } else {
@@ -506,7 +540,7 @@ export async function generateAllVideoSegmentsDynamic(
         console.log(`  → Using seedance with duration: ${segDuration}s`);
         const seedanceAudioUrl = (videoQuality === "medium" || videoQuality === "premium") ? audioSegments[i] : "";
         videoPromises.push(
-          generateVideoSegment(seedanceAudioUrl, imageUrls[i], prompts[i], "seedance", segDuration, videoQuality),
+          generateVideoSegment(seedanceAudioUrl, imageUrls[i], prompts[i], "seedance", segDuration, videoQuality, aspectRatio),
         );
       }
     }
@@ -526,7 +560,7 @@ export async function generateAllVideoSegmentsDynamic(
       // For medium/premium quality, pass audio URL since wan-2.5 supports audio-synced video
       const seedanceAudioUrl = (videoQuality === "medium" || videoQuality === "premium") ? audioSegments[i] : "";
       videoPromises.push(
-        generateVideoSegment(seedanceAudioUrl, imageUrls[i], prompts[i], "seedance", effectiveDuration, videoQuality),
+        generateVideoSegment(seedanceAudioUrl, imageUrls[i], prompts[i], "seedance", effectiveDuration, videoQuality, aspectRatio),
       );
     }
   }
@@ -631,6 +665,9 @@ export async function generateAllVideoSegments(
         imageUrls[i * 2],
         prompts[i * 2],
         "infinitetalk",
+        10,
+        "quick",
+        "16:9", // Legacy function uses default aspect ratio
       ),
     );
   }
@@ -651,6 +688,9 @@ export async function generateAllVideoSegments(
         imageUrls[i * 2 + 1],
         prompts[i * 2 + 1],
         "seedance",
+        6,
+        "quick",
+        "16:9", // Legacy function uses default aspect ratio
       ),
     );
   }

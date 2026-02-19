@@ -26,6 +26,10 @@ import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
 import ContactPage from "@/pages/contact";
 import NeonSinglePrompt from "@/pages/neon-single-prompt";
+import CreateSelect from "@/pages/create-select";
+import CreateSinglePrompt from "@/pages/create-single-prompt";
+import CreateInstrumental from "@/pages/create-instrumental";
+import CreateLyric from "@/pages/create-lyric";
 import BlogPage from "@/pages/blog";
 import BestAIMusicGenerator2025 from "@/pages/blog-post-best-ai-music-generator";
 import Version201Release from "@/pages/blog-post-version-2-0-1";
@@ -34,6 +38,7 @@ import Version231Release from "@/pages/blog-post-version-2-3-1";
 import Version241Release from "@/pages/blog-post-version-2-4-1";
 import Version260Release from "@/pages/blog-post-version-2-6-0";
 import Version251Release from "@/pages/blog-post-version-2-5-1";
+import Version271Release from "@/pages/blog-post-version-2-7-1";
 import ChristmasPostcardBlogPost from "@/pages/blog-post-christmas-postcard";
 import GiftPage from "@/pages/gift";
 import GiftSuccessPage from "@/pages/gift-success";
@@ -82,7 +87,11 @@ function AppRouter() {
     <>
       <Switch>
         <Route path="/" component={user ? () => <ProtectedRoute component={Home} /> : LandingPage} />
-        <Route path="/create" component={() => <ProtectedRoute component={Home} />} />
+        <Route path="/create/story-mode" component={() => <ProtectedRoute component={Home} />} />
+        <Route path="/create/single-prompt" component={() => <ProtectedRoute component={CreateSinglePrompt} />} />
+        <Route path="/create/instrumental" component={() => <ProtectedRoute component={CreateInstrumental} />} />
+        <Route path="/create/lyric" component={() => <ProtectedRoute component={CreateLyric} />} />
+        <Route path="/create" component={() => <ProtectedRoute component={CreateSelect} />} />
         <Route path="/my-songs" component={() => <ProtectedRoute component={MySongsPage} />} />
         <Route path="/my-videos" component={() => <ProtectedRoute component={MyVideosPage} />} />
         <Route path="/characters" component={() => <ProtectedRoute component={CharactersPage} />} />
@@ -105,6 +114,7 @@ function AppRouter() {
         <Route path="/version-2-4-1-release" component={Version241Release} />
         <Route path="/version-2-6-0-release" component={Version260Release} />
         <Route path="/version-2-5-1-release" component={Version251Release} />
+        <Route path="/version-2-7-1-release" component={Version271Release} />
         <Route path="/christmas-postcard-video" component={ChristmasPostcardBlogPost} />
         <Route path="/neon-single-prompt" component={() => <ProtectedRoute component={NeonSinglePrompt} />} />
         <Route path="/gift" component={() => <ProtectedRoute component={GiftPage} />} />

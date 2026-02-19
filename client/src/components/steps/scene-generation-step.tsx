@@ -8,18 +8,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SceneData } from "@/lib/types";
-import { RotateCcw, RefreshCw, Mic, Upload, Loader2, AlertTriangle, Sparkles, Pencil, Zap, Camera, X } from "lucide-react";
+import { RotateCcw, RefreshCw, Mic, Upload, Loader2, AlertTriangle, Pencil, Zap, Camera, X } from "lucide-react";
 import { CameraAngleModal } from "@/components/modals/camera-angle-modal";
 import { SceneTimeline } from "@/components/scene-timeline";
 import { StepCircles } from "@/components/ui/step-circles";
@@ -31,6 +24,7 @@ interface SceneGenerationStepProps {
   audioDuration?: number;
   audioUrl?: string;
   audioLyrics?: string;
+  textOverlay?: string; // Text overlay for instrumental videos
   subtitleFileUrl?: string;
   characterImageUrl?: string;
   scenes?: SceneData[];
@@ -39,6 +33,7 @@ interface SceneGenerationStepProps {
   isEditMode?: boolean;
   finalVideoUrl?: string;
   aspectRatio?: string;
+  isInstrumental?: boolean; // Whether this is an instrumental video (no lipsync)
   onNext: () => void;
   onBack: () => void;
   onReset: () => void;
@@ -91,7 +86,7 @@ const isProjectLockInProgress = (projectId: string): boolean => {
   return lock.inProgress;
 };
 
-export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioLyrics, subtitleFileUrl, characterImageUrl, scenes = [], sceneOrder: initialSceneOrder, initialVideoQuality = "quick", isEditMode = false, finalVideoUrl, aspectRatio = "16:9", onNext, onBack, onReset }: SceneGenerationStepProps) {
+export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioLyrics, textOverlay, subtitleFileUrl, characterImageUrl, scenes = [], sceneOrder: initialSceneOrder, initialVideoQuality = "quick", isEditMode = false, finalVideoUrl, aspectRatio = "16:9", isInstrumental = false, onNext, onBack, onReset }: SceneGenerationStepProps) {
   // Defensively copy scenes array to avoid mutating the original project data
   const [generatedScenes, setGeneratedScenes] = useState<SceneData[]>(() => 
     scenes.map(scene => ({ ...scene }))
@@ -106,8 +101,8 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       ? initialSceneOrder 
       : scenes.map((_, index) => index)
   );
-  // Video quality selection - affects which AI model is used for video generation
-  const [videoQuality, setVideoQuality] = useState<VideoQuality>(initialVideoQuality);
+  // Video quality is always "quick" (seedance-v1.5-pro/image-to-video-fast)
+  const videoQuality: VideoQuality = "quick";
   const [progress, setProgress] = useState(0);
   const progressRef = useRef(0);
   
@@ -182,6 +177,10 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   };
 
   const isLipsyncScene = (index: number): boolean => {
+    // Instrumental videos never use lipsync
+    if (isInstrumental) {
+      return false;
+    }
     const scene = generatedScenes[index];
     if (scene?.lipsync !== undefined) {
       return scene.lipsync;
@@ -190,6 +189,10 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   };
 
   const toggleLipsync = (index: number) => {
+    // Don't allow toggling lipsync for instrumental videos
+    if (isInstrumental) {
+      return;
+    }
     setGeneratedScenes(prev => 
       prev.map((scene, i) => {
         if (i === index) {
@@ -556,12 +559,19 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       // In edit mode, generate scene locally without saving to original project
       if (isEditMode) {
         // Call a standalone scene generation endpoint that doesn't update the project
-        const response = await apiRequest("POST", `/api/generate-single-scene`, {
+        // Only include characterImageUrl if it exists (for instrumental videos, it may be undefined)
+        const requestBody: any = {
           prompt,
-          characterImageUrl,
           aspectRatio,
           ...(currentSceneImageUrl && { currentSceneImageUrl })
-        });
+        };
+        
+        // Only include characterImageUrl if it's provided (not for instrumental videos)
+        if (characterImageUrl) {
+          requestBody.characterImageUrl = characterImageUrl;
+        }
+        
+        const response = await apiRequest("POST", `/api/generate-single-scene`, requestBody);
         return response.json();
       }
       
@@ -940,7 +950,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       });
       
       // Navigate to the new project's video generation step
-      window.location.href = `/create?id=${newProject.id}`;
+      window.location.href = `/create/story-mode?id=${newProject.id}`;
     },
     onError: (error) => {
       toast({
@@ -1015,7 +1025,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       });
       
       // Navigate to the new project's video generation step
-      window.location.href = `/create?id=${data.id}`;
+      window.location.href = `/create/story-mode?id=${data.id}`;
     },
     onError: (error) => {
       toast({
@@ -1026,15 +1036,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
     }
   });
 
-  // Mutation to update video quality for normal mode
-  const updateVideoQualityMutation = useMutation({
-    mutationFn: async (quality: VideoQuality) => {
-      const response = await apiRequest("PATCH", `/api/projects/${projectId}`, {
-        videoQuality: quality
-      });
-      return response.json();
-    }
-  });
+  // Video quality mutation removed - always using "quick" quality
 
   return (
     <div className="max-w-6xl mx-auto mb-12 bg-card rounded-lg p-2 sm:p-4" data-testid="scene-generation-step">
@@ -1084,9 +1086,11 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
             audioDuration={audioDuration}
             audioUrl={audioUrl}
             lyrics={audioLyrics}
+            textOverlay={textOverlay}
             subtitleFileUrl={subtitleFileUrl}
             finalVideoUrl={finalVideoUrl}
             isEditMode={isEditMode}
+            isInstrumental={isInstrumental}
             onReorder={handleSceneReorder}
             onSceneClick={scrollToScene}
             onToggleLipsync={toggleLipsync}
@@ -1175,17 +1179,20 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button 
-                              className="focus:outline-none p-1 rounded hover:bg-muted/50 transition-colors"
+                              className={`focus:outline-none p-1 rounded transition-colors ${isInstrumental ? 'cursor-not-allowed opacity-50' : 'hover:bg-muted/50'}`}
                               onClick={() => toggleLipsync(index)}
+                              disabled={isInstrumental}
                               data-testid={`lipsync-toggle-${index + 1}`}
                             >
                               <Mic className={`w-4 h-4 ${isLipsyncScene(index) ? 'text-pink-500' : 'text-gray-400'}`} />
                             </button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{isLipsyncScene(index) 
-                              ? 'Lipsync enabled - uses AI lipsync model (click to disable)' 
-                              : 'Lipsync disabled - uses regular AI video model (click to enable)'}</p>
+                            <p>{isInstrumental 
+                              ? 'Lipsync not available for instrumental videos' 
+                              : (isLipsyncScene(index) 
+                                ? 'Lipsync enabled - uses AI lipsync model (click to disable)' 
+                                : 'Lipsync disabled - uses regular AI video model (click to enable)')}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -1318,49 +1325,6 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
           </>
         )}
 
-        {/* Video Quality Selector */}
-        {generatedScenes.length > 0 && (
-          <div className="bg-muted/30 border border-border rounded-lg p-4 mb-6" data-testid="video-quality-selector">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-primary" />
-                <span className="font-medium">Video Generation Quality</span>
-              </div>
-              <Select
-                value={videoQuality}
-                onValueChange={(value: VideoQuality) => {
-                  setVideoQuality(value);
-                  if (!isEditMode) {
-                    updateVideoQualityMutation.mutate(value);
-                  }
-                }}
-              >
-                <SelectTrigger className="w-full sm:w-[280px]" data-testid="video-quality-select">
-                  <SelectValue placeholder="Select video quality" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="quick">
-                    Quick
-                  </SelectItem>
-                  <SelectItem value="medium">
-                    Medium (+1000 credits)
-                  </SelectItem>
-                  <SelectItem value="premium">
-                    Premium (HD) (+2000 credits)
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Higher quality uses more advanced AI models for better video generation results.
-              </p>
-              {videoQuality === "premium" && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                  Note: Premium quality uses the highest quality AI models and may take 10-15 minutes to generate your video.
-                </p>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Credit Cost Info for Edit Mode */}
         {isEditMode && audioDuration && (
@@ -1398,15 +1362,17 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
         {/* Navigation */}
         <div className="flex flex-col gap-3">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-            <Button 
-              variant="secondary"
-              onClick={onBack}
-              className="w-full sm:w-auto"
-              data-testid="back-to-character-button"
-            >
-              <i className="fas fa-arrow-left mr-2"></i>
-              Back to Character
-            </Button>
+            {!isEditMode && (
+              <Button 
+                variant="secondary"
+                onClick={onBack}
+                className="w-full sm:w-auto"
+                data-testid="back-to-character-button"
+              >
+                <i className="fas fa-arrow-left mr-2"></i>
+                {isInstrumental ? "Back to Audio" : "Back to Character"}
+              </Button>
+            )}
             
             {/* Action buttons for edit mode */}
             {isEditMode && hasExistingVideoSegments && modifiedSceneIndices.length > 0 ? (
@@ -1434,9 +1400,11 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
               </Button>
             )}
           </div>
-          <div className="flex justify-center">
-            <StepCircles currentStep={3} />
-          </div>
+          {!isInstrumental && (
+            <div className="flex justify-center">
+              <StepCircles currentStep={3} totalSteps={3} />
+            </div>
+          )}
         </div>
       </div>
 

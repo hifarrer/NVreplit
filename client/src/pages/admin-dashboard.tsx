@@ -207,7 +207,7 @@ export default function AdminDashboard() {
                   <Film className="h-4 w-4 text-red-400" />
                   <span className="text-sm font-medium text-gray-300">Video Generation</span>
                 </div>
-                <p className="text-white font-mono text-sm">seedance-v1-pro</p>
+                <p className="text-white font-mono text-sm">seedance-v1.5-pro</p>
                 <p className="text-xs text-gray-500 mt-1">Lipsync: infinitetalk-fast</p>
               </div>
             </div>

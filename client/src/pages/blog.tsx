@@ -17,6 +17,14 @@ interface BlogPost {
 
 const blogPosts: BlogPost[] = [
   {
+    title: "Version 2.7.1 Released: Four Powerful Video Styles & TikTok-Style Captions",
+    slug: "/version-2-7-1-release",
+    excerpt: "NeonVideo.ai version 2.7.1 introduces four powerful video creation styles: Pro Mode, Single Prompt, Instrumental, and Lyric videos, plus stunning TikTok-style captions with word-by-word animations.",
+    date: "January 20, 2026",
+    category: "Product Update",
+    readTime: "6 min read"
+  },
+  {
     title: "Version 2.6.0 Released: New Character Generator, Audio Trimming & More",
     slug: "/version-2-6-0-release",
     excerpt: "NeonVideo.ai version 2.6.0 is here! Discover the new character generator with expanded styles and AI models, powerful audio trimming tool, plus bug fixes and video generation improvements.",

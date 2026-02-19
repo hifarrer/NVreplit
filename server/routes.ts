@@ -8,19 +8,20 @@ import sharp from "sharp";
 import { storage } from "./storage";
 import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema, insertPlanSchema, insertReferralSchema, type Plan, type InsertPlan } from "@shared/schema";
 import { defaultSubtitleStyle, isSubtitleStyle } from "@shared/subtitleStyles";
+import { defaultGoogleFont, isGoogleFont } from "@shared/googleFonts";
 import { z } from "zod";
-import { generateLyrics, generateLyricsWithTitle, generateScenePrompts, splitLyricsIntoSections, openai } from "./services/openai";
+import { generateLyrics, generateLyricsWithTitle, generateScenePrompts, generateInstrumentalScenePrompts, generateLyricVideoScenePrompts, splitLyricsIntoSections, openai } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
-import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments } from "./services/minimax";
+import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, generateInstrumentalSong } from "./services/minimax";
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
 import { createForcedAlignment, convertElevenLabsAlignmentToASS, storeElevenLabsSubtitleFile } from "./services/elevenlabs";
-import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage } from "./services/fal";
+import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText } from "./services/fal";
 import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment } from "./services/wavespeed";
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl } from "./services/ffmpeg";
 import { isTikTokSubtitleStyle, normalizeSubtitleStyle, parseAssToTokens, trimAssToWindow } from "./services/captions";
-import { deleteRenderedVideoIfExists, renderVideoWithTikTokCaptions } from "./services/remotion";
+import { deleteRenderedVideoIfExists, renderVideoWithTikTokCaptions, renderVideoWithTextOverlay } from "./services/remotion";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback, uploadImageToImageKit, isImageKitConfigured } from "./services/imagekit";
@@ -3648,8 +3649,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Character image URL is optional (for instrumental videos)
+      // If not provided, the function will use text-to-image generation
       if (!characterImageUrl) {
-        return res.status(400).json({ error: "Character image URL is required" });
+        console.log(`[generate-single-scene] No character image URL provided - using text-to-image for instrumental video`);
       }
 
       // Use the aspect ratio from the request, default to 16:9 for horizontal
@@ -3661,6 +3664,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Generate scene image using the same method as regular scene generation
+      // If characterImageUrl is not provided, it will use text-to-image (for instrumental videos)
       // If currentSceneImageUrl is provided, it will use edit-plus model with both images
       const storedImageUrl = await generateSingleSceneImage(prompt, characterImageUrl, projectAspectRatio, currentSceneImageUrl);
       
@@ -4404,7 +4408,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               hlsUrl: p.muxPlaybackId ? `https://stream.mux.com/${p.muxPlaybackId}.m3u8` : null
             }
           };
-        });
+        })
+        // Sort by creation date descending (newest first)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       res.json(completedVideos);
     } catch (error) {
       console.error("Get my videos error:", error);
@@ -5105,10 +5111,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const finalAudioUrl = uploadedUrl;
       
       // Generate forced alignment for subtitles if enabled
+      // BUT skip forced alignment for instrumental projects - they use text overlay instead
+      const isInstrumental = project.isInstrumental === true;
       let subtitleFileUrl = null;
       let lyricsForProject = songLyrics || null;
       
-      if (addSubtitles) {
+      if (addSubtitles && !isInstrumental) {
         try {
           await storage.addGenerationLog({
             projectId: req.params.id,
@@ -5223,6 +5231,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           // Continue without subtitles
         }
+      } else if (isInstrumental) {
+        // For instrumental projects (like lyric videos), transcribe audio if no lyrics provided
+        // This allows auto-populating the lyrics field from the uploaded song
+        // We do this regardless of addSubtitles flag since lyrics extraction is separate from subtitle generation
+        if (!songLyrics) {
+          try {
+            console.log("No lyrics provided for instrumental project, transcribing audio with Whisper...");
+            await storage.addGenerationLog({
+              projectId: req.params.id,
+              step: "subtitle_generation",
+              message: "Transcribing audio to extract lyrics...",
+              status: "progress",
+              metadata: {}
+            });
+            
+            const { transcribeAudio } = await import("./services/openai");
+            
+            // Determine which audio file to use for transcription
+            let transcriptionFilePath = req.file?.path;
+            let tempTrimmedFile: string | null = null;
+            
+            // If audio was trimmed, use the trimmed buffer for transcription
+            // to ensure lyrics match the actual audio length
+            if (audioWasTrimmed && trimmedAudioBuffer) {
+              console.log("Audio was trimmed, using trimmed buffer for transcription...");
+              // Save trimmed buffer to temp file for Whisper
+              tempTrimmedFile = path.join(uploadDir, `trimmed-${crypto.randomUUID()}.mp3`);
+              fs.writeFileSync(tempTrimmedFile, trimmedAudioBuffer);
+              transcriptionFilePath = tempTrimmedFile;
+              console.log("Trimmed audio saved for transcription:", tempTrimmedFile);
+            }
+            
+            if (transcriptionFilePath && fs.existsSync(transcriptionFilePath)) {
+              const transcribedLyrics = await transcribeAudio(transcriptionFilePath);
+              lyricsForProject = transcribedLyrics;
+              console.log("Transcription completed for instrumental project, length:", transcribedLyrics.length);
+              
+              // Clean up temp trimmed file if created
+              if (tempTrimmedFile && fs.existsSync(tempTrimmedFile)) {
+                fs.unlinkSync(tempTrimmedFile);
+                console.log("Temp trimmed file cleaned up:", tempTrimmedFile);
+              }
+              
+            await storage.addGenerationLog({
+              projectId: req.params.id,
+              step: "subtitle_generation",
+              message: "Lyrics extracted from audio successfully",
+              status: "completed",
+              metadata: { lyricsLength: transcribedLyrics.length }
+            });
+          } else {
+            console.log("No audio file available for transcription");
+          }
+        } catch (transcribeError) {
+          console.error("Transcription failed for instrumental project:", transcribeError);
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "subtitle_generation",
+            message: `Transcription failed: ${(transcribeError as Error).message}`,
+            status: "warning",
+            metadata: { error: (transcribeError as Error).message }
+          });
+        }
+      } else if (addSubtitles) {
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "subtitle_generation",
+          message: "Instrumental project: captions will be generated from text overlay during video generation",
+          status: "info",
+          metadata: {}
+        });
+      }
       }
       
       // Clean up the temporary uploaded file
@@ -5386,8 +5466,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let lyricsForTrimmedSong: string | null = null;
       // Don't initialize with full lyrics - we'll get trimmed lyrics from subtitle trimming or transcription
 
+      // Check if this is an instrumental project - skip forced alignment for instrumental
+      const isInstrumental = project.isInstrumental === true;
+
       // Always try to trim existing subtitles if they exist, regardless of addSubtitles flag
       // This ensures trimmed audio always has matching trimmed subtitles
+      // BUT skip this for instrumental projects - they use text overlay instead
       const subtitleSourceUrl =
         typeof sourceSubtitleFileUrl === "string" && sourceSubtitleFileUrl.trim().length > 0
           ? sourceSubtitleFileUrl.trim()
@@ -5395,7 +5479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ? project.subtitleFileUrl
             : null;
 
-      if (subtitleSourceUrl && (subtitleSourceUrl.startsWith("http://") || subtitleSourceUrl.startsWith("https://"))) {
+      if (subtitleSourceUrl && (subtitleSourceUrl.startsWith("http://") || subtitleSourceUrl.startsWith("https://")) && !isInstrumental) {
         try {
           await storage.addGenerationLog({
             projectId: req.params.id,
@@ -5454,7 +5538,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // If we don't have trimmed subtitles and subtitles are requested, generate new ones
-      if (!subtitleFileUrl && shouldAddSubtitles) {
+      // BUT skip forced alignment for instrumental projects - they use text overlay instead
+      if (!subtitleFileUrl && shouldAddSubtitles && !isInstrumental) {
         try {
           await storage.addGenerationLog({
             projectId: req.params.id,
@@ -5532,6 +5617,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
             metadata: { error: (subtitleError as Error).message },
           });
         }
+      } else if (isInstrumental) {
+        // For lyric pages we also use instrumental projects (no character/lipsync),
+        // so subtitles should be regenerated for trimmed audio when captions are enabled.
+        const providedLyrics =
+          typeof lyrics === "string" && lyrics.trim().length > 0
+            ? lyrics.trim()
+            : null;
+        if (!lyricsForTrimmedSong && providedLyrics) {
+          lyricsForTrimmedSong = providedLyrics;
+        }
+
+        // If subtitles are requested and we still have no lyrics, attempt transcription fallback.
+        if (shouldAddSubtitles && !subtitleFileUrl && !lyricsForTrimmedSong) {
+          try {
+            console.log("No lyrics provided for instrumental trimmed audio, transcribing with Whisper...");
+            await storage.addGenerationLog({
+              projectId: req.params.id,
+              step: "subtitle_generation",
+              message: "Transcribing trimmed audio to extract lyrics...",
+              status: "progress",
+              metadata: {}
+            });
+
+            const { transcribeAudio } = await import("./services/openai");
+            const transcriptionPath = path.join(
+              uploadDir,
+              `trimmed-transcription-${crypto.randomUUID()}.mp3`,
+            );
+            fs.writeFileSync(transcriptionPath, trimmedBuffer);
+            lyricsForTrimmedSong = await transcribeAudio(transcriptionPath);
+            fs.unlinkSync(transcriptionPath);
+            console.log("Transcription completed for instrumental trimmed audio, length:", lyricsForTrimmedSong.length);
+
+            await storage.addGenerationLog({
+              projectId: req.params.id,
+              step: "subtitle_generation",
+              message: "Lyrics extracted from trimmed audio successfully",
+              status: "completed",
+              metadata: { lyricsLength: lyricsForTrimmedSong.length }
+            });
+          } catch (transcribeError) {
+            console.error("Transcription failed for instrumental trimmed audio:", transcribeError);
+            await storage.addGenerationLog({
+              projectId: req.params.id,
+              step: "subtitle_generation",
+              message: `Transcription failed: ${(transcribeError as Error).message}`,
+              status: "warning",
+              metadata: { error: (transcribeError as Error).message }
+            });
+          }
+        }
+
+        // If captions are enabled and lyrics are available, generate timed subtitles now.
+        if (shouldAddSubtitles && !subtitleFileUrl && lyricsForTrimmedSong && lyricsForTrimmedSong.trim().length > 0) {
+          try {
+            await storage.addGenerationLog({
+              projectId: req.params.id,
+              step: "subtitle_generation",
+              message: "Generating subtitles for trimmed audio...",
+              status: "progress",
+              metadata: {},
+            });
+
+            const alignmentResponse = await createForcedAlignment(
+              publicAudioUrl,
+              lyricsForTrimmedSong,
+            );
+            const assContent = convertElevenLabsAlignmentToASS(alignmentResponse);
+            const songId =
+              audioPath.split("/").pop()?.replace(/\.[^/.]+$/, "") || undefined;
+            subtitleFileUrl = await storeElevenLabsSubtitleFile(
+              assContent,
+              songId,
+            );
+
+            await storage.addGenerationLog({
+              projectId: req.params.id,
+              step: "subtitle_generation",
+              message: "Successfully generated subtitles for trimmed audio.",
+              status: "completed",
+              metadata: {},
+            });
+          } catch (subtitleError) {
+            console.error("Failed to generate subtitles for instrumental trimmed audio:", subtitleError);
+            await storage.addGenerationLog({
+              projectId: req.params.id,
+              step: "subtitle_generation",
+              message: `Subtitle generation for trimmed audio failed: ${(subtitleError as Error).message}`,
+              status: "warning",
+              metadata: { error: (subtitleError as Error).message },
+            });
+          }
+        } else if (shouldAddSubtitles && !subtitleFileUrl) {
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "subtitle_generation",
+            message: "Subtitles requested but no lyrics available for trimmed audio.",
+            status: "warning",
+            metadata: {},
+          });
+        }
       }
 
       // Save trimmed audio to user's library
@@ -5606,6 +5792,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.status(500).json({ error: "Failed to trim audio file" });
+    }
+  });
+
+  // Re-apply captions with new settings after trimming
+  app.post("/api/projects/:id/reapply-captions", authenticateToken, async (req, res) => {
+    try {
+      const { subtitleStyle: subtitleStyleInput, textPosition, captionPosition, fontFamily: requestedFontFamily, addSubtitles } = req.body;
+      
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      // Validate subtitle style
+      const subtitleStyle = isSubtitleStyle(subtitleStyleInput)
+        ? subtitleStyleInput
+        : isSubtitleStyle((project as any).subtitleStyle)
+          ? (project as any).subtitleStyle
+          : defaultSubtitleStyle;
+
+      // Validate caption position
+      const validTextPositions = ["top", "center", "bottom"];
+      const captionPos = validTextPositions.includes(textPosition || captionPosition) 
+        ? (textPosition || captionPosition) 
+        : (project as any).captionPosition || "bottom";
+
+      // Validate font family
+      const fontFamily = isGoogleFont(requestedFontFamily) ? requestedFontFamily : (project as any).fontFamily || defaultGoogleFont;
+
+      const shouldAddSubtitles = addSubtitles === true || addSubtitles === "true" || (addSubtitles === undefined && (project as any).addSubtitles);
+
+      // Check if we have trimmed audio and lyrics
+      if (!project.audioUrl) {
+        return res.status(400).json({ error: "No audio URL found. Please trim the audio first." });
+      }
+
+      const audioLyrics = project.audioLyrics || (project as any).audioLyrics;
+      if (!audioLyrics || audioLyrics.trim().length === 0) {
+        return res.status(400).json({ error: "No lyrics found. Cannot regenerate captions without lyrics." });
+      }
+
+      let subtitleFileUrl: string | null = null;
+
+      // Check if this is an instrumental project - skip forced alignment for instrumental
+      const isInstrumental = project.isInstrumental === true;
+
+      if (shouldAddSubtitles && !isInstrumental) {
+        try {
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "subtitle_generation",
+            message: "Re-applying captions with new settings...",
+            status: "progress",
+            metadata: { subtitleStyle, captionPosition: captionPos, fontFamily }
+          });
+
+          // Generate subtitles using forced alignment with the existing lyrics
+          const alignmentResponse = await createForcedAlignment(
+            project.audioUrl,
+            audioLyrics,
+          );
+          const assContent = convertElevenLabsAlignmentToASS(alignmentResponse);
+          
+          // Extract song ID from audio URL if possible, otherwise use project ID
+          const audioPathMatch = project.audioUrl.match(/songs\/([^\/]+)\.mp3/);
+          const songId = audioPathMatch ? audioPathMatch[1] : project.id;
+          
+          subtitleFileUrl = await storeElevenLabsSubtitleFile(assContent, songId);
+
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "subtitle_generation",
+            message: "Captions re-applied successfully with new settings",
+            status: "completed",
+            metadata: { subtitleFileUrl, subtitleStyle, captionPosition: captionPos, fontFamily }
+          });
+        } catch (subtitleError) {
+          console.error("Failed to re-apply captions:", subtitleError);
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "subtitle_generation",
+            message: `Failed to re-apply captions: ${(subtitleError as Error).message}`,
+            status: "warning",
+            metadata: { error: (subtitleError as Error).message },
+          });
+          return res.status(500).json({
+            error: "Failed to re-apply captions",
+            message: (subtitleError as Error).message,
+          });
+        }
+      }
+
+      // Update project with new caption settings
+      const updateData: any = {
+        subtitleStyle,
+        fontFamily,
+        captionPosition: shouldAddSubtitles ? captionPos : undefined,
+        addSubtitles: shouldAddSubtitles,
+      };
+
+      if (subtitleFileUrl) {
+        updateData.subtitleFileUrl = subtitleFileUrl;
+      } else if (!shouldAddSubtitles) {
+        // If subtitles are disabled, clear the subtitle file URL
+        updateData.subtitleFileUrl = null;
+      }
+
+      await storage.updateProject(req.params.id, updateData);
+
+      return res.status(200).json({
+        success: true,
+        subtitleFileUrl: subtitleFileUrl,
+        subtitleStyle,
+        captionPosition: captionPos,
+        fontFamily,
+        addSubtitles: shouldAddSubtitles,
+      });
+    } catch (error) {
+      console.error("Re-apply captions error:", error);
+      return res.status(500).json({
+        error: "Failed to re-apply captions",
+        message: (error as Error).message,
+      });
     }
   });
 
@@ -6221,8 +6530,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Select song for project (handles both generated songs and library songs)
   app.post("/api/projects/:id/select-song", authenticateToken, async (req, res) => {
     try {
-      const { audioUrl, audioTags, audioLyrics, audioType, duration, subtitleFileUrl, subtitleStyle: subtitleStyleInput, kieTaskId, kieAudioId, title, aspectRatio, addSubtitles, includeWatermark, isPublic, saveToLibrary, audioPrompt } = req.body;
+      const { audioUrl, audioTags, audioLyrics, audioType, duration, subtitleFileUrl, subtitleStyle: subtitleStyleInput, kieTaskId, kieAudioId, title, aspectRatio, addSubtitles, includeWatermark, isPublic, saveToLibrary, audioPrompt, textPosition, captionPosition, fontFamily: requestedFontFamily } = req.body;
       const subtitleStyle = isSubtitleStyle(subtitleStyleInput) ? subtitleStyleInput : defaultSubtitleStyle;
+      
+      // Validate and set captionPosition (accept both textPosition and captionPosition for compatibility)
+      const validTextPositions = ["top", "center", "bottom"];
+      const captionPos = validTextPositions.includes(textPosition || captionPosition) ? (textPosition || captionPosition) : undefined;
+      
+      // Validate and set fontFamily
+      const fontFamily = isGoogleFont(requestedFontFamily) ? requestedFontFamily : undefined;
       
       console.log("=== SELECT-SONG REQUEST ===");
       console.log("Request body:", JSON.stringify(req.body, null, 2));
@@ -6247,6 +6563,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (includeWatermark !== undefined) updateData.includeWatermark = includeWatermark === true || includeWatermark === 'true';
       if (isPublic !== undefined) updateData.isPublic = isPublic === true || isPublic === 'true';
       updateData.subtitleStyle = subtitleStyle;
+      if (fontFamily) updateData.fontFamily = fontFamily;
+      if (captionPos) updateData.captionPosition = captionPos;
       if (subtitleFileUrl) {
         updateData.addSubtitles = true;
         updateData.subtitleFileUrl = subtitleFileUrl;
@@ -7158,6 +7476,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         publicImageUrl = await objectStorageService.getSignedUrlForPath(imageUrl, 86400);
       }
 
+      // Extract aspect ratio from project (default to 16:9 if not set)
+      const aspectRatio = (project as any).aspectRatio || "16:9";
+
       // Generate the video segment
       const videoUrl = await generateVideoSegment(
         audioSegmentUrl,
@@ -7165,7 +7486,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         prompt,
         model,
         segmentDuration,
-        quality
+        quality,
+        aspectRatio
       );
 
       // Update the videoSegments array in the project
@@ -7432,6 +7754,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing required project data" });
       }
       
+      // Extract aspect ratio from project (default to 16:9 if not set)
+      const aspectRatio = (project as any).aspectRatio || "16:9";
+      
       // Check if this is a partial regeneration by looking for the setup log
       const generationLogs = await storage.getGenerationLogs(req.params.id);
       const partialRegenLog = generationLogs.find(
@@ -7452,7 +7777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Calculate credits needed for video generation based on duration
-      // Pricing: 1000 credits per 30 seconds, rounded up to the nearest minute
+      // Pricing: 1000 credits per 15 seconds, rounded up
       const audioDuration = project.audioDuration || 120; // Default to 2 minutes
       
       let VIDEO_GENERATION_CREDITS: number;
@@ -7462,9 +7787,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         VIDEO_GENERATION_CREDITS = partialRegenMetadata.creditsToCharge;
         console.log(`Using partial regeneration credits: ${VIDEO_GENERATION_CREDITS}`);
       } else {
-        // Full video generation: 1000 credits per 30 seconds
-        const roundedMinutes = Math.ceil(audioDuration / 60);
-        const baseCredits = roundedMinutes * 2 * 1000; // 2 x 1000 credits per minute (which is 2 x 30-second blocks)
+        // Full video generation: 1000 credits per 15 seconds
+        const units = Math.ceil(audioDuration / 15);
+        const baseCredits = units * 1000; // 1000 credits per 15-second block
         
         // Add extra credits based on video quality
         const projectVideoQuality = (project as any).videoQuality || "quick";
@@ -7591,57 +7916,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`Using audio duration: ${audioDuration} seconds for video generation`);
       
-          // Calculate the correct number of scenes based on audio duration
-          // Apply the new logic: segments must be 6s each, and last segment must be >= 2s
-          const fullSegments = Math.floor(audioDuration / 6);
-          const remainder = audioDuration % 6;
-          // Only include remainder if it's >= 2 seconds (minimum for AI models)
-          const calculatedSceneCount = remainder >= 2 ? fullSegments + 1 : fullSegments;
-          
-          // Check if existing scene images match the calculated count
-          const existingSceneImagesCount = (project.sceneImages as string[])?.length || 0;
-          
-          // If scene images don't match the calculated count, we need to recalculate
-          // This handles cases where old projects had different segment logic
-          if (existingSceneImagesCount !== calculatedSceneCount) {
-            console.log(`⚠️ Scene images count mismatch: existing=${existingSceneImagesCount}, calculated=${calculatedSceneCount}`);
-            console.log(`   Audio duration: ${audioDuration}s → ${fullSegments} full segments + ${remainder}s remainder`);
-            if (remainder < 2) {
-              console.log(`   Remainder (${remainder}s) is < 2s, so it will be excluded`);
+          // Check if this is an instrumental project
+          const isInstrumental = (project as any).isInstrumental === true;
+          console.log(`[VIDEO-GEN] Project type: ${isInstrumental ? 'INSTRUMENTAL' : 'PRO MODE'}`);
+      
+          let numberOfAudioParts: number;
+          let numberOfScenes: number;
+          let numberOfVideosLipsync: number;
+          let numberOfVideosRegularApi: number;
+          let audioSegments: any[];
+          let audioUrls: string[];
+          let segmentDurations: number[];
+      
+          if (isInstrumental) {
+            // For instrumental videos: no audio splitting, use full audio for each scene, only seedance model
+            console.log(`[VIDEO-GEN] Instrumental mode: skipping audio splitting, using full audio for each scene`);
+            
+            // Use existing scene images count
+            const existingSceneImages = (project.sceneImages as string[]) || [];
+            const existingSceneImagesCount = existingSceneImages.length;
+            
+            if (existingSceneImagesCount === 0) {
+              throw new Error(`No scene images found in project for instrumental video. Project ID: ${project.id}. Scene images must be generated before video generation.`);
             }
+            
+            numberOfScenes = existingSceneImagesCount;
+            numberOfAudioParts = numberOfScenes; // One audio per scene (but all use the same full audio)
+            numberOfVideosLipsync = 0; // No lipsync for instrumental
+            numberOfVideosRegularApi = numberOfScenes; // All videos use seedance
+            
+            console.log(`[VIDEO-GEN] Instrumental video parameters:`);
+            console.log(`- Number of scenes: ${numberOfScenes}`);
+            console.log(`- Regular videos (seedance): ${numberOfVideosRegularApi}`);
+            console.log(`- Lipsync videos: ${numberOfVideosLipsync} (disabled for instrumental)`);
+            
+            // For instrumental: each scene uses the full audio (not split)
+            // Calculate segment durations based on scene count (divide audio evenly)
+            const segmentDuration = Math.floor(audioDuration / numberOfScenes);
+            const lastSegmentDuration = audioDuration - (segmentDuration * (numberOfScenes - 1));
+            
+            // Store segment durations for later use (audio URL will be converted below)
+            segmentDurations = [];
+            for (let i = 0; i < numberOfScenes; i++) {
+              const duration = i === numberOfScenes - 1 ? lastSegmentDuration : segmentDuration;
+              segmentDurations.push(duration);
+            }
+            
+            console.log(`[VIDEO-GEN] Calculated ${numberOfScenes} segment durations: ${segmentDurations.join(', ')}s`);
+          } else {
+            // For pro mode: calculate segments and use lipsync logic
+            // Calculate the correct number of scenes based on audio duration
+            // Apply the new logic: segments must be 6s each, and last segment must be >= 2s
+            const fullSegments = Math.floor(audioDuration / 6);
+            const remainder = audioDuration % 6;
+            // Only include remainder if it's >= 2 seconds (minimum for AI models)
+            const calculatedSceneCount = remainder >= 2 ? fullSegments + 1 : fullSegments;
+            
+            // Check if existing scene images match the calculated count
+            const existingSceneImagesCount = (project.sceneImages as string[])?.length || 0;
+            
+            // If scene images don't match the calculated count, we need to recalculate
+            // This handles cases where old projects had different segment logic
+            if (existingSceneImagesCount !== calculatedSceneCount) {
+              console.log(`⚠️ Scene images count mismatch: existing=${existingSceneImagesCount}, calculated=${calculatedSceneCount}`);
+              console.log(`   Audio duration: ${audioDuration}s → ${fullSegments} full segments + ${remainder}s remainder`);
+              if (remainder < 2) {
+                console.log(`   Remainder (${remainder}s) is < 2s, so it will be excluded`);
+              }
+            }
+            
+            // Use calculated scene count (not existing scene images count) to ensure correct splitting
+            numberOfAudioParts = calculatedSceneCount;
+            numberOfScenes = calculatedSceneCount;
+      
+            console.log(`Scene images count from project: ${existingSceneImagesCount}`);
+            console.log(`Calculated scene count: ${calculatedSceneCount}`);
+            console.log(`Calculated from duration would be: ${Math.ceil(audioDuration / 6)}`);
+            
+            // Split roughly 50/50 between regular and lipsync videos
+            numberOfVideosLipsync = Math.floor(numberOfScenes / 2);
+            numberOfVideosRegularApi = numberOfScenes - numberOfVideosLipsync;
+            
+            console.log("Dynamically calculated video generation parameters:");
+            console.log("- Number of audio parts:", numberOfAudioParts);
+            console.log("- Number of scenes:", numberOfScenes);
+            console.log("- Regular videos:", numberOfVideosRegularApi);
+            console.log("- Lipsync videos:", numberOfVideosLipsync);
           }
-          
-          // Use calculated scene count (not existing scene images count) to ensure correct splitting
-          const numberOfAudioParts = calculatedSceneCount;
-          const numberOfScenes = calculatedSceneCount;
-      
-      console.log(`Scene images count from project: ${existingSceneImagesCount}`);
-      console.log(`Calculated scene count: ${calculatedSceneCount}`);
-      console.log(`Calculated from duration would be: ${Math.ceil(audioDuration / 6)}`);
-      
-      // Split roughly 50/50 between regular and lipsync videos
-      const numberOfVideosLipsync = Math.floor(numberOfScenes / 2);
-      const numberOfVideosRegularApi = numberOfScenes - numberOfVideosLipsync;
-      
-      console.log("Dynamically calculated video generation parameters:");
-      console.log("- Number of audio parts:", numberOfAudioParts);
-      console.log("- Number of scenes:", numberOfScenes);
-      console.log("- Regular videos:", numberOfVideosRegularApi);
-      console.log("- Lipsync videos:", numberOfVideosLipsync);
       
       // Initialize ObjectStorageService once for reuse throughout video generation
       const objectStorageService = new ObjectStorageService();
 
-      // Step 1: Split audio based on calculation
-      await storage.addGenerationLog({
-        projectId: req.params.id,
-        step: "video_generation",
-        message: `Splitting audio into ${numberOfAudioParts} segments`,
-        status: "progress",
-        metadata: { step: 1, total: 4, numberOfSegments: numberOfAudioParts }
-      });
-
-      // Convert audio URL to externally accessible signed URL for FFMPEG API
+      // Convert audio URL to externally accessible signed URL (needed for both modes)
       let audioUrl = project.audioUrl;
       if (audioUrl.startsWith('/objects/')) {
         // Generate signed URL for object storage files (publicly accessible by external APIs)
@@ -7674,47 +8040,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Audio type:", project.audioType);
       console.log("=== END DEBUG ===");
       
-      // Split audio into fixed 6-second segments for ALL audio types
-      // CRITICAL: All segments must be exactly 6 seconds, only the last segment can be shorter
-      // This ensures proper lipsync synchronization when merging videos
-      // Example: 30-second song → [6s, 6s, 6s, 6s, 6s, 0s] NOT [5s, 5s, 5s, 5s, 5s, 5s]
-      console.log(`Splitting audio into fixed 6-second segments (audio type: ${project.audioType}, total duration: ${audioDuration}s)`);
-      let audioSegments = await splitAudio(audioUrl, numberOfAudioParts, audioDuration);
-      console.log("Audio segments result:", JSON.stringify(audioSegments, null, 2));
-      
-      // Filter out last segment if it's less than 2 seconds (minimum required by AI models)
-      // This prevents errors when trying to generate videos from very short audio segments
-      if (audioSegments.length > 0) {
-        const lastSegment = audioSegments[audioSegments.length - 1];
-        if (lastSegment.duration < 2) {
-          console.log(`⚠️ Last audio segment is ${lastSegment.duration}s (less than 2s minimum) - removing it from video generation`);
-          audioSegments = audioSegments.slice(0, -1); // Remove last segment
-          
-          // Update scene count to match filtered segments
-          const originalSceneCount = numberOfScenes;
-          const filteredSceneCount = audioSegments.length;
-          console.log(`Updated scene count: ${originalSceneCount} → ${filteredSceneCount} (removed 1 segment < 2s)`);
-          
-          // Note: We don't update numberOfScenes variable here as it's used for logging,
-          // but we'll use audioSegments.length for actual video generation
+      // Step 1: Split audio (skip for instrumental)
+      if (!isInstrumental) {
+        await storage.addGenerationLog({
+          projectId: req.params.id,
+          step: "video_generation",
+          message: `Splitting audio into ${numberOfAudioParts} segments`,
+          status: "progress",
+          metadata: { step: 1, total: 4, numberOfSegments: numberOfAudioParts }
+        });
+        
+        // Split audio into fixed 6-second segments for pro mode
+        // CRITICAL: All segments must be exactly 6 seconds, only the last segment can be shorter
+        // This ensures proper lipsync synchronization when merging videos
+        // Example: 30-second song → [6s, 6s, 6s, 6s, 6s, 0s] NOT [5s, 5s, 5s, 5s, 5s, 5s]
+        console.log(`Splitting audio into fixed 6-second segments (audio type: ${project.audioType}, total duration: ${audioDuration}s)`);
+        let splitAudioSegments = await splitAudio(audioUrl, numberOfAudioParts, audioDuration);
+        console.log("Audio segments result:", JSON.stringify(splitAudioSegments, null, 2));
+        
+        // Filter out last segment if it's less than 2 seconds (minimum required by AI models)
+        // This prevents errors when trying to generate videos from very short audio segments
+        if (splitAudioSegments.length > 0) {
+          const lastSegment = splitAudioSegments[splitAudioSegments.length - 1];
+          if (lastSegment.duration < 2) {
+            console.log(`⚠️ Last audio segment is ${lastSegment.duration}s (less than 2s minimum) - removing it from video generation`);
+            splitAudioSegments = splitAudioSegments.slice(0, -1); // Remove last segment
+            
+            // Update scene count to match filtered segments
+            const originalSceneCount = numberOfScenes;
+            const filteredSceneCount = splitAudioSegments.length;
+            console.log(`Updated scene count: ${originalSceneCount} → ${filteredSceneCount} (removed 1 segment < 2s)`);
+            
+            // Update variables
+            numberOfScenes = filteredSceneCount;
+            numberOfVideosRegularApi = filteredSceneCount - numberOfVideosLipsync;
+          }
         }
-      }
-      
-      const audioUrls = audioSegments.map(segment => segment.download_url);
-      const segmentDurations = audioSegments.map(segment => segment.duration);
-      console.log("Audio URLs for video generation (after filtering):", audioUrls);
-      console.log("Segment durations for video generation (after filtering):", segmentDurations);
-      console.log(`Final segment count: ${audioSegments.length} (will generate ${audioSegments.length} scenes)`);
+        
+        audioSegments = splitAudioSegments;
+        audioUrls = audioSegments.map(segment => segment.download_url);
+        segmentDurations = audioSegments.map(segment => segment.duration);
+        console.log("Audio URLs for video generation (after filtering):", audioUrls);
+        console.log("Segment durations for video generation (after filtering):", segmentDurations);
+        console.log(`Final segment count: ${audioSegments.length} (will generate ${audioSegments.length} scenes)`);
 
-      await storage.updateProject(req.params.id, {
-        audioSegments: audioSegments
-      });
+        await storage.updateProject(req.params.id, {
+          audioSegments: audioSegments
+        });
+      } else {
+        // For instrumental: use full audio, no splitting
+        console.log(`[VIDEO-GEN] Using full audio for instrumental video (no splitting)`);
+        // segmentDurations are already calculated above
+        // audioUrls not needed for instrumental (seedance doesn't use audio)
+        // Create a dummy audioSegments array to match the number of scenes for compatibility
+        audioSegments = Array(numberOfScenes).fill(null).map((_, i) => ({
+          download_url: project.audioUrl || '',
+          duration: segmentDurations[i] || 0,
+          index: i
+        }));
+        console.log(`[VIDEO-GEN] Created ${audioSegments.length} dummy audio segments for instrumental video`);
+      }
 
       // Step 2: Generate video segments dynamically based on calculation
-      const makeCharacterSing = project.makeCharacterSing || true;
-      const videoGenerationMessage = makeCharacterSing 
-        ? `Generating ${numberOfVideosRegularApi} regular videos (seedance) and ${numberOfVideosLipsync} lipsync videos (multitalk)`
-        : `Generating ${numberOfVideosRegularApi} regular videos (seedance only)`;
+      const makeCharacterSing = isInstrumental ? false : (project.makeCharacterSing || true);
+      const videoGenerationMessage = isInstrumental
+        ? `Generating ${numberOfVideosRegularApi} videos using seedance (instrumental mode)`
+        : makeCharacterSing 
+          ? `Generating ${numberOfVideosRegularApi} regular videos (seedance) and ${numberOfVideosLipsync} lipsync videos (multitalk)`
+          : `Generating ${numberOfVideosRegularApi} regular videos (seedance only)`;
       
       await storage.addGenerationLog({
         projectId: req.params.id,
@@ -7725,7 +8118,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           step: 2, 
           total: 5,
           regularVideos: numberOfVideosRegularApi,
-          lipsyncVideos: makeCharacterSing ? numberOfVideosLipsync : 0
+          lipsyncVideos: isInstrumental ? 0 : (makeCharacterSing ? numberOfVideosLipsync : 0),
+          isInstrumental: isInstrumental
         }
       });
 
@@ -7813,9 +8207,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Convert scene images to signed URLs for Wavespeed API
       console.log("Converting scene images to signed URLs for Wavespeed API...");
-      const originalSceneImages = project.sceneImages as string[];
-      const originalScenePrompts = project.scenePrompts as string[];
+      const originalSceneImages = (project.sceneImages as string[]) || [];
+      const originalScenePrompts = (project.scenePrompts as string[]) || [];
       const originalSceneLipsyncSettings = ((project as any).sceneLipsyncSettings as (boolean | null)[]) || [];
+      
+      // Validate that we have scene images
+      if (!originalSceneImages || originalSceneImages.length === 0) {
+        throw new Error(`No scene images found in project. Project ID: ${project.id}, sceneImages: ${JSON.stringify(project.sceneImages)}`);
+      }
+      
       const sceneOrder = ((project as any).sceneOrder as number[]) || originalSceneImages.map((_, i) => i);
       
       // Apply custom scene order if provided (reorder scenes for video merge)
@@ -7830,6 +8230,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // This handles cases where:
       // 1. Last audio segment was < 2s and removed
       // 2. Old projects had different segment counts (e.g., 4 scenes for 31s instead of 3)
+      
+      // Safety check: ensure audioSegments is defined
+      if (!audioSegments || !Array.isArray(audioSegments)) {
+        throw new Error(`Audio segments not initialized. Project ID: ${project.id}, isInstrumental: ${isInstrumental}`);
+      }
+      
+      // Safety check: ensure sceneImages is defined
+      if (!sceneImages || !Array.isArray(sceneImages)) {
+        throw new Error(`Scene images not properly initialized. Project ID: ${project.id}, originalSceneImages length: ${originalSceneImages.length}, sceneOrder: ${JSON.stringify(sceneOrder)}`);
+      }
+      
       if (sceneImages.length !== audioSegments.length) {
         console.log(`⚠️ Scene images count (${sceneImages.length}) doesn't match audio segments (${audioSegments.length}) - trimming to match`);
         if (sceneImages.length > audioSegments.length) {
@@ -7857,7 +8268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Ordered lipsync settings: [${orderedSceneLipsyncSettings.map(s => s === null ? 'null' : s).join(', ')}]`);
       console.log(`Final scene count after filtering: ${sceneImages.length} scenes, ${audioSegments.length} audio segments`);
       
-      const signedSceneUrls: string[] = [];
+      let signedSceneUrls: string[] = [];
       
       try {
         for (let i = 0; i < sceneImages.length; i++) {
@@ -7896,6 +8307,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const videoQuality = (project as any).videoQuality || "quick";
+      
+      // CRITICAL: Filter out last segment if it's less than 4 seconds for seedance model (quick quality)
+      // Seedance v1.5 Pro requires minimum 4 seconds duration
+      // This prevents API errors when the last segment is too short
+      if (videoQuality === "quick" && !isInstrumental && audioUrls.length > 0 && segmentDurations.length > 0) {
+        const lastSegmentDuration = segmentDurations[segmentDurations.length - 1];
+        if (lastSegmentDuration < 4) {
+          console.log(`⚠️ Last segment duration (${lastSegmentDuration}s) is less than 4 seconds minimum for seedance - removing it`);
+          console.log(`   Original segment count: ${audioUrls.length}`);
+          
+          // Remove last segment from all arrays
+          audioUrls = audioUrls.slice(0, -1);
+          signedSceneUrls = signedSceneUrls.slice(0, -1);
+          orderedScenePrompts = orderedScenePrompts.slice(0, -1);
+          segmentDurations = segmentDurations.slice(0, -1);
+          orderedSceneLipsyncSettings = orderedSceneLipsyncSettings.slice(0, -1);
+          
+          // Update scene count
+          numberOfScenes = audioUrls.length;
+          numberOfVideosRegularApi = numberOfScenes - numberOfVideosLipsync;
+          
+          console.log(`   Filtered segment count: ${audioUrls.length}`);
+          console.log(`   Updated scene count: ${numberOfScenes}`);
+          console.log(`   Updated regular videos: ${numberOfVideosRegularApi}, lipsync videos: ${numberOfVideosLipsync}`);
+          
+          // Update project with filtered scenes
+          await storage.updateProject(req.params.id, {
+            sceneImages: sceneImages.slice(0, -1),
+            scenePrompts: orderedScenePrompts,
+            sceneLipsyncSettings: orderedSceneLipsyncSettings
+          });
+          
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "video_generation",
+            message: `Removed last scene (${lastSegmentDuration}s < 4s minimum) - generating ${audioUrls.length} scenes instead`,
+            status: "progress",
+            metadata: { 
+              removedLastSegment: true,
+              originalDuration: lastSegmentDuration,
+              finalSceneCount: audioUrls.length
+            }
+          });
+        }
+      }
       
       let allVideoUrls: string[];
       let segmentPairs: any;
@@ -8050,7 +8506,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               numberOfVideosLipsync: Math.floor(scenesToRegenerate.length / 2),
               makeCharacterSing: makeCharacterSing,
               videoQuality: videoQuality,
-              sceneLipsyncSettings: modifiedLipsyncSettings
+              sceneLipsyncSettings: modifiedLipsyncSettings,
+              isInstrumental: isInstrumental, // Pass instrumental flag
+              aspectRatio: aspectRatio // Pass aspect ratio from project
             },
             subtitleData,
             modifiedDurations
@@ -8116,24 +8574,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
       } else {
-        // Full video generation - use existing logic with per-scene lipsync settings
-        const result = await generateAllVideoSegmentsDynamic(
-          audioUrls,
-          signedSceneUrls,
-          orderedScenePrompts,
-          {
-            numberOfVideosRegularApi,
-            numberOfVideosLipsync,
-            makeCharacterSing: makeCharacterSing,
-            videoQuality: videoQuality,
-            sceneLipsyncSettings: orderedSceneLipsyncSettings
-          },
-          subtitleData,
-          segmentDurations // Pass segment durations for proper video length matching
-        );
-        
-        allVideoUrls = result.videoUrls;
-        segmentPairs = result.segmentPairs;
+        // Full video generation
+        if (isInstrumental) {
+          // For instrumental: use only seedance model, no lipsync
+          console.log(`[VIDEO-GEN] Generating instrumental videos using seedance only`);
+          
+          // CRITICAL: Filter out last segment if it's less than 4 seconds for seedance model
+          // Seedance v1.5 Pro requires minimum 4 seconds duration
+          let filteredSignedSceneUrls = signedSceneUrls;
+          let filteredOrderedScenePrompts = orderedScenePrompts;
+          let filteredSegmentDurations = segmentDurations;
+          let filteredNumberOfScenes = numberOfScenes;
+          
+          if (videoQuality === "quick" && segmentDurations.length > 0) {
+            const lastSegmentDuration = segmentDurations[segmentDurations.length - 1];
+            if (lastSegmentDuration < 4) {
+              console.log(`⚠️ Last segment duration (${lastSegmentDuration}s) is less than 4 seconds minimum for seedance - removing it`);
+              console.log(`   Original scene count: ${numberOfScenes}`);
+              
+              // Remove last segment from all arrays
+              filteredSignedSceneUrls = signedSceneUrls.slice(0, -1);
+              filteredOrderedScenePrompts = orderedScenePrompts.slice(0, -1);
+              filteredSegmentDurations = segmentDurations.slice(0, -1);
+              filteredNumberOfScenes = filteredSignedSceneUrls.length;
+              
+              console.log(`   Filtered scene count: ${filteredNumberOfScenes}`);
+              
+              // Update project with filtered scene images
+              const originalSceneImages = (project.sceneImages as string[]) || [];
+              if (originalSceneImages.length > filteredNumberOfScenes) {
+                await storage.updateProject(req.params.id, {
+                  sceneImages: originalSceneImages.slice(0, filteredNumberOfScenes),
+                  scenePrompts: filteredOrderedScenePrompts
+                });
+                console.log(`   Updated project with filtered scene images (${filteredNumberOfScenes} scenes)`);
+              }
+              
+              await storage.addGenerationLog({
+                projectId: req.params.id,
+                step: "video_generation",
+                message: `Removed last scene (${lastSegmentDuration}s < 4s minimum) - generating ${filteredNumberOfScenes} scenes instead`,
+                status: "progress",
+                metadata: { 
+                  removedLastSegment: true,
+                  originalDuration: lastSegmentDuration,
+                  finalSceneCount: filteredNumberOfScenes
+                }
+              });
+            }
+          }
+          
+          // Generate videos using seedance for all scenes
+          const videoPromises = filteredSignedSceneUrls.map((imageUrl, index) => {
+            const duration = filteredSegmentDurations[index] || Math.floor(audioDuration / filteredNumberOfScenes);
+            console.log(`[VIDEO-GEN] Generating video ${index + 1}/${filteredNumberOfScenes} with seedance (duration: ${duration}s)`);
+            
+            // Use seedance model (no audio needed for seedance, but we pass empty string)
+            return generateVideoSegment(
+              "", // No audio for seedance (it's image-to-video, not lipsync)
+              imageUrl,
+              filteredOrderedScenePrompts[index],
+              "seedance", // Always use seedance for instrumental
+              duration,
+              videoQuality,
+              aspectRatio
+            );
+          });
+          
+          allVideoUrls = await Promise.all(videoPromises);
+          segmentPairs = null; // Not used for instrumental
+          
+          console.log(`[VIDEO-GEN] Generated ${allVideoUrls.length} instrumental video segments`);
+        } else {
+          // Pro mode: use existing logic with per-scene lipsync settings
+          const result = await generateAllVideoSegmentsDynamic(
+            audioUrls,
+            signedSceneUrls,
+            orderedScenePrompts,
+            {
+              numberOfVideosRegularApi,
+              numberOfVideosLipsync,
+              makeCharacterSing: makeCharacterSing,
+              videoQuality: videoQuality,
+              sceneLipsyncSettings: orderedSceneLipsyncSettings,
+              isInstrumental: false, // Pro mode is not instrumental
+              aspectRatio: aspectRatio // Pass aspect ratio from project
+            },
+            subtitleData,
+            segmentDurations // Pass segment durations for proper video length matching
+          );
+          
+          allVideoUrls = result.videoUrls;
+          segmentPairs = result.segmentPairs;
+        }
       }
 
       await storage.updateProject(req.params.id, {
@@ -8210,10 +8743,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Final audio URL for FFMPEG merge:", finalAudioUrl);
 
       const projectSubtitleStyle = normalizeSubtitleStyle((project as any).subtitleStyle);
+      // Instrumental text overlay lines are now treated like pro-mode captions and rendered here.
+      const hasTextOverlay = (project as any).textOverlay && typeof (project as any).textOverlay === 'string' && (project as any).textOverlay.trim().length > 0;
+      const isInstrumentalWithTextOverlay = project.isInstrumental && hasTextOverlay;
+      
       const shouldRenderTikTokCaptions =
         project.addSubtitles &&
         isTikTokSubtitleStyle(projectSubtitleStyle) &&
         !!project.subtitleFileUrl;
+      
+      if (isInstrumentalWithTextOverlay && shouldRenderTikTokCaptions) {
+        console.log(`[VIDEO-GEN] Instrumental text overlay detected - rendering captions in primary Remotion pass`);
+      }
 
       // Resolve subtitle URL (used by FFmpeg path and as fallback when Remotion fails).
       // (subtitleFileUrl is always generated for timeline display, but only shown in video when addSubtitles is true)
@@ -8221,14 +8762,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let resolvedSubtitleUrl: string | undefined;
       if (shouldRenderTikTokCaptions) {
         console.log(
-          `Using Remotion caption renderer for style "${projectSubtitleStyle}" - skipping FFmpeg subtitle overlay`,
+          `Using Remotion caption renderer for style "${projectSubtitleStyle}" - skipping FFmpeg subtitle overlay completely`,
         );
         if (!subtitleData?.assContent) {
           console.warn("TikTok-style captions requested but subtitle ASS content could not be loaded. Falling back to base merged video.");
         }
-      }
-
-      if (project.addSubtitles && project.subtitleFileUrl) {
+        // CRITICAL: Don't resolve subtitle URL when using TikTok captions - we only use Remotion
+        resolvedSubtitleUrl = undefined;
+      } else if (isInstrumentalWithTextOverlay) {
+        // Keep FFmpeg subtitle overlay off for text-overlay-only instrumental flows (no subtitle style pass requested).
+        console.log(`[VIDEO-GEN] Skipping FFmpeg subtitle overlay for instrumental text-overlay-only flow`);
+        resolvedSubtitleUrl = undefined;
+      } else if (project.addSubtitles && project.subtitleFileUrl) {
         // Check if it's already a full URL (ImageKit URL or other external URL)
         if (project.subtitleFileUrl.startsWith('http://') || project.subtitleFileUrl.startsWith('https://')) {
           // Already a full URL (ImageKit or external) - use as-is
@@ -8281,13 +8826,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           watermarkUrl = await getWatermarkUrl() || undefined;
         }
         
+        // CRITICAL: Never pass subtitle URL to FFmpeg when using TikTok-style captions
+        // This prevents double captions (FFmpeg + Remotion)
         const subtitleUrlForInitialMerge = shouldRenderTikTokCaptions
-          ? undefined
+          ? undefined  // Never use FFmpeg subtitles when using Remotion TikTok captions
           : resolvedSubtitleUrl;
+        
+        console.log("=== VIDEO MERGE CONFIG ===");
+        console.log("Using TikTok-style captions:", shouldRenderTikTokCaptions);
+        console.log("Subtitle URL for FFmpeg:", subtitleUrlForInitialMerge || "NONE (TikTok captions will be used via Remotion)");
+        console.log("========================");
+        
         finalVideo = await mergeVideos(
           signedVideoUrls,
           finalAudioUrl,
-          subtitleUrlForInitialMerge,
+          subtitleUrlForInitialMerge, // Will be undefined for TikTok captions - prevents double captions
           watermarkUrl,
         );
         console.log("Final video merge successful:", finalVideo.download_url);
@@ -8302,45 +8855,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           try {
+            // Get caption position from project (defaults to "bottom" if not specified)
+            // For instrumental videos, this should be the textPosition that was saved as captionPosition
+            const captionPosition = ((project as any).captionPosition || "bottom") as "top" | "center" | "bottom";
+            console.log(`[VIDEO-GEN] Rendering TikTok-style captions with position: ${captionPosition}, style: ${projectSubtitleStyle}`);
+            const projectFontFamily = (project as any).fontFamily || defaultGoogleFont;
             tempCaptionRenderPath = await renderVideoWithTikTokCaptions({
               videoSrc: finalVideo.download_url,
               assContent: subtitleData.assContent,
               subtitleStyle: projectSubtitleStyle,
               aspectRatio: project.aspectRatio,
               audioDurationSeconds: audioDuration,
+              captionPosition: captionPosition, // Use saved caption position (top, center, or bottom)
+              fontFamily: isGoogleFont(projectFontFamily) ? projectFontFamily : defaultGoogleFont,
             });
           } catch (captionRenderError) {
             console.warn(
-              "Remotion caption render failed, falling back to merged video without TikTok overlay:",
+              "Remotion caption render failed. Not using FFmpeg fallback to prevent double captions:",
               captionRenderError,
             );
-            // If Remotion fails, attempt a normal FFmpeg subtitle merge so subtitles are still present.
-            if (resolvedSubtitleUrl) {
-              try {
-                await storage.addGenerationLog({
-                  projectId: req.params.id,
-                  step: "video_generation",
-                  message: "Remotion captions failed, retrying with FFmpeg subtitle overlay",
-                  status: "progress",
-                  metadata: { captionStyle: projectSubtitleStyle },
-                });
-                finalVideo = await mergeVideos(
-                  signedVideoUrls,
-                  finalAudioUrl,
-                  resolvedSubtitleUrl,
-                  watermarkUrl,
-                );
-                console.log(
-                  "FFmpeg subtitle fallback merge successful:",
-                  finalVideo.download_url,
-                );
-              } catch (ffmpegSubtitleFallbackError) {
-                console.warn(
-                  "FFmpeg subtitle fallback merge also failed:",
-                  ffmpegSubtitleFallbackError,
-                );
-              }
-            }
+            // CRITICAL: Do NOT use FFmpeg subtitles as fallback - we only want Remotion captions
+            // This prevents double captions from appearing (one from FFmpeg, one from Remotion)
             await storage.addGenerationLog({
               projectId: req.params.id,
               step: "video_generation",
@@ -10852,24 +11387,61 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       });
       console.log(`[NEON-SINGLE-PROMPT-GET] Generated lyrics (${lyrics.length} chars) and title: ${aiGeneratedTitle}`);
 
-      // Step 4: Generate song with Minimax Music 02
-      console.log(`[NEON-SINGLE-PROMPT-GET] Step 4: Generating ~30-second song with Minimax Music 02...`);
+      // Step 4: Generate song with Minimax Music 02 (single song, then trim to 30 seconds)
+      console.log(`[NEON-SINGLE-PROMPT-GET] Step 4: Generating song with Minimax Music 02...`);
       const songTags = parsed.song_title 
         ? `${parsed.song_title}. ${parsed.video_description}`
         : parsed.video_description;
       
       const requestedDuration = 30;
       
-      const songResult = await generateSongWithMinimax(songTags, lyrics, requestedDuration, parsed.video_description);
-      const actualSongDuration = songResult.duration;
-      console.log(`[NEON-SINGLE-PROMPT-GET] Song generated: ${actualSongDuration}s (requested: ${requestedDuration}s)`);
+      // Generate a single song (no retries unless it fails)
+      const songResult = await generateSingleSong(songTags, lyrics, requestedDuration, parsed.video_description, 1);
+      console.log(`[NEON-SINGLE-PROMPT-GET] Song generated: ${songResult.duration}s`);
       
+      // Step 4.5: Trim the generated song to exactly 30 seconds (0ms to 30000ms)
+      const trimDuration = 30; // Always 30 seconds for cron job
+      console.log(`[NEON-SINGLE-PROMPT-GET] Step 4.5: Trimming audio to exactly ${trimDuration} seconds (0ms to ${trimDuration * 1000}ms)...`);
+      
+      const startTime = 0; // Start at 0 seconds
+      const endTime = trimDuration * 1000; // End at 30 seconds (in milliseconds)
+      const adjustedEndTime = Math.max(startTime + 10, endTime - 10); // Subtract 10ms to prevent exceeding duration
+      
+      const { splitAudioByTime } = await import("./services/ffmpeg");
+      const trimResult = await splitAudioByTime(songResult.audioUrl, startTime, adjustedEndTime);
+      
+      // Download the trimmed audio
+      const trimmedResponse = await fetch(trimResult.download_url);
+      const trimmedBuffer = Buffer.from(await trimmedResponse.arrayBuffer());
+      
+      // Upload trimmed audio to object storage
+      const objectStorageService = new ObjectStorageService();
+      const audioPath = `songs/${crypto.randomUUID()}.mp3`;
+      const trimmedUrl = await objectStorageService.uploadAudioBuffer(trimmedBuffer, audioPath);
+      
+      // Get public URL
+      const publicAudioUrl = trimmedUrl.startsWith('http') 
+        ? trimmedUrl 
+        : await objectStorageService.getSignedUrlForPath(`/objects/${audioPath}`, 86400);
+      
+      // Get duration of trimmed audio
+      const { getAudioDurationFromFile } = await import("./services/ffmpeg");
+      const tempFilePath = path.join(uploadDir, `trimmed-${crypto.randomUUID()}.mp3`);
+      fs.writeFileSync(tempFilePath, trimmedBuffer);
+      const trimmedDuration = await getAudioDurationFromFile(tempFilePath);
+      fs.unlinkSync(tempFilePath); // Clean up temp file
+      
+      console.log(`[NEON-SINGLE-PROMPT-GET] Audio trimmed successfully: ${trimmedDuration}s`);
+      
+      // Update project with trimmed audio (always 30 seconds for cron job)
       await storage.updateProject(project.id, { 
-        audioUrl: songResult.audioUrl,
-        audioDuration: actualSongDuration,
+        audioUrl: publicAudioUrl,
+        audioDuration: trimmedDuration,
         currentStep: 2 
       });
-      console.log(`[NEON-SINGLE-PROMPT-GET] Song generated and uploaded (${actualSongDuration} seconds)`);
+      console.log(`[NEON-SINGLE-PROMPT-GET] Song generated and trimmed to ${trimmedDuration} seconds`);
+      
+      const actualSongDuration = trimmedDuration; // Use trimmed duration (30 seconds) for subsequent steps
 
       // Step 5: Generate character image with style support
       // Validate character description for inappropriate content
@@ -11242,6 +11814,1228 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       console.error("[NEON-SINGLE-PROMPT] Error:", error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to generate music video"
+      });
+    }
+  });
+
+  // Custom single prompt endpoint with duration and subtitle support
+  app.post("/api/neon-single-prompt-custom", extractTokenFromUrl, authenticateToken, async (req, res) => {
+    // Set CORS headers
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    try {
+      const { prompt, aspectRatio: requestedAspectRatio, style: requestedStyle, duration: requestedDuration, addSubtitles: requestedAddSubtitles, subtitleStyle: requestedSubtitleStyle, fontFamily: requestedFontFamily, textPosition: requestedTextPosition } = req.body;
+      const userId = req.user!.userId;
+
+      if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+        return res.status(400).json({ 
+          error: "Please provide a prompt describing your music video" 
+        });
+      }
+
+      // Validate and set duration (15 seconds to 3 minutes = 180 seconds)
+      const duration = typeof requestedDuration === 'number' 
+        ? Math.max(15, Math.min(180, Math.round(requestedDuration)))
+        : 30; // Default to 30 seconds
+
+      // Validate and set addSubtitles
+      const addSubtitles = requestedAddSubtitles === true || requestedAddSubtitles === 'true';
+      const subtitleStyle = isSubtitleStyle(requestedSubtitleStyle) ? requestedSubtitleStyle : defaultSubtitleStyle;
+      const fontFamily = isGoogleFont(requestedFontFamily) ? requestedFontFamily : defaultGoogleFont;
+      
+      // Validate and set captionPosition (from textPosition)
+      const validTextPositions = ["top", "center", "bottom"];
+      const captionPosition = validTextPositions.includes(requestedTextPosition) ? requestedTextPosition : "bottom";
+
+      const validAspectRatios = ["16:9", "9:16"];
+      const validStyles = ["3d", "cartoon", "realistic", "artistic", "radiant", "anime", "hyperrealistic"];
+      
+      const aspectRatio = validAspectRatios.includes(requestedAspectRatio) ? requestedAspectRatio : "16:9";
+      
+      // Auto-detect style from prompt if not explicitly provided
+      let style: string;
+      if (validStyles.includes(requestedStyle)) {
+        style = requestedStyle;
+      } else {
+        const promptLower = prompt.toLowerCase();
+        if (promptLower.includes("hyper realistic") || promptLower.includes("hyperrealistic") || promptLower.includes("hyper-realistic")) {
+          style = "hyperrealistic";
+          console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Auto-detected hyperrealistic style from prompt`);
+        } else if (promptLower.includes("realistic")) {
+          style = "realistic";
+          console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Auto-detected realistic style from prompt`);
+        } else if (promptLower.includes("anime")) {
+          style = "anime";
+          console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Auto-detected anime style from prompt`);
+        } else if (promptLower.includes("cartoon")) {
+          style = "cartoon";
+          console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Auto-detected cartoon style from prompt`);
+        } else {
+          style = "3d"; // Default
+        }
+      }
+
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Starting video generation for user ${userId}`);
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Prompt: ${prompt}`);
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Aspect Ratio: ${aspectRatio}, Style: ${style}, Duration: ${duration}s, Subtitles: ${addSubtitles}`);
+
+      // Import OpenAI dynamically
+      const OpenAI = (await import("openai")).default;
+      const openaiClient = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
+      // Step 1: Parse prompt with OpenAI
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Step 1: Parsing prompt with OpenAI...`);
+      
+      const parseResponse = await openaiClient.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are a helpful assistant that extracts structured information from music video prompts. 
+            Extract the following from the user's prompt:
+            - character: A detailed description of the main character (appearance, style, personality) - REQUIRED
+            - video_description: What the music video should be about (scenes, mood, story) - REQUIRED
+            - song_title: The title or theme of the song - OPTIONAL (can be null if not specified)
+            
+            Only mark character and video_description as missing if they are truly unclear or absent.
+            Song title is optional and should not be marked as missing.
+            Respond ONLY with valid JSON in this format:
+            {
+              "character": "description or null",
+              "song_title": "title or null", 
+              "video_description": "description or null",
+              "missing": ["list of REQUIRED missing elements only"],
+              "suggestion": "helpful suggestion if anything is missing"
+            }`
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+
+      const parsed = JSON.parse(parseResponse.choices[0].message.content || "{}");
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Parsed prompt:`, parsed);
+
+      const requiredMissing = parsed.missing?.filter((item: string) => item !== 'song_title') || [];
+
+      if (requiredMissing.length > 0) {
+        console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Missing required elements:`, requiredMissing);
+        return res.status(400).json({
+          error: "Incomplete prompt",
+          missing: requiredMissing,
+          suggestion: parsed.suggestion || "Please provide a character description and video description.",
+          example: "Create a music video about a cute little cowboy hamster in the wild west."
+        });
+      }
+
+      // Step 2: Create a new project
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Step 2: Creating project...`);
+      const project = await storage.createProject({
+        userId,
+        title: parsed.song_title || parsed.video_description.substring(0, 50),
+        description: parsed.video_description,
+        aspectRatio: aspectRatio,
+        currentStep: 1,
+        addSubtitles: addSubtitles,
+        subtitleStyle: subtitleStyle,
+        fontFamily: fontFamily,
+        captionPosition: addSubtitles ? captionPosition : undefined
+      } as any);
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Created project ${project.id}`);
+
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "project_creation",
+        message: "Setting up your project...",
+        status: "completed",
+        metadata: {}
+      });
+
+      // Step 3: Generate lyrics and title (required before parallel generation)
+      const lyricsPrompt = parsed.song_title 
+        ? `${parsed.song_title}. ${parsed.video_description}`
+        : parsed.video_description;
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Step 3: Generating lyrics and title with OpenAI...`);
+      
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "lyrics_generation",
+        message: "Writing song lyrics...",
+        status: "progress",
+        metadata: {}
+      });
+      
+      // Generate lyrics for a longer duration to ensure we have enough content
+      const { lyrics, title: aiGeneratedTitle } = await generateLyricsWithTitle(lyricsPrompt, Math.max(duration, 60));
+      await storage.updateProject(project.id, { 
+        audioLyrics: lyrics,
+        title: aiGeneratedTitle,
+        currentStep: 1
+      });
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Generated lyrics (${lyrics.length} chars) and title: ${aiGeneratedTitle}`);
+      
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "lyrics_generation",
+        message: "Lyrics generated successfully",
+        status: "completed",
+        metadata: {}
+      });
+
+      // Calculate number of scenes dynamically based on duration (needed for scene prompts)
+      const { numberOfSegments: numberOfScenes, segmentDurations } = calculateVideoSegments(duration);
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Dynamically calculated ${numberOfScenes} scenes for ${duration}s video (segments: ${segmentDurations.join(', ')}s)`);
+
+      // Step 4: Launch parallel generation - Song, Character Image, and Scene Prompts
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Step 4: Launching parallel generation (song, character, scene prompts)...`);
+      
+      const songTags = parsed.song_title 
+        ? `${parsed.song_title}. ${parsed.video_description}`
+        : parsed.video_description;
+      const songGenerationDuration = Math.max(duration + 30, 60); // Generate at least 30 seconds more than requested, minimum 60 seconds
+
+      // Start song generation
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "song_generation",
+        message: "Creating your song...",
+        status: "progress",
+        metadata: {}
+      });
+
+      // Start character generation
+      validateCharacterGenerationPrompt(parsed.character);
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "character_generation",
+        message: "Creating your character...",
+        status: "progress",
+        metadata: {}
+      });
+
+      // Start scene planning
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "scene_planning",
+        message: "Planning video scenes...",
+        status: "progress",
+        metadata: {}
+      });
+
+      // Launch all three in parallel
+      const [songResult, characterImageResult, scenePromptsResult] = await Promise.all([
+        // Song generation
+        (async () => {
+          try {
+            console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Generating ~${songGenerationDuration}-second song...`);
+            const result = await generateSingleSong(songTags, lyrics, songGenerationDuration, parsed.video_description, 1);
+            console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Song generated: ${result.duration}s (requested: ${songGenerationDuration}s)`);
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "song_generation",
+              message: "Song created successfully",
+              status: "completed",
+              metadata: {}
+            });
+            return result;
+          } catch (error) {
+            console.error(`[NEON-SINGLE-PROMPT-CUSTOM] Song generation failed:`, error);
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "song_generation",
+              message: `Song generation failed: ${(error as Error).message}`,
+              status: "error",
+              metadata: { error: (error as Error).message },
+            });
+            throw error;
+          }
+        })(),
+        
+        // Character image generation
+        (async () => {
+          try {
+            let characterImageUrl: string;
+            
+            if (style === "hyperrealistic") {
+              console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Generating realistic base image for "${parsed.character}" with aspectRatio: ${aspectRatio}...`);
+              const realisticImageUrls = await generateCharacterImages(parsed.character, aspectRatio, "realistic");
+              const realisticImageUrl = realisticImageUrls[0];
+              
+              console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Enhancing to hyper realistic...`);
+              const enhancedImageUrl = await enhanceImageHyperReal(realisticImageUrl, parsed.character);
+              const storedImage = await downloadAndStoreImage(enhancedImageUrl, "characters");
+              characterImageUrl = storedImage.storedUrl;
+              console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Hyper realistic character image generated: ${characterImageUrl}`);
+            } else {
+              console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Generating character image for "${parsed.character}" with aspectRatio: ${aspectRatio}, style: ${style}...`);
+              const characterImageUrls = await generateCharacterImages(parsed.character, aspectRatio, style);
+              characterImageUrl = characterImageUrls[0];
+              console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Character image generated`);
+            }
+            
+            await storage.updateProject(project.id, { 
+              characterImageUrl,
+              currentStep: 3
+            });
+            
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "character_generation",
+              message: "Character created successfully",
+              status: "completed",
+              metadata: {}
+            });
+            
+            return characterImageUrl;
+          } catch (error) {
+            console.error(`[NEON-SINGLE-PROMPT-CUSTOM] Character generation failed:`, error);
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "character_generation",
+              message: `Character generation failed: ${(error as Error).message}`,
+              status: "error",
+              metadata: { error: (error as Error).message },
+            });
+            throw error;
+          }
+        })(),
+        
+        // Scene prompts generation
+        (async () => {
+          try {
+            console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Generating scene prompts...`);
+            const prompts = await generateScenePrompts(
+              parsed.video_description,
+              numberOfScenes
+            );
+            console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Generated ${prompts.length} scene prompts`);
+            
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "scene_planning",
+              message: "Scene planning completed",
+              status: "completed",
+              metadata: {}
+            });
+            
+            return prompts;
+          } catch (error) {
+            console.error(`[NEON-SINGLE-PROMPT-CUSTOM] Scene prompts generation failed:`, error);
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "scene_planning",
+              message: `Scene planning failed: ${(error as Error).message}`,
+              status: "error",
+              metadata: { error: (error as Error).message },
+            });
+            throw error;
+          }
+        })()
+      ]);
+
+      const characterImageUrl = characterImageResult;
+      const scenePrompts = scenePromptsResult;
+
+      // Step 5: Generate scene images (needs character image URL)
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Step 5: Generating scene images with aspectRatio: ${aspectRatio}...`);
+      
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "scene_generation",
+        message: `Creating ${numberOfScenes} video scenes...`,
+        status: "progress",
+        metadata: { sceneCount: numberOfScenes }
+      });
+      
+      const sceneImages = await generateSceneImages(
+        scenePrompts,
+        characterImageUrl,
+        aspectRatio
+      );
+
+      await storage.updateProject(project.id, {
+        scenePrompts: scenePrompts,
+        sceneImages: sceneImages,
+        currentStep: 4
+      });
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Generated ${sceneImages.length} scene images`);
+      
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "scene_generation",
+        message: "Scenes created successfully",
+        status: "completed",
+        metadata: {}
+      });
+
+      // Step 6: Generate subtitles on full song first (before trimming) - if requested
+      // This ensures accurate forced alignment, then we'll trim the subtitles to match trimmed audio
+      let fullSongSubtitleAssContent: string | null = null;
+      if (addSubtitles && lyrics) {
+        try {
+          console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Step 6a: Generating subtitles on full song for accurate alignment...`);
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "subtitle_generation",
+            message: "Creating captions...",
+            status: "progress",
+            metadata: {}
+          });
+
+          // Do forced alignment on the FULL song with full lyrics for better accuracy
+          const alignmentResponse = await createForcedAlignment(songResult.audioUrl, lyrics);
+          fullSongSubtitleAssContent = convertElevenLabsAlignmentToASS(alignmentResponse);
+          
+          console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Forced alignment completed on full song (${alignmentResponse.words?.length || 0} words)`);
+        } catch (subtitleError) {
+          console.error(`[NEON-SINGLE-PROMPT-CUSTOM] Failed to generate subtitles on full song:`, subtitleError);
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "subtitle_generation",
+            message: `Subtitle generation failed: ${(subtitleError as Error).message}`,
+            status: "warning",
+            metadata: { error: (subtitleError as Error).message },
+          });
+        }
+      }
+
+      // Step 6b: Trim audio from 0 to specified duration
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Step 6b: Trimming audio from 0s to ${duration}s...`);
+      
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "audio_trimming",
+        message: "Preparing audio...",
+        status: "progress",
+        metadata: {}
+      });
+      const { splitAudioByTime } = await import("./services/ffmpeg");
+      const trimResult = await splitAudioByTime(songResult.audioUrl, 0, duration * 1000); // Convert to milliseconds
+      
+      // Download the trimmed audio
+      const trimmedResponse = await fetch(trimResult.download_url);
+      const trimmedBuffer = Buffer.from(await trimmedResponse.arrayBuffer());
+
+      // Upload trimmed audio to object storage
+      const objectStorageService = new ObjectStorageService();
+      const trimmedAudioPath = `songs/${crypto.randomUUID()}.mp3`;
+      const uploadedUrl = await objectStorageService.uploadAudioBuffer(trimmedBuffer, trimmedAudioPath);
+      
+      // If ImageKit is configured, uploadedUrl is already the full ImageKit URL, so use it directly
+      // Otherwise, get a signed URL from Google Cloud Storage
+      const trimmedAudioUrl = uploadedUrl.startsWith('http') 
+        ? uploadedUrl 
+        : await objectStorageService.getSignedUrlForPath(uploadedUrl, 86400);
+      
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Audio trimmed and uploaded: ${trimmedAudioUrl}`);
+      
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "audio_trimming",
+        message: "Audio prepared successfully",
+        status: "completed",
+        metadata: {}
+      });
+
+      // Step 7: Trim subtitles to match trimmed audio (if we have subtitles)
+      let subtitleFileUrl = null;
+      if (addSubtitles && fullSongSubtitleAssContent) {
+        try {
+          console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Step 7: Trimming subtitles to match trimmed audio (0s to ${duration}s)...`);
+          
+          // Import trimAssToWindow function
+          const { trimAssToWindow } = await import("./services/captions");
+          
+          // Trim subtitles to match the trimmed audio window (0 to duration seconds)
+          const trimmedAssContent = trimAssToWindow(
+            fullSongSubtitleAssContent,
+            0, // Start at 0 seconds
+            duration * 1000 // End at duration (convert to milliseconds)
+          );
+          
+          const songId = trimmedAudioPath.split('/').pop()?.replace(/\.[^/.]+$/, '') || undefined;
+          subtitleFileUrl = await storeElevenLabsSubtitleFile(trimmedAssContent, songId);
+          
+          console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Subtitles trimmed and stored: ${subtitleFileUrl}`);
+          
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "subtitle_generation",
+            message: "Captions created successfully",
+            status: "completed",
+            metadata: { subtitleFileUrl }
+          });
+        } catch (subtitleError) {
+          console.error(`[NEON-SINGLE-PROMPT-CUSTOM] Failed to trim subtitles:`, subtitleError);
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "subtitle_generation",
+            message: `Subtitle trimming failed: ${(subtitleError as Error).message}`,
+            status: "warning",
+            metadata: { error: (subtitleError as Error).message },
+          });
+        }
+      }
+
+      await storage.updateProject(project.id, { 
+        audioUrl: trimmedAudioUrl,
+        audioDuration: duration, // Use the requested duration, not the actual song duration
+        currentStep: 2,
+        subtitleFileUrl: subtitleFileUrl,
+        addSubtitles: addSubtitles && !!subtitleFileUrl
+      } as any);
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Trimmed audio and subtitles saved (${duration} seconds)`);
+
+      // Step 8: Generate final video (waits for all components: audio, scenes, subtitles)
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Step 8: Generating final music video...`);
+      
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "video_generation",
+        message: "Assembling your final video...",
+        status: "progress",
+        metadata: {}
+      });
+      
+      await storage.updateProject(project.id, {
+        currentStep: 5,
+        isCompleted: false
+      });
+
+      // Trigger video generation asynchronously
+      (async () => {
+        try {
+          const videoGenResponse = await fetch(`http://localhost:5000/api/projects/${project.id}/generate-video`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            }
+          });
+
+          if (videoGenResponse.ok) {
+            console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Video generation completed for project ${project.id}`);
+          } else {
+            const errorData = await videoGenResponse.json();
+            console.error(`[NEON-SINGLE-PROMPT-CUSTOM] Video generation failed with status ${videoGenResponse.status}:`, errorData);
+          }
+        } catch (error) {
+          console.error(`[NEON-SINGLE-PROMPT-CUSTOM] Video generation failed:`, error);
+        }
+      })();
+
+      console.log(`[NEON-SINGLE-PROMPT-CUSTOM] ✅ All steps completed! Project ${project.id} is processing final video.`);
+
+      res.json({
+        success: true,
+        projectId: project.id,
+        message: "Music video generation started! The video is being created in the background.",
+        details: {
+          character: parsed.character,
+          song_title: parsed.song_title,
+          video_description: parsed.video_description,
+          lyrics: lyrics.substring(0, 100) + "...",
+          sceneCount: sceneImages.length,
+          duration: duration,
+          subtitles: addSubtitles && !!subtitleFileUrl
+        }
+      });
+
+    } catch (error) {
+      console.error("[NEON-SINGLE-PROMPT-CUSTOM] Error:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to generate music video"
+      });
+    }
+  });
+
+  // CORS preflight for instrumental endpoint
+  app.options("/api/instrumental", (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.sendStatus(204);
+  });
+
+  // Instrumental: Generate instrumental music video with optional text overlay
+  app.post("/api/instrumental", extractTokenFromUrl, authenticateToken, async (req, res) => {
+    // Set CORS headers
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    try {
+      const { 
+        description, 
+        tags, 
+        aspectRatio: requestedAspectRatio, 
+        duration: requestedDuration, 
+        textOverlay,
+        textPosition,
+        addSubtitles: requestedAddSubtitles, 
+        subtitleStyle: requestedSubtitleStyle,
+        fontFamily: requestedFontFamily,
+        audioUrl: providedAudioUrl,
+        projectId: providedProjectId,
+        subtitleFileUrl: providedSubtitleFileUrl,
+        isLyricVideo: requestedIsLyricVideo
+      } = req.body;
+      const userId = req.user!.userId;
+
+      // If audioUrl and projectId are provided, this is an uploaded song - skip validation
+      const isUploadedSong = providedAudioUrl && providedProjectId;
+      
+      if (!isUploadedSong) {
+        if (!description || typeof description !== 'string' || description.trim().length === 0) {
+          return res.status(400).json({ 
+            error: "Please provide a description for your song" 
+          });
+        }
+
+        if (!tags || typeof tags !== 'string' || tags.trim().length === 0) {
+          return res.status(400).json({ 
+            error: "Please provide musical tags for your song" 
+          });
+        }
+      }
+
+      // Validate and set duration (15 seconds to 3 minutes = 180 seconds)
+      const duration = typeof requestedDuration === 'number' 
+        ? Math.max(15, Math.min(180, Math.round(requestedDuration)))
+        : 30; // Default to 30 seconds
+
+      // Treat any non-empty text overlay as an explicit caption request for instrumental mode.
+      // This prevents silent "no captions" flows when the toggle state is out-of-sync.
+      const normalizedTextOverlay = typeof textOverlay === "string" ? textOverlay.trim() : "";
+      const hasTextOverlay = normalizedTextOverlay.length > 0;
+      const addSubtitlesRequested = requestedAddSubtitles === true || requestedAddSubtitles === 'true';
+      const addSubtitles = addSubtitlesRequested || hasTextOverlay;
+      const subtitleStyle = isSubtitleStyle(requestedSubtitleStyle) ? requestedSubtitleStyle : defaultSubtitleStyle;
+      const fontFamily = isGoogleFont(requestedFontFamily) ? requestedFontFamily : defaultGoogleFont;
+
+      const validAspectRatios = ["16:9", "9:16"];
+      const aspectRatio = validAspectRatios.includes(requestedAspectRatio) ? requestedAspectRatio : "9:16";
+      
+      const validTextPositions = ["top", "center", "bottom"];
+      const overlayPosition = validTextPositions.includes(textPosition) ? textPosition : "bottom";
+
+      console.log(`[INSTRUMENTAL] Starting video generation for user ${userId}`);
+      if (!isUploadedSong) {
+        console.log(`[INSTRUMENTAL] Description: ${description}`);
+        console.log(`[INSTRUMENTAL] Tags: ${tags}`);
+      } else {
+        console.log(`[INSTRUMENTAL] Using uploaded audio: ${providedAudioUrl}`);
+      }
+      console.log(`[INSTRUMENTAL] Aspect Ratio: ${aspectRatio}, Duration: ${duration}s`);
+      console.log(`[INSTRUMENTAL] Text Overlay: ${hasTextOverlay ? 'Yes' : 'No'}, Position: ${overlayPosition}`);
+      console.log(`[INSTRUMENTAL] Captions requested: ${addSubtitlesRequested}, effective caption mode: ${addSubtitles}`);
+
+      // Step 1: Get or create project
+      let project;
+      if (isUploadedSong && providedProjectId) {
+        // Use existing project
+        console.log(`[INSTRUMENTAL] Step 1: Using existing project ${providedProjectId}...`);
+        project = await storage.getProject(providedProjectId);
+        if (!project || project.userId !== userId) {
+          return res.status(404).json({ error: "Project not found" });
+        }
+        // Force instrumental mode even when reusing an existing project.
+        // This guarantees downstream video generation uses regular scene video
+        // (seedance) and never lipsync (infinitetalk/multitalk).
+        await storage.updateProject(project.id, {
+          subtitleStyle: subtitleStyle,
+          fontFamily: fontFamily,
+          addSubtitles: addSubtitles,
+          isInstrumental: true,
+          aspectRatio: aspectRatio,
+        } as any);
+      } else {
+        // Create a new project
+        console.log(`[INSTRUMENTAL] Step 1: Creating project...`);
+        project = await storage.createProject({
+          userId,
+          title: (description || "Instrumental Video").substring(0, 50),
+          description: description || "Instrumental video with uploaded song",
+          aspectRatio: aspectRatio,
+          currentStep: 1,
+          addSubtitles: addSubtitles,
+          subtitleStyle: subtitleStyle,
+          fontFamily: fontFamily,
+          isInstrumental: true // Mark as instrumental project
+        } as any);
+        console.log(`[INSTRUMENTAL] Created project ${project.id}`);
+      }
+
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "project_creation",
+        message: "Setting up your project...",
+        status: "completed",
+        metadata: {}
+      });
+
+      // Return immediately so frontend can start polling
+      res.json({ 
+        success: true,
+        projectId: project.id,
+        message: "Instrumental video generation started! The video is being created in the background."
+      });
+
+      // Continue processing asynchronously so frontend can see progress in real-time
+      (async () => {
+        try {
+          let trimmedAudioUrl: string;
+          
+          if (isUploadedSong && providedAudioUrl) {
+            // Use the provided uploaded/trimmed audio
+            console.log(`[INSTRUMENTAL] Step 2: Using uploaded audio (skipping song generation)...`);
+            trimmedAudioUrl = providedAudioUrl;
+            
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "song_generation",
+              message: "Using uploaded song",
+              status: "completed",
+              metadata: {}
+            });
+            
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "audio_trimming",
+              message: "Audio prepared successfully",
+              status: "completed",
+              metadata: {}
+            });
+          } else {
+            // Step 2: Generate instrumental song
+            console.log(`[INSTRUMENTAL] Step 2: Generating instrumental song...`);
+            
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "song_generation",
+              message: "Creating your instrumental song...",
+              status: "progress",
+              metadata: {}
+            });
+            
+            // Generate a longer song to ensure we have enough audio to trim from
+            const songGenerationDuration = Math.max(duration + 30, 60);
+            const songResult = await generateInstrumentalSong(description, tags, songGenerationDuration);
+            const actualSongDuration = songResult.duration;
+            console.log(`[INSTRUMENTAL] Song generated: ${actualSongDuration}s (requested: ${songGenerationDuration}s)`);
+            
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "song_generation",
+              message: "Instrumental song created successfully",
+              status: "completed",
+              metadata: {}
+            });
+            
+            // Step 3: Trim audio from 0 to specified duration
+            console.log(`[INSTRUMENTAL] Step 3: Trimming audio from 0s to ${duration}s...`);
+            
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "audio_trimming",
+              message: "Preparing audio...",
+              status: "progress",
+              metadata: {}
+            });
+            const { splitAudioByTime } = await import("./services/ffmpeg");
+            const trimResult = await splitAudioByTime(songResult.audioUrl, 0, duration * 1000); // Convert to milliseconds
+            
+            // Download the trimmed audio
+            const trimmedResponse = await fetch(trimResult.download_url);
+            const trimmedBuffer = Buffer.from(await trimmedResponse.arrayBuffer());
+
+            // Upload trimmed audio to object storage
+            const objectStorageService = new ObjectStorageService();
+            const trimmedAudioPath = `songs/${crypto.randomUUID()}.mp3`;
+            const uploadedUrl = await objectStorageService.uploadAudioBuffer(trimmedBuffer, trimmedAudioPath);
+            
+            trimmedAudioUrl = uploadedUrl.startsWith('http') 
+              ? uploadedUrl 
+              : await objectStorageService.getSignedUrlForPath(uploadedUrl, 86400);
+            
+            console.log(`[INSTRUMENTAL] Audio trimmed and uploaded: ${trimmedAudioUrl}`);
+            
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "audio_trimming",
+              message: "Audio prepared successfully",
+              status: "completed",
+              metadata: {}
+            });
+          }
+
+      // Step 4: Generate subtitles if requested (optional, since no lyrics)
+      let subtitleFileUrl = null;
+      
+      // For instrumental videos, always use text overlay for captions (never use forced alignment from uploaded songs)
+      // If subtitleFileUrl is provided (from uploaded/trimmed audio), ignore it for instrumental projects
+      // and use text overlay instead
+      if (isUploadedSong && providedSubtitleFileUrl && addSubtitles && !hasTextOverlay) {
+        // Only use provided subtitle file if there's no text overlay (shouldn't happen for instrumental, but safety check)
+        subtitleFileUrl = providedSubtitleFileUrl;
+        console.log(`[INSTRUMENTAL] Using provided subtitle file from trimmed audio: ${subtitleFileUrl}`);
+        await storage.addGenerationLog({
+          projectId: project.id,
+          step: "subtitle_generation",
+          message: "Using subtitles from trimmed audio",
+          status: "completed",
+          metadata: { subtitleFileUrl }
+        });
+      } else if (addSubtitles && hasTextOverlay) {
+        // Generate subtitles from text overlay (for AI generated songs)
+        try {
+          console.log(`[INSTRUMENTAL] Step 4: Generating subtitles from text overlay...`);
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "subtitle_generation",
+            message: "Creating captions...",
+            status: "progress",
+            metadata: {}
+          });
+
+          // Create simple ASS subtitle file from text overlay
+          const lines = normalizedTextOverlay.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+          let assContent = "[Script Info]\nTitle: Instrumental Video\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,Arial,60,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n";
+          
+          lines.forEach((line, index) => {
+            const startTime = index * 5;
+            const endTime = (index + 1) * 5;
+            const startTimeStr = formatAssTime(startTime);
+            const endTimeStr = formatAssTime(endTime);
+            assContent += `Dialogue: 0,${startTimeStr},${endTimeStr},Default,,0,0,0,,${line}\n`;
+          });
+
+          function formatAssTime(seconds: number): string {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            const centiseconds = Math.floor((seconds % 1) * 100);
+            return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
+          }
+          
+          // Use a stable project-based identifier for subtitle storage in instrumental flows.
+          const songId = project.id;
+          subtitleFileUrl = await storeSubtitleFile(assContent, songId);
+          
+          console.log(`[INSTRUMENTAL] Subtitles generated: ${subtitleFileUrl}`);
+          
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "subtitle_generation",
+            message: "Captions created successfully",
+            status: "completed",
+            metadata: { subtitleFileUrl, lineCount: lines.length }
+          });
+        } catch (subtitleError) {
+          console.error(`[INSTRUMENTAL] Failed to generate subtitles:`, subtitleError);
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "subtitle_generation",
+            message: `Subtitle generation failed: ${(subtitleError as Error).message}`,
+            status: "warning",
+            metadata: { error: (subtitleError as Error).message },
+          });
+        }
+      }
+
+      await storage.updateProject(project.id, {
+        audioUrl: trimmedAudioUrl,
+        audioDuration: duration,
+        currentStep: 2,
+        subtitleFileUrl: subtitleFileUrl,
+        addSubtitles: addSubtitles && !!subtitleFileUrl,
+        subtitleStyle: subtitleStyle, // Ensure subtitle style is saved
+        fontFamily: fontFamily, // Ensure font family is saved
+        captionPosition: addSubtitles ? overlayPosition : undefined // Save caption position for instrumental videos
+      } as any);
+      console.log(`[INSTRUMENTAL] Trimmed audio and subtitles saved (${duration} seconds)`);
+
+      // Step 5: Generate scene prompts (skip character generation)
+      const { numberOfSegments: numberOfScenes, segmentDurations } = calculateVideoSegments(duration);
+      console.log(`[INSTRUMENTAL] Dynamically calculated ${numberOfScenes} scenes for ${duration}s video (segments: ${segmentDurations.join(', ')}s)`);
+
+      const isLyricVideo = requestedIsLyricVideo === true || requestedIsLyricVideo === 'true';
+      
+      console.log(`[INSTRUMENTAL] Step 5: Generating scene prompts... (isLyricVideo: ${isLyricVideo})`);
+      
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "scene_planning",
+        message: "Planning video scenes...",
+        status: "progress",
+        metadata: {}
+      });
+      
+      const scenePrompts = isLyricVideo
+        ? await generateLyricVideoScenePrompts(description, numberOfScenes)
+        : await generateInstrumentalScenePrompts(description, numberOfScenes);
+      
+      console.log(`[INSTRUMENTAL] Generated ${scenePrompts.length} ${isLyricVideo ? 'lyric video' : 'instrumental'} scene prompts`);
+
+      // Step 6: Generate scene images using text-to-image (no character image needed)
+      console.log(`[INSTRUMENTAL] Step 6: Generating scene images with aspectRatio: ${aspectRatio}...`);
+      
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "scene_generation",
+        message: `Creating ${numberOfScenes} video scenes...`,
+        status: "progress",
+        metadata: { sceneCount: numberOfScenes }
+      });
+      
+      // Generate scene images directly from text prompts using seedream-v4/sequential
+      const sceneImages = await generateSceneImagesFromText(
+        scenePrompts,
+        aspectRatio
+      );
+
+      await storage.updateProject(project.id, {
+        scenePrompts: scenePrompts,
+        sceneImages: sceneImages,
+        currentStep: 3
+      });
+      console.log(`[INSTRUMENTAL] Generated ${sceneImages.length} scene images`);
+      
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "scene_generation",
+        message: "Scenes created successfully",
+        status: "completed",
+        metadata: {}
+      });
+
+      // Step 7: Generate final video
+      console.log(`[INSTRUMENTAL] Step 7: Generating final music video...`);
+      
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "video_generation",
+        message: "Assembling your final video...",
+        status: "progress",
+        metadata: {}
+      });
+      
+      await storage.updateProject(project.id, {
+        currentStep: 4,
+        isCompleted: false
+      });
+
+      // Store text overlay in project if provided
+      if (hasTextOverlay) {
+        await storage.updateProject(project.id, {
+          textOverlay: normalizedTextOverlay
+        } as any);
+      }
+
+      // Trigger video generation asynchronously
+      (async () => {
+        try {
+          // First generate the base video
+          const videoGenResponse = await fetch(`http://localhost:5000/api/projects/${project.id}/generate-video`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            }
+          });
+
+          if (videoGenResponse.ok) {
+            // Wait for video to be generated and get finalVideoUrl from project
+            // Poll the project until finalVideoUrl is available
+            let finalVideoUrl: string | null = null;
+            let attempts = 0;
+            const maxAttempts = 60; // Wait up to 5 minutes (60 * 5 seconds)
+            
+            while (attempts < maxAttempts && !finalVideoUrl) {
+              await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+              const updatedProject = await storage.getProject(project.id);
+              if (updatedProject?.finalVideoUrl) {
+                finalVideoUrl = updatedProject.finalVideoUrl;
+                break;
+              }
+              attempts++;
+            }
+
+            // Check one more time after polling ends (handles race condition where video completes right after timeout)
+            if (!finalVideoUrl) {
+              const finalCheckProject = await storage.getProject(project.id);
+              if (finalCheckProject?.finalVideoUrl) {
+                finalVideoUrl = finalCheckProject.finalVideoUrl;
+                console.log(`[INSTRUMENTAL] Found finalVideoUrl after polling ended: ${finalVideoUrl}`);
+              }
+            }
+
+            const latestProjectForPostProcess = await storage.getProject(project.id);
+            const hasRenderedSubtitleSource =
+              !!latestProjectForPostProcess?.addSubtitles &&
+              !!latestProjectForPostProcess?.subtitleFileUrl;
+
+            // Post-process text overlay only for non-caption flows.
+            // If captions were requested, never run a second overwrite pass.
+            if (hasTextOverlay && finalVideoUrl && !hasRenderedSubtitleSource && !addSubtitles) {
+              console.log(`[INSTRUMENTAL] Rendering text overlay at position: ${overlayPosition}`);
+              
+              await storage.addGenerationLog({
+                projectId: project.id,
+                step: "video_generation",
+                message: `Rendering text overlay (${overlayPosition})...`,
+                status: "progress",
+                metadata: {}
+              });
+
+              try {
+                const projectFontFamily = (project as any).fontFamily || defaultGoogleFont;
+                const textOverlayVideoPath = await renderVideoWithTextOverlay({
+                  videoSrc: finalVideoUrl,
+                  textOverlay: textOverlay.trim(),
+                  textPosition: overlayPosition,
+                  aspectRatio: aspectRatio,
+                  audioDurationSeconds: duration,
+                  fontFamily: isGoogleFont(projectFontFamily) ? projectFontFamily : defaultGoogleFont,
+                });
+
+                if (textOverlayVideoPath) {
+                  let finalVideoPath = textOverlayVideoPath;
+                  let finalVideoUrl: string;
+
+                  // Check if TikTok captions should be rendered on top of text overlay
+                  const updatedProject = await storage.getProject(project.id);
+                  console.log(`[INSTRUMENTAL] Checking if TikTok captions should be rendered...`);
+                  console.log(`[INSTRUMENTAL] Project addSubtitles: ${updatedProject?.addSubtitles}`);
+                  console.log(`[INSTRUMENTAL] Project subtitleFileUrl: ${updatedProject?.subtitleFileUrl || 'none'}`);
+                  
+                  if (updatedProject) {
+                    const projectSubtitleStyle = normalizeSubtitleStyle((updatedProject as any).subtitleStyle);
+                    console.log(`[INSTRUMENTAL] Project subtitle style: ${projectSubtitleStyle}`);
+                    const shouldRenderTikTokCaptions =
+                      updatedProject.addSubtitles &&
+                      isTikTokSubtitleStyle(projectSubtitleStyle) &&
+                      !!updatedProject.subtitleFileUrl;
+
+                    console.log(`[INSTRUMENTAL] shouldRenderTikTokCaptions: ${shouldRenderTikTokCaptions}`);
+
+                    if (shouldRenderTikTokCaptions && updatedProject.subtitleFileUrl) {
+                      try {
+                        console.log(`[INSTRUMENTAL] Rendering TikTok captions on text overlay video...`);
+                        console.log(`[INSTRUMENTAL] Text overlay video path: ${textOverlayVideoPath}`);
+                        await storage.addGenerationLog({
+                          projectId: project.id,
+                          step: "video_generation",
+                          message: `Rendering TikTok-style captions (${projectSubtitleStyle})...`,
+                          status: "progress",
+                          metadata: { captionStyle: projectSubtitleStyle },
+                        });
+
+                        // Load subtitle file content
+                        let subtitleAssContent: string | null = null;
+                        if (updatedProject.subtitleFileUrl.startsWith("http://") || updatedProject.subtitleFileUrl.startsWith("https://")) {
+                          console.log(`[INSTRUMENTAL] Fetching subtitle file from URL: ${updatedProject.subtitleFileUrl}`);
+                          const subtitleResponse = await fetch(updatedProject.subtitleFileUrl);
+                          if (subtitleResponse.ok) {
+                            subtitleAssContent = await subtitleResponse.text();
+                            console.log(`[INSTRUMENTAL] Loaded subtitle file from URL: ${updatedProject.subtitleFileUrl}, length: ${subtitleAssContent.length} chars`);
+                          } else {
+                            console.warn(`[INSTRUMENTAL] Failed to fetch subtitle file: ${subtitleResponse.status} ${subtitleResponse.statusText}`);
+                          }
+                        } else {
+                          console.warn(`[INSTRUMENTAL] Subtitle file URL is not HTTP/HTTPS: ${updatedProject.subtitleFileUrl}`);
+                        }
+
+                        if (subtitleAssContent) {
+                          const captionPosition = ((updatedProject as any).captionPosition || "bottom") as "top" | "center" | "bottom";
+                          const projectFontFamily = (updatedProject as any).fontFamily || defaultGoogleFont;
+                          
+                          console.log(`[INSTRUMENTAL] Uploading text overlay video to get URL for Remotion caption rendering...`);
+                          
+                          // Upload text overlay video temporarily to get a URL for Remotion
+                          // Remotion requires HTTP/HTTPS URLs, not local file paths
+                          const textOverlayVideoBuffer = fs.readFileSync(textOverlayVideoPath);
+                          const tempVideoFileName = `temp-text-overlay-${crypto.randomUUID()}.mp4`;
+                          const objectStorageService = new ObjectStorageService();
+                          const uploadedTempVideoUrl = await objectStorageService.uploadVideoBuffer(
+                            textOverlayVideoBuffer,
+                            tempVideoFileName
+                          );
+                          
+                          const textOverlayVideoUrl = uploadedTempVideoUrl.startsWith('http')
+                            ? uploadedTempVideoUrl
+                            : await objectStorageService.getSignedUrlForPath(uploadedTempVideoUrl, 3600); // 1 hour expiry
+                          
+                          console.log(`[INSTRUMENTAL] Text overlay video uploaded: ${textOverlayVideoUrl}`);
+                          console.log(`[INSTRUMENTAL] Calling renderVideoWithTikTokCaptions with:`);
+                          console.log(`[INSTRUMENTAL]   videoSrc: ${textOverlayVideoUrl}`);
+                          console.log(`[INSTRUMENTAL]   subtitleStyle: ${projectSubtitleStyle}`);
+                          console.log(`[INSTRUMENTAL]   captionPosition: ${captionPosition}`);
+                          console.log(`[INSTRUMENTAL]   fontFamily: ${projectFontFamily}`);
+                          console.log(`[INSTRUMENTAL]   aspectRatio: ${aspectRatio}`);
+                          console.log(`[INSTRUMENTAL]   audioDurationSeconds: ${duration}`);
+                          
+                          const captionedVideoPath = await renderVideoWithTikTokCaptions({
+                            videoSrc: textOverlayVideoUrl, // Use uploaded URL for Remotion
+                            assContent: subtitleAssContent,
+                            subtitleStyle: projectSubtitleStyle,
+                            aspectRatio: aspectRatio,
+                            audioDurationSeconds: duration,
+                            captionPosition: captionPosition,
+                            fontFamily: isGoogleFont(projectFontFamily) ? projectFontFamily : defaultGoogleFont,
+                          });
+
+                          if (captionedVideoPath) {
+                            // Clean up the text overlay video (we'll use the captioned one)
+                            deleteRenderedVideoIfExists(textOverlayVideoPath);
+                            finalVideoPath = captionedVideoPath;
+                            console.log(`[INSTRUMENTAL] TikTok captions rendered successfully: ${captionedVideoPath}`);
+                          } else {
+                            console.warn(`[INSTRUMENTAL] TikTok caption rendering returned null, using text overlay video`);
+                          }
+                        } else {
+                          console.warn(`[INSTRUMENTAL] Could not load subtitle content for TikTok captions`);
+                        }
+                      } catch (captionError) {
+                        console.error(`[INSTRUMENTAL] Failed to render TikTok captions:`, captionError);
+                        console.error(`[INSTRUMENTAL] Error stack:`, (captionError as Error).stack);
+                        await storage.addGenerationLog({
+                          projectId: project.id,
+                          step: "video_generation",
+                          message: `TikTok caption rendering failed: ${(captionError as Error).message}`,
+                          status: "warning",
+                          metadata: { error: (captionError as Error).message },
+                        });
+                        // Continue with text overlay video if caption rendering fails
+                      }
+                    } else {
+                      console.log(`[INSTRUMENTAL] TikTok captions not needed or conditions not met:`);
+                      console.log(`[INSTRUMENTAL]   addSubtitles: ${updatedProject.addSubtitles}`);
+                      console.log(`[INSTRUMENTAL]   isTikTokStyle: ${isTikTokSubtitleStyle(projectSubtitleStyle)}`);
+                      console.log(`[INSTRUMENTAL]   hasSubtitleFileUrl: ${!!updatedProject.subtitleFileUrl}`);
+                    }
+                  } else {
+                    console.warn(`[INSTRUMENTAL] Could not load updated project for caption rendering`);
+                  }
+
+                  // Upload the final video (text overlay + captions if applicable)
+                  const finalVideoBuffer = fs.readFileSync(finalVideoPath);
+                  const finalVideoFileName = `videos/${crypto.randomUUID()}.mp4`;
+                  const objectStorageService = new ObjectStorageService();
+                  const uploadedFinalVideoUrl = await objectStorageService.uploadVideoBuffer(
+                    finalVideoBuffer,
+                    finalVideoFileName
+                  );
+                  
+                  finalVideoUrl = uploadedFinalVideoUrl.startsWith('http')
+                    ? uploadedFinalVideoUrl
+                    : await objectStorageService.getSignedUrlForPath(uploadedFinalVideoUrl, 86400 * 7); // 7 days
+
+                  // Clean up temporary file
+                  deleteRenderedVideoIfExists(finalVideoPath);
+
+                  // Update project with final video URL
+                  await storage.updateProject(project.id, {
+                    finalVideoUrl: finalVideoUrl,
+                    isCompleted: true,
+                    currentStep: 5
+                  });
+
+                  await storage.addGenerationLog({
+                    projectId: project.id,
+                    step: "video_generation",
+                    message: "Video with text overlay and captions completed successfully",
+                    status: "completed",
+                    metadata: {}
+                  });
+                }
+              } catch (textOverlayError) {
+                console.error(`[INSTRUMENTAL] Text overlay rendering failed:`, textOverlayError);
+                // Continue with base video if text overlay fails
+                await storage.addGenerationLog({
+                  projectId: project.id,
+                  step: "video_generation",
+                  message: `Text overlay rendering failed, using base video: ${(textOverlayError as Error).message}`,
+                  status: "warning",
+                  metadata: { error: (textOverlayError as Error).message },
+                });
+              }
+            } else if (finalVideoUrl) {
+              if (hasRenderedSubtitleSource) {
+                console.log(`[INSTRUMENTAL] Skipping text-overlay post-process because Remotion captions are already rendered in generate-video`);
+              } else {
+                // No text overlay, just mark as completed
+                // Note: finalVideoUrl should already be set by the video generation endpoint,
+                // but we ensure isCompleted is set here as well
+                await storage.updateProject(project.id, {
+                  isCompleted: true,
+                  currentStep: 5
+                });
+                console.log(`[INSTRUMENTAL] Marked project ${project.id} as completed (no text overlay)`);
+              }
+            } else {
+              // Polling timed out - check if video generation endpoint already completed it
+              const timeoutCheckProject = await storage.getProject(project.id);
+              if (timeoutCheckProject?.finalVideoUrl && timeoutCheckProject?.isCompleted) {
+                console.log(`[INSTRUMENTAL] Project ${project.id} was already marked as completed by video generation endpoint`);
+              } else {
+                console.warn(`[INSTRUMENTAL] Polling timed out for project ${project.id} - video may still be generating. finalVideoUrl: ${timeoutCheckProject?.finalVideoUrl || 'null'}, isCompleted: ${timeoutCheckProject?.isCompleted || false}`);
+                await storage.addGenerationLog({
+                  projectId: project.id,
+                  step: "video_generation",
+                  message: "Video generation is taking longer than expected. It will appear in My Videos once complete.",
+                  status: "progress",
+                  metadata: { pollingTimeout: true, maxAttempts }
+                });
+              }
+            }
+
+            console.log(`[INSTRUMENTAL] Video generation completed for project ${project.id}`);
+          } else {
+            const errorData = await videoGenResponse.json();
+            console.error(`[INSTRUMENTAL] Video generation failed with status ${videoGenResponse.status}:`, errorData);
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "video_generation",
+              message: `Video generation failed: ${errorData.error || errorData.message || 'Unknown error'}`,
+              status: "error",
+              metadata: { error: errorData.error || errorData.message }
+            });
+          }
+        } catch (error) {
+          console.error(`[INSTRUMENTAL] Video generation failed:`, error);
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: `Video generation error: ${(error as Error).message}`,
+            status: "error",
+            metadata: { error: (error as Error).message }
+          });
+        }
+      })();
+
+          console.log(`[INSTRUMENTAL] ✅ All steps completed! Project ${project.id} is processing final video.`);
+        } catch (asyncError) {
+          console.error(`[INSTRUMENTAL] Async processing error:`, asyncError);
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "error",
+            message: `Error during video generation: ${(asyncError as Error).message}`,
+            status: "error",
+            metadata: { error: (asyncError as Error).message }
+          });
+        }
+      })();
+
+    } catch (error) {
+      console.error("[INSTRUMENTAL] Error:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to generate instrumental video"
       });
     }
   });

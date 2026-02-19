@@ -58,8 +58,11 @@ export const projects = pgTable("projects", {
   audioTags: text("audio_tags"),
   audioLyrics: text("audio_lyrics"),
   audioDuration: integer("audio_duration"), // Duration in seconds
+  textOverlay: text("text_overlay"), // Text overlay for instrumental videos (one line per 5 seconds)
   addSubtitles: boolean("add_subtitles").default(false), // Whether to add subtitles
   subtitleStyle: text("subtitle_style").default("classic"), // 'classic' | TikTok-style presets
+  fontFamily: text("font_family"), // Google Font name for subtitles/captions
+  captionPosition: text("caption_position"), // Caption position: "top" | "center" | "bottom"
   includeWatermark: boolean("include_watermark").default(true), // Whether to include watermark (Premium users can disable)
   isPublic: boolean("is_public").default(true), // Whether video is public (Premium users can make private)
   subtitleFileUrl: text("subtitle_file_url"), // URL to .ass subtitle file
@@ -69,6 +72,7 @@ export const projects = pgTable("projects", {
   characterType: text("character_type"), // 'uploaded' | 'generated'
   characterPrompt: text("character_prompt"),
   makeCharacterSing: boolean("make_character_sing").default(true),
+  isInstrumental: boolean("is_instrumental").default(false), // Whether this is an instrumental video (no character/lipsync)
   aspectRatio: text("aspect_ratio").default("3:4"), // '16:9' (horizontal) or '3:4' (vertical)
   videoQuality: text("video_quality").default("quick"), // 'quick' | 'medium' | 'premium' - AI model quality for video generation
   scenePrompts: jsonb("scene_prompts"), // Array of scene prompts

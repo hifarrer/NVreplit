@@ -15,8 +15,8 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew, aspectRatio 
 
   const handleEdit = () => {
     // Force full page reload to ensure edit mode initializes properly
-    // Using window.location.href instead of setLocation because we're already on /create
-    window.location.href = `/create?edit=${projectId}&t=${Date.now()}`;
+    // Using window.location.href instead of setLocation because we're already on /create/story-mode
+    window.location.href = `/create/story-mode?edit=${projectId}&t=${Date.now()}`;
   };
 
   const downloadVideo = () => {

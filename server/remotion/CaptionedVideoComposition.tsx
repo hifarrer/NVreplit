@@ -8,6 +8,8 @@ export interface CaptionedVideoCompositionProps {
   pages: TikTokCaptionPage[];
   fps: number;
   stylePreset: SubtitleStyle;
+  captionPosition?: "top" | "center" | "bottom";
+  fontFamily?: string;
 }
 
 const styleMap: Record<
@@ -53,7 +55,7 @@ const styleMap: Record<
 
 export const CaptionedVideoComposition: React.FC<
   CaptionedVideoCompositionProps
-> = ({ videoSrc, pages, fps, stylePreset }) => {
+> = ({ videoSrc, pages, fps, stylePreset, captionPosition = "bottom", fontFamily }) => {
   const frame = useCurrentFrame();
   const currentMs = (frame / fps) * 1000;
   const activeStyle = styleMap[stylePreset] ?? styleMap["plain-white"];
@@ -86,17 +88,50 @@ export const CaptionedVideoComposition: React.FC<
   const karaokeScale =
     1 + 0.22 * Math.sin(Math.min(1, karaokeProgress) * Math.PI) * (1 - karaokeProgress * 0.15);
 
+  // Determine position styles based on captionPosition
+  // For center, we need to truly center vertically regardless of aspect ratio
+  const getPositionStyles = () => {
+    switch (captionPosition) {
+      case "top":
+        return {
+          justifyContent: "flex-start" as const,
+          alignItems: "center" as const,
+          paddingTop: activeStyle.bottomOffset,
+          paddingBottom: 0,
+          paddingLeft: 48,
+          paddingRight: 48,
+        };
+      case "center":
+        return {
+          justifyContent: "center" as const,
+          alignItems: "center" as const,
+          paddingTop: 0,
+          paddingBottom: 0,
+          paddingLeft: 48,
+          paddingRight: 48,
+        };
+      case "bottom":
+      default:
+        return {
+          justifyContent: "flex-end" as const,
+          alignItems: "center" as const,
+          paddingTop: 0,
+          paddingBottom: activeStyle.bottomOffset,
+          paddingLeft: 48,
+          paddingRight: 48,
+        };
+    }
+  };
+
   return (
     <AbsoluteFill style={{ backgroundColor: "black" }}>
       <OffthreadVideo src={videoSrc} />
       {activePage ? (
         <AbsoluteFill
           style={{
-            justifyContent: "flex-end",
-            alignItems: "center",
-            paddingBottom: activeStyle.bottomOffset,
-            paddingLeft: 48,
-            paddingRight: 48,
+            display: "flex",
+            flexDirection: "column",
+            ...getPositionStyles(),
           }}
         >
           <div
@@ -107,6 +142,7 @@ export const CaptionedVideoComposition: React.FC<
               lineHeight: 1.1,
               textShadow: "0 4px 24px rgba(0, 0, 0, 0.9)",
               WebkitTextStroke: "1px rgba(0,0,0,0.85)",
+              fontFamily: fontFamily || "Inter, sans-serif",
             }}
           >
             {activeToken ? (

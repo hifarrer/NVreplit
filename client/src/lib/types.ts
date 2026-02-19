@@ -32,6 +32,7 @@ export interface Project {
   audioTags?: string;
   audioLyrics?: string;
   audioDuration?: number;
+  textOverlay?: string; // Text overlay for instrumental videos
   addSubtitles?: boolean;
   subtitleStyle?: string;
   subtitleFileUrl?: string;

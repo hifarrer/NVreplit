@@ -44,9 +44,12 @@ export default function MyVideosPage() {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [greetingCardVideo, setGreetingCardVideo] = useState<CompletedVideo | null>(null);
 
-  const { data: videos = [], isLoading, refetch } = useQuery<CompletedVideo[]>({
+  const { data: rawVideos = [], isLoading, refetch } = useQuery<CompletedVideo[]>({
     queryKey: ["/api/my-videos"],
   });
+
+  // Ensure videos are sorted by creation date (newest first)
+  const videos = rawVideos.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   // Check if a video has valid (non-expired) scene images stored in object storage
   const hasValidSceneImages = (video: CompletedVideo): boolean => {
@@ -62,7 +65,7 @@ export default function MyVideosPage() {
 
   const handleEditVideo = (videoId: string) => {
     // Add timestamp to force re-initialization of edit mode
-    setLocation(`/create?edit=${videoId}&t=${Date.now()}`);
+    setLocation(`/create/story-mode?edit=${videoId}&t=${Date.now()}`);
   };
 
   const handleDownload = (videoUrl: string, title: string) => {

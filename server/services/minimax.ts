@@ -480,3 +480,115 @@ export function calculateVideoSegments(durationSeconds: number): {
     segmentDurations,
   };
 }
+
+/**
+ * Generate instrumental music using wavespeed prompt-to-audio API
+ */
+export async function generateInstrumentalSong(
+  description: string,
+  tags: string,
+  durationSeconds: number
+): Promise<MinimaxSongResult> {
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY is not configured");
+  }
+
+  const effectiveDuration = Math.min(durationSeconds, MAX_SONG_DURATION);
+  
+  // Combine description and tags for the prompt
+  const promptParts: string[] = [];
+  if (description && description.trim()) {
+    promptParts.push(description.trim());
+  }
+  if (tags && tags.trim()) {
+    promptParts.push(tags.trim());
+  }
+  const prompt = promptParts.join(", ");
+
+  console.log(`[INSTRUMENTAL] Starting generation...`);
+  console.log(`[INSTRUMENTAL] Prompt: ${prompt.substring(0, 100)}...`);
+  console.log(`[INSTRUMENTAL] Duration: ${effectiveDuration}s`);
+
+  const response = await fetch("https://api.wavespeed.ai/api/v3/wavespeed-ai/ace-step/prompt-to-audio", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+    },
+    body: JSON.stringify({
+      duration: effectiveDuration,
+      instrumental: true,
+      prompt: prompt,
+      seed: -1,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[INSTRUMENTAL] API error:`, errorText);
+    throw new Error(`Wavespeed prompt-to-audio API error: ${response.status} - ${errorText}`);
+  }
+
+  const result = (await response.json()) as WavespeedSubmissionResponse;
+  const requestId = result.data?.id || result.id;
+
+  if (!requestId) {
+    throw new Error(`[INSTRUMENTAL] No request ID received`);
+  }
+
+  console.log(`[INSTRUMENTAL] Request ID: ${requestId}`);
+
+  let attempts = 0;
+  const maxAttempts = 120; // 20 minutes max
+
+  while (attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, 10000)); // Poll every 10 seconds
+
+    const statusResponse = await fetch(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      {
+        headers: {
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+      }
+    );
+
+    if (!statusResponse.ok) {
+      throw new Error(`[INSTRUMENTAL] Status check failed: ${statusResponse.status}`);
+    }
+
+    const statusResult = (await statusResponse.json()) as WavespeedStatusResponse;
+    const status = statusResult.data?.status;
+
+    if (attempts % 6 === 0) {
+      console.log(`[INSTRUMENTAL] Status: ${status || "unknown"}`);
+    }
+
+    if (
+      status === "completed" &&
+      statusResult.data?.outputs &&
+      statusResult.data.outputs.length > 0
+    ) {
+      const audioExternalUrl = statusResult.data.outputs[0];
+      console.log(`[INSTRUMENTAL] Generation completed!`);
+
+      const { audioUrl, actualDuration } = await downloadAndStoreMinimaxAudio(audioExternalUrl);
+
+      console.log(`[INSTRUMENTAL] Duration: ${actualDuration}s, URL: ${audioUrl}`);
+
+      return {
+        audioUrl,
+        title: "Instrumental Track",
+        duration: actualDuration,
+      };
+    } else if (status === "failed") {
+      throw new Error(
+        `[INSTRUMENTAL] Generation failed: ${statusResult.data?.error || "Unknown error"}`
+      );
+    }
+
+    attempts++;
+  }
+
+  throw new Error(`[INSTRUMENTAL] Generation timed out after 20 minutes`);
+}

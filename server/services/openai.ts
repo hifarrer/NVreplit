@@ -274,6 +274,9 @@ REQUIREMENTS FOR REGULAR SCENES:
 - Character can be at various distances
 - More creative freedom with angles and movements
 - background description should be a description of the background of the scene.
+- Never a closeup of the character.
+- Never a character singing or with a microphone.
+- Can have slow motion movements.
 
 REQUIREMENTS FOR LIPSYNC SCENES:
 - MUST be CLOSEUP shots (head and shoulders, face clearly visible)
@@ -281,7 +284,7 @@ REQUIREMENTS FOR LIPSYNC SCENES:
 - Character MUST be prominent and close to camera
 - Use SLIGHT camera movements (slowly panning to the side, gently rotating around character, subtle zoom in/out, slight tilt)
 - Focus on character's face for lip synchronization
-- Character should be singing, speaking, or emoting clearly
+- Character should be singing or speaking.
 - background description should match the background description in the other scenes.
 
 General Requirements:
@@ -398,6 +401,242 @@ Respond with JSON in this format: {"prompts": [${Array(
     console.error("OpenAI scene generation error:", error);
     throw new Error(
       "Failed to generate scene prompts: " + (error as Error).message,
+    );
+  }
+}
+
+/**
+ * Generate scene prompts specifically for instrumental videos (no characters)
+ */
+export async function generateInstrumentalScenePrompts(
+  songDescription: string,
+  numberOfScenes: number = 8,
+): Promise<string[]> {
+  try {
+    // Create prompts for instrumental videos - NO CHARACTERS, cinematic/epic focus
+    let userContent = `Generate ${numberOfScenes} SHORT and CONCISE image prompts for a cinematic instrumental music video based on "${songDescription}". Each prompt must be 1-2 sentences maximum.
+
+CRITICAL REQUIREMENTS:
+- Use descriptive keywords like: cinematic, epic, dramatic, atmospheric, sweeping, majestic, grand, powerful, emotional, immersive
+- Each scene should be visually stunning and suitable for instrumental music
+- Include appropriate CAMERA positioning and movements
+- Keep prompts simple and focused on visual storytelling
+
+SCENE REQUIREMENTS:
+- Most scenes should be wide, cinematic shots 
+- Dynamic camera movements allowed (zoom, pan, dolly, tilt, etc.)
+- Focus on atmosphere, mood, and visual impact
+- Scenes should flow naturally from one to the next
+
+Example scenes:
+- "Sweeping aerial view of a misty mountain range at sunrise, camera slowly descends revealing valleys below."
+- "Epic cinematic shot of crashing ocean waves against dramatic cliffs, camera pans across the horizon."
+- "Majestic cityscape at night with neon lights reflecting in puddles, camera dollies forward through the scene."
+- "Abstract geometric patterns forming in space, camera rotates around the visual elements."
+- "Dramatic desert landscape with sand dunes shifting in the wind, camera pulls back to reveal vast expanse."`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You are a creative director for cinematic instrumental music videos. Generate ${numberOfScenes} SHORT and CONCISE scene prompts (1-2 sentences each) for instrumental videos.
+CRITICAL: NO characters, people, or individuals in any scene. Focus on cinematic visuals, epic landscapes, atmospheric environments, or abstract imagery.
+Use keywords like: cinematic, epic, dramatic, atmospheric, sweeping, majestic, grand, powerful, emotional, immersive.
+Each prompt must include camera positioning and movements.
+Keep them simple and focused for video generation.
+Respond with JSON in this format: {"prompts": [${Array(
+            numberOfScenes,
+          )
+            .fill(0)
+            .map((_, i) => `"scene ${i + 1} description"`)
+            .join(", ")}]}`,
+        },
+        {
+          role: "user",
+          content: userContent,
+        },
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || "{}");
+    let prompts = result.prompts || [];
+    
+    // Validate that prompts is actually an array
+    if (!Array.isArray(prompts)) {
+      console.error("⚠️ OpenAI response 'prompts' is not an array:", typeof prompts);
+      prompts = [];
+    }
+    
+    // CRITICAL: Ensure we have exactly the requested number of scenes
+    console.log(`OpenAI returned ${prompts.length} prompts for instrumental video, requested ${numberOfScenes}`);
+    
+    if (prompts.length < numberOfScenes) {
+      // Generate fallback prompts for instrumental videos (no characters)
+      console.warn(`⚠️ OpenAI returned ${prompts.length} scenes instead of ${numberOfScenes}. Generating fallback prompts.`);
+      
+      const fallbackPrompts = [
+        "Sweeping cinematic view of a vast landscape at golden hour, camera slowly pans across the horizon.",
+        "Epic aerial shot of dramatic cloud formations over mountains, camera descends revealing the terrain below.",
+        "Majestic cityscape at night with neon lights and reflections, camera dollies forward through the urban scene.",
+        "Abstract geometric patterns forming in space with dynamic lighting, camera rotates around the visual elements.",
+        "Dramatic ocean waves crashing against rocky cliffs, camera pulls back to reveal the full coastal scene.",
+        "Atmospheric forest scene with mist and light rays, camera slowly moves through the trees.",
+        "Grand desert landscape with shifting sand dunes, camera pans across the vast expanse.",
+        "Cinematic shot of a starry night sky over silhouetted mountains, camera tilts up revealing the cosmos.",
+      ];
+      
+      while (prompts.length < numberOfScenes) {
+        const fallbackIndex = prompts.length % fallbackPrompts.length;
+        prompts.push(fallbackPrompts[fallbackIndex]);
+      }
+    } else if (prompts.length > numberOfScenes) {
+      // If OpenAI returned more scenes, trim to exact count
+      console.warn(`⚠️ OpenAI returned ${prompts.length} scenes instead of ${numberOfScenes}. Trimming excess.`);
+      prompts = prompts.slice(0, numberOfScenes);
+    }
+    
+    console.log(`✓ Returning exactly ${prompts.length} instrumental scene prompts (no characters)`);
+    return prompts;
+  } catch (error) {
+    console.error("OpenAI instrumental scene generation error:", error);
+    throw new Error(
+      "Failed to generate instrumental scene prompts: " + (error as Error).message,
+    );
+  }
+}
+
+/**
+ * Generate scene prompts specifically for lyric videos
+ * Characters are allowed but must NEVER be shown singing or with a microphone
+ */
+export async function generateLyricVideoScenePrompts(
+  songDescription: string,
+  numberOfScenes: number = 8,
+): Promise<string[]> {
+  try {
+    // Create prompts for lyric videos - characters allowed but NO singing/microphones
+    let userContent = `Generate ${numberOfScenes} SHORT and CONCISE image prompts for a lyric music video based on "${songDescription}". Each prompt must be 1-2 sentences maximum.
+
+CRITICAL REQUIREMENTS:
+- Characters are allowed and can be included in scenes (e.g., cowboy hamster, kitty astronaut, etc.)
+- NEVER show a character singing, speaking into a microphone, or holding a microphone
+- Characters should be shown doing actions, exploring, or in scenes related to the description
+- Use descriptive keywords like: cinematic, dynamic, vibrant, atmospheric, engaging, visually appealing
+- Each scene should be visually interesting and suitable for a lyric video
+- Include appropriate CAMERA positioning and movements
+- Keep prompts simple and focused on visual storytelling
+- NO profanity, inappropriate content, or offensive material allowed
+
+SCENE REQUIREMENTS:
+- Can include characters, animals, objects, landscapes, or abstract scenes based on the description
+- Dynamic camera movements allowed (zoom, pan, dolly, tilt, etc.)
+- Focus on atmosphere, mood, and visual storytelling
+- Scenes should flow naturally from one to the next
+- If characters are present, show them in action (walking, exploring, dancing, playing, etc.) but NEVER singing
+
+Example scenes (with characters):
+- "Cowboy hamster riding through a desert landscape on a tiny horse, camera follows from the side as they move forward."
+- "Kitty astronaut floating in space near colorful planets, camera slowly rotates around the scene."
+- "Character dancing on a rooftop with city skyline in background, camera dollies back revealing full scene."
+
+Example scenes (without characters):
+- "Volcanoes erupting with lava flows and ash clouds, camera pans across the dramatic landscape."
+- "Life under the sea with colorful coral reefs and tropical fish, camera slowly moves through the underwater scene."
+- "Abstract geometric patterns forming in space with dynamic lighting, camera rotates around the visual elements."`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You are a creative director for lyric music videos. Generate ${numberOfScenes} SHORT and CONCISE scene prompts (1-2 sentences each) for lyric videos.
+CRITICAL RULES:
+- Characters are ALLOWED and can be included (animals, people, creatures, etc.)
+- NEVER show characters singing, speaking into a microphone, or holding a microphone
+- Characters should be shown doing actions, exploring, dancing, playing, or in scenes - but NEVER singing
+- Can also generate scenes without characters (landscapes, nature, abstract, etc.)
+- NO profanity, inappropriate content, or offensive material
+- Use keywords like: cinematic, dynamic, vibrant, atmospheric, engaging, visually appealing
+- Each prompt must include camera positioning and movements
+- Keep them simple and focused for video generation
+- Base scenes on the song description provided
+Respond with JSON in this format: {"prompts": [${Array(
+            numberOfScenes,
+          )
+            .fill(0)
+            .map((_, i) => `"scene ${i + 1} description"`)
+            .join(", ")}]}`,
+        },
+        {
+          role: "user",
+          content: userContent,
+        },
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || "{}");
+    let prompts = result.prompts || [];
+    
+    // Validate that prompts is actually an array
+    if (!Array.isArray(prompts)) {
+      console.error("⚠️ OpenAI response 'prompts' is not an array:", typeof prompts);
+      prompts = [];
+    }
+    
+    // Filter out any prompts that contain singing/microphone references (safety check)
+    prompts = prompts.map((prompt: string) => {
+      const lowerPrompt = prompt.toLowerCase();
+      // Remove or replace any mentions of singing or microphones
+      if (lowerPrompt.includes("singing") || lowerPrompt.includes("microphone") || lowerPrompt.includes("mic")) {
+        console.warn(`⚠️ Filtered out prompt with singing/microphone: ${prompt}`);
+        // Replace with a safe alternative
+        return prompt
+          .replace(/singing/gi, "dancing")
+          .replace(/microphone/gi, "")
+          .replace(/mic/gi, "")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+      return prompt;
+    });
+    
+    // CRITICAL: Ensure we have exactly the requested number of scenes
+    console.log(`OpenAI returned ${prompts.length} prompts for lyric video, requested ${numberOfScenes}`);
+    
+    if (prompts.length < numberOfScenes) {
+      // Generate fallback prompts for lyric videos (characters allowed but no singing)
+      console.warn(`⚠️ OpenAI returned ${prompts.length} scenes instead of ${numberOfScenes}. Generating fallback prompts.`);
+      
+      const fallbackPrompts = [
+        "Character exploring a vibrant landscape, camera follows from behind as they move forward.",
+        "Dynamic scene with colorful elements and engaging visuals, camera slowly pans across the scene.",
+        "Character in action performing movements, camera dollies around to capture different angles.",
+        "Atmospheric environment with interesting details, camera pulls back to reveal the full scene.",
+        "Character interacting with their surroundings, camera moves through the scene dynamically.",
+        "Visually appealing composition with dynamic elements, camera rotates around the visual space.",
+        "Engaging scene with character in motion, camera follows the action smoothly.",
+        "Cinematic view of an interesting environment, camera tilts and pans to reveal details.",
+      ];
+      
+      while (prompts.length < numberOfScenes) {
+        const fallbackIndex = prompts.length % fallbackPrompts.length;
+        prompts.push(fallbackPrompts[fallbackIndex]);
+      }
+    } else if (prompts.length > numberOfScenes) {
+      // If OpenAI returned more scenes, trim to exact count
+      console.warn(`⚠️ OpenAI returned ${prompts.length} scenes instead of ${numberOfScenes}. Trimming excess.`);
+      prompts = prompts.slice(0, numberOfScenes);
+    }
+    
+    console.log(`✓ Returning exactly ${prompts.length} lyric video scene prompts`);
+    return prompts;
+  } catch (error) {
+    console.error("OpenAI lyric video scene generation error:", error);
+    throw new Error(
+      "Failed to generate lyric video scene prompts: " + (error as Error).message,
     );
   }
 }

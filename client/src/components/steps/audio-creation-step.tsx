@@ -11,7 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock, X, Subtitles, AlertCircle, Eye, EyeOff, Save, Scissors, ChevronDown } from "lucide-react";
+import { Upload, Music, Library, Calendar, Tag, Check, Play, RotateCcw, Lightbulb, Tags, PenTool, Sparkles, Loader2, Clock, X, Subtitles, AlertCircle, Eye, EyeOff, Save, Scissors, ChevronDown, ArrowUp, AlignVerticalSpaceAround, ArrowDown, Monitor, Smartphone } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -25,6 +25,13 @@ import {
   subtitleStyleOptions,
   type SubtitleStyle,
 } from "@shared/subtitleStyles";
+import {
+  popularGoogleFonts,
+  defaultGoogleFont,
+  isGoogleFont,
+  type GoogleFont,
+} from "@shared/googleFonts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface AudioCreationStepProps {
   projectId: string;
@@ -134,6 +141,8 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(
     isSubtitleStyle(projectSubtitleStyle) ? projectSubtitleStyle : defaultSubtitleStyle
   );
+  const [textPosition, setTextPosition] = useState<"top" | "center" | "bottom">("bottom");
+  const [fontFamily, setFontFamily] = useState<GoogleFont>(defaultGoogleFont);
   const [includeWatermark, setIncludeWatermark] = useState(projectIncludeWatermark ?? true); // Watermark toggle - hydrated from project or default to enabled
   const [isPublic, setIsPublic] = useState(projectIsPublic ?? true); // Privacy toggle - hydrated from project or default to public
   // Default to vertical (3:4) - only use horizontal (16:9) if aspectRatio is explicitly "16:9"
@@ -184,6 +193,46 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   useEffect(() => {
     if (projectIsPublic !== undefined) setIsPublic(projectIsPublic);
   }, [projectIsPublic]);
+
+  // Re-apply captions when user clicks Continue (only if audio was trimmed)
+  const reapplyCaptionsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/projects/${projectId}/reapply-captions`, {
+        subtitleStyle,
+        textPosition,
+        fontFamily,
+        addSubtitles,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+    },
+    onError: (error) => {
+      console.error("Failed to re-apply captions:", error);
+      // Don't block the flow - just log the error
+    },
+  });
+
+  // Handle Continue button click - re-apply captions if needed before proceeding
+  const handleContinue = async () => {
+    // Check if audio was trimmed (currentAudioUrl exists and is different from original)
+    const hasTrimmedAudio = currentAudioUrl && currentAudioUrl !== audioUrl;
+    
+    if (hasTrimmedAudio) {
+      // Re-apply captions with current settings before proceeding
+      try {
+        await reapplyCaptionsMutation.mutateAsync();
+      } catch (error) {
+        // Continue anyway even if reapply fails
+        console.error("Failed to re-apply captions, continuing anyway:", error);
+      }
+    }
+    
+    // Proceed to next step
+    onNext();
+  };
+
   const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(null); // For debugging display
   const [profanityCheck, setProfanityCheck] = useState<ProfanityCheckResult | null>(null);
   const [descriptionProfanityCheck, setDescriptionProfanityCheck] = useState<ProfanityCheckResult | null>(null);
@@ -298,6 +347,8 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
           aspectRatio: isVertical ? "3:4" : "16:9",
           addSubtitles: isGeneratedSong ? (addSubtitles ? 'true' : 'false') : (isLibrarySong ? (addSubtitles ? 'true' : 'false') : (uploadAddSubtitles ? 'true' : 'false')),
           subtitleStyle,
+          textPosition: isGeneratedSong ? textPosition : (isLibrarySong ? textPosition : textPosition), // Send caption position for all tabs
+          fontFamily: isGeneratedSong ? fontFamily : (isLibrarySong ? fontFamily : fontFamily), // Send font family for all tabs
           includeWatermark: includeWatermark ? 'true' : 'false',
           isPublic: isPublic ? 'true' : 'false',
           saveToLibrary: false // Don't save trimmed version here (already saved by trim-audio endpoint)
@@ -635,6 +686,8 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         duration: song.duration,
         subtitleFileUrl: song.subtitleFileUrl,
         subtitleStyle,
+        textPosition,
+        fontFamily,
         kieTaskId: song.kieTaskId,
         kieAudioId: song.kieAudioId,
         audioType: "generated",
@@ -721,6 +774,8 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         duration: song.duration,
         subtitleFileUrl: song.subtitleFileUrl,
         subtitleStyle,
+        textPosition,
+        fontFamily,
         kieTaskId: song.kieTaskId,
         kieAudioId: song.kieAudioId,
         aspectRatio: isVertical ? "3:4" : "16:9",
@@ -1020,27 +1075,127 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
     if (!isEnabled || !showStyles) return null;
 
     return (
-      <div className="bg-muted/30 border border-border rounded-lg p-4 mt-4">
-        <Label className="text-sm font-semibold mb-3 block">Caption Style</Label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {subtitleStyleOptions.map((option) => (
-            <button
+      <>
+        <div className="flex items-center gap-2 mt-4">
+          <div className="flex gap-2">
+            <Button
               type="button"
-              key={option.value}
-              onClick={() => setSubtitleStyle(option.value)}
-              className={`text-left p-3 rounded-md border transition-colors ${
-                subtitleStyle === option.value
-                  ? "border-primary bg-primary/10"
-                  : "border-border hover:border-primary/50"
-              }`}
-              data-testid={`${testIdPrefix}-${option.value}`}
+              variant={textPosition === "top" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setTextPosition("top")}
+              className={`h-8 w-8 p-0 ${textPosition === "top" ? "bg-primary" : ""}`}
+              title="Top"
             >
-              <div className="text-sm font-medium">{option.label}</div>
-              <div className="text-xs text-muted-foreground mt-1">{option.preview}</div>
-            </button>
-          ))}
+              <ArrowUp className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant={textPosition === "center" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setTextPosition("center")}
+              className={`h-8 w-8 p-0 ${textPosition === "center" ? "bg-primary" : ""}`}
+              title="Center"
+            >
+              <AlignVerticalSpaceAround className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant={textPosition === "bottom" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setTextPosition("bottom")}
+              className={`h-8 w-8 p-0 ${textPosition === "bottom" ? "bg-primary" : ""}`}
+              title="Bottom"
+            >
+              <ArrowDown className="h-4 w-4" />
+            </Button>
+          </div>
+          <Select value={fontFamily} onValueChange={(value) => isGoogleFont(value) && setFontFamily(value)}>
+            <SelectTrigger className="bg-background border-border text-foreground h-8 w-[180px] text-xs">
+              <SelectValue placeholder="Select font" />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border max-h-[300px]">
+              {popularGoogleFonts.map((font) => (
+                <SelectItem 
+                  key={font.value} 
+                  value={font.value} 
+                  className="text-foreground"
+                  style={{ fontFamily: font.value }}
+                >
+                  {font.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      </div>
+        <div className="bg-muted/30 border border-border rounded-lg p-4 mt-4">
+          <Label className="text-sm font-semibold mb-3 block">Caption Style</Label>
+          <div className="grid grid-cols-5 gap-2">
+            {subtitleStyleOptions.map((option) => {
+              const getPreviewStyle = () => {
+                switch (option.value) {
+                  case "plain-white":
+                    return {
+                      color: "#ffffff",
+                      background: "transparent",
+                      textShadow: "0 2px 8px rgba(0, 0, 0, 0.9)",
+                    };
+                  case "yellow-bg":
+                    return {
+                      color: "#ffffff",
+                      background: "#facc15",
+                    };
+                  case "pink-bg":
+                    return {
+                      color: "#ffffff",
+                      background: "#ec4899",
+                    };
+                  case "blue-bg":
+                    return {
+                      color: "#ffffff",
+                      background: "#3b82f6",
+                    };
+                  case "red-bg":
+                    return {
+                      color: "#ffffff",
+                      background: "#ef4444",
+                    };
+                  default:
+                    return {
+                      color: "#ffffff",
+                      background: "transparent",
+                    };
+                }
+              };
+
+              return (
+                <button
+                  type="button"
+                  key={option.value}
+                  onClick={() => setSubtitleStyle(option.value)}
+                  className={`text-center p-2 rounded-md border transition-colors ${
+                    subtitleStyle === option.value
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                  data-testid={`${testIdPrefix}-${option.value}`}
+                >
+                  <div className={option.value === "plain-white" ? "bg-gray-800 rounded-md p-1 inline-block" : ""}>
+                    <div 
+                      className="text-xs font-bold text-center py-1 px-2 rounded-md inline-block"
+                      style={{
+                        ...getPreviewStyle(),
+                        fontFamily: fontFamily,
+                      }}
+                    >
+                      Hello
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </>
     );
   };
 
@@ -1112,15 +1267,15 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
           </Button>
         </div>
         <div className="text-center mb-8">
-          <h3 className="text-2xl font-bold gradient-text mb-4">Create Your Music Video</h3>
-          <p className="text-muted-foreground">Choose how you want to create the soundtrack for your music video</p>
+          <h3 className="text-2xl font-bold gradient-text mb-4">Pro Music Video</h3>
+          <p className="text-muted-foreground">Create a professional music video step by step</p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="generate" className="flex items-center justify-center gap-2 px-2 sm:px-4">
               <Music className="w-5 h-5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Generate with AI</span>
+              <span className="hidden sm:inline">AI Generated Song</span>
             </TabsTrigger>
             <TabsTrigger value="upload" className="flex items-center justify-center gap-2 px-2 sm:px-4">
               <Upload className="w-5 h-5 sm:w-4 sm:h-4" />
@@ -1132,7 +1287,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
             </TabsTrigger>
           </TabsList>
 
-          {/* Generate with AI Tab */}
+          {/* AI Generated Song Tab */}
           <TabsContent value="generate" className="mt-6 space-y-6">
             {/* Show trim interface if a generated song was selected */}
             {showTrimInterfaceForGenerated && selectedGeneratedSongForTrim && (
@@ -1254,38 +1409,180 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                   onCheckedChange={setIsVertical}
                   data-testid="aspect-ratio-toggle"
                 />
-                <Label className="text-sm font-medium cursor-pointer" onClick={() => setIsVertical(!isVertical)}>
-                  {isVertical ? "Portrait" : "Landscape"}
+                <Label className="text-sm font-medium cursor-pointer flex items-center gap-2" onClick={() => setIsVertical(!isVertical)}>
+                  {isVertical ? (
+                    <>
+                      <Smartphone className="h-4 w-4" />
+                      Portrait (3:4)
+                    </>
+                  ) : (
+                    <>
+                      <Monitor className="h-4 w-4" />
+                      Landscape (16:9)
+                    </>
+                  )}
                 </Label>
               </div>
 
-              {/* Captions Toggle */}
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={addSubtitles}
-                  onCheckedChange={setAddSubtitles}
-                  data-testid="subtitles-toggle"
-                />
-                <Label className="text-sm font-medium cursor-pointer" onClick={() => setAddSubtitles(!addSubtitles)}>
-                  Captions
-                </Label>
-                {addSubtitles && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowCaptionStyles(!showCaptionStyles)}
-                    className="h-8 px-2 text-xs"
-                    data-testid="caption-styles-button"
-                  >
-                    Styles
-                    <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showCaptionStyles ? 'rotate-180' : ''}`} />
-                  </Button>
-                )}
-              </div>
             </div>
 
-            {renderSubtitleStylePicker(addSubtitles, "generate-caption-style", showCaptionStyles)}
+            {/* Captions Section - Separate like instrumental page */}
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="add-subtitles"
+                    checked={addSubtitles}
+                    onCheckedChange={setAddSubtitles}
+                    data-testid="subtitles-toggle"
+                  />
+                  <Label htmlFor="add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => setAddSubtitles(!addSubtitles)}>
+                    Captions
+                  </Label>
+                  {addSubtitles && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowCaptionStyles(!showCaptionStyles)}
+                      className={`h-8 px-2 text-xs ml-2 transition-all ${
+                        addSubtitles && !showCaptionStyles
+                          ? 'shadow-[0_0_10px_rgba(236,72,153,0.5),0_0_20px_rgba(236,72,153,0.3),0_0_30px_rgba(236,72,153,0.2)] border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.7),0_0_25px_rgba(236,72,153,0.5),0_0_35px_rgba(236,72,153,0.3)]' 
+                          : ''
+                      }`}
+                      data-testid="caption-styles-button"
+                    >
+                      Styles
+                      <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showCaptionStyles ? 'rotate-180' : ''}`} />
+                    </Button>
+                  )}
+                </div>
+                {addSubtitles && showCaptionStyles && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={textPosition === "top" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setTextPosition("top")}
+                        className={`h-8 w-8 p-0 ${textPosition === "top" ? "bg-primary" : ""}`}
+                        title="Top"
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={textPosition === "center" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setTextPosition("center")}
+                        className={`h-8 w-8 p-0 ${textPosition === "center" ? "bg-primary" : ""}`}
+                        title="Center"
+                      >
+                        <AlignVerticalSpaceAround className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={textPosition === "bottom" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setTextPosition("bottom")}
+                        className={`h-8 w-8 p-0 ${textPosition === "bottom" ? "bg-primary" : ""}`}
+                        title="Bottom"
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Select value={fontFamily} onValueChange={(value) => isGoogleFont(value) && setFontFamily(value)}>
+                      <SelectTrigger className="bg-background border-border text-foreground h-8 w-[180px] text-xs">
+                        <SelectValue placeholder="Select font" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border max-h-[300px]">
+                        {popularGoogleFonts.map((font) => (
+                          <SelectItem 
+                            key={font.value} 
+                            value={font.value} 
+                            className="text-foreground"
+                            style={{ fontFamily: font.value }}
+                          >
+                            {font.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              
+              {addSubtitles && showCaptionStyles && (
+                <div className="bg-muted/30 border border-border rounded-lg p-4">
+                  <Label className="text-sm font-semibold mb-3 block">Caption Style</Label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {subtitleStyleOptions.map((option) => {
+                      const getPreviewStyle = () => {
+                        switch (option.value) {
+                          case "plain-white":
+                            return {
+                              color: "#ffffff",
+                              background: "transparent",
+                              textShadow: "0 2px 8px rgba(0, 0, 0, 0.9)",
+                            };
+                          case "yellow-bg":
+                            return {
+                              color: "#ffffff",
+                              background: "#facc15",
+                            };
+                          case "pink-bg":
+                            return {
+                              color: "#ffffff",
+                              background: "#ec4899",
+                            };
+                          case "blue-bg":
+                            return {
+                              color: "#ffffff",
+                              background: "#3b82f6",
+                            };
+                          case "red-bg":
+                            return {
+                              color: "#ffffff",
+                              background: "#ef4444",
+                            };
+                          default:
+                            return {
+                              color: "#ffffff",
+                              background: "transparent",
+                            };
+                        }
+                      };
+
+                      return (
+                        <button
+                          type="button"
+                          key={option.value}
+                          onClick={() => setSubtitleStyle(option.value)}
+                          className={`text-center p-2 rounded-md border transition-colors ${
+                            subtitleStyle === option.value
+                              ? "border-primary bg-primary/10"
+                              : "border-border hover:border-primary/50"
+                          }`}
+                          data-testid={`generate-caption-style-${option.value}`}
+                        >
+                          <div className={option.value === "plain-white" ? "bg-gray-800 rounded-md p-1 inline-block" : ""}>
+                            <div 
+                              className="text-xs font-bold text-center py-1 px-2 rounded-md inline-block"
+                              style={{
+                                ...getPreviewStyle(),
+                                fontFamily: fontFamily,
+                              }}
+                            >
+                              Hello
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div>
               <Label className="flex items-center text-sm font-semibold mb-2">
@@ -1649,38 +1946,180 @@ Chasing after dreams as big as the sea."
                   onCheckedChange={setIsVertical}
                   data-testid="upload-aspect-ratio-toggle"
                 />
-                <Label className="text-sm font-medium cursor-pointer" onClick={() => setIsVertical(!isVertical)}>
-                  {isVertical ? "Portrait" : "Landscape"}
+                <Label className="text-sm font-medium cursor-pointer flex items-center gap-2" onClick={() => setIsVertical(!isVertical)}>
+                  {isVertical ? (
+                    <>
+                      <Smartphone className="h-4 w-4" />
+                      Portrait (3:4)
+                    </>
+                  ) : (
+                    <>
+                      <Monitor className="h-4 w-4" />
+                      Landscape (16:9)
+                    </>
+                  )}
                 </Label>
               </div>
 
-              {/* Captions Toggle */}
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={uploadAddSubtitles}
-                  onCheckedChange={setUploadAddSubtitles}
-                  data-testid="upload-subtitles-toggle"
-                />
-                <Label className="text-sm font-medium cursor-pointer" onClick={() => setUploadAddSubtitles(!uploadAddSubtitles)}>
-                  Captions
-                </Label>
-                {uploadAddSubtitles && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowUploadCaptionStyles(!showUploadCaptionStyles)}
-                    className="h-8 px-2 text-xs"
-                    data-testid="upload-caption-styles-button"
-                  >
-                    Styles
-                    <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showUploadCaptionStyles ? 'rotate-180' : ''}`} />
-                  </Button>
-                )}
-              </div>
             </div>
 
-            {renderSubtitleStylePicker(uploadAddSubtitles, "upload-caption-style", showUploadCaptionStyles)}
+            {/* Captions Section - Separate like instrumental page */}
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="upload-add-subtitles"
+                    checked={uploadAddSubtitles}
+                    onCheckedChange={setUploadAddSubtitles}
+                    data-testid="upload-subtitles-toggle"
+                  />
+                  <Label htmlFor="upload-add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => setUploadAddSubtitles(!uploadAddSubtitles)}>
+                    Captions
+                  </Label>
+                  {uploadAddSubtitles && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowUploadCaptionStyles(!showUploadCaptionStyles)}
+                      className={`h-8 px-2 text-xs ml-2 transition-all ${
+                        uploadAddSubtitles && !showUploadCaptionStyles
+                          ? 'shadow-[0_0_10px_rgba(236,72,153,0.5),0_0_20px_rgba(236,72,153,0.3),0_0_30px_rgba(236,72,153,0.2)] border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.7),0_0_25px_rgba(236,72,153,0.5),0_0_35px_rgba(236,72,153,0.3)]' 
+                          : ''
+                      }`}
+                      data-testid="upload-caption-styles-button"
+                    >
+                      Styles
+                      <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showUploadCaptionStyles ? 'rotate-180' : ''}`} />
+                    </Button>
+                  )}
+                </div>
+                {uploadAddSubtitles && showUploadCaptionStyles && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={textPosition === "top" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setTextPosition("top")}
+                        className={`h-8 w-8 p-0 ${textPosition === "top" ? "bg-primary" : ""}`}
+                        title="Top"
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={textPosition === "center" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setTextPosition("center")}
+                        className={`h-8 w-8 p-0 ${textPosition === "center" ? "bg-primary" : ""}`}
+                        title="Center"
+                      >
+                        <AlignVerticalSpaceAround className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={textPosition === "bottom" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setTextPosition("bottom")}
+                        className={`h-8 w-8 p-0 ${textPosition === "bottom" ? "bg-primary" : ""}`}
+                        title="Bottom"
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Select value={fontFamily} onValueChange={(value) => isGoogleFont(value) && setFontFamily(value)}>
+                      <SelectTrigger className="bg-background border-border text-foreground h-8 w-[180px] text-xs">
+                        <SelectValue placeholder="Select font" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border max-h-[300px]">
+                        {popularGoogleFonts.map((font) => (
+                          <SelectItem 
+                            key={font.value} 
+                            value={font.value} 
+                            className="text-foreground"
+                            style={{ fontFamily: font.value }}
+                          >
+                            {font.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              
+              {uploadAddSubtitles && showUploadCaptionStyles && (
+                <div className="bg-muted/30 border border-border rounded-lg p-4">
+                  <Label className="text-sm font-semibold mb-3 block">Caption Style</Label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {subtitleStyleOptions.map((option) => {
+                      const getPreviewStyle = () => {
+                        switch (option.value) {
+                          case "plain-white":
+                            return {
+                              color: "#ffffff",
+                              background: "transparent",
+                              textShadow: "0 2px 8px rgba(0, 0, 0, 0.9)",
+                            };
+                          case "yellow-bg":
+                            return {
+                              color: "#ffffff",
+                              background: "#facc15",
+                            };
+                          case "pink-bg":
+                            return {
+                              color: "#ffffff",
+                              background: "#ec4899",
+                            };
+                          case "blue-bg":
+                            return {
+                              color: "#ffffff",
+                              background: "#3b82f6",
+                            };
+                          case "red-bg":
+                            return {
+                              color: "#ffffff",
+                              background: "#ef4444",
+                            };
+                          default:
+                            return {
+                              color: "#ffffff",
+                              background: "transparent",
+                            };
+                        }
+                      };
+
+                      return (
+                        <button
+                          type="button"
+                          key={option.value}
+                          onClick={() => setSubtitleStyle(option.value)}
+                          className={`text-center p-2 rounded-md border transition-colors ${
+                            subtitleStyle === option.value
+                              ? "border-primary bg-primary/10"
+                              : "border-border hover:border-primary/50"
+                          }`}
+                          data-testid={`upload-caption-style-${option.value}`}
+                        >
+                          <div className={option.value === "plain-white" ? "bg-gray-800 rounded-md p-1 inline-block" : ""}>
+                            <div 
+                              className="text-xs font-bold text-center py-1 px-2 rounded-md inline-block"
+                              style={{
+                                ...getPreviewStyle(),
+                                fontFamily: fontFamily,
+                              }}
+                            >
+                              Hello
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
             
             <input
               ref={fileInputRef}
@@ -1919,38 +2358,180 @@ Chasing after dreams as big as the sea."
                       onCheckedChange={setIsVertical}
                       data-testid="library-aspect-ratio-toggle"
                     />
-                    <Label className="text-sm font-medium cursor-pointer" onClick={() => setIsVertical(!isVertical)}>
-                      {isVertical ? "Portrait" : "Landscape"}
+                    <Label className="text-sm font-medium cursor-pointer flex items-center gap-2" onClick={() => setIsVertical(!isVertical)}>
+                      {isVertical ? (
+                        <>
+                          <Smartphone className="h-4 w-4" />
+                          Portrait (3:4)
+                        </>
+                      ) : (
+                        <>
+                          <Monitor className="h-4 w-4" />
+                          Landscape (16:9)
+                        </>
+                      )}
                     </Label>
                   </div>
 
-                  {/* Captions Toggle */}
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={addSubtitles}
-                      onCheckedChange={setAddSubtitles}
-                      data-testid="library-subtitles-toggle"
-                    />
-                    <Label className="text-sm font-medium cursor-pointer" onClick={() => setAddSubtitles(!addSubtitles)}>
-                      Captions
-                    </Label>
-                    {addSubtitles && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowLibraryCaptionStyles(!showLibraryCaptionStyles)}
-                        className="h-8 px-2 text-xs"
-                        data-testid="library-caption-styles-button"
-                      >
-                        Styles
-                        <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showLibraryCaptionStyles ? 'rotate-180' : ''}`} />
-                      </Button>
-                    )}
-                  </div>
                 </div>
 
-                {renderSubtitleStylePicker(addSubtitles, "library-caption-style", showLibraryCaptionStyles)}
+                {/* Captions Section - Separate like instrumental page */}
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id="library-add-subtitles"
+                        checked={addSubtitles}
+                        onCheckedChange={setAddSubtitles}
+                        data-testid="library-subtitles-toggle"
+                      />
+                      <Label htmlFor="library-add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => setAddSubtitles(!addSubtitles)}>
+                        Captions
+                      </Label>
+                      {addSubtitles && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowLibraryCaptionStyles(!showLibraryCaptionStyles)}
+                          className={`h-8 px-2 text-xs ml-2 transition-all ${
+                            addSubtitles && !showLibraryCaptionStyles
+                              ? 'shadow-[0_0_10px_rgba(236,72,153,0.5),0_0_20px_rgba(236,72,153,0.3),0_0_30px_rgba(236,72,153,0.2)] border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.7),0_0_25px_rgba(236,72,153,0.5),0_0_35px_rgba(236,72,153,0.3)]' 
+                              : ''
+                          }`}
+                          data-testid="library-caption-styles-button"
+                        >
+                          Styles
+                          <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showLibraryCaptionStyles ? 'rotate-180' : ''}`} />
+                        </Button>
+                      )}
+                    </div>
+                    {addSubtitles && showLibraryCaptionStyles && (
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant={textPosition === "top" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setTextPosition("top")}
+                            className={`h-8 w-8 p-0 ${textPosition === "top" ? "bg-primary" : ""}`}
+                            title="Top"
+                          >
+                            <ArrowUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={textPosition === "center" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setTextPosition("center")}
+                            className={`h-8 w-8 p-0 ${textPosition === "center" ? "bg-primary" : ""}`}
+                            title="Center"
+                          >
+                            <AlignVerticalSpaceAround className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={textPosition === "bottom" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setTextPosition("bottom")}
+                            className={`h-8 w-8 p-0 ${textPosition === "bottom" ? "bg-primary" : ""}`}
+                            title="Bottom"
+                          >
+                            <ArrowDown className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <Select value={fontFamily} onValueChange={(value) => isGoogleFont(value) && setFontFamily(value)}>
+                          <SelectTrigger className="bg-background border-border text-foreground h-8 w-[180px] text-xs">
+                            <SelectValue placeholder="Select font" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-card border-border max-h-[300px]">
+                            {popularGoogleFonts.map((font) => (
+                              <SelectItem 
+                                key={font.value} 
+                                value={font.value} 
+                                className="text-foreground"
+                                style={{ fontFamily: font.value }}
+                              >
+                                {font.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {addSubtitles && showLibraryCaptionStyles && (
+                    <div className="bg-muted/30 border border-border rounded-lg p-4">
+                      <Label className="text-sm font-semibold mb-3 block">Caption Style</Label>
+                      <div className="grid grid-cols-5 gap-2">
+                        {subtitleStyleOptions.map((option) => {
+                          const getPreviewStyle = () => {
+                            switch (option.value) {
+                              case "plain-white":
+                                return {
+                                  color: "#ffffff",
+                                  background: "transparent",
+                                  textShadow: "0 2px 8px rgba(0, 0, 0, 0.9)",
+                                };
+                              case "yellow-bg":
+                                return {
+                                  color: "#ffffff",
+                                  background: "#facc15",
+                                };
+                              case "pink-bg":
+                                return {
+                                  color: "#ffffff",
+                                  background: "#ec4899",
+                                };
+                              case "blue-bg":
+                                return {
+                                  color: "#ffffff",
+                                  background: "#3b82f6",
+                                };
+                              case "red-bg":
+                                return {
+                                  color: "#ffffff",
+                                  background: "#ef4444",
+                                };
+                              default:
+                                return {
+                                  color: "#ffffff",
+                                  background: "transparent",
+                                };
+                            }
+                          };
+
+                          return (
+                            <button
+                              type="button"
+                              key={option.value}
+                              onClick={() => setSubtitleStyle(option.value)}
+                              className={`text-center p-2 rounded-md border transition-colors ${
+                                subtitleStyle === option.value
+                                  ? "border-primary bg-primary/10"
+                                  : "border-border hover:border-primary/50"
+                              }`}
+                              data-testid={`library-caption-style-${option.value}`}
+                            >
+                              <div className={option.value === "plain-white" ? "bg-gray-800 rounded-md p-1 inline-block" : ""}>
+                                <div 
+                                  className="text-xs font-bold text-center py-1 px-2 rounded-md inline-block"
+                                  style={{
+                                    ...getPreviewStyle(),
+                                    fontFamily: fontFamily,
+                                  }}
+                                >
+                                  Hello
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 
                 {!currentAudioUrl && (
                   <Button 
@@ -2008,7 +2589,7 @@ Chasing after dreams as big as the sea."
         <div className="flex flex-col items-center gap-3 mt-8 px-4">
           <Button
             ref={continueButtonRef}
-            onClick={onNext}
+            onClick={handleContinue}
             disabled={!currentAudioUrl || !isDescriptionValid() || !isLyricsValid()}
             className={`floating-button text-sm sm:text-lg py-3 px-6 sm:px-8 ${currentAudioUrl && isDescriptionValid() && isLyricsValid() ? 'button-glow' : ''}`}
             data-testid="continue-to-character-button"

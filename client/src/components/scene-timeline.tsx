@@ -16,9 +16,11 @@ interface SceneTimelineProps {
   audioDuration?: number;
   audioUrl?: string;
   lyrics?: string;
+  textOverlay?: string; // Text overlay for instrumental videos
   subtitleFileUrl?: string;
   finalVideoUrl?: string;
   isEditMode?: boolean;
+  isInstrumental?: boolean; // Whether this is an instrumental video (no lipsync)
   onReorder: (newOrder: number[]) => void;
   onSceneClick?: (sceneIndex: number) => void;
   onToggleLipsync?: (sceneIndex: number) => void;
@@ -30,9 +32,11 @@ export function SceneTimeline({
   audioDuration = 0,
   audioUrl,
   lyrics,
+  textOverlay,
   subtitleFileUrl,
   finalVideoUrl,
   isEditMode = false,
+  isInstrumental = false,
   onReorder,
   onSceneClick,
   onToggleLipsync
@@ -106,7 +110,51 @@ export function SceneTimeline({
     text: string;
   }
   
+  // Parse text overlay segments (for instrumental videos)
+  const textOverlaySegments = useMemo((): LyricSegment[] | null => {
+    // First, try to use textOverlay prop if available
+    if (textOverlay && textOverlay.trim() && audioDuration > 0) {
+      const lines = textOverlay.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length > 0) {
+        // Each line displays for 5 seconds (as per instrumental video logic)
+        const segments: LyricSegment[] = lines.map((text, index) => ({
+          start: index * 5,
+          end: Math.min((index + 1) * 5, audioDuration),
+          text: text
+        }));
+        return segments;
+      }
+    }
+    
+    // Fallback: Parse from subtitle file if it's an instrumental video with text overlay
+    // Instrumental videos with text overlay create subtitle files with 5-second segments
+    if (assSubtitles.length > 0 && !lyrics) {
+      // Check if this looks like an instrumental text overlay (simple format, 5-second segments)
+      const isInstrumentalTextOverlay = assSubtitles.every((sub, index) => {
+        const expectedStart = index * 5;
+        const expectedEnd = (index + 1) * 5;
+        // Allow small tolerance for timing
+        return Math.abs(sub.start - expectedStart) < 0.5 && Math.abs(sub.end - expectedEnd) < 0.5;
+      });
+      
+      if (isInstrumentalTextOverlay) {
+        return assSubtitles.map(sub => ({
+          start: sub.start,
+          end: sub.end,
+          text: sub.text
+        }));
+      }
+    }
+    
+    return null;
+  }, [textOverlay, audioDuration, assSubtitles, lyrics]);
+
   const lyricSegments = useMemo((): LyricSegment[] | null => {
+    // If we have text overlay segments, don't show lyrics (instrumental videos don't have lyrics)
+    if (textOverlaySegments) {
+      return null;
+    }
+    
     if (assSubtitles.length > 0) {
       return assSubtitles.map(sub => ({
         start: sub.start,
@@ -167,16 +215,18 @@ export function SceneTimeline({
     }));
     
     return segments;
-  }, [lyrics, audioDuration, assSubtitles]);
-  
-  const hasTimestampedLyrics = lyricSegments !== null && lyricSegments.length > 0;
+  }, [lyrics, audioDuration, assSubtitles, textOverlaySegments]);
+
+  // Use text overlay segments if available, otherwise use lyric segments
+  const displaySegments = textOverlaySegments || lyricSegments;
+  const hasTimestampedLyrics = displaySegments !== null && displaySegments.length > 0;
 
   const hasLyricsInTimeWindow = useCallback((startTime: number, endTime: number): boolean => {
-    if (!lyricSegments || lyricSegments.length === 0) return false;
-    return lyricSegments.some(segment => 
+    if (!displaySegments || displaySegments.length === 0) return false;
+    return displaySegments.some(segment => 
       segment.start < endTime && segment.end > startTime
     );
-  }, [lyricSegments]);
+  }, [displaySegments]);
 
   useEffect(() => {
     if (!audioUrl) return;
@@ -262,6 +312,10 @@ export function SceneTimeline({
   const sceneDuration = 6; // Default duration for most scenes (used for width calculation)
   
   const isLipsyncScene = (originalIndex: number): boolean => {
+    // Instrumental videos never use lipsync
+    if (isInstrumental) {
+      return false;
+    }
     const scene = scenes[originalIndex];
     if (scene?.lipsync !== undefined) {
       return scene.lipsync;
@@ -582,7 +636,9 @@ export function SceneTimeline({
             <div className="h-8 mt-2 flex items-center">
               <div className="flex items-center gap-1">
                 <Type className="w-3 h-3 text-amber-400" />
-                <span className="text-[10px] text-slate-400 font-medium">Lyrics</span>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  {textOverlaySegments ? 'Text Overlay' : 'Lyrics'}
+                </span>
               </div>
             </div>
             <div className="h-10 mt-2 flex items-center">
@@ -678,18 +734,21 @@ export function SceneTimeline({
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button
-                                className="absolute top-1 left-6 z-20 p-0.5 rounded hover:bg-black/30 transition-colors"
+                                className={`absolute top-1 left-6 z-20 p-0.5 rounded transition-colors ${isInstrumental ? 'cursor-not-allowed opacity-50' : 'hover:bg-black/30'}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  onToggleLipsync?.(originalIndex);
+                                  if (!isInstrumental) {
+                                    onToggleLipsync?.(originalIndex);
+                                  }
                                 }}
+                                disabled={isInstrumental}
                                 data-testid={`timeline-lipsync-toggle-${orderPosition + 1}`}
                               >
                                 <Mic className={`w-3 h-3 drop-shadow-lg ${isLipsync ? 'text-pink-400' : 'text-gray-400'}`} />
                               </button>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-xs">
-                              <p>{isLipsync ? 'Lipsync enabled - click to disable' : 'Lipsync disabled - click to enable'}</p>
+                              <p>{isInstrumental ? 'Lipsync not available for instrumental videos' : (isLipsync ? 'Lipsync enabled - click to disable' : 'Lipsync disabled - click to enable')}</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -749,8 +808,8 @@ export function SceneTimeline({
                   style={{ width: `${sceneCount * 100 + 4}px` }}
                   data-testid="lyrics-track"
                 >
-                  {hasTimestampedLyrics && lyricSegments ? (
-                    lyricSegments.map((segment, index) => {
+                  {hasTimestampedLyrics && displaySegments ? (
+                    displaySegments.map((segment, index) => {
                       const leftPercent = (segment.start / audioDuration) * 100;
                       const duration = segment.end - segment.start;
                       const widthPercent = Math.max((duration / audioDuration) * 100, 3);
@@ -787,7 +846,7 @@ export function SceneTimeline({
                     })
                   ) : (
                     <div className="flex items-center justify-center h-full text-slate-500 text-xs">
-                      No timestamped lyrics
+                      {textOverlaySegments ? 'No text overlay' : 'No timestamped lyrics'}
                     </div>
                   )}
                 </div>
@@ -869,7 +928,7 @@ export function SceneTimeline({
         </div>
         <div className="flex items-center gap-1.5">
           <Type className="w-3 h-3 text-amber-400" />
-          <span>Lyrics (hover to view)</span>
+          <span>{textOverlaySegments ? 'Text Overlay' : 'Lyrics'} (hover to view)</span>
         </div>
       </div>
     </div>

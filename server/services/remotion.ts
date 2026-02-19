@@ -97,12 +97,16 @@ export const renderVideoWithTikTokCaptions = async ({
   subtitleStyle,
   aspectRatio,
   audioDurationSeconds,
+  captionPosition,
+  fontFamily,
 }: {
   videoSrc: string;
   assContent: string;
   subtitleStyle: string | null | undefined;
   aspectRatio?: string | null;
   audioDurationSeconds?: number | null;
+  captionPosition?: "top" | "center" | "bottom";
+  fontFamily?: string | null;
 }): Promise<string | null> => {
   const style = normalizeSubtitleStyle(subtitleStyle);
   if (!isTikTokSubtitleStyle(style)) {
@@ -137,6 +141,8 @@ export const renderVideoWithTikTokCaptions = async ({
       pages,
       fps,
       stylePreset: style,
+      captionPosition: captionPosition || "bottom",
+      fontFamily: fontFamily || undefined,
     },
   });
 
@@ -155,6 +161,8 @@ export const renderVideoWithTikTokCaptions = async ({
       pages,
       fps,
       stylePreset: style,
+      captionPosition: captionPosition || "bottom",
+      fontFamily: fontFamily || undefined,
     },
     outputLocation,
     overwrite: true,
@@ -164,6 +172,112 @@ export const renderVideoWithTikTokCaptions = async ({
   });
 
   return outputLocation;
+};
+
+export const renderVideoWithTextOverlay = async ({
+  videoSrc,
+  textOverlay,
+  textPosition,
+  aspectRatio,
+  audioDurationSeconds,
+  fontFamily,
+}: {
+  videoSrc: string;
+  textOverlay: string;
+  textPosition: "top" | "center" | "bottom";
+  aspectRatio?: string | null;
+  audioDurationSeconds?: number | null;
+  fontFamily?: string | null;
+}): Promise<string | null> => {
+  if (!textOverlay || !textOverlay.trim()) {
+    return null;
+  }
+
+  // Parse text overlay into lines with timestamps (5 seconds per line)
+  const lines = textOverlay
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  if (lines.length === 0) {
+    return null;
+  }
+
+  const textLines = lines.map((text, index) => ({
+    text,
+    startTime: index * 5, // Each line starts 5 seconds after the previous
+    duration: 5, // Each line displays for 5 seconds
+  }));
+
+  const fps = 30;
+  const { width, height } = getCaptionResolution(aspectRatio ?? undefined);
+  const estimatedDurationSeconds = Math.max(
+    8,
+    Math.ceil((audioDurationSeconds ?? 0) + 6),
+  );
+  const durationInFrames = estimatedDurationSeconds * fps;
+  const outputLocation = path.join(
+    os.tmpdir(),
+    `text-overlay-video-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`,
+  );
+
+  const serveUrl = await getServeUrl();
+
+  const composition = await selectComposition({
+    serveUrl,
+    id: "TextOverlay",
+    inputProps: {
+      videoSrc,
+      textLines,
+      textPosition,
+      fps,
+      fontFamily: fontFamily || undefined,
+    },
+  });
+
+  console.log(`[TEXT_OVERLAY] Starting render with ${textLines.length} text lines, duration: ${durationInFrames} frames, font: ${fontFamily || 'Inter'}`);
+  
+  try {
+    await renderMedia({
+      serveUrl,
+      codec: "h264",
+      composition: {
+        ...composition,
+        fps,
+        width,
+        height,
+        durationInFrames,
+      },
+      inputProps: {
+        videoSrc,
+        textLines,
+        textPosition,
+        fps,
+        fontFamily: fontFamily || undefined,
+      },
+      outputLocation,
+      overwrite: true,
+      muted: false,
+      imageFormat: "jpeg",
+      crf: 18,
+    });
+
+    console.log(`[TEXT_OVERLAY] Render completed successfully: ${outputLocation}`);
+    
+    // Verify the file was created
+    if (!fs.existsSync(outputLocation)) {
+      console.error(`[TEXT_OVERLAY] ERROR: Output file was not created: ${outputLocation}`);
+      return null;
+    }
+    
+    const stats = fs.statSync(outputLocation);
+    console.log(`[TEXT_OVERLAY] Output file size: ${stats.size} bytes`);
+    
+    return outputLocation;
+  } catch (error) {
+    console.error(`[TEXT_OVERLAY] Render failed:`, error);
+    throw error;
+  }
 };
 
 export const deleteRenderedVideoIfExists = (filePath: string | null) => {

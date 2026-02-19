@@ -1496,15 +1496,149 @@ export async function generateCharacterImage(
   return imageUrls[0]; // Return the first image for backward compatibility
 }
 
+/**
+ * Generate a single scene image from text only (for instrumental videos)
+ * Uses seedream-v4 text-to-image model
+ */
+async function generateSingleSceneImageFromText(
+  prompt: string,
+  aspectRatio: string = "16:9",
+): Promise<string> {
+  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
+
+  console.log(`[TEXT-TO-IMAGE] Generating single scene from text`);
+  console.log(`[TEXT-TO-IMAGE] Prompt: ${prompt}`);
+  console.log(`[TEXT-TO-IMAGE] Aspect ratio: ${aspectRatio}`);
+
+  // Determine size parameter based on aspect ratio
+  // Vertical (9:16): 1728*2304 (width*height)
+  // Horizontal (16:9): 2560*1440 (width*height)
+  const size = (aspectRatio === "9:16" || aspectRatio === "3:4") ? "1728*2304" : "2560*1440";
+  console.log(`[TEXT-TO-IMAGE] Using size: ${size} for aspect ratio: ${aspectRatio}`);
+
+  // Submit generation request to Wavespeed.ai using seedream-v4 model
+  const response = await fetch(
+    "https://api.wavespeed.ai/api/v3/bytedance/seedream-v4",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+      },
+      body: JSON.stringify({
+        enable_base64_output: false,
+        enable_sync_mode: false,
+        prompt: prompt,
+        size: size,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("[TEXT-TO-IMAGE] Wavespeed.ai submission failed:", errorText);
+    throw new Error(
+      `Wavespeed.ai submission error: ${response.status} - ${errorText}`,
+    );
+  }
+
+  const result = await response.json();
+  console.log(
+    "[TEXT-TO-IMAGE] Wavespeed.ai submission result:",
+    JSON.stringify(result, null, 2),
+  );
+
+  if (result.code !== 200) {
+    throw new Error(
+      `Wavespeed.ai API error: ${result.message || "Unknown error"}`,
+    );
+  }
+
+  const requestId = result.data?.id;
+  if (!requestId) {
+    console.error("[TEXT-TO-IMAGE] No request ID in response:", result);
+    throw new Error("No request ID received from Wavespeed.ai");
+  }
+
+  console.log("[TEXT-TO-IMAGE] Got request ID:", requestId);
+
+  // Poll for results
+  let attempts = 0;
+  const maxAttempts = 180; // 15 minutes with 5-second intervals
+
+  console.log("[TEXT-TO-IMAGE] Starting polling for completion...");
+
+  while (attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
+
+    const statusResponse = await fetch(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      {
+        headers: {
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+      },
+    );
+
+    if (!statusResponse.ok) {
+      throw new Error(
+        `[TEXT-TO-IMAGE] Status check failed: ${statusResponse.status}`,
+      );
+    }
+
+    const statusResult = await statusResponse.json();
+    const status = statusResult.data?.status;
+
+    if (attempts % 12 === 0) {
+      console.log(`[TEXT-TO-IMAGE] Status: ${status || "unknown"}`);
+    }
+
+    if (
+      status === "completed" &&
+      statusResult.data?.outputs &&
+      statusResult.data.outputs.length > 0
+    ) {
+      const imageUrl = statusResult.data.outputs[0];
+      console.log(`[TEXT-TO-IMAGE] Generation completed! Image URL: ${imageUrl}`);
+
+      // Download and store the scene image permanently
+      console.log(`[TEXT-TO-IMAGE] Downloading and storing scene image permanently...`);
+      const { downloadAndStoreImage } = await import("./imageStorage");
+      const storedImage = await downloadAndStoreImage(imageUrl, "scenes");
+      console.log(`[TEXT-TO-IMAGE] Scene image stored permanently at: ${storedImage.storedUrl}`);
+
+      return storedImage.storedUrl;
+    } else if (status === "failed") {
+      throw new Error(
+        `[TEXT-TO-IMAGE] Generation failed: ${statusResult.data?.error || "Unknown error"}`,
+      );
+    }
+
+    attempts++;
+  }
+
+  throw new Error("[TEXT-TO-IMAGE] Generation timed out after 15 minutes");
+}
+
 export async function generateSingleSceneImage(
   prompt: string,
-  characterImageUrl: string,
+  characterImageUrl: string | undefined,
   aspectRatio: string = "16:9",
   currentSceneImageUrl?: string,
 ): Promise<string> {
   console.log(`Starting single scene generation with prompt: ${prompt}`);
-  console.log(`Input character image URL: ${characterImageUrl}`);
   console.log(`Aspect ratio: ${aspectRatio}`);
+  
+  // If no character image URL is provided, use text-to-image generation (for instrumental videos)
+  if (!characterImageUrl) {
+    console.log(`[INSTRUMENTAL] No character image URL provided, using text-to-image generation`);
+    return await generateSingleSceneImageFromText(prompt, aspectRatio);
+  }
+
+  console.log(`Input character image URL: ${characterImageUrl}`);
   if (currentSceneImageUrl) {
     console.log(`Current scene image URL provided: ${currentSceneImageUrl}`);
   }
@@ -1585,9 +1719,9 @@ async function generateSceneImagesSequential(
 
   // Determine size parameter based on aspect ratio
   // The sequential model only accepts these fixed sizes:
-  // Vertical (3:4): 1728*2304
+  // Vertical (9:16 or 3:4): 1728*2304
   // Horizontal (16:9): 2560*1440
-  const size = aspectRatio === "3:4" ? "1728*2304" : "2560*1440";
+  const size = (aspectRatio === "9:16" || aspectRatio === "3:4") ? "1728*2304" : "2560*1440";
   console.log(`[SEQUENTIAL-GEN] Using size: ${size} for aspect ratio: ${aspectRatio}`);
 
   // Format the prompts directly into the sequential format matching user's example
@@ -1885,4 +2019,219 @@ export async function generateSceneImages(
     
     return storedSceneUrls;
   }
+}
+
+/**
+ * Generate scene images using text-to-image (seedream-v4/sequential) for instrumental videos
+ * This generates images directly from prompts without needing a character image
+ */
+export async function generateSceneImagesFromText(
+  prompts: string[],
+  aspectRatio: string = "16:9",
+): Promise<string[]> {
+  const batchId = `TEXT-TO-IMAGE-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const batchStartTime = Date.now();
+  
+  console.log(`\n========================================`);
+  console.log(`[TEXT-TO-IMAGE ${new Date().toISOString()}] TEXT-TO-IMAGE BATCH STARTED`);
+  console.log(`[TEXT-TO-IMAGE] Batch ID: ${batchId}`);
+  console.log(`[TEXT-TO-IMAGE] Scene count: ${prompts.length}`);
+  console.log(`[TEXT-TO-IMAGE] Aspect Ratio: ${aspectRatio}`);
+  console.log(`========================================\n`);
+
+  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
+
+  // Determine size parameter based on aspect ratio
+  // Vertical (9:16): 1728*2304 (width*height)
+  // Horizontal (16:9): 2560*1440 (width*height)
+  const size = (aspectRatio === "9:16" || aspectRatio === "3:4") ? "1728*2304" : "2560*1440";
+  console.log(`[TEXT-TO-IMAGE] Using size: ${size} for aspect ratio: ${aspectRatio}`);
+
+  // Format the prompts into sequential format
+  let sequentialPrompt = `Generate a sequence of ${prompts.length} consecutive illustrations.\n\n`;
+  
+  prompts.forEach((prompt, index) => {
+    sequentialPrompt += `Scene ${index + 1} – ${prompt}\n`;
+  });
+  
+  sequentialPrompt += `\nKeep the style and setting consistent across all ${prompts.length} images so they feel like the same time of day in the exact same location.`;
+
+  // Handle batching: max 15 images per API call (using 12 for safety)
+  const MAX_IMAGES_PER_CALL = 12;
+  const batches: string[][] = [];
+  for (let i = 0; i < prompts.length; i += MAX_IMAGES_PER_CALL) {
+    batches.push(prompts.slice(i, i + MAX_IMAGES_PER_CALL));
+  }
+
+  console.log(`[TEXT-TO-IMAGE] Split into ${batches.length} batch(es) (max ${MAX_IMAGES_PER_CALL} images per batch)`);
+
+  const allImageUrls: string[] = [];
+
+  for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+    const batch = batches[batchIndex];
+    let remainingPrompts = [...batch];
+    let batchImageUrls: string[] = [];
+    let retryCount = 0;
+    const maxRetries = 3; // Maximum retries for missing images
+
+    while (remainingPrompts.length > 0 && retryCount <= maxRetries) {
+      const expectedCount = remainingPrompts.length;
+      const batchPrompt = retryCount === 0 && batchIndex === 0
+        ? sequentialPrompt 
+        : `Generate a sequence of ${expectedCount} consecutive illustrations.\n\n${remainingPrompts.map((p, i) => `Scene ${i + 1} – ${p}`).join('\n')}\n\nKeep the style and setting consistent across all ${expectedCount} images so they feel like the same time of day in the exact same location.`;
+
+      if (retryCount === 0) {
+        console.log(`[TEXT-TO-IMAGE] Batch ${batchIndex + 1}/${batches.length}: Generating ${expectedCount} images...`);
+      } else {
+        console.log(`[TEXT-TO-IMAGE] Batch ${batchIndex + 1} Retry ${retryCount}: Requesting ${expectedCount} missing images...`);
+      }
+
+      const response = await fetch("https://api.wavespeed.ai/api/v3/bytedance/seedream-v4/sequential", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${WAVESPEED_API_KEY}`,
+        },
+        body: JSON.stringify({
+          enable_base64_output: false,
+          enable_sync_mode: false,
+          max_images: expectedCount,
+          prompt: batchPrompt,
+          size: size,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[TEXT-TO-IMAGE] API error:`, errorText);
+        throw new Error(`Seedream-v4 sequential API error: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      const requestId = result.data?.id || result.id;
+
+      if (!requestId) {
+        throw new Error(`[TEXT-TO-IMAGE] No request ID received`);
+      }
+
+      console.log(`[TEXT-TO-IMAGE] Batch ${batchIndex + 1} Request ID: ${requestId}`);
+
+      // Poll for results
+      let attempts = 0;
+      const maxAttempts = 180; // 15 minutes max
+
+      while (attempts < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 5000)); // Poll every 5 seconds
+
+        const statusResponse = await fetch(
+          `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+          {
+            headers: {
+              Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+            },
+          }
+        );
+
+        if (!statusResponse.ok) {
+          throw new Error(`[TEXT-TO-IMAGE] Status check failed: ${statusResponse.status}`);
+        }
+
+        const statusResult = await statusResponse.json();
+        const status = statusResult.data?.status;
+
+        if (attempts % 12 === 0) {
+          console.log(`[TEXT-TO-IMAGE] Batch ${batchIndex + 1} Status: ${status || "unknown"}`);
+        }
+
+        if (
+          status === "completed" &&
+          statusResult.data?.outputs &&
+          statusResult.data.outputs.length > 0
+        ) {
+          const imageUrls = statusResult.data.outputs;
+          console.log(`[TEXT-TO-IMAGE] Batch ${batchIndex + 1} completed! Got ${imageUrls.length} images (expected ${expectedCount})`);
+          
+          batchImageUrls.push(...imageUrls);
+          
+          // Check if we got fewer images than requested
+          if (imageUrls.length < expectedCount) {
+            const missingCount = expectedCount - imageUrls.length;
+            console.warn(`[TEXT-TO-IMAGE] Batch ${batchIndex + 1} got ${imageUrls.length} images but expected ${expectedCount}. Missing ${missingCount} images.`);
+            
+            // Remove the prompts that we got images for (assuming they come in order)
+            // Sequential API returns images in the order of prompts, so we remove the first N prompts
+            remainingPrompts = remainingPrompts.slice(imageUrls.length);
+            retryCount++;
+            
+            if (retryCount > maxRetries) {
+              console.error(`[TEXT-TO-IMAGE] Batch ${batchIndex + 1} exceeded max retries (${maxRetries}). Proceeding with ${batchImageUrls.length} images instead of ${batch.length}.`);
+              remainingPrompts = []; // Stop retrying
+              break;
+            }
+            
+            if (remainingPrompts.length > 0) {
+              console.log(`[TEXT-TO-IMAGE] Batch ${batchIndex + 1} will retry for ${remainingPrompts.length} missing images...`);
+              break; // Exit polling loop to make retry request
+            }
+          }
+          
+          // Got all expected images (or no more retries), exit both loops
+          remainingPrompts = [];
+          break;
+        } else if (status === "completed" && (!statusResult.data?.outputs || statusResult.data.outputs.length === 0)) {
+          // Completed but no images returned - this is unusual, treat as failure for retry
+          console.warn(`[TEXT-TO-IMAGE] Batch ${batchIndex + 1} completed but returned 0 images. Retrying...`);
+          retryCount++;
+          
+          if (retryCount > maxRetries) {
+            throw new Error(`[TEXT-TO-IMAGE] Batch ${batchIndex + 1} completed but returned 0 images after ${maxRetries} retries`);
+          }
+          
+          break; // Exit polling loop to make retry request
+        } else if (status === "failed") {
+          throw new Error(
+            `[TEXT-TO-IMAGE] Batch ${batchIndex + 1} generation failed: ${statusResult.data?.error || "Unknown error"}`
+          );
+        }
+
+        attempts++;
+      }
+
+      if (attempts >= maxAttempts) {
+        throw new Error(`[TEXT-TO-IMAGE] Batch ${batchIndex + 1} generation timed out after 15 minutes`);
+      }
+    }
+
+    // Add all images from this batch to the main array
+    allImageUrls.push(...batchImageUrls);
+    
+    if (batchImageUrls.length < batch.length) {
+      console.warn(`[TEXT-TO-IMAGE] Batch ${batchIndex + 1} final count: ${batchImageUrls.length}/${batch.length} images after retries`);
+    }
+  }
+
+  console.log(`[TEXT-TO-IMAGE] All batches completed. Total images: ${allImageUrls.length}`);
+
+  // Download and store all images
+  const { downloadAndStoreImage } = await import("./imageStorage");
+  const storedSceneUrls: string[] = [];
+
+  for (let i = 0; i < allImageUrls.length; i++) {
+    console.log(`[TEXT-TO-IMAGE] Storing image ${i + 1}/${allImageUrls.length}...`);
+    const storedImage = await downloadAndStoreImage(allImageUrls[i], "scenes");
+    storedSceneUrls.push(storedImage.storedUrl);
+  }
+
+  const batchDuration = Date.now() - batchStartTime;
+  console.log(`\n========================================`);
+  console.log(`[TEXT-TO-IMAGE ${new Date().toISOString()}] TEXT-TO-IMAGE BATCH COMPLETED`);
+  console.log(`[TEXT-TO-IMAGE] Batch ID: ${batchId}`);
+  console.log(`[TEXT-TO-IMAGE] Duration: ${batchDuration}ms`);
+  console.log(`[TEXT-TO-IMAGE] Scenes stored: ${storedSceneUrls.length}`);
+  console.log(`========================================\n`);
+
+  return storedSceneUrls;
 }

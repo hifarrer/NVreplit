@@ -132,7 +132,7 @@ export default function Home() {
     setCurrentStep(1);
     setProjectId(""); // Clear current project ID
     setCurrentEditSession(null); // Clear edit session
-    // Clear the edit query param from URL
+    // Clear the edit query param from URL and navigate to /create
     setLocation('/create');
     createProjectMutation.mutate(); // Create a new project
   };
@@ -181,12 +181,16 @@ export default function Home() {
             projectSubtitleStyle={(project as any)?.subtitleStyle}
             projectIncludeWatermark={(project as any)?.includeWatermark}
             projectIsPublic={(project as any)?.isPublic}
-            onNext={() => handleStepChange(2)}
+            onNext={() => {
+              // Skip step 2 (character) for instrumental/lyric videos
+              const isInstrumental = (project as any)?.isInstrumental || false;
+              handleStepChange(isInstrumental ? 3 : 2);
+            }}
             onReset={resetProject}
           />
         )}
 
-        {currentStep === 2 && (
+        {currentStep === 2 && !((project as any)?.isInstrumental) && (
           <CharacterCreationStep
             projectId={projectId}
             characterImageUrl={project?.characterImageUrl}
@@ -203,6 +207,7 @@ export default function Home() {
             audioDuration={project?.audioDuration}
             audioUrl={project?.audioUrl}
             audioLyrics={(project as any)?.audioLyrics}
+            textOverlay={(project as any)?.textOverlay}
             subtitleFileUrl={(project as any)?.subtitleFileUrl}
             characterImageUrl={project?.characterImageUrl}
             scenes={project?.scenePrompts?.map((prompt, index) => ({
@@ -215,8 +220,13 @@ export default function Home() {
             isEditMode={isEditMode}
             finalVideoUrl={isEditMode ? project?.finalVideoUrl : undefined}
             aspectRatio={project?.aspectRatio}
+            isInstrumental={(project as any)?.isInstrumental || false}
             onNext={() => handleStepChange(4)}
-            onBack={() => handleStepChange(2)}
+            onBack={() => {
+              // Go back to step 1 for instrumental/lyric videos, step 2 for character videos
+              const isInstrumental = (project as any)?.isInstrumental || false;
+              handleStepChange(isInstrumental ? 1 : 2);
+            }}
             onReset={resetProject}
           />
         )}
