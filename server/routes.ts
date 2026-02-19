@@ -8916,18 +8916,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           } catch (captionRenderError) {
             console.warn(
-              "Remotion caption render failed. Not using FFmpeg fallback to prevent double captions:",
+              "Remotion caption render failed (e.g. Target closed on Replit):",
               captionRenderError,
             );
-            // CRITICAL: Do NOT use FFmpeg subtitles as fallback - we only want Remotion captions
-            // This prevents double captions from appearing (one from FFmpeg, one from Remotion)
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "video_generation",
-              message: `TikTok caption render failed, falling back to base merge: ${(captionRenderError as Error).message}`,
-              status: "warning",
-              metadata: { captionStyle: projectSubtitleStyle },
-            });
+            // Fallback: re-merge with FFmpeg subtitles so user still gets captions (single source, no double captions)
+            if (resolvedSubtitleUrl) {
+              try {
+                console.log("[VIDEO-GEN] Using FFmpeg subtitle fallback after Remotion failure");
+                finalVideo = await mergeVideos(
+                  signedVideoUrls,
+                  finalAudioUrl,
+                  resolvedSubtitleUrl ?? undefined,
+                  watermarkUrl,
+                );
+                console.log("Final video re-merged with FFmpeg captions:", finalVideo.download_url);
+                await storage.addGenerationLog({
+                  projectId: req.params.id,
+                  step: "video_generation",
+                  message: `TikTok caption render failed; used FFmpeg subtitle fallback for captions`,
+                  status: "warning",
+                  metadata: { captionStyle: projectSubtitleStyle, reason: (captionRenderError as Error).message },
+                });
+              } catch (ffmpegFallbackError) {
+                console.warn("FFmpeg subtitle fallback also failed:", ffmpegFallbackError);
+                await storage.addGenerationLog({
+                  projectId: req.params.id,
+                  step: "video_generation",
+                  message: `TikTok caption render failed, falling back to base merge: ${(captionRenderError as Error).message}`,
+                  status: "warning",
+                  metadata: { captionStyle: projectSubtitleStyle },
+                });
+              }
+            } else {
+              await storage.addGenerationLog({
+                projectId: req.params.id,
+                step: "video_generation",
+                message: `TikTok caption render failed, falling back to base merge: ${(captionRenderError as Error).message}`,
+                status: "warning",
+                metadata: { captionStyle: projectSubtitleStyle },
+              });
+            }
           }
         }
 

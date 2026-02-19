@@ -49,6 +49,19 @@ const CHROMIUM_OPTIONS = {
 // Longer timeout for production where the browser may take longer to start
 const BROWSER_TIMEOUT_MS = 120_000;
 
+// Retry when Chromium tab crashes (Target closed / ProtocolError) - common on Replit
+const REMOTION_CAPTION_MAX_RETRIES = 3;
+const REMOTION_RETRY_DELAY_MS = 3000;
+
+function isRetryableRemotionError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    msg.includes("Target closed") ||
+    msg.includes("ProtocolError") ||
+    msg.includes("Protocol error")
+  );
+}
+
 const getCaptionResolution = (
   aspectRatio: string | undefined,
 ): { width: number; height: number } => {
@@ -171,49 +184,66 @@ export const renderVideoWithTikTokCaptions = async ({
 
   const serveUrl = await getServeUrl();
 
-  const composition = await selectComposition({
-    serveUrl,
-    id: "CaptionedVideo",
-    inputProps: {
-      videoSrc,
-      pages,
-      fps,
-      stylePreset: style,
-      captionPosition: captionPosition || "bottom",
-      fontFamily: fontFamily || undefined,
-    },
-    chromiumOptions: CHROMIUM_OPTIONS,
-    timeoutInMilliseconds: BROWSER_TIMEOUT_MS,
-  });
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= REMOTION_CAPTION_MAX_RETRIES; attempt++) {
+    try {
+      const composition = await selectComposition({
+        serveUrl,
+        id: "CaptionedVideo",
+        inputProps: {
+          videoSrc,
+          pages,
+          fps,
+          stylePreset: style,
+          captionPosition: captionPosition || "bottom",
+          fontFamily: fontFamily || undefined,
+        },
+        chromiumOptions: CHROMIUM_OPTIONS,
+        timeoutInMilliseconds: BROWSER_TIMEOUT_MS,
+      });
 
-  await renderMedia({
-    serveUrl,
-    codec: "h264",
-    composition: {
-      ...composition,
-      fps,
-      width,
-      height,
-      durationInFrames,
-    },
-    inputProps: {
-      videoSrc,
-      pages,
-      fps,
-      stylePreset: style,
-      captionPosition: captionPosition || "bottom",
-      fontFamily: fontFamily || undefined,
-    },
-    outputLocation,
-    overwrite: true,
-    muted: false,
-    imageFormat: "jpeg",
-    crf: 18,
-    chromiumOptions: CHROMIUM_OPTIONS,
-    timeoutInMilliseconds: BROWSER_TIMEOUT_MS,
-  });
+      await renderMedia({
+        serveUrl,
+        codec: "h264",
+        composition: {
+          ...composition,
+          fps,
+          width,
+          height,
+          durationInFrames,
+        },
+        inputProps: {
+          videoSrc,
+          pages,
+          fps,
+          stylePreset: style,
+          captionPosition: captionPosition || "bottom",
+          fontFamily: fontFamily || undefined,
+        },
+        outputLocation,
+        overwrite: true,
+        muted: false,
+        imageFormat: "jpeg",
+        crf: 18,
+        chromiumOptions: CHROMIUM_OPTIONS,
+        timeoutInMilliseconds: BROWSER_TIMEOUT_MS,
+      });
 
-  return outputLocation;
+      return outputLocation;
+    } catch (err) {
+      lastError = err;
+      if (attempt < REMOTION_CAPTION_MAX_RETRIES && isRetryableRemotionError(err)) {
+        console.warn(
+          `[REMOTION] Caption render attempt ${attempt}/${REMOTION_CAPTION_MAX_RETRIES} failed (Target closed/ProtocolError), retrying in ${REMOTION_RETRY_DELAY_MS}ms...`,
+          err instanceof Error ? err.message : err,
+        );
+        await new Promise((r) => setTimeout(r, REMOTION_RETRY_DELAY_MS));
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw lastError;
 };
 
 export const renderVideoWithTextOverlay = async ({
