@@ -10,51 +10,10 @@ import {
 } from "./TextOverlayComposition";
 import type { SubtitleStyle } from "@shared/subtitleStyles";
 
-// Load all available Google Fonts at root level
-import { loadFont as loadInter } from "@remotion/google-fonts/Inter";
-import { loadFont as loadRoboto } from "@remotion/google-fonts/Roboto";
-import { loadFont as loadOpenSans } from "@remotion/google-fonts/OpenSans";
-import { loadFont as loadMontserrat } from "@remotion/google-fonts/Montserrat";
-import { loadFont as loadPoppins } from "@remotion/google-fonts/Poppins";
-import { loadFont as loadLato } from "@remotion/google-fonts/Lato";
-import { loadFont as loadRaleway } from "@remotion/google-fonts/Raleway";
-import { loadFont as loadOswald } from "@remotion/google-fonts/Oswald";
-import { loadFont as loadPlayfairDisplay } from "@remotion/google-fonts/PlayfairDisplay";
-import { loadFont as loadBebasNeue } from "@remotion/google-fonts/BebasNeue";
-import { loadFont as loadTitanOne } from "@remotion/google-fonts/TitanOne";
-import { loadFont as loadBangers } from "@remotion/google-fonts/Bangers";
-import { loadFont as loadRighteous } from "@remotion/google-fonts/Righteous";
-import { loadFont as loadFredoka } from "@remotion/google-fonts/Fredoka";
-import { loadFont as loadBungee } from "@remotion/google-fonts/Bungee";
-import { loadFont as loadLilitaOne } from "@remotion/google-fonts/LilitaOne";
-import { loadFont as loadRubik } from "@remotion/google-fonts/Rubik";
-import { loadFont as loadNunito } from "@remotion/google-fonts/Nunito";
-import { loadFont as loadSourceSans3 } from "@remotion/google-fonts/SourceSans3";
-import { loadFont as loadUbuntu } from "@remotion/google-fonts/Ubuntu";
-
-// Load all fonts
-// Note: Loading without options to avoid "style [object Object]" errors
-// The warnings about too many requests are just warnings and don't prevent rendering
-loadInter();
-loadRoboto();
-loadOpenSans();
-loadMontserrat();
-loadPoppins();
-loadLato();
-loadRaleway();
-loadOswald();
-loadPlayfairDisplay();
-loadBebasNeue();
-loadTitanOne();
-loadBangers();
-loadRighteous();
-loadFredoka();
-loadBungee();
-loadLilitaOne();
-loadRubik();
-loadNunito();
-loadSourceSans3();
-loadUbuntu();
+// Do not import @remotion/google-fonts here - the Remotion bundler resolves from
+// server/remotion and can fail to find that package on some environments (e.g. Replit).
+// Compositions use fontFamily with a fallback (e.g. "Inter, sans-serif") so system
+// fonts are used when Google Fonts are not loaded.
 
 const defaultCaptionProps: CaptionedVideoCompositionProps = {
   videoSrc: "",

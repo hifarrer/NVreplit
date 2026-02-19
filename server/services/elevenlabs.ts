@@ -173,26 +173,52 @@ async function downloadAudioFile(audioUrl: string): Promise<Buffer> {
     console.log("Downloading audio file from:", audioUrl);
 
     // Handle both internal object URLs and external URLs
-    let fetchUrl: string;
-    if (audioUrl.startsWith("/objects/")) {
-      // Internal object storage URL - need to fetch from local server
-      fetchUrl = `http://localhost:5000${audioUrl}`;
+    if (audioUrl.startsWith("/objects/") || audioUrl.startsWith("/public-objects/")) {
+      // Internal object storage URL - download directly from object storage
+      const { ObjectStorageService, objectStorageClient } = await import("../objectStorage");
+      const objectStorageService = new ObjectStorageService();
+      
+      let fullPath: string;
+      if (audioUrl.startsWith("/public-objects/")) {
+        const objectPath = audioUrl.replace("/public-objects/", "");
+        const publicPaths = objectStorageService.getPublicObjectSearchPaths();
+        fullPath = `${publicPaths[0]}/${objectPath}`;
+      } else {
+        const objectPath = audioUrl.replace("/objects/", "");
+        const privateObjectDir = process.env.PRIVATE_OBJECT_DIR || "";
+        fullPath = `${privateObjectDir}/${objectPath}`;
+      }
+      
+      // Parse bucket and object name
+      const pathParts = fullPath.split("/");
+      const bucketName = pathParts[1];
+      const objectName = pathParts.slice(2).join("/");
+      
+      // Download the file directly from object storage
+      const bucket = objectStorageClient.bucket(bucketName);
+      const file = bucket.file(objectName);
+      const [exists] = await file.exists();
+      
+      if (!exists) {
+        throw new Error(`Audio file not found in object storage: ${audioUrl}`);
+      }
+      
+      const [buffer] = await file.download();
+      console.log("Downloaded audio file from object storage, size:", buffer.length);
+      return buffer;
     } else {
-      // External URL
-      fetchUrl = audioUrl;
+      // External URL - fetch normally
+      const response = await fetch(audioUrl);
+      if (!response.ok) {
+        throw new Error(
+          `Failed to download audio: ${response.status} ${response.statusText}`,
+        );
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      console.log("Downloaded audio file from external URL, size:", buffer.length);
+      return buffer;
     }
-
-    const response = await fetch(fetchUrl);
-    if (!response.ok) {
-      throw new Error(
-        `Failed to download audio: ${response.status} ${response.statusText}`,
-      );
-    }
-
-    const buffer = await response.buffer();
-    console.log("Downloaded audio file, size:", buffer.length);
-
-    return buffer;
   } catch (error) {
     console.error("Error downloading audio file:", error);
     throw new Error(

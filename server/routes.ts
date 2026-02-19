@@ -178,6 +178,35 @@ const objectStorage = new ObjectStorageService();
 
 const JWT_SECRET = process.env.JWT_SECRET || "music-video-maker-secret-key";
 
+/**
+ * Get the base URL for internal API calls
+ * Uses environment variables or constructs from request object
+ */
+function getBaseUrl(req?: any): string {
+  // First, check for explicit BASE_URL or API_URL environment variable
+  if (process.env.BASE_URL) {
+    return process.env.BASE_URL;
+  }
+  if (process.env.API_URL) {
+    return process.env.API_URL;
+  }
+  
+  // If request object is available, construct from it
+  if (req) {
+    // Check for X-Forwarded-Proto header (common on Render, Heroku, etc.)
+    const forwardedProto = req.get('x-forwarded-proto') || req.headers?.['x-forwarded-proto'];
+    const protocol = forwardedProto || req.protocol || (req.secure ? 'https' : 'http');
+    const host = req.get('host') || req.headers?.host;
+    if (host) {
+      return `${protocol}://${host}`;
+    }
+  }
+  
+  // Fall back to localhost for local development
+  const port = process.env.PORT || '5000';
+  return `http://localhost:${port}`;
+}
+
 // Google OAuth configuration
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -10950,7 +10979,8 @@ Format your response as JSON:
       let videoError: string | null = null;
       
       try {
-        const videoGenResponse = await fetch(`http://localhost:5000/api/projects/${projectId}/generate-video`, {
+        const baseUrl = getBaseUrl(req);
+        const videoGenResponse = await fetch(`${baseUrl}/api/projects/${projectId}/generate-video`, {
           method: "POST",
           headers: { "Content-Type": "application/json" }
         });
@@ -11511,7 +11541,8 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       // Trigger video generation asynchronously
       (async () => {
         try {
-          const videoGenResponse = await fetch(`http://localhost:5000/api/projects/${project.id}/generate-video`, {
+          const baseUrl = getBaseUrl(req);
+          const videoGenResponse = await fetch(`${baseUrl}/api/projects/${project.id}/generate-video`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json"
@@ -11777,7 +11808,8 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       (async () => {
         try {
           // Call internal video generation logic
-          const videoGenResponse = await fetch(`http://localhost:5000/api/projects/${project.id}/generate-video`, {
+          const baseUrl = getBaseUrl(req);
+          const videoGenResponse = await fetch(`${baseUrl}/api/projects/${project.id}/generate-video`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json"
@@ -12312,7 +12344,8 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       // Trigger video generation asynchronously
       (async () => {
         try {
-          const videoGenResponse = await fetch(`http://localhost:5000/api/projects/${project.id}/generate-video`, {
+          const baseUrl = getBaseUrl(req);
+          const videoGenResponse = await fetch(`${baseUrl}/api/projects/${project.id}/generate-video`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json"
@@ -12742,7 +12775,8 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       (async () => {
         try {
           // First generate the base video
-          const videoGenResponse = await fetch(`http://localhost:5000/api/projects/${project.id}/generate-video`, {
+          const baseUrl = getBaseUrl(req);
+          const videoGenResponse = await fetch(`${baseUrl}/api/projects/${project.id}/generate-video`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json"
