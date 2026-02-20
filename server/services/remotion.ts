@@ -1,6 +1,8 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { pipeline } from "stream/promises";
+import { Readable } from "stream";
 import { fileURLToPath } from "url";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition, ensureBrowser } from "@remotion/renderer";
@@ -41,7 +43,7 @@ const getRenderConfig = () => {
       jpegQuality: 65,
       disallowParallelEncoding: false,
       scale: 0.667,
-      logLevel: "verbose" as const,
+      logLevel: "warn" as const,
     };
   }
   if (isReplit) {
@@ -127,6 +129,31 @@ export const warmUpRemotionRenderer = async () => {
   }
 
   console.log(`[REMOTION] Warm-up complete in ${Date.now() - start}ms`);
+};
+
+/**
+ * Download a remote video to a local temp file so Remotion can read frames
+ * from disk instead of making an HTTP request per frame through its proxy.
+ */
+const downloadVideoToLocal = async (url: string): Promise<string> => {
+  const tmpPath = path.join(
+    os.tmpdir(),
+    `remotion-src-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`,
+  );
+  const start = Date.now();
+  console.log(`[REMOTION] Downloading source video to local disk...`);
+
+  const res = await fetch(url);
+  if (!res.ok || !res.body) {
+    throw new Error(`Failed to download video: ${res.status} ${res.statusText}`);
+  }
+
+  const fileStream = fs.createWriteStream(tmpPath);
+  await pipeline(Readable.fromWeb(res.body as any), fileStream);
+
+  const stat = fs.statSync(tmpPath);
+  console.log(`[REMOTION] Source video downloaded in ${Date.now() - start}ms (${(stat.size / 1024 / 1024).toFixed(1)} MB)`);
+  return tmpPath;
 };
 
 const getCaptionResolution = (
@@ -249,72 +276,75 @@ export const renderVideoWithTikTokCaptions = async ({
     `captioned-video-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`,
   );
 
-  const serveUrl = await getServeUrl();
-  const envConfig = getRenderConfig();
+  // Download remote video to local disk so Remotion reads frames locally
+  // instead of making an HTTP round-trip per frame through its proxy (~465ms/frame → ~5ms/frame)
+  let localVideoPath: string | null = null;
+  let effectiveVideoSrc = videoSrc;
+  if (videoSrc.startsWith("http")) {
+    localVideoPath = await downloadVideoToLocal(videoSrc);
+    effectiveVideoSrc = localVideoPath;
+  }
 
-  const sharedInputProps = {
-    videoSrc,
-    pages,
-    fps,
-    stylePreset: style,
-    captionPosition: captionPosition || "bottom",
-    fontFamily: fontFamily || undefined,
-  };
+  try {
+    const serveUrl = await getServeUrl();
+    const envConfig = getRenderConfig();
 
-  const scaledWidth = Math.round(width * envConfig.scale);
-  const scaledHeight = Math.round(height * envConfig.scale);
-  console.log(`[REMOTION] Environment: ${getHostEnvName()}, concurrency: ${envConfig.concurrency ?? 'auto'}, timeout: ${envConfig.timeoutInMilliseconds}ms, resolution: ${scaledWidth}x${scaledHeight} (scale: ${envConfig.scale}), frames: ${durationInFrames}`);
-
-  const compStart = Date.now();
-  const composition = await selectComposition({
-    serveUrl,
-    id: "CaptionedVideo",
-    inputProps: sharedInputProps,
-    timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
-    chromiumOptions: envConfig.chromiumOptions,
-  });
-  console.log(`[REMOTION] selectComposition took ${Date.now() - compStart}ms`);
-
-  const renderStart = Date.now();
-  await renderMedia({
-    serveUrl,
-    codec: "h264",
-    composition: {
-      ...composition,
+    const sharedInputProps = {
+      videoSrc: effectiveVideoSrc,
+      pages,
       fps,
-      width: scaledWidth,
-      height: scaledHeight,
-      durationInFrames,
-    },
-    inputProps: sharedInputProps,
-    outputLocation,
-    overwrite: true,
-    muted: false,
-    imageFormat: "jpeg",
-    jpegQuality: envConfig.jpegQuality,
-    crf: 23,
-    concurrency: envConfig.concurrency,
-    timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
-    chromiumOptions: envConfig.chromiumOptions,
-    ...(envConfig.offthreadVideoCacheSizeInBytes ? { offthreadVideoCacheSizeInBytes: envConfig.offthreadVideoCacheSizeInBytes } : {}),
-    disallowParallelEncoding: envConfig.disallowParallelEncoding,
-    logLevel: envConfig.logLevel,
-    onDownload: (src) => {
-      console.log(`[REMOTION] Downloading: ${src}`);
-      let lastLoggedPercent = -1;
-      return ({ percent }) => {
-        if (percent === null) return;
-        const rounded = Math.round(percent * 100);
-        if (rounded !== lastLoggedPercent && (rounded % 25 === 0 || rounded === 1)) {
-          lastLoggedPercent = rounded;
-          console.log(`[REMOTION] Download progress: ${rounded}%`);
-        }
-      };
-    },
-  });
-  console.log(`[REMOTION] renderMedia took ${Date.now() - renderStart}ms (${durationInFrames} frames, ${((Date.now() - renderStart) / durationInFrames).toFixed(1)}ms/frame)`);
+      stylePreset: style,
+      captionPosition: captionPosition || "bottom",
+      fontFamily: fontFamily || undefined,
+    };
 
-  return outputLocation;
+    const scaledWidth = Math.round(width * envConfig.scale);
+    const scaledHeight = Math.round(height * envConfig.scale);
+    console.log(`[REMOTION] Environment: ${getHostEnvName()}, concurrency: ${envConfig.concurrency ?? 'auto'}, timeout: ${envConfig.timeoutInMilliseconds}ms, resolution: ${scaledWidth}x${scaledHeight} (scale: ${envConfig.scale}), frames: ${durationInFrames}`);
+
+    const compStart = Date.now();
+    const composition = await selectComposition({
+      serveUrl,
+      id: "CaptionedVideo",
+      inputProps: sharedInputProps,
+      timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
+      chromiumOptions: envConfig.chromiumOptions,
+    });
+    console.log(`[REMOTION] selectComposition took ${Date.now() - compStart}ms`);
+
+    const renderStart = Date.now();
+    await renderMedia({
+      serveUrl,
+      codec: "h264",
+      composition: {
+        ...composition,
+        fps,
+        width: scaledWidth,
+        height: scaledHeight,
+        durationInFrames,
+      },
+      inputProps: sharedInputProps,
+      outputLocation,
+      overwrite: true,
+      muted: false,
+      imageFormat: "jpeg",
+      jpegQuality: envConfig.jpegQuality,
+      crf: 23,
+      concurrency: envConfig.concurrency,
+      timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
+      chromiumOptions: envConfig.chromiumOptions,
+      ...(envConfig.offthreadVideoCacheSizeInBytes ? { offthreadVideoCacheSizeInBytes: envConfig.offthreadVideoCacheSizeInBytes } : {}),
+      disallowParallelEncoding: envConfig.disallowParallelEncoding,
+      logLevel: envConfig.logLevel,
+    });
+    console.log(`[REMOTION] renderMedia took ${Date.now() - renderStart}ms (${durationInFrames} frames, ${((Date.now() - renderStart) / durationInFrames).toFixed(1)}ms/frame)`);
+
+    return outputLocation;
+  } finally {
+    if (localVideoPath) {
+      try { fs.unlinkSync(localVideoPath); } catch {}
+    }
+  }
 };
 
 export const renderVideoWithTextOverlay = async ({
@@ -364,31 +394,38 @@ export const renderVideoWithTextOverlay = async ({
     `text-overlay-video-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`,
   );
 
-  const serveUrl = await getServeUrl();
-  const envConfig = getRenderConfig();
+  let localVideoPath: string | null = null;
+  let effectiveVideoSrc = videoSrc;
+  if (videoSrc.startsWith("http")) {
+    localVideoPath = await downloadVideoToLocal(videoSrc);
+    effectiveVideoSrc = localVideoPath;
+  }
 
-  const sharedInputProps = {
-    videoSrc,
-    textLines,
-    textPosition,
-    fps,
-    fontFamily: fontFamily || undefined,
-  };
-
-  const composition = await selectComposition({
-    serveUrl,
-    id: "TextOverlay",
-    inputProps: sharedInputProps,
-    timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
-    chromiumOptions: envConfig.chromiumOptions,
-  });
-
-  const scaledWidth = Math.round(width * envConfig.scale);
-  const scaledHeight = Math.round(height * envConfig.scale);
-  console.log(`[TEXT_OVERLAY] Starting render with ${textLines.length} text lines, duration: ${durationInFrames} frames, font: ${fontFamily || 'Inter'}, env: ${getHostEnvName()}, resolution: ${scaledWidth}x${scaledHeight}`);
-  
-  const renderStart = Date.now();
   try {
+    const serveUrl = await getServeUrl();
+    const envConfig = getRenderConfig();
+
+    const sharedInputProps = {
+      videoSrc: effectiveVideoSrc,
+      textLines,
+      textPosition,
+      fps,
+      fontFamily: fontFamily || undefined,
+    };
+
+    const composition = await selectComposition({
+      serveUrl,
+      id: "TextOverlay",
+      inputProps: sharedInputProps,
+      timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
+      chromiumOptions: envConfig.chromiumOptions,
+    });
+
+    const scaledWidth = Math.round(width * envConfig.scale);
+    const scaledHeight = Math.round(height * envConfig.scale);
+    console.log(`[TEXT_OVERLAY] Starting render with ${textLines.length} text lines, duration: ${durationInFrames} frames, font: ${fontFamily || 'Inter'}, env: ${getHostEnvName()}, resolution: ${scaledWidth}x${scaledHeight}`);
+    
+    const renderStart = Date.now();
     await renderMedia({
       serveUrl,
       codec: "h264",
@@ -416,7 +453,6 @@ export const renderVideoWithTextOverlay = async ({
 
     console.log(`[TEXT_OVERLAY] Render completed in ${Date.now() - renderStart}ms (${durationInFrames} frames, ${((Date.now() - renderStart) / durationInFrames).toFixed(1)}ms/frame): ${outputLocation}`);
     
-    // Verify the file was created
     if (!fs.existsSync(outputLocation)) {
       console.error(`[TEXT_OVERLAY] ERROR: Output file was not created: ${outputLocation}`);
       return null;
@@ -429,6 +465,10 @@ export const renderVideoWithTextOverlay = async ({
   } catch (error) {
     console.error(`[TEXT_OVERLAY] Render failed:`, error);
     throw error;
+  } finally {
+    if (localVideoPath) {
+      try { fs.unlinkSync(localVideoPath); } catch {}
+    }
   }
 };
 
