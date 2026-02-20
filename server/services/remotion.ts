@@ -3,13 +3,14 @@ import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
 import { bundle } from "@remotion/bundler";
-import { renderMedia, selectComposition } from "@remotion/renderer";
+import { renderMedia, selectComposition, ensureBrowser } from "@remotion/renderer";
 import { normalizeSubtitleStyle, isTikTokSubtitleStyle, parseAssToCaptions, createTikTokPages } from "./captions";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let cachedServeUrl: string | null = null;
+let browserReady = false;
 
 const isRender = !!(process.env.RENDER || process.env.RENDER_EXTERNAL_URL || process.env.RENDER_SERVICE_ID);
 const isRailway = !!(process.env.RAILWAY_SERVICE_ID || process.env.RAILWAY_ENVIRONMENT_ID);
@@ -24,18 +25,21 @@ const getHostEnvName = (): string => {
 };
 
 const getRenderConfig = () => {
+  const cpuCount = os.cpus().length;
+
   if (isCloudHost) {
+    const cloudConcurrency = Math.max(1, Math.min(cpuCount, 4));
     return {
-      concurrency: 1,
-      timeoutInMilliseconds: 15 * 60 * 1000, // 15 minutes
+      concurrency: cloudConcurrency,
+      timeoutInMilliseconds: 15 * 60 * 1000,
       chromiumOptions: {
         disableWebSecurity: true,
-        gl: "swiftshader" as const,
+        gl: "swangle" as const,
         headless: true,
       },
-      offthreadVideoCacheSizeInBytes: 128 * 1024 * 1024,
+      offthreadVideoCacheSizeInBytes: 256 * 1024 * 1024,
       jpegQuality: 65,
-      disallowParallelEncoding: true,
+      disallowParallelEncoding: false,
       scale: 0.667,
       logLevel: "verbose" as const,
     };
@@ -94,6 +98,36 @@ const setupLibraryPath = () => {
 
 // Initialize library path on module load
 setupLibraryPath();
+
+/**
+ * Pre-download Chrome Headless Shell and bundle the Remotion entry point
+ * at server startup so the first render request doesn't pay these costs.
+ * Call this once from your server bootstrap code.
+ */
+export const warmUpRemotionRenderer = async () => {
+  const start = Date.now();
+  console.log(`[REMOTION] Warming up renderer (env: ${getHostEnvName()})...`);
+
+  try {
+    await ensureBrowser({
+      logLevel: "info",
+    });
+    browserReady = true;
+    console.log(`[REMOTION] Browser ready in ${Date.now() - start}ms`);
+  } catch (err) {
+    console.error("[REMOTION] Failed to ensure browser:", err);
+  }
+
+  try {
+    const bundleStart = Date.now();
+    await getServeUrl();
+    console.log(`[REMOTION] Bundle cached in ${Date.now() - bundleStart}ms`);
+  } catch (err) {
+    console.error("[REMOTION] Failed to pre-bundle:", err);
+  }
+
+  console.log(`[REMOTION] Warm-up complete in ${Date.now() - start}ms`);
+};
 
 const getCaptionResolution = (
   aspectRatio: string | undefined,
@@ -229,15 +263,19 @@ export const renderVideoWithTikTokCaptions = async ({
 
   const scaledWidth = Math.round(width * envConfig.scale);
   const scaledHeight = Math.round(height * envConfig.scale);
-  console.log(`[REMOTION] Environment: ${getHostEnvName()}, concurrency: ${envConfig.concurrency ?? 'auto'}, timeout: ${envConfig.timeoutInMilliseconds}ms, resolution: ${scaledWidth}x${scaledHeight} (scale: ${envConfig.scale})`);
+  console.log(`[REMOTION] Environment: ${getHostEnvName()}, concurrency: ${envConfig.concurrency ?? 'auto'}, timeout: ${envConfig.timeoutInMilliseconds}ms, resolution: ${scaledWidth}x${scaledHeight} (scale: ${envConfig.scale}), frames: ${durationInFrames}`);
 
+  const compStart = Date.now();
   const composition = await selectComposition({
     serveUrl,
     id: "CaptionedVideo",
     inputProps: sharedInputProps,
     timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
+    chromiumOptions: envConfig.chromiumOptions,
   });
+  console.log(`[REMOTION] selectComposition took ${Date.now() - compStart}ms`);
 
+  const renderStart = Date.now();
   await renderMedia({
     serveUrl,
     codec: "h264",
@@ -254,7 +292,7 @@ export const renderVideoWithTikTokCaptions = async ({
     muted: false,
     imageFormat: "jpeg",
     jpegQuality: envConfig.jpegQuality,
-    crf: 18,
+    crf: 23,
     concurrency: envConfig.concurrency,
     timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
     chromiumOptions: envConfig.chromiumOptions,
@@ -274,6 +312,7 @@ export const renderVideoWithTikTokCaptions = async ({
       };
     },
   });
+  console.log(`[REMOTION] renderMedia took ${Date.now() - renderStart}ms (${durationInFrames} frames, ${((Date.now() - renderStart) / durationInFrames).toFixed(1)}ms/frame)`);
 
   return outputLocation;
 };
@@ -341,12 +380,14 @@ export const renderVideoWithTextOverlay = async ({
     id: "TextOverlay",
     inputProps: sharedInputProps,
     timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
+    chromiumOptions: envConfig.chromiumOptions,
   });
 
   const scaledWidth = Math.round(width * envConfig.scale);
   const scaledHeight = Math.round(height * envConfig.scale);
   console.log(`[TEXT_OVERLAY] Starting render with ${textLines.length} text lines, duration: ${durationInFrames} frames, font: ${fontFamily || 'Inter'}, env: ${getHostEnvName()}, resolution: ${scaledWidth}x${scaledHeight}`);
   
+  const renderStart = Date.now();
   try {
     await renderMedia({
       serveUrl,
@@ -364,7 +405,7 @@ export const renderVideoWithTextOverlay = async ({
       muted: false,
       imageFormat: "jpeg",
       jpegQuality: envConfig.jpegQuality,
-      crf: 18,
+      crf: 23,
       concurrency: envConfig.concurrency,
       timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
       chromiumOptions: envConfig.chromiumOptions,
@@ -373,7 +414,7 @@ export const renderVideoWithTextOverlay = async ({
       logLevel: envConfig.logLevel,
     });
 
-    console.log(`[TEXT_OVERLAY] Render completed successfully: ${outputLocation}`);
+    console.log(`[TEXT_OVERLAY] Render completed in ${Date.now() - renderStart}ms (${durationInFrames} frames, ${((Date.now() - renderStart) / durationInFrames).toFixed(1)}ms/frame): ${outputLocation}`);
     
     // Verify the file was created
     if (!fs.existsSync(outputLocation)) {

@@ -87,7 +87,6 @@ const PROFANITY_DATA = {
     "domination",
     "submissive",
     "slave",
-    "master",
     "mistress",
     "orgy",
     "threesome",

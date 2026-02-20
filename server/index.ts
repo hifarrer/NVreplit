@@ -365,6 +365,12 @@ app.use((req, res, next) => {
   
   server.listen(listenOptions, () => {
     log(`serving on port ${port}`);
+
+    // Pre-download Chrome Headless Shell & bundle Remotion entry point in background
+    // so the first video render doesn't stall waiting for an 87 MB download.
+    import("./services/remotion")
+      .then((m) => m.warmUpRemotionRenderer())
+      .catch((err) => console.error("[REMOTION] Warm-up failed:", err));
   });
 
   // Global error handlers for uncaught exceptions and unhandled rejections
