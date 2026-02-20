@@ -193,8 +193,10 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
   // Poll project status when we got a 409 to detect completion
   const { data: projectStatus } = useQuery<{ finalVideoUrl?: string }>({
     queryKey: ["/api/projects", projectId],
-    refetchInterval: shouldPollCompletion ? 3000 : false, // Poll every 3 seconds if needed
+    refetchInterval: shouldPollCompletion ? 3000 : false,
     enabled: shouldPollCompletion,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   // Check if video generation completed while polling

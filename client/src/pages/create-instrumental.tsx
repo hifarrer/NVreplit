@@ -77,7 +77,9 @@ export default function CreateInstrumental() {
   const { data: project } = useQuery<Project>({
     queryKey: ["/api/projects", generatedProjectId],
     enabled: !!generatedProjectId,
-    refetchInterval: 5000, // Poll every 5 seconds
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   // Clear generatedProjectId if project is completed (allows creating new videos)

@@ -30,7 +30,8 @@ const getRenderConfig = () => {
       timeoutInMilliseconds: 15 * 60 * 1000, // 15 minutes
       chromiumOptions: {
         disableWebSecurity: true,
-        gl: "angle" as const,
+        gl: "swiftshader" as const,
+        headless: true,
       },
       offthreadVideoCacheSizeInBytes: 128 * 1024 * 1024,
       jpegQuality: 65,
@@ -262,9 +263,13 @@ export const renderVideoWithTikTokCaptions = async ({
     logLevel: envConfig.logLevel,
     onDownload: (src) => {
       console.log(`[REMOTION] Downloading: ${src}`);
-      return ({ percent, downloaded }) => {
-        if (percent !== null && percent % 0.25 < 0.01) {
-          console.log(`[REMOTION] Download progress: ${Math.round(percent * 100)}%`);
+      let lastLoggedPercent = -1;
+      return ({ percent }) => {
+        if (percent === null) return;
+        const rounded = Math.round(percent * 100);
+        if (rounded !== lastLoggedPercent && (rounded % 25 === 0 || rounded === 1)) {
+          lastLoggedPercent = rounded;
+          console.log(`[REMOTION] Download progress: ${rounded}%`);
         }
       };
     },

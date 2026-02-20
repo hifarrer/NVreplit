@@ -48,7 +48,9 @@ export default function CreateSinglePrompt() {
   const { data: project } = useQuery<Project>({
     queryKey: ["/api/projects", generatedProjectId],
     enabled: !!generatedProjectId,
-    refetchInterval: 5000, // Poll every 5 seconds
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   // Fetch generation logs for progress tracking
