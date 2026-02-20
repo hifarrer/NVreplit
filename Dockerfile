@@ -37,10 +37,12 @@ RUN npm install
 # Copy all source files
 COPY . .
 
-# Build the app (vite build + esbuild + copy remotion + pre-download Chrome Headless Shell)
-# The build script runs `npx remotion browser ensure` at the end, which bakes Chrome
-# into the image so it doesn't need to be fetched on every container start (~87 MB saved)
+# Build the app
 RUN npm run build
+
+# Pre-download Chrome Headless Shell so it's baked into the image
+# and doesn't need to be fetched on every container start (~87 MB saved per cold start)
+RUN ./node_modules/.bin/remotion browser ensure
 
 EXPOSE 5000
 
