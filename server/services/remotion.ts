@@ -27,7 +27,7 @@ const getRenderConfig = () => {
   if (isCloudHost) {
     return {
       concurrency: 1,
-      timeoutInMilliseconds: 120000,
+      timeoutInMilliseconds: 15 * 60 * 1000, // 15 minutes
       chromiumOptions: {
         disableWebSecurity: true,
         gl: "angle" as const,
