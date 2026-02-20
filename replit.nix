@@ -2,6 +2,7 @@
   deps = with pkgs; [
     nodejs_20
     postgresql_16
+    ffmpeg
 
     # Chrome/Chromium dependencies required by Remotion's headless browser
     nspr

@@ -442,7 +442,21 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize Passport
   app.use(passport.initialize());
-  
+
+  // Local FFMPEG output download route — serves merged video files from the temp output folder
+  {
+    const { OUTPUT_FOLDER, startOutputCleanupJob } = await import("./services/ffmpegLocal.js");
+    app.get("/api/ffmpeg-local/download/:filename", (req, res) => {
+      const filename = path.basename(req.params.filename);
+      const filePath = path.join(OUTPUT_FOLDER, filename);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      res.sendFile(filePath);
+    });
+    startOutputCleanupJob();
+  }
+
   // Initialize OAuth keys on startup
   await initializeOAuthKeys();
 
@@ -8925,6 +8939,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             savedFinalVideoUrl = await objectStorageService.uploadVideoBuffer(
               renderedBuffer,
               `neonvideo_${Date.now()}_captioned.mp4`,
+            );
+          } else if (finalVideo.download_url.includes("/api/ffmpeg-local/download/")) {
+            // Local ffmpeg output — read directly from disk instead of HTTP round-trip
+            const { OUTPUT_FOLDER } = await import("./services/ffmpegLocal.js");
+            const localFilePath = path.join(OUTPUT_FOLDER, finalVideo.filename);
+            const videoBuffer = fs.readFileSync(localFilePath);
+            savedFinalVideoUrl = await objectStorageService.uploadVideoBuffer(
+              videoBuffer,
+              `neonvideo_${Date.now()}.mp4`,
             );
           } else {
             savedFinalVideoUrl = await objectStorageService.uploadVideoFromUrl(
