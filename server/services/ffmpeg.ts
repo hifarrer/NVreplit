@@ -47,7 +47,7 @@ export async function trimAudio(audioUrl: string, desiredLength: number): Promis
     console.log(`Trimming audio to ${desiredLength} seconds`);
     console.log(`Audio URL: ${audioUrl}`);
     
-    const response = await fetchWithRetry("https://ffmpegapi.net/api/trim_audio", {
+    const response = await fetchWithRetry("https://ffmpegapi-production.up.railway.app/api/trim_audio", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -89,7 +89,7 @@ export async function splitAudioByTime(audioUrl: string, startTime: number, endT
     console.log(`Splitting audio from ${startTime}ms to ${endTime}ms`);
     console.log(`Audio URL: ${audioUrl}`);
     
-    const response = await fetchWithRetry("https://ffmpegapi.net/api/split_audio_time", {
+    const response = await fetchWithRetry("https://ffmpegapi-production.up.railway.app/api/split_audio_time", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -135,7 +135,7 @@ export async function splitAudioByParts(audioUrl: string, parts: number, totalDu
   try {
     console.log(`Splitting audio into ${parts} equal parts using /api/split_audio (total duration: ${totalDurationSeconds || 'unknown'}s)`);
     
-    const response = await fetchWithRetry("https://ffmpegapi.net/api/split_audio", {
+    const response = await fetchWithRetry("https://ffmpegapi-production.up.railway.app/api/split_audio", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -202,7 +202,7 @@ export async function splitAudio(audioUrl: string, parts: number = 4, totalDurat
     
     // Use the new /api/split_audio_segments endpoint which properly splits by segment duration
     // This ensures each segment is exactly 6 seconds (except the last one which is the remainder)
-    const response = await fetchWithRetry("https://ffmpegapi.net/api/split_audio_segments", {
+    const response = await fetchWithRetry("https://ffmpegapi-production.up.railway.app/api/split_audio_segments", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -284,10 +284,10 @@ export async function pictureInPicture(mainVideoUrl: string, pipVideoUrl: string
     };
     
     console.log("=== FFMPEG PICTURE-IN-PICTURE REQUEST ===");
-    console.log("Endpoint: https://ffmpegapi.net/api/picture_in_picture");
+    console.log("Endpoint: https://ffmpegapi-production.up.railway.app/api/picture_in_picture");
     console.log("Request body:", JSON.stringify(requestBody, null, 2));
     
-    const response = await fetchWithRetry("https://ffmpegapi.net/api/picture_in_picture", {
+    const response = await fetchWithRetry("https://ffmpegapi-production.up.railway.app/api/picture_in_picture", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -340,14 +340,14 @@ export async function mergeVideos(videoUrls: string[], audioUrl?: string, subtit
     }
     
     console.log("=== FFMPEG MERGE VIDEOS REQUEST ===");
-    console.log("Endpoint: https://ffmpegapi.net/api/merge_videos");
+    console.log("Endpoint: https://ffmpegapi-production.up.railway.app/api/merge_videos");
     console.log("Number of videos to merge:", videoUrls.length);
     console.log("Audio URL (full song):", audioUrl || "Not provided");
     console.log("Subtitle URL (.ass file):", subtitleUrl || "Not provided");
     console.log("Watermark URL:", watermarkUrl || "Not provided");
     console.log("Request body:", JSON.stringify(requestBody, null, 2));
     
-    const response = await fetchWithRetry("https://ffmpegapi.net/api/merge_videos", {
+    const response = await fetchWithRetry("https://ffmpegapi-production.up.railway.app/api/merge_videos", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
