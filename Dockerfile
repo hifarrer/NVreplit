@@ -42,7 +42,7 @@ RUN npm run build
 
 # Pre-download Chrome Headless Shell so it's baked into the image
 # and doesn't need to be fetched on every container start (~87 MB saved per cold start)
-RUN ./node_modules/.bin/remotion browser ensure
+RUN node -e "import('@remotion/renderer').then(m => m.ensureBrowser()).then(() => console.log('Browser ready')).catch(e => { console.error(e); process.exit(1); })"
 
 EXPOSE 5000
 
