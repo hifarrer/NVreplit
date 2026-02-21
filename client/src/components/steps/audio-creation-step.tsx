@@ -910,11 +910,11 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
             trimAudioMutation.mutate({
               audioUrl: uploadData.audioUrl,
               startTime,
-        endTime,
-        addSubtitles: uploadAddSubtitles,
-        subtitleStyle,
-        lyrics: null,
-        sourceSubtitleFileUrl: null,
+              endTime,
+              addSubtitles: uploadAddSubtitles,
+              subtitleStyle,
+              lyrics: uploadData.lyrics || null,
+              sourceSubtitleFileUrl: uploadData.subtitleFileUrl || null,
             });
           } catch (error) {
             setIsUploading(false);

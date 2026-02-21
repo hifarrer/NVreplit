@@ -5276,6 +5276,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Failed to clean up uploaded file:", cleanupError);
       }
       
+      // Run forced alignment to get word-level timestamps for lyrics
+      let subtitleFileUrlForUpload: string | null = null;
+      if (lyricsForProject && lyricsForProject.trim().length > 0 && addSubtitles) {
+        try {
+          console.log("Running forced alignment on uploaded audio...");
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "subtitle_generation",
+            message: "Aligning lyrics to audio for word-level timestamps...",
+            status: "progress",
+            metadata: {}
+          });
+
+          const { createForcedAlignment, convertElevenLabsAlignmentToASS, storeElevenLabsSubtitleFile } = await import("./services/elevenlabs");
+          const alignment = await createForcedAlignment(
+            uploadedUrl.startsWith('http') ? uploadedUrl : publicAudioUrl,
+            lyricsForProject
+          );
+          const assContent = convertElevenLabsAlignmentToASS(alignment);
+          subtitleFileUrlForUpload = await storeElevenLabsSubtitleFile(assContent);
+
+          console.log("Forced alignment completed for uploaded audio, subtitle URL:", subtitleFileUrlForUpload);
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "subtitle_generation",
+            message: "Lyrics aligned to audio successfully",
+            status: "completed",
+            metadata: { subtitleFileUrl: subtitleFileUrlForUpload }
+          });
+        } catch (alignmentError) {
+          console.error("Forced alignment failed for uploaded audio (non-fatal):", alignmentError);
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "subtitle_generation",
+            message: `Lyrics alignment failed: ${(alignmentError as Error).message}`,
+            status: "warning",
+            metadata: { error: (alignmentError as Error).message }
+          });
+        }
+      }
+
       // Update project with audio URL and description
       // For uploaded audio, we store the description in audioPrompt to generate scenes
       const updateData: any = { 
@@ -5286,6 +5327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audioLyrics: lyricsForProject,
         addSubtitles: !!addSubtitles,
         subtitleStyle,
+        subtitleFileUrl: subtitleFileUrlForUpload,
         aspectRatio: aspectRatio,
         includeWatermark: includeWatermark,
         isPublic: isPublic
@@ -5315,6 +5357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           duration: actualDuration,
           hasDescription: !!songDescription,
           subtitleStyle,
+          subtitleFileUrl: subtitleFileUrlForUpload,
         }
       });
 
@@ -5325,8 +5368,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         size: req.file.size,
         duration: actualDuration,
         hasDescription: !!songDescription,
-        hasSubtitles: false,
-        subtitleFileUrl: null,
+        hasSubtitles: !!subtitleFileUrlForUpload,
+        subtitleFileUrl: subtitleFileUrlForUpload,
         subtitleStyle,
         lyrics: lyricsForProject
       });
@@ -5416,9 +5459,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : isSubtitleStyle((project as any).subtitleStyle)
           ? (project as any).subtitleStyle
           : defaultSubtitleStyle;
-      const subtitleFileUrl: string | null = null;
+      let subtitleFileUrl: string | null = null;
       const lyricsForTrimmedSong: string | null =
         typeof lyrics === "string" && lyrics.trim().length > 0 ? lyrics.trim() : null;
+
+      // Run forced alignment on trimmed audio to get word-level timestamps for lyrics
+      if (lyricsForTrimmedSong && publicAudioUrl) {
+        try {
+          console.log("Running forced alignment on trimmed audio...");
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "audio_trim",
+            message: "Aligning lyrics to trimmed audio...",
+            status: "progress",
+            metadata: {}
+          });
+
+          const { createForcedAlignment, convertElevenLabsAlignmentToASS, storeElevenLabsSubtitleFile } = await import("./services/elevenlabs");
+          const alignment = await createForcedAlignment(publicAudioUrl, lyricsForTrimmedSong);
+          const assContent = convertElevenLabsAlignmentToASS(alignment);
+          subtitleFileUrl = await storeElevenLabsSubtitleFile(assContent);
+
+          console.log("Forced alignment completed for trimmed audio, subtitle URL:", subtitleFileUrl);
+        } catch (alignmentError) {
+          console.error("Forced alignment failed for trimmed audio (non-fatal):", alignmentError);
+          await storage.addGenerationLog({
+            projectId: req.params.id,
+            step: "audio_trim",
+            message: `Lyrics alignment failed: ${(alignmentError as Error).message}`,
+            status: "warning",
+            metadata: { error: (alignmentError as Error).message }
+          });
+        }
+      }
 
       // Save trimmed audio to user's library
       let savedSong = null;

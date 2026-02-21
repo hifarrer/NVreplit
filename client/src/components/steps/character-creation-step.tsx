@@ -401,7 +401,7 @@ export function CharacterCreationStep({ projectId, characterImageUrl, makeCharac
     saveCharacterMutation.mutate(imageUrl);
   };
 
-  const canGenerate = prompt.trim().length > 10 && selectedStyle !== null;
+  const canGenerate = prompt.trim().length >= 5 && selectedStyle !== null;
   const isSaveDisabled = limitInfo?.isAtLimit && limitInfo?.isFreePlan;
 
   return (
