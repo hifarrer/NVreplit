@@ -30,20 +30,22 @@ const getRenderConfig = () => {
   const cpuCount = os.cpus().length;
 
   if (isCloudHost) {
-    const cloudConcurrency = Math.max(1, Math.min(cpuCount, 4));
+    // Keep concurrency low to avoid Chrome memory pressure hangs.
+    // Railway containers typically have 1-2 vCPUs; 2 workers is safer than 4.
+    const cloudConcurrency = Math.max(1, Math.min(cpuCount, 2));
     return {
       concurrency: cloudConcurrency,
-      timeoutInMilliseconds: 15 * 60 * 1000,
+      timeoutInMilliseconds: 5 * 60 * 1000,
       chromiumOptions: {
         disableWebSecurity: true,
         gl: "swangle" as const,
         headless: true,
       },
-      offthreadVideoCacheSizeInBytes: 256 * 1024 * 1024,
-      jpegQuality: 65,
+      offthreadVideoCacheSizeInBytes: 128 * 1024 * 1024,
+      jpegQuality: 60,
       disallowParallelEncoding: false,
       scale: 0.667,
-      logLevel: "warn" as const,
+      logLevel: "verbose" as const,
     };
   }
   if (isReplit) {
@@ -159,9 +161,9 @@ const downloadVideoIntoBundleDir = async (
   const stat = fs.statSync(localPath);
   console.log(`[REMOTION] Source video downloaded in ${Date.now() - start}ms (${(stat.size / 1024 / 1024).toFixed(1)} MB)`);
 
-  // Remotion's dev server serves the bundle dir as the web root.
-  // The file will be accessible at http://localhost:3000/<filename>
-  const httpUrl = filename;
+  // Remotion's built-in server serves the bundle dir as the web root.
+  // Use a root-relative path so Chrome resolves it correctly.
+  const httpUrl = `/${filename}`;
   return { httpUrl, localPath };
 };
 
@@ -332,7 +334,9 @@ export const renderVideoWithTikTokCaptions = async ({
       props: sharedInputProps,
     };
 
+    console.log(`[REMOTION] videoSrc passed to composition: ${effectiveVideoSrc}`);
     const renderStart = Date.now();
+    let lastLoggedPct = -1;
     await renderMedia({
       serveUrl,
       codec: "h264",
@@ -350,6 +354,13 @@ export const renderVideoWithTikTokCaptions = async ({
       ...(envConfig.offthreadVideoCacheSizeInBytes ? { offthreadVideoCacheSizeInBytes: envConfig.offthreadVideoCacheSizeInBytes } : {}),
       disallowParallelEncoding: envConfig.disallowParallelEncoding,
       logLevel: envConfig.logLevel,
+      onProgress: ({ progress }) => {
+        const pct = Math.round(progress * 100);
+        if (pct >= lastLoggedPct + 10) {
+          lastLoggedPct = pct;
+          console.log(`[REMOTION] render progress: ${pct}% (${Math.round((Date.now() - renderStart) / 1000)}s elapsed)`);
+        }
+      },
     });
     console.log(`[REMOTION] renderMedia took ${Date.now() - renderStart}ms (${durationInFrames} frames, ${((Date.now() - renderStart) / durationInFrames).toFixed(1)}ms/frame)`);
 
@@ -442,8 +453,10 @@ export const renderVideoWithTextOverlay = async ({
     };
 
     console.log(`[TEXT_OVERLAY] Starting render with ${textLines.length} text lines, duration: ${durationInFrames} frames, font: ${fontFamily || 'Inter'}, env: ${getHostEnvName()}, resolution: ${scaledWidth}x${scaledHeight}`);
-    
+    console.log(`[TEXT_OVERLAY] videoSrc passed to composition: ${effectiveVideoSrc}`);
+
     const renderStart = Date.now();
+    let lastLoggedPct = -1;
     await renderMedia({
       serveUrl,
       codec: "h264",
@@ -461,6 +474,13 @@ export const renderVideoWithTextOverlay = async ({
       ...(envConfig.offthreadVideoCacheSizeInBytes ? { offthreadVideoCacheSizeInBytes: envConfig.offthreadVideoCacheSizeInBytes } : {}),
       disallowParallelEncoding: envConfig.disallowParallelEncoding,
       logLevel: envConfig.logLevel,
+      onProgress: ({ progress }) => {
+        const pct = Math.round(progress * 100);
+        if (pct >= lastLoggedPct + 10) {
+          lastLoggedPct = pct;
+          console.log(`[TEXT_OVERLAY] render progress: ${pct}% (${Math.round((Date.now() - renderStart) / 1000)}s elapsed)`);
+        }
+      },
     });
 
     console.log(`[TEXT_OVERLAY] Render completed in ${Date.now() - renderStart}ms (${durationInFrames} frames, ${((Date.now() - renderStart) / durationInFrames).toFixed(1)}ms/frame): ${outputLocation}`);
