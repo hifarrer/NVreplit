@@ -284,6 +284,11 @@ export const renderVideoWithTikTokCaptions = async ({
     localVideoPath = await downloadVideoToLocal(videoSrc);
     effectiveVideoSrc = localVideoPath;
   }
+  // Remotion's OffthreadVideo needs absolute paths as file:// URIs,
+  // otherwise it resolves them relative to the webpack bundle directory
+  if (effectiveVideoSrc.startsWith("/") || effectiveVideoSrc.match(/^[A-Za-z]:\\/)) {
+    effectiveVideoSrc = `file://${effectiveVideoSrc}`;
+  }
 
   try {
     const serveUrl = await getServeUrl();
@@ -399,6 +404,9 @@ export const renderVideoWithTextOverlay = async ({
   if (videoSrc.startsWith("http")) {
     localVideoPath = await downloadVideoToLocal(videoSrc);
     effectiveVideoSrc = localVideoPath;
+  }
+  if (effectiveVideoSrc.startsWith("/") || effectiveVideoSrc.match(/^[A-Za-z]:\\/)) {
+    effectiveVideoSrc = `file://${effectiveVideoSrc}`;
   }
 
   try {
