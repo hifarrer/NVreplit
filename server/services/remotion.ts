@@ -5,7 +5,7 @@ import { pipeline } from "stream/promises";
 import { Readable } from "stream";
 import { fileURLToPath } from "url";
 import { bundle } from "@remotion/bundler";
-import { renderMedia, selectComposition, ensureBrowser } from "@remotion/renderer";
+import { renderMedia, ensureBrowser } from "@remotion/renderer";
 import { normalizeSubtitleStyle, isTikTokSubtitleStyle, parseAssToCaptions, createTikTokPages } from "./captions";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -171,6 +171,14 @@ const getServeUrl = async (): Promise<string> => {
     return cachedServeUrl;
   }
 
+  // Check for pre-built bundle from Docker image first (saves ~30-60s of webpack compilation)
+  const preBuildPath = path.resolve("/app/.remotion-bundle");
+  if (fs.existsSync(path.join(preBuildPath, "index.html"))) {
+    console.log("[REMOTION] Using pre-built bundle from Docker image");
+    cachedServeUrl = preBuildPath;
+    return cachedServeUrl;
+  }
+
   // Use absolute path based on project root
   // This works in both dev (where __dirname is server/services)
   // and production (where __dirname might be dist/services or bundled differently)
@@ -307,27 +315,25 @@ export const renderVideoWithTikTokCaptions = async ({
     const scaledHeight = Math.round(height * envConfig.scale);
     console.log(`[REMOTION] Environment: ${getHostEnvName()}, concurrency: ${envConfig.concurrency ?? 'auto'}, timeout: ${envConfig.timeoutInMilliseconds}ms, resolution: ${scaledWidth}x${scaledHeight} (scale: ${envConfig.scale}), frames: ${durationInFrames}`);
 
-    const compStart = Date.now();
-    const composition = await selectComposition({
-      serveUrl,
+    // Construct composition directly instead of calling selectComposition,
+    // which launches Chrome just to read static metadata we already know and override.
+    // This saves ~220s on resource-constrained hosts like Railway.
+    const composition = {
       id: "CaptionedVideo",
-      inputProps: sharedInputProps,
-      timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
-      chromiumOptions: envConfig.chromiumOptions,
-    });
-    console.log(`[REMOTION] selectComposition took ${Date.now() - compStart}ms`);
+      width: scaledWidth,
+      height: scaledHeight,
+      fps,
+      durationInFrames,
+      defaultProps: sharedInputProps,
+      defaultCodec: null as any,
+      props: sharedInputProps,
+    };
 
     const renderStart = Date.now();
     await renderMedia({
       serveUrl,
       codec: "h264",
-      composition: {
-        ...composition,
-        fps,
-        width: scaledWidth,
-        height: scaledHeight,
-        durationInFrames,
-      },
+      composition,
       inputProps: sharedInputProps,
       outputLocation,
       overwrite: true,
@@ -421,29 +427,27 @@ export const renderVideoWithTextOverlay = async ({
       fontFamily: fontFamily || undefined,
     };
 
-    const composition = await selectComposition({
-      serveUrl,
-      id: "TextOverlay",
-      inputProps: sharedInputProps,
-      timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
-      chromiumOptions: envConfig.chromiumOptions,
-    });
-
     const scaledWidth = Math.round(width * envConfig.scale);
     const scaledHeight = Math.round(height * envConfig.scale);
+
+    const composition = {
+      id: "TextOverlay",
+      width: scaledWidth,
+      height: scaledHeight,
+      fps,
+      durationInFrames,
+      defaultProps: sharedInputProps,
+      defaultCodec: null as any,
+      props: sharedInputProps,
+    };
+
     console.log(`[TEXT_OVERLAY] Starting render with ${textLines.length} text lines, duration: ${durationInFrames} frames, font: ${fontFamily || 'Inter'}, env: ${getHostEnvName()}, resolution: ${scaledWidth}x${scaledHeight}`);
     
     const renderStart = Date.now();
     await renderMedia({
       serveUrl,
       codec: "h264",
-      composition: {
-        ...composition,
-        fps,
-        width: scaledWidth,
-        height: scaledHeight,
-        durationInFrames,
-      },
+      composition,
       inputProps: sharedInputProps,
       outputLocation,
       overwrite: true,

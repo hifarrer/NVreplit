@@ -45,6 +45,16 @@ RUN npm run build
 # and doesn't need to be fetched on every container start (~87 MB saved per cold start)
 RUN node -e "import('@remotion/renderer').then(m => m.ensureBrowser()).then(() => console.log('Browser ready')).catch(e => { console.error(e); process.exit(1); })"
 
+# Pre-build the Remotion webpack bundle so it's baked into the image.
+# Saves ~30-60s of webpack compilation on every container start.
+RUN node -e "\
+  import('@remotion/bundler').then(async ({ bundle }) => { \
+    const path = await bundle('server/remotion/Root.tsx'); \
+    const fs = await import('fs'); \
+    fs.cpSync(path, '/app/.remotion-bundle', { recursive: true }); \
+    console.log('Remotion bundle ready at /app/.remotion-bundle'); \
+  }).catch(e => { console.error('Remotion bundle failed:', e); process.exit(1); })"
+
 EXPOSE 5000
 
 ENV NODE_ENV=production
