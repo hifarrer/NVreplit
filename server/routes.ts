@@ -19,7 +19,6 @@ import { nanoid } from "nanoid";
 import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText } from "./services/fal";
 import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment } from "./services/wavespeed";
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl } from "./services/ffmpeg";
-import { deleteRenderedVideoIfExists, renderVideoWithTextOverlay } from "./services/remotion";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback, uploadImageToImageKit, isImageKitConfigured } from "./services/imagekit";
@@ -12278,105 +12277,96 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
               }
             }
 
-            // Render text overlay if present; captions are added separately via ffmpegapi afterwards.
+            // Add text overlay and/or TikTok captions via ffmpegapi
             if (hasTextOverlay && finalVideoUrl) {
-              console.log(`[INSTRUMENTAL] Rendering text overlay at position: ${overlayPosition}`);
+              console.log(`[INSTRUMENTAL] Adding text overlay at position: ${overlayPosition}`);
               
               await storage.addGenerationLog({
                 projectId: project.id,
                 step: "video_generation",
-                message: `Rendering text overlay (${overlayPosition})...`,
+                message: `Adding text overlay (${overlayPosition})...`,
                 status: "progress",
                 metadata: {}
               });
 
               try {
-                const projectFontFamily = (project as any).fontFamily || defaultGoogleFont;
-                const textOverlayVideoPath = await renderVideoWithTextOverlay({
-                  videoSrc: finalVideoUrl,
-                  textOverlay: textOverlay.trim(),
-                  textPosition: overlayPosition,
-                  aspectRatio: aspectRatio,
-                  audioDurationSeconds: duration,
-                  fontFamily: isGoogleFont(projectFontFamily) ? projectFontFamily : defaultGoogleFont,
+                const projectSubtitleStyle = (project as any).subtitleStyle || "yellow-bg";
+                const { addTextOverlayCaptions } = await import("./services/ffmpegCaptions");
+                const overlayResult = await addTextOverlayCaptions({
+                  videoUrl: finalVideoUrl,
+                  text: normalizedTextOverlay,
+                  subtitleStyle: projectSubtitleStyle,
+                  position: overlayPosition,
                 });
 
-                if (textOverlayVideoPath) {
-                  // Upload the text overlay video to storage
-                  const finalVideoBuffer = fs.readFileSync(textOverlayVideoPath);
-                  const finalVideoFileName = `videos/${crypto.randomUUID()}.mp4`;
-                  const objectStorageService = new ObjectStorageService();
-                  const uploadedFinalVideoUrl = await objectStorageService.uploadVideoBuffer(
-                    finalVideoBuffer,
-                    finalVideoFileName
-                  );
-                  
-                  finalVideoUrl = uploadedFinalVideoUrl.startsWith('http')
-                    ? uploadedFinalVideoUrl
-                    : await objectStorageService.getSignedUrlForPath(uploadedFinalVideoUrl, 86400 * 7);
+                const objectStorageService = new ObjectStorageService();
+                const uploadedOverlayUrl = await objectStorageService.uploadVideoFromUrl(
+                  overlayResult.download_url,
+                  `videos/${crypto.randomUUID()}_overlay.mp4`,
+                );
+                finalVideoUrl = uploadedOverlayUrl.startsWith('http')
+                  ? uploadedOverlayUrl
+                  : await objectStorageService.getSignedUrlForPath(uploadedOverlayUrl, 86400 * 7);
+                console.log(`[INSTRUMENTAL] Text overlay video saved: ${finalVideoUrl}`);
 
-                  deleteRenderedVideoIfExists(textOverlayVideoPath);
+                // Add TikTok-style captions via ffmpegapi if requested
+                const updatedProject = await storage.getProject(project.id);
+                if (updatedProject?.addSubtitles) {
+                  try {
+                    const captionStyle = (updatedProject as any).subtitleStyle || "yellow-bg";
+                    console.log(`[INSTRUMENTAL] Adding TikTok captions via ffmpegapi (style: ${captionStyle})...`);
+                    await storage.addGenerationLog({
+                      projectId: project.id,
+                      step: "video_generation",
+                      message: `Adding TikTok-style captions (${captionStyle})...`,
+                      status: "progress",
+                      metadata: { captionStyle },
+                    });
 
-                  // Add TikTok-style captions via ffmpegapi if requested
-                  const updatedProject = await storage.getProject(project.id);
-                  if (updatedProject?.addSubtitles) {
-                    try {
-                      const projectSubtitleStyle = (updatedProject as any).subtitleStyle || "yellow-bg";
-                      console.log(`[INSTRUMENTAL] Adding TikTok captions via ffmpegapi (style: ${projectSubtitleStyle})...`);
-                      await storage.addGenerationLog({
-                        projectId: project.id,
-                        step: "video_generation",
-                        message: `Adding TikTok-style captions (${projectSubtitleStyle})...`,
-                        status: "progress",
-                        metadata: { captionStyle: projectSubtitleStyle },
-                      });
+                    const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
+                    const captionResult = await addTikTokCaptions({
+                      videoUrl: finalVideoUrl,
+                      subtitleStyle: captionStyle,
+                      aspectRatio: aspectRatio,
+                      position: (updatedProject as any).captionPosition || "bottom",
+                    });
 
-                      const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
-                      const captionResult = await addTikTokCaptions({
-                        videoUrl: finalVideoUrl,
-                        subtitleStyle: projectSubtitleStyle,
-                        aspectRatio: aspectRatio,
-                        position: (updatedProject as any).captionPosition || "bottom",
-                      });
-
-                      const captionedVideoUrl = await objectStorageService.uploadVideoFromUrl(
-                        captionResult.download_url,
-                        `videos/${crypto.randomUUID()}_captioned.mp4`,
-                      );
-                      finalVideoUrl = captionedVideoUrl.startsWith('http')
-                        ? captionedVideoUrl
-                        : await objectStorageService.getSignedUrlForPath(captionedVideoUrl, 86400 * 7);
-                      console.log(`[INSTRUMENTAL] Captioned video saved: ${finalVideoUrl}`);
-                    } catch (captionError) {
-                      console.warn(`[INSTRUMENTAL] ffmpegapi caption rendering failed, proceeding without captions:`, captionError);
-                      await storage.addGenerationLog({
-                        projectId: project.id,
-                        step: "video_generation",
-                        message: `Caption rendering failed, using uncaptioned video: ${(captionError as Error).message}`,
-                        status: "warning",
-                        metadata: { error: (captionError as Error).message },
-                      });
-                    }
+                    const captionedVideoUrl = await objectStorageService.uploadVideoFromUrl(
+                      captionResult.download_url,
+                      `videos/${crypto.randomUUID()}_captioned.mp4`,
+                    );
+                    finalVideoUrl = captionedVideoUrl.startsWith('http')
+                      ? captionedVideoUrl
+                      : await objectStorageService.getSignedUrlForPath(captionedVideoUrl, 86400 * 7);
+                    console.log(`[INSTRUMENTAL] Captioned video saved: ${finalVideoUrl}`);
+                  } catch (captionError) {
+                    console.warn(`[INSTRUMENTAL] ffmpegapi caption rendering failed, proceeding without captions:`, captionError);
+                    await storage.addGenerationLog({
+                      projectId: project.id,
+                      step: "video_generation",
+                      message: `Caption rendering failed, using uncaptioned video: ${(captionError as Error).message}`,
+                      status: "warning",
+                      metadata: { error: (captionError as Error).message },
+                    });
                   }
-
-                  // Update project with final video URL
-                  await storage.updateProject(project.id, {
-                    finalVideoUrl: finalVideoUrl,
-                    isCompleted: true,
-                    currentStep: 5
-                  });
-
-                  await storage.addGenerationLog({
-                    projectId: project.id,
-                    step: "video_generation",
-                    message: "Video with text overlay and captions completed successfully",
-                    status: "completed",
-                    metadata: {}
-                  });
                 }
+
+                // Update project with final video URL
+                await storage.updateProject(project.id, {
+                  finalVideoUrl: finalVideoUrl,
+                  isCompleted: true,
+                  currentStep: 5
+                });
+
+                await storage.addGenerationLog({
+                  projectId: project.id,
+                  step: "video_generation",
+                  message: "Video with text overlay and captions completed successfully",
+                  status: "completed",
+                  metadata: {}
+                });
               } catch (textOverlayError) {
                 console.error(`[INSTRUMENTAL] Text overlay rendering failed:`, textOverlayError);
-                // Continue with base video if text overlay fails
                 await storage.addGenerationLog({
                   projectId: project.id,
                   step: "video_generation",
