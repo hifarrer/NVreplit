@@ -1,7 +1,8 @@
 FROM node:20-slim AS base
 
-# Install Chrome headless shell dependencies required by Remotion
+# Install ffmpeg (for local video merging) and Chrome headless shell dependencies required by Remotion
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
     libnspr4 \
     libnss3 \
     libatk1.0-0 \
