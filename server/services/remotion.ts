@@ -132,28 +132,37 @@ export const warmUpRemotionRenderer = async () => {
 };
 
 /**
- * Download a remote video to a local temp file so Remotion can read frames
- * from disk instead of making an HTTP request per frame through its proxy.
+ * Download a remote video and place it inside the Remotion webpack bundle
+ * directory so it's served by Remotion's built-in HTTP server.
+ *
+ * Returns `{ httpUrl, localPath }` where httpUrl is what gets passed as
+ * `videoSrc` to <OffthreadVideo> (e.g. http://localhost:3000/<file>.mp4)
+ * and localPath is the on-disk path for cleanup.
  */
-const downloadVideoToLocal = async (url: string): Promise<string> => {
-  const tmpPath = path.join(
-    os.tmpdir(),
-    `remotion-src-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`,
-  );
+const downloadVideoIntoBundleDir = async (
+  url: string,
+  bundleDir: string,
+): Promise<{ httpUrl: string; localPath: string }> => {
+  const filename = `remotion-src-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`;
+  const localPath = path.join(bundleDir, filename);
   const start = Date.now();
-  console.log(`[REMOTION] Downloading source video to local disk...`);
+  console.log(`[REMOTION] Downloading source video into bundle dir...`);
 
   const res = await fetch(url);
   if (!res.ok || !res.body) {
     throw new Error(`Failed to download video: ${res.status} ${res.statusText}`);
   }
 
-  const fileStream = fs.createWriteStream(tmpPath);
+  const fileStream = fs.createWriteStream(localPath);
   await pipeline(Readable.fromWeb(res.body as any), fileStream);
 
-  const stat = fs.statSync(tmpPath);
+  const stat = fs.statSync(localPath);
   console.log(`[REMOTION] Source video downloaded in ${Date.now() - start}ms (${(stat.size / 1024 / 1024).toFixed(1)} MB)`);
-  return tmpPath;
+
+  // Remotion's dev server serves the bundle dir as the web root.
+  // The file will be accessible at http://localhost:3000/<filename>
+  const httpUrl = filename;
+  return { httpUrl, localPath };
 };
 
 const getCaptionResolution = (
@@ -284,24 +293,21 @@ export const renderVideoWithTikTokCaptions = async ({
     `captioned-video-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`,
   );
 
-  // Download remote video to local disk so Remotion reads frames locally
-  // instead of making an HTTP round-trip per frame through its proxy (~465ms/frame → ~5ms/frame)
-  let localVideoPath: string | null = null;
+  const serveUrl = await getServeUrl();
+  const envConfig = getRenderConfig();
+
+  // Place the source video inside the Remotion bundle directory so it's
+  // served by Remotion's built-in HTTP server. This avoids both:
+  //   - per-frame HTTP round-trips to an external URL
+  //   - file:// URIs that Remotion's compositor rejects
+  let videoFileInBundle: { httpUrl: string; localPath: string } | null = null;
   let effectiveVideoSrc = videoSrc;
   if (videoSrc.startsWith("http")) {
-    localVideoPath = await downloadVideoToLocal(videoSrc);
-    effectiveVideoSrc = localVideoPath;
-  }
-  // Remotion's OffthreadVideo needs absolute paths as file:// URIs,
-  // otherwise it resolves them relative to the webpack bundle directory
-  if (effectiveVideoSrc.startsWith("/") || effectiveVideoSrc.match(/^[A-Za-z]:\\/)) {
-    effectiveVideoSrc = `file://${effectiveVideoSrc}`;
+    videoFileInBundle = await downloadVideoIntoBundleDir(videoSrc, serveUrl);
+    effectiveVideoSrc = videoFileInBundle.httpUrl;
   }
 
   try {
-    const serveUrl = await getServeUrl();
-    const envConfig = getRenderConfig();
-
     const sharedInputProps = {
       videoSrc: effectiveVideoSrc,
       pages,
@@ -315,9 +321,6 @@ export const renderVideoWithTikTokCaptions = async ({
     const scaledHeight = Math.round(height * envConfig.scale);
     console.log(`[REMOTION] Environment: ${getHostEnvName()}, concurrency: ${envConfig.concurrency ?? 'auto'}, timeout: ${envConfig.timeoutInMilliseconds}ms, resolution: ${scaledWidth}x${scaledHeight} (scale: ${envConfig.scale}), frames: ${durationInFrames}`);
 
-    // Construct composition directly instead of calling selectComposition,
-    // which launches Chrome just to read static metadata we already know and override.
-    // This saves ~220s on resource-constrained hosts like Railway.
     const composition = {
       id: "CaptionedVideo",
       width: scaledWidth,
@@ -352,8 +355,8 @@ export const renderVideoWithTikTokCaptions = async ({
 
     return outputLocation;
   } finally {
-    if (localVideoPath) {
-      try { fs.unlinkSync(localVideoPath); } catch {}
+    if (videoFileInBundle) {
+      try { fs.unlinkSync(videoFileInBundle.localPath); } catch {}
     }
   }
 };
@@ -405,20 +408,17 @@ export const renderVideoWithTextOverlay = async ({
     `text-overlay-video-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`,
   );
 
-  let localVideoPath: string | null = null;
+  const serveUrl = await getServeUrl();
+  const envConfig = getRenderConfig();
+
+  let videoFileInBundle: { httpUrl: string; localPath: string } | null = null;
   let effectiveVideoSrc = videoSrc;
   if (videoSrc.startsWith("http")) {
-    localVideoPath = await downloadVideoToLocal(videoSrc);
-    effectiveVideoSrc = localVideoPath;
-  }
-  if (effectiveVideoSrc.startsWith("/") || effectiveVideoSrc.match(/^[A-Za-z]:\\/)) {
-    effectiveVideoSrc = `file://${effectiveVideoSrc}`;
+    videoFileInBundle = await downloadVideoIntoBundleDir(videoSrc, serveUrl);
+    effectiveVideoSrc = videoFileInBundle.httpUrl;
   }
 
   try {
-    const serveUrl = await getServeUrl();
-    const envConfig = getRenderConfig();
-
     const sharedInputProps = {
       videoSrc: effectiveVideoSrc,
       textLines,
@@ -478,8 +478,8 @@ export const renderVideoWithTextOverlay = async ({
     console.error(`[TEXT_OVERLAY] Render failed:`, error);
     throw error;
   } finally {
-    if (localVideoPath) {
-      try { fs.unlinkSync(localVideoPath); } catch {}
+    if (videoFileInBundle) {
+      try { fs.unlinkSync(videoFileInBundle.localPath); } catch {}
     }
   }
 };
