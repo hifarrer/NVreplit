@@ -3,168 +3,97 @@ import os from "os";
 import path from "path";
 import { pipeline } from "stream/promises";
 import { Readable } from "stream";
-import { fileURLToPath } from "url";
-import { bundle } from "@remotion/bundler";
-import { renderMedia, ensureBrowser } from "@remotion/renderer";
 import { normalizeSubtitleStyle, isTikTokSubtitleStyle, parseAssToCaptions, createTikTokPages } from "./captions";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const RAILWAY_REMOTION_URL = process.env.REMOTION_RENDER_URL || "https://remotion-template-staging.up.railway.app";
 
-let cachedServeUrl: string | null = null;
-let browserReady = false;
+const POLL_INTERVAL_MS = 3_000;
+const MAX_POLL_DURATION_MS = 10 * 60 * 1000; // 10 minutes
 
-const isRender = !!(process.env.RENDER || process.env.RENDER_EXTERNAL_URL || process.env.RENDER_SERVICE_ID);
-const isRailway = !!(process.env.RAILWAY_SERVICE_ID || process.env.RAILWAY_ENVIRONMENT_ID);
-const isReplit = !!(process.env.REPL_ID || process.env.REPL_SLUG || process.env.REPLIT_DEV_DOMAIN);
-const isCloudHost = isRender || isRailway;
+/**
+ * Submit a render job to the Railway Remotion service and poll until
+ * the output file is ready, then download it to a local temp path.
+ */
+const renderViaRailway = async (
+  compositionId: string,
+  inputProps: Record<string, unknown>,
+  outputPrefix: string,
+): Promise<string> => {
+  const renderUrl = `${RAILWAY_REMOTION_URL}/render`;
+  console.log(`[REMOTION-RAILWAY] Submitting render for ${compositionId} to ${renderUrl}`);
+  const submitStart = Date.now();
 
-const getHostEnvName = (): string => {
-  if (isRender) return "Render";
-  if (isRailway) return "Railway";
-  if (isReplit) return "Replit";
-  return "local";
-};
+  const submitRes = await fetch(renderUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ compositionId, inputProps }),
+  });
 
-const getRenderConfig = () => {
-  const cpuCount = os.cpus().length;
-
-  if (isCloudHost) {
-    // Keep concurrency low to avoid Chrome memory pressure hangs.
-    // Railway containers typically have 1-2 vCPUs; 2 workers is safer than 4.
-    const cloudConcurrency = Math.max(1, Math.min(cpuCount, 2));
-    return {
-      concurrency: cloudConcurrency,
-      timeoutInMilliseconds: 5 * 60 * 1000,
-      chromiumOptions: {
-        disableWebSecurity: true,
-        gl: "swangle" as const,
-        headless: true,
-      },
-      offthreadVideoCacheSizeInBytes: 128 * 1024 * 1024,
-      jpegQuality: 60,
-      disallowParallelEncoding: false,
-      scale: 0.667,
-      logLevel: "verbose" as const,
-    };
+  if (!submitRes.ok) {
+    const body = await submitRes.text();
+    throw new Error(
+      `Railway Remotion render submission failed (${submitRes.status}): ${body}`,
+    );
   }
-  if (isReplit) {
-    return {
-      concurrency: 1,
-      timeoutInMilliseconds: 60000,
-      chromiumOptions: {},
-      offthreadVideoCacheSizeInBytes: null,
-      jpegQuality: 80,
-      disallowParallelEncoding: false,
-      scale: 1,
-      logLevel: "warn" as const,
-    };
-  }
-  return {
-    concurrency: null,
-    timeoutInMilliseconds: 30000,
-    chromiumOptions: {},
-    offthreadVideoCacheSizeInBytes: null,
-    jpegQuality: 80,
-    disallowParallelEncoding: false,
-    scale: 1,
-    logLevel: "warn" as const,
-  };
-};
 
-// Set up library path for Chrome headless shell dependencies
-// This helps find libnspr4.so and other required libraries on Linux systems
-// Note: If using Nix (shell.nix), the LD_LIBRARY_PATH should be set by the shell environment
-const setupLibraryPath = () => {
-  if (process.platform === "linux") {
-    const currentLdPath = process.env.LD_LIBRARY_PATH || "";
-    const commonLibPaths = [
-      "/usr/lib",
-      "/usr/lib/x86_64-linux-gnu",
-      "/lib/x86_64-linux-gnu",
-      "/lib64",
-    ];
-    
-    const libPaths = commonLibPaths.filter(Boolean).join(":");
-    
-    // Only append if not already in the path and if shell.nix hasn't set it
-    if (currentLdPath && !currentLdPath.includes("/nix/store")) {
-      // If shell.nix set it, don't override; otherwise add common paths
-      if (!currentLdPath.includes(libPaths)) {
-        process.env.LD_LIBRARY_PATH = `${currentLdPath}:${libPaths}`;
+  const submitData = (await submitRes.json()) as { message?: string; fileName?: string };
+  const fileName = submitData.fileName;
+  if (!fileName) {
+    throw new Error(
+      `Railway Remotion returned no fileName: ${JSON.stringify(submitData)}`,
+    );
+  }
+
+  console.log(`[REMOTION-RAILWAY] Render queued, fileName: ${fileName} (submitted in ${Date.now() - submitStart}ms)`);
+
+  const downloadUrl = `${RAILWAY_REMOTION_URL}/download/${fileName}`;
+  const pollStart = Date.now();
+  let attempts = 0;
+
+  while (Date.now() - pollStart < MAX_POLL_DURATION_MS) {
+    attempts++;
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+
+    try {
+      const headRes = await fetch(downloadUrl, { method: "HEAD" });
+      if (headRes.ok) {
+        console.log(
+          `[REMOTION-RAILWAY] Render ready after ${attempts} polls (${Math.round((Date.now() - pollStart) / 1000)}s)`,
+        );
+        break;
       }
-    } else if (!currentLdPath) {
-      // No LD_LIBRARY_PATH set, use common paths as fallback
-      process.env.LD_LIBRARY_PATH = libPaths;
+    } catch {
+      // Network hiccup — retry
+    }
+
+    if (attempts % 10 === 0) {
+      console.log(
+        `[REMOTION-RAILWAY] Still waiting for ${fileName}... (${Math.round((Date.now() - pollStart) / 1000)}s elapsed)`,
+      );
     }
   }
-};
 
-// Initialize library path on module load
-setupLibraryPath();
-
-/**
- * Pre-download Chrome Headless Shell and bundle the Remotion entry point
- * at server startup so the first render request doesn't pay these costs.
- * Call this once from your server bootstrap code.
- */
-export const warmUpRemotionRenderer = async () => {
-  const start = Date.now();
-  console.log(`[REMOTION] Warming up renderer (env: ${getHostEnvName()})...`);
-
-  try {
-    await ensureBrowser({
-      logLevel: "info",
-    });
-    browserReady = true;
-    console.log(`[REMOTION] Browser ready in ${Date.now() - start}ms`);
-  } catch (err) {
-    console.error("[REMOTION] Failed to ensure browser:", err);
+  const dlRes = await fetch(downloadUrl);
+  if (!dlRes.ok || !dlRes.body) {
+    throw new Error(
+      `Railway Remotion download failed after ${Math.round((Date.now() - pollStart) / 1000)}s: ${dlRes.status} ${dlRes.statusText}`,
+    );
   }
 
-  try {
-    const bundleStart = Date.now();
-    await getServeUrl();
-    console.log(`[REMOTION] Bundle cached in ${Date.now() - bundleStart}ms`);
-  } catch (err) {
-    console.error("[REMOTION] Failed to pre-bundle:", err);
-  }
+  const outputLocation = path.join(
+    os.tmpdir(),
+    `${outputPrefix}-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`,
+  );
 
-  console.log(`[REMOTION] Warm-up complete in ${Date.now() - start}ms`);
-};
+  const fileStream = fs.createWriteStream(outputLocation);
+  await pipeline(Readable.fromWeb(dlRes.body as any), fileStream);
 
-/**
- * Download a remote video and place it inside the Remotion webpack bundle
- * directory so it's served by Remotion's built-in HTTP server.
- *
- * Returns `{ httpUrl, localPath }` where httpUrl is what gets passed as
- * `videoSrc` to <OffthreadVideo> (e.g. http://localhost:3000/<file>.mp4)
- * and localPath is the on-disk path for cleanup.
- */
-const downloadVideoIntoBundleDir = async (
-  url: string,
-  bundleDir: string,
-): Promise<{ httpUrl: string; localPath: string }> => {
-  const filename = `remotion-src-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`;
-  const localPath = path.join(bundleDir, filename);
-  const start = Date.now();
-  console.log(`[REMOTION] Downloading source video into bundle dir...`);
+  const stat = fs.statSync(outputLocation);
+  console.log(
+    `[REMOTION-RAILWAY] Downloaded rendered video (${(stat.size / 1024 / 1024).toFixed(1)} MB) to ${outputLocation} — total time: ${Math.round((Date.now() - submitStart) / 1000)}s`,
+  );
 
-  const res = await fetch(url);
-  if (!res.ok || !res.body) {
-    throw new Error(`Failed to download video: ${res.status} ${res.statusText}`);
-  }
-
-  const fileStream = fs.createWriteStream(localPath);
-  await pipeline(Readable.fromWeb(res.body as any), fileStream);
-
-  const stat = fs.statSync(localPath);
-  console.log(`[REMOTION] Source video downloaded in ${Date.now() - start}ms (${(stat.size / 1024 / 1024).toFixed(1)} MB)`);
-
-  // Remotion's built-in server serves the bundle dir as the web root.
-  // Use a root-relative path so Chrome resolves it correctly.
-  const httpUrl = `/${filename}`;
-  return { httpUrl, localPath };
+  return outputLocation;
 };
 
 const getCaptionResolution = (
@@ -173,86 +102,15 @@ const getCaptionResolution = (
   if (aspectRatio === "16:9") {
     return { width: 1920, height: 1080 };
   }
-  // Vertical default used across this app.
   return { width: 1080, height: 1440 };
 };
 
-const getServeUrl = async (): Promise<string> => {
-  if (cachedServeUrl) {
-    return cachedServeUrl;
-  }
-
-  // Check for pre-built bundle from Docker image first (saves ~30-60s of webpack compilation)
-  const preBuildPath = path.resolve("/app/.remotion-bundle");
-  if (fs.existsSync(path.join(preBuildPath, "index.html"))) {
-    console.log("[REMOTION] Using pre-built bundle from Docker image");
-    cachedServeUrl = preBuildPath;
-    return cachedServeUrl;
-  }
-
-  // Use absolute path based on project root
-  // This works in both dev (where __dirname is server/services)
-  // and production (where __dirname might be dist/services or bundled differently)
-  const projectRoot = process.cwd();
-  
-  // Try multiple possible locations for the Remotion Root.tsx file
-  const possiblePaths = [
-    path.resolve(projectRoot, "server/remotion/Root.tsx"), // Production: project root
-    path.resolve(__dirname, "../remotion/Root.tsx"), // Dev: relative to current file
-    path.resolve(projectRoot, "dist/remotion/Root.tsx"), // Production: if copied to dist
-    path.resolve(__dirname, "../../server/remotion/Root.tsx"), // Alternative relative path
-  ];
-  
-  let finalEntryPoint: string | null = null;
-  for (const possiblePath of possiblePaths) {
-    if (fs.existsSync(possiblePath)) {
-      finalEntryPoint = possiblePath;
-      break;
-    }
-  }
-  
-  if (!finalEntryPoint) {
-    throw new Error(
-      `Remotion entry point not found. Tried:\n` +
-      possiblePaths.map(p => `  - ${p}`).join("\n") +
-      `\nCurrent working directory: ${projectRoot}\n` +
-      `__dirname: ${__dirname}`
-    );
-  }
-  
-  // Verify node_modules exists (helpful for debugging)
-  const nodeModulesPath = path.resolve(projectRoot, "node_modules");
-  if (!fs.existsSync(nodeModulesPath)) {
-    console.warn(`[REMOTION] Warning: node_modules not found at ${nodeModulesPath}`);
-  }
-  
-  // Change to project root directory before bundling
-  // This ensures webpack can resolve node_modules from the project root
-  // Webpack looks for node_modules relative to the current working directory
-  const originalCwd = process.cwd();
-  let changedDir = false;
-  
-  try {
-    if (originalCwd !== projectRoot) {
-      process.chdir(projectRoot);
-      changedDir = true;
-      console.log(`[REMOTION] Changed working directory to ${projectRoot} for bundling`);
-    }
-    
-    // Use relative path from project root for entry point to help webpack resolve modules
-    const relativeEntryPoint = path.relative(projectRoot, finalEntryPoint);
-    const entryPointToUse = changedDir ? relativeEntryPoint : finalEntryPoint;
-    
-    // Bundle without webpackOverride to avoid breaking Remotion's internal webpack setup
-    // By changing to project root, webpack should be able to find node_modules naturally
-    cachedServeUrl = await bundle(entryPointToUse);
-  } finally {
-    // Restore original working directory
-    if (changedDir) {
-      process.chdir(originalCwd);
-    }
-  }
-  return cachedServeUrl;
+/**
+ * No-op — local browser warm-up is no longer needed when using Railway.
+ * Kept for backwards compatibility with server bootstrap code.
+ */
+export const warmUpRemotionRenderer = async () => {
+  console.log(`[REMOTION-RAILWAY] Using remote Railway renderer at ${RAILWAY_REMOTION_URL} — no local warm-up needed`);
 };
 
 export const renderVideoWithTikTokCaptions = async ({
@@ -290,86 +148,24 @@ export const renderVideoWithTikTokCaptions = async ({
     Math.ceil((audioDurationSeconds ?? 0) + 6),
   );
   const durationInFrames = estimatedDurationSeconds * fps;
-  const outputLocation = path.join(
-    os.tmpdir(),
-    `captioned-video-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`,
+
+  console.log(
+    `[REMOTION-RAILWAY] Rendering CaptionedVideo: ${durationInFrames} frames, ${width}x${height}, style=${style}, position=${captionPosition || "bottom"}`,
   );
 
-  const serveUrl = await getServeUrl();
-  const envConfig = getRenderConfig();
+  const inputProps = {
+    videoSrc,
+    pages,
+    fps,
+    stylePreset: style,
+    captionPosition: captionPosition || "bottom",
+    fontFamily: fontFamily || undefined,
+    width,
+    height,
+    durationInFrames,
+  };
 
-  // Place the source video inside the Remotion bundle directory so it's
-  // served by Remotion's built-in HTTP server. This avoids both:
-  //   - per-frame HTTP round-trips to an external URL
-  //   - file:// URIs that Remotion's compositor rejects
-  let videoFileInBundle: { httpUrl: string; localPath: string } | null = null;
-  let effectiveVideoSrc = videoSrc;
-  if (videoSrc.startsWith("http")) {
-    videoFileInBundle = await downloadVideoIntoBundleDir(videoSrc, serveUrl);
-    effectiveVideoSrc = videoFileInBundle.httpUrl;
-  }
-
-  try {
-    const sharedInputProps = {
-      videoSrc: effectiveVideoSrc,
-      pages,
-      fps,
-      stylePreset: style,
-      captionPosition: captionPosition || "bottom",
-      fontFamily: fontFamily || undefined,
-    };
-
-    const scaledWidth = Math.round(width * envConfig.scale);
-    const scaledHeight = Math.round(height * envConfig.scale);
-    console.log(`[REMOTION] Environment: ${getHostEnvName()}, concurrency: ${envConfig.concurrency ?? 'auto'}, timeout: ${envConfig.timeoutInMilliseconds}ms, resolution: ${scaledWidth}x${scaledHeight} (scale: ${envConfig.scale}), frames: ${durationInFrames}`);
-
-    const composition = {
-      id: "CaptionedVideo",
-      width: scaledWidth,
-      height: scaledHeight,
-      fps,
-      durationInFrames,
-      defaultProps: sharedInputProps,
-      defaultCodec: null as any,
-      props: sharedInputProps,
-    };
-
-    console.log(`[REMOTION] videoSrc passed to composition: ${effectiveVideoSrc}`);
-    const renderStart = Date.now();
-    let lastLoggedPct = -1;
-    await renderMedia({
-      serveUrl,
-      codec: "h264",
-      composition,
-      inputProps: sharedInputProps,
-      outputLocation,
-      overwrite: true,
-      muted: false,
-      imageFormat: "jpeg",
-      jpegQuality: envConfig.jpegQuality,
-      crf: 23,
-      concurrency: envConfig.concurrency,
-      timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
-      chromiumOptions: envConfig.chromiumOptions,
-      ...(envConfig.offthreadVideoCacheSizeInBytes ? { offthreadVideoCacheSizeInBytes: envConfig.offthreadVideoCacheSizeInBytes } : {}),
-      disallowParallelEncoding: envConfig.disallowParallelEncoding,
-      logLevel: envConfig.logLevel,
-      onProgress: ({ progress }) => {
-        const pct = Math.round(progress * 100);
-        if (pct >= lastLoggedPct + 10) {
-          lastLoggedPct = pct;
-          console.log(`[REMOTION] render progress: ${pct}% (${Math.round((Date.now() - renderStart) / 1000)}s elapsed)`);
-        }
-      },
-    });
-    console.log(`[REMOTION] renderMedia took ${Date.now() - renderStart}ms (${durationInFrames} frames, ${((Date.now() - renderStart) / durationInFrames).toFixed(1)}ms/frame)`);
-
-    return outputLocation;
-  } finally {
-    if (videoFileInBundle) {
-      try { fs.unlinkSync(videoFileInBundle.localPath); } catch {}
-    }
-  }
+  return renderViaRailway("CaptionedVideo", inputProps, "captioned-video");
 };
 
 export const renderVideoWithTextOverlay = async ({
@@ -391,7 +187,6 @@ export const renderVideoWithTextOverlay = async ({
     return null;
   }
 
-  // Parse text overlay into lines with timestamps (5 seconds per line)
   const lines = textOverlay
     .split("\n")
     .map((line) => line.trim())
@@ -403,8 +198,8 @@ export const renderVideoWithTextOverlay = async ({
 
   const textLines = lines.map((text, index) => ({
     text,
-    startTime: index * 5, // Each line starts 5 seconds after the previous
-    duration: 5, // Each line displays for 5 seconds
+    startTime: index * 5,
+    duration: 5,
   }));
 
   const fps = 30;
@@ -414,94 +209,23 @@ export const renderVideoWithTextOverlay = async ({
     Math.ceil((audioDurationSeconds ?? 0) + 6),
   );
   const durationInFrames = estimatedDurationSeconds * fps;
-  const outputLocation = path.join(
-    os.tmpdir(),
-    `text-overlay-video-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`,
+
+  console.log(
+    `[REMOTION-RAILWAY] Rendering TextOverlay: ${textLines.length} lines, ${durationInFrames} frames, ${width}x${height}, position=${textPosition}`,
   );
 
-  const serveUrl = await getServeUrl();
-  const envConfig = getRenderConfig();
+  const inputProps = {
+    videoSrc,
+    textLines,
+    textPosition,
+    fps,
+    fontFamily: fontFamily || undefined,
+    width,
+    height,
+    durationInFrames,
+  };
 
-  let videoFileInBundle: { httpUrl: string; localPath: string } | null = null;
-  let effectiveVideoSrc = videoSrc;
-  if (videoSrc.startsWith("http")) {
-    videoFileInBundle = await downloadVideoIntoBundleDir(videoSrc, serveUrl);
-    effectiveVideoSrc = videoFileInBundle.httpUrl;
-  }
-
-  try {
-    const sharedInputProps = {
-      videoSrc: effectiveVideoSrc,
-      textLines,
-      textPosition,
-      fps,
-      fontFamily: fontFamily || undefined,
-    };
-
-    const scaledWidth = Math.round(width * envConfig.scale);
-    const scaledHeight = Math.round(height * envConfig.scale);
-
-    const composition = {
-      id: "TextOverlay",
-      width: scaledWidth,
-      height: scaledHeight,
-      fps,
-      durationInFrames,
-      defaultProps: sharedInputProps,
-      defaultCodec: null as any,
-      props: sharedInputProps,
-    };
-
-    console.log(`[TEXT_OVERLAY] Starting render with ${textLines.length} text lines, duration: ${durationInFrames} frames, font: ${fontFamily || 'Inter'}, env: ${getHostEnvName()}, resolution: ${scaledWidth}x${scaledHeight}`);
-    console.log(`[TEXT_OVERLAY] videoSrc passed to composition: ${effectiveVideoSrc}`);
-
-    const renderStart = Date.now();
-    let lastLoggedPct = -1;
-    await renderMedia({
-      serveUrl,
-      codec: "h264",
-      composition,
-      inputProps: sharedInputProps,
-      outputLocation,
-      overwrite: true,
-      muted: false,
-      imageFormat: "jpeg",
-      jpegQuality: envConfig.jpegQuality,
-      crf: 23,
-      concurrency: envConfig.concurrency,
-      timeoutInMilliseconds: envConfig.timeoutInMilliseconds,
-      chromiumOptions: envConfig.chromiumOptions,
-      ...(envConfig.offthreadVideoCacheSizeInBytes ? { offthreadVideoCacheSizeInBytes: envConfig.offthreadVideoCacheSizeInBytes } : {}),
-      disallowParallelEncoding: envConfig.disallowParallelEncoding,
-      logLevel: envConfig.logLevel,
-      onProgress: ({ progress }) => {
-        const pct = Math.round(progress * 100);
-        if (pct >= lastLoggedPct + 10) {
-          lastLoggedPct = pct;
-          console.log(`[TEXT_OVERLAY] render progress: ${pct}% (${Math.round((Date.now() - renderStart) / 1000)}s elapsed)`);
-        }
-      },
-    });
-
-    console.log(`[TEXT_OVERLAY] Render completed in ${Date.now() - renderStart}ms (${durationInFrames} frames, ${((Date.now() - renderStart) / durationInFrames).toFixed(1)}ms/frame): ${outputLocation}`);
-    
-    if (!fs.existsSync(outputLocation)) {
-      console.error(`[TEXT_OVERLAY] ERROR: Output file was not created: ${outputLocation}`);
-      return null;
-    }
-    
-    const stats = fs.statSync(outputLocation);
-    console.log(`[TEXT_OVERLAY] Output file size: ${stats.size} bytes`);
-    
-    return outputLocation;
-  } catch (error) {
-    console.error(`[TEXT_OVERLAY] Render failed:`, error);
-    throw error;
-  } finally {
-    if (videoFileInBundle) {
-      try { fs.unlinkSync(videoFileInBundle.localPath); } catch {}
-    }
-  }
+  return renderViaRailway("TextOverlay", inputProps, "text-overlay-video");
 };
 
 export const deleteRenderedVideoIfExists = (filePath: string | null) => {
@@ -510,4 +234,3 @@ export const deleteRenderedVideoIfExists = (filePath: string | null) => {
     fs.unlinkSync(filePath);
   }
 };
-

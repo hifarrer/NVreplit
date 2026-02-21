@@ -16,12 +16,10 @@ import { generateSongWithElevenLabs } from "./services/elevenlabs";
 import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, generateInstrumentalSong } from "./services/minimax";
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
-import { createForcedAlignment, convertElevenLabsAlignmentToASS, storeElevenLabsSubtitleFile } from "./services/elevenlabs";
 import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText } from "./services/fal";
 import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment } from "./services/wavespeed";
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl } from "./services/ffmpeg";
-import { isTikTokSubtitleStyle, normalizeSubtitleStyle, parseAssToTokens, trimAssToWindow } from "./services/captions";
-import { deleteRenderedVideoIfExists, renderVideoWithTikTokCaptions, renderVideoWithTextOverlay } from "./services/remotion";
+import { deleteRenderedVideoIfExists, renderVideoWithTextOverlay } from "./services/remotion";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback, uploadImageToImageKit, isImageKitConfigured } from "./services/imagekit";
@@ -5153,126 +5151,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const finalAudioUrl = uploadedUrl;
       
-      // Generate forced alignment for subtitles if enabled
-      // BUT skip forced alignment for instrumental projects - they use text overlay instead
       const isInstrumental = project.isInstrumental === true;
-      let subtitleFileUrl = null;
       let lyricsForProject = songLyrics || null;
       
-      if (addSubtitles && !isInstrumental) {
+      // Transcribe audio to extract lyrics if none provided (for non-instrumental projects)
+      if (!songLyrics && addSubtitles && !isInstrumental) {
         try {
+          console.log("No lyrics provided, transcribing audio with Whisper...");
           await storage.addGenerationLog({
             projectId: req.params.id,
             step: "subtitle_generation",
-            message: "Starting subtitle generation for uploaded audio...",
+            message: "Transcribing audio using AI...",
             status: "progress",
-            metadata: { hasLyrics: !!songLyrics }
+            metadata: {}
           });
           
-          // If no lyrics provided, transcribe the audio using Whisper
-          let lyricsText = songLyrics;
-          if (!lyricsText) {
-            console.log("No lyrics provided, transcribing audio with Whisper...");
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation",
-              message: "Transcribing audio using AI...",
-              status: "progress",
-              metadata: {}
-            });
-            
-            try {
-              const { transcribeAudio } = await import("./services/openai");
-              
-              // Determine which audio file to use for transcription
-              let transcriptionFilePath = req.file?.path;
-              let tempTrimmedFile: string | null = null;
-              
-              // If audio was trimmed, use the trimmed buffer for transcription
-              // to ensure lyrics match the actual audio length
-              if (audioWasTrimmed && trimmedAudioBuffer) {
-                console.log("Audio was trimmed, using trimmed buffer for transcription...");
-                // Save trimmed buffer to temp file for Whisper
-                tempTrimmedFile = path.join(uploadDir, `trimmed-${crypto.randomUUID()}.mp3`);
-                fs.writeFileSync(tempTrimmedFile, trimmedAudioBuffer);
-                transcriptionFilePath = tempTrimmedFile;
-                console.log("Trimmed audio saved for transcription:", tempTrimmedFile);
-              }
-              
-              if (transcriptionFilePath && fs.existsSync(transcriptionFilePath)) {
-                lyricsText = await transcribeAudio(transcriptionFilePath);
-                lyricsForProject = lyricsText;
-                console.log("Transcription completed, length:", lyricsText.length);
-                
-                // Clean up temp trimmed file if created
-                if (tempTrimmedFile && fs.existsSync(tempTrimmedFile)) {
-                  fs.unlinkSync(tempTrimmedFile);
-                  console.log("Temp trimmed file cleaned up:", tempTrimmedFile);
-                }
-              } else {
-                console.log("No audio file available for transcription");
-              }
-            } catch (transcribeError) {
-              console.error("Transcription failed:", transcribeError);
-              await storage.addGenerationLog({
-                projectId: req.params.id,
-                step: "subtitle_generation",
-                message: `Transcription failed: ${(transcribeError as Error).message}`,
-                status: "warning",
-                metadata: { error: (transcribeError as Error).message }
-              });
+          const { transcribeAudio } = await import("./services/openai");
+          let transcriptionFilePath = req.file?.path;
+          let tempTrimmedFile: string | null = null;
+          
+          if (audioWasTrimmed && trimmedAudioBuffer) {
+            tempTrimmedFile = path.join(uploadDir, `trimmed-${crypto.randomUUID()}.mp3`);
+            fs.writeFileSync(tempTrimmedFile, trimmedAudioBuffer);
+            transcriptionFilePath = tempTrimmedFile;
+          }
+          
+          if (transcriptionFilePath && fs.existsSync(transcriptionFilePath)) {
+            lyricsForProject = await transcribeAudio(transcriptionFilePath);
+            console.log("Transcription completed, length:", lyricsForProject.length);
+            if (tempTrimmedFile && fs.existsSync(tempTrimmedFile)) {
+              fs.unlinkSync(tempTrimmedFile);
             }
           }
-          
-          // Run forced alignment if we have lyrics
-          if (lyricsText && lyricsText.trim()) {
-            console.log("Running forced alignment on uploaded audio...");
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation",
-              message: "Generating timestamped lyrics using forced alignment...",
-              status: "progress",
-              metadata: {}
-            });
-            
-            const alignmentResponse = await createForcedAlignment(finalAudioUrl, lyricsText);
-            
-            // Convert to .ass format
-            const assContent = convertElevenLabsAlignmentToASS(alignmentResponse);
-            
-            // Store subtitle file
-            const songId = audioPath.split('/').pop()?.replace(/\.[^/.]+$/, '') || undefined;
-            subtitleFileUrl = await storeElevenLabsSubtitleFile(assContent, songId);
-            
-            console.log("Subtitle file stored at:", subtitleFileUrl);
-            
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation",
-              message: "Subtitles generated successfully using forced alignment",
-              status: "completed",
-              metadata: { subtitleFileUrl, wordCount: alignmentResponse.words?.length || 0 }
-            });
-          } else {
-            console.log("No lyrics available for forced alignment");
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation",
-              message: "No lyrics available for subtitle generation",
-              status: "warning",
-              metadata: {}
-            });
-          }
-        } catch (subtitleError) {
-          console.error("Forced alignment failed:", subtitleError);
+        } catch (transcribeError) {
+          console.error("Transcription failed:", transcribeError);
           await storage.addGenerationLog({
             projectId: req.params.id,
             step: "subtitle_generation",
-            message: `Subtitle generation failed: ${(subtitleError as Error).message}`,
-            status: "error",
-            metadata: { error: (subtitleError as Error).message }
+            message: `Transcription failed: ${(transcribeError as Error).message}`,
+            status: "warning",
+            metadata: { error: (transcribeError as Error).message }
           });
-          // Continue without subtitles
         }
       } else if (isInstrumental) {
         // For instrumental projects (like lyric videos), transcribe audio if no lyrics provided
@@ -5360,18 +5279,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update project with audio URL and description
       // For uploaded audio, we store the description in audioPrompt to generate scenes
-      // Only enable subtitles if a subtitle file was successfully generated
-      const subtitlesEnabled = addSubtitles && !!subtitleFileUrl;
       const updateData: any = { 
         audioUrl: finalAudioUrl,
         audioType: 'uploaded',
         audioDuration: actualDuration,
-        audioPrompt: songDescription || null, // Store description in audioPrompt for scene generation
-        audioLyrics: lyricsForProject, // Store lyrics for scene timeline
-        addSubtitles: subtitlesEnabled, // Only true if subtitles were actually generated
+        audioPrompt: songDescription || null,
+        audioLyrics: lyricsForProject,
+        addSubtitles: !!addSubtitles,
         subtitleStyle,
-        subtitleFileUrl: subtitleFileUrl, // Store subtitle file URL
-        aspectRatio: aspectRatio, // Store aspect ratio ('16:9' or '3:4')
+        aspectRatio: aspectRatio,
         includeWatermark: includeWatermark,
         isPublic: isPublic
       };
@@ -5390,7 +5306,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.addGenerationLog({
         projectId: req.params.id,
         step: "audio_upload",
-        message: `Audio file uploaded successfully (${actualDuration}s)${songDescription ? ', with description' : ''}${subtitleFileUrl ? ', with subtitles' : ''}`,
+        message: `Audio file uploaded successfully (${actualDuration}s)${songDescription ? ', with description' : ''}`,
         status: "completed",
         metadata: { 
           filename: req.file.filename,
@@ -5399,8 +5315,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           audioUrl: finalAudioUrl,
           duration: actualDuration,
           hasDescription: !!songDescription,
-          hasSubtitles: !!subtitleFileUrl,
-          subtitleFileUrl: subtitleFileUrl,
           subtitleStyle,
         }
       });
@@ -5412,8 +5326,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         size: req.file.size,
         duration: actualDuration,
         hasDescription: !!songDescription,
-        hasSubtitles: !!subtitleFileUrl,
-        subtitleFileUrl: subtitleFileUrl,
+        hasSubtitles: false,
+        subtitleFileUrl: null,
         subtitleStyle,
         lyrics: lyricsForProject
       });
@@ -5498,270 +5412,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const trimmedDuration = await getAudioDurationFromFile(tempFilePath);
       fs.unlinkSync(tempFilePath); // Clean up temp file
 
-      const shouldAddSubtitles =
-        addSubtitles === true || addSubtitles === "true";
       const subtitleStyle = isSubtitleStyle(subtitleStyleInput)
         ? subtitleStyleInput
         : isSubtitleStyle((project as any).subtitleStyle)
           ? (project as any).subtitleStyle
           : defaultSubtitleStyle;
-      let subtitleFileUrl: string | null = null;
-      let lyricsForTrimmedSong: string | null = null;
-      // Don't initialize with full lyrics - we'll get trimmed lyrics from subtitle trimming or transcription
-
-      // Check if this is an instrumental project - skip forced alignment for instrumental
-      const isInstrumental = project.isInstrumental === true;
-
-      // Always try to trim existing subtitles if they exist, regardless of addSubtitles flag
-      // This ensures trimmed audio always has matching trimmed subtitles
-      // BUT skip this for instrumental projects - they use text overlay instead
-      const subtitleSourceUrl =
-        typeof sourceSubtitleFileUrl === "string" && sourceSubtitleFileUrl.trim().length > 0
-          ? sourceSubtitleFileUrl.trim()
-          : typeof project.subtitleFileUrl === "string" && project.subtitleFileUrl.trim().length > 0
-            ? project.subtitleFileUrl
-            : null;
-
-      if (subtitleSourceUrl && (subtitleSourceUrl.startsWith("http://") || subtitleSourceUrl.startsWith("https://")) && !isInstrumental) {
-        try {
-          await storage.addGenerationLog({
-            projectId: req.params.id,
-            step: "subtitle_generation",
-            message: "Trimming existing subtitles to match trimmed audio...",
-            status: "progress",
-            metadata: {},
-          });
-
-          const subtitleResponse = await fetch(subtitleSourceUrl);
-          if (subtitleResponse.ok) {
-            const sourceAssContent = await subtitleResponse.text();
-            const trimmedAssContent = trimAssToWindow(
-              sourceAssContent,
-              Number(startTime),
-              Number(endTime),
-            );
-            const trimmedTokens = parseAssToTokens(trimmedAssContent);
-            if (trimmedTokens.length > 0) {
-              const songId =
-                audioPath.split("/").pop()?.replace(/\.[^/.]+$/, "") || undefined;
-              subtitleFileUrl = await storeElevenLabsSubtitleFile(
-                trimmedAssContent,
-                songId,
-              );
-              lyricsForTrimmedSong = trimmedTokens
-                .map((token) => token.text)
-                .join(" ")
-                .replace(/\s+/g, " ")
-                .trim();
-              console.log(
-                `Trimmed subtitles from timed source (${trimmedTokens.length} tokens).`,
-              );
-              await storage.addGenerationLog({
-                projectId: req.params.id,
-                step: "subtitle_generation",
-                message: `Successfully trimmed subtitles to match trimmed audio.`,
-                status: "completed",
-                metadata: { tokenCount: trimmedTokens.length },
-              });
-            }
-          }
-        } catch (timedTrimError) {
-          console.warn(
-            "Failed trimming existing timed subtitles:",
-            timedTrimError,
-          );
-          await storage.addGenerationLog({
-            projectId: req.params.id,
-            step: "subtitle_generation",
-            message: `Failed to trim existing subtitles: ${(timedTrimError as Error).message}`,
-            status: "warning",
-            metadata: { error: (timedTrimError as Error).message },
-          });
-        }
-      }
-
-      // If we don't have trimmed subtitles and subtitles are requested, generate new ones
-      // BUT skip forced alignment for instrumental projects - they use text overlay instead
-      if (!subtitleFileUrl && shouldAddSubtitles && !isInstrumental) {
-        try {
-          await storage.addGenerationLog({
-            projectId: req.params.id,
-            step: "subtitle_generation",
-            message: "Generating subtitles for trimmed audio...",
-            status: "progress",
-            metadata: {},
-          });
-
-          // If we don't have trimmed subtitles, transcribe the trimmed audio to get the correct lyrics.
-          // This ensures we use lyrics that match the trimmed portion, not the full original lyrics.
-          if (!lyricsForTrimmedSong) {
-            try {
-              const { transcribeAudio } = await import("./services/openai");
-              const transcriptionPath = path.join(
-                uploadDir,
-                `trimmed-transcription-${crypto.randomUUID()}.mp3`,
-              );
-              fs.writeFileSync(transcriptionPath, trimmedBuffer);
-              lyricsForTrimmedSong = await transcribeAudio(transcriptionPath);
-              fs.unlinkSync(transcriptionPath);
-              console.log("Transcribed trimmed audio to get lyrics for trimmed portion.");
-            } catch (transcribeError) {
-              console.error(
-                "Failed to transcribe trimmed audio for subtitles:",
-                transcribeError,
-              );
-            }
-          }
-
-          // Generate subtitles using forced alignment with the trimmed lyrics
-          if (lyricsForTrimmedSong && lyricsForTrimmedSong.trim().length > 0) {
-            const alignmentResponse = await createForcedAlignment(
-              publicAudioUrl,
-              lyricsForTrimmedSong,
-            );
-            const assContent =
-              convertElevenLabsAlignmentToASS(alignmentResponse);
-            const songId =
-              audioPath.split("/").pop()?.replace(/\.[^/.]+$/, "") ||
-              undefined;
-            subtitleFileUrl = await storeElevenLabsSubtitleFile(
-              assContent,
-              songId,
-            );
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation",
-              message: `Successfully generated subtitles for trimmed audio.`,
-              status: "completed",
-              metadata: {},
-            });
-          } else {
-            console.warn(
-              "Subtitles were requested for trimmed audio, but no lyrics or transcription were available.",
-            );
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation",
-              message: `Subtitles requested but no lyrics available for trimmed audio.`,
-              status: "warning",
-              metadata: {},
-            });
-          }
-        } catch (subtitleError) {
-          console.error(
-            "Failed to generate subtitles for trimmed audio:",
-            subtitleError,
-          );
-          await storage.addGenerationLog({
-            projectId: req.params.id,
-            step: "subtitle_generation",
-            message: `Subtitle generation for trimmed audio failed: ${(subtitleError as Error).message}`,
-            status: "warning",
-            metadata: { error: (subtitleError as Error).message },
-          });
-        }
-      } else if (isInstrumental) {
-        // For lyric pages we also use instrumental projects (no character/lipsync),
-        // so subtitles should be regenerated for trimmed audio when captions are enabled.
-        const providedLyrics =
-          typeof lyrics === "string" && lyrics.trim().length > 0
-            ? lyrics.trim()
-            : null;
-        if (!lyricsForTrimmedSong && providedLyrics) {
-          lyricsForTrimmedSong = providedLyrics;
-        }
-
-        // If subtitles are requested and we still have no lyrics, attempt transcription fallback.
-        if (shouldAddSubtitles && !subtitleFileUrl && !lyricsForTrimmedSong) {
-          try {
-            console.log("No lyrics provided for instrumental trimmed audio, transcribing with Whisper...");
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation",
-              message: "Transcribing trimmed audio to extract lyrics...",
-              status: "progress",
-              metadata: {}
-            });
-
-            const { transcribeAudio } = await import("./services/openai");
-            const transcriptionPath = path.join(
-              uploadDir,
-              `trimmed-transcription-${crypto.randomUUID()}.mp3`,
-            );
-            fs.writeFileSync(transcriptionPath, trimmedBuffer);
-            lyricsForTrimmedSong = await transcribeAudio(transcriptionPath);
-            fs.unlinkSync(transcriptionPath);
-            console.log("Transcription completed for instrumental trimmed audio, length:", lyricsForTrimmedSong.length);
-
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation",
-              message: "Lyrics extracted from trimmed audio successfully",
-              status: "completed",
-              metadata: { lyricsLength: lyricsForTrimmedSong.length }
-            });
-          } catch (transcribeError) {
-            console.error("Transcription failed for instrumental trimmed audio:", transcribeError);
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation",
-              message: `Transcription failed: ${(transcribeError as Error).message}`,
-              status: "warning",
-              metadata: { error: (transcribeError as Error).message }
-            });
-          }
-        }
-
-        // If captions are enabled and lyrics are available, generate timed subtitles now.
-        if (shouldAddSubtitles && !subtitleFileUrl && lyricsForTrimmedSong && lyricsForTrimmedSong.trim().length > 0) {
-          try {
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation",
-              message: "Generating subtitles for trimmed audio...",
-              status: "progress",
-              metadata: {},
-            });
-
-            const alignmentResponse = await createForcedAlignment(
-              publicAudioUrl,
-              lyricsForTrimmedSong,
-            );
-            const assContent = convertElevenLabsAlignmentToASS(alignmentResponse);
-            const songId =
-              audioPath.split("/").pop()?.replace(/\.[^/.]+$/, "") || undefined;
-            subtitleFileUrl = await storeElevenLabsSubtitleFile(
-              assContent,
-              songId,
-            );
-
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation",
-              message: "Successfully generated subtitles for trimmed audio.",
-              status: "completed",
-              metadata: {},
-            });
-          } catch (subtitleError) {
-            console.error("Failed to generate subtitles for instrumental trimmed audio:", subtitleError);
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "subtitle_generation",
-              message: `Subtitle generation for trimmed audio failed: ${(subtitleError as Error).message}`,
-              status: "warning",
-              metadata: { error: (subtitleError as Error).message },
-            });
-          }
-        } else if (shouldAddSubtitles && !subtitleFileUrl) {
-          await storage.addGenerationLog({
-            projectId: req.params.id,
-            step: "subtitle_generation",
-            message: "Subtitles requested but no lyrics available for trimmed audio.",
-            status: "warning",
-            metadata: {},
-          });
-        }
-      }
+      const subtitleFileUrl: string | null = null;
+      const lyricsForTrimmedSong: string | null =
+        typeof lyrics === "string" && lyrics.trim().length > 0 ? lyrics.trim() : null;
 
       // Save trimmed audio to user's library
       let savedSong = null;
@@ -5876,58 +5534,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No lyrics found. Cannot regenerate captions without lyrics." });
       }
 
-      let subtitleFileUrl: string | null = null;
-
-      // Check if this is an instrumental project - skip forced alignment for instrumental
-      const isInstrumental = project.isInstrumental === true;
-
-      if (shouldAddSubtitles && !isInstrumental) {
-        try {
-          await storage.addGenerationLog({
-            projectId: req.params.id,
-            step: "subtitle_generation",
-            message: "Re-applying captions with new settings...",
-            status: "progress",
-            metadata: { subtitleStyle, captionPosition: captionPos, fontFamily }
-          });
-
-          // Generate subtitles using forced alignment with the existing lyrics
-          const alignmentResponse = await createForcedAlignment(
-            project.audioUrl,
-            audioLyrics,
-          );
-          const assContent = convertElevenLabsAlignmentToASS(alignmentResponse);
-          
-          // Extract song ID from audio URL if possible, otherwise use project ID
-          const audioPathMatch = project.audioUrl.match(/songs\/([^\/]+)\.mp3/);
-          const songId = audioPathMatch ? audioPathMatch[1] : project.id;
-          
-          subtitleFileUrl = await storeElevenLabsSubtitleFile(assContent, songId);
-
-          await storage.addGenerationLog({
-            projectId: req.params.id,
-            step: "subtitle_generation",
-            message: "Captions re-applied successfully with new settings",
-            status: "completed",
-            metadata: { subtitleFileUrl, subtitleStyle, captionPosition: captionPos, fontFamily }
-          });
-        } catch (subtitleError) {
-          console.error("Failed to re-apply captions:", subtitleError);
-          await storage.addGenerationLog({
-            projectId: req.params.id,
-            step: "subtitle_generation",
-            message: `Failed to re-apply captions: ${(subtitleError as Error).message}`,
-            status: "warning",
-            metadata: { error: (subtitleError as Error).message },
-          });
-          return res.status(500).json({
-            error: "Failed to re-apply captions",
-            message: (subtitleError as Error).message,
-          });
-        }
-      }
-
-      // Update project with new caption settings
+      // Save caption settings to the project; captions are auto-generated
+      // by ffmpegapi during video generation, not during this step.
       const updateData: any = {
         subtitleStyle,
         fontFamily,
@@ -5935,18 +5543,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         addSubtitles: shouldAddSubtitles,
       };
 
-      if (subtitleFileUrl) {
-        updateData.subtitleFileUrl = subtitleFileUrl;
-      } else if (!shouldAddSubtitles) {
-        // If subtitles are disabled, clear the subtitle file URL
-        updateData.subtitleFileUrl = null;
-      }
-
       await storage.updateProject(req.params.id, updateData);
+
+      await storage.addGenerationLog({
+        projectId: req.params.id,
+        step: "subtitle_generation",
+        message: "Caption settings updated successfully",
+        status: "completed",
+        metadata: { subtitleStyle, captionPosition: captionPos, fontFamily, addSubtitles: shouldAddSubtitles }
+      });
 
       return res.status(200).json({
         success: true,
-        subtitleFileUrl: subtitleFileUrl,
+        subtitleFileUrl: null,
         subtitleStyle,
         captionPosition: captionPos,
         fontFamily,
@@ -8785,81 +8394,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.log("Final audio URL for FFMPEG merge:", finalAudioUrl);
 
-      const projectSubtitleStyle = normalizeSubtitleStyle((project as any).subtitleStyle);
-      // Instrumental text overlay lines are now treated like pro-mode captions and rendered here.
-      const hasTextOverlay = (project as any).textOverlay && typeof (project as any).textOverlay === 'string' && (project as any).textOverlay.trim().length > 0;
-      const isInstrumentalWithTextOverlay = project.isInstrumental && hasTextOverlay;
-      
-      const shouldRenderTikTokCaptions =
-        project.addSubtitles &&
-        isTikTokSubtitleStyle(projectSubtitleStyle) &&
-        !!project.subtitleFileUrl;
-      
-      if (isInstrumentalWithTextOverlay && shouldRenderTikTokCaptions) {
-        console.log(`[VIDEO-GEN] Instrumental text overlay detected - rendering captions in primary Remotion pass`);
-      }
-
-      // Resolve subtitle URL (used by FFmpeg path and as fallback when Remotion fails).
-      // (subtitleFileUrl is always generated for timeline display, but only shown in video when addSubtitles is true)
-      // Subtitles are now stored exclusively in ImageKit.
-      let resolvedSubtitleUrl: string | undefined;
-      if (shouldRenderTikTokCaptions) {
-        console.log(
-          `Using Remotion caption renderer for style "${projectSubtitleStyle}" - skipping FFmpeg subtitle overlay completely`,
-        );
-        if (!subtitleData?.assContent) {
-          console.warn("TikTok-style captions requested but subtitle ASS content could not be loaded. Falling back to base merged video.");
-        }
-        // CRITICAL: Don't resolve subtitle URL when using TikTok captions - we only use Remotion
-        resolvedSubtitleUrl = undefined;
-      } else if (isInstrumentalWithTextOverlay) {
-        // Keep FFmpeg subtitle overlay off for text-overlay-only instrumental flows (no subtitle style pass requested).
-        console.log(`[VIDEO-GEN] Skipping FFmpeg subtitle overlay for instrumental text-overlay-only flow`);
-        resolvedSubtitleUrl = undefined;
-      } else if (project.addSubtitles && project.subtitleFileUrl) {
-        // Check if it's already a full URL (ImageKit URL or other external URL)
-        if (project.subtitleFileUrl.startsWith('http://') || project.subtitleFileUrl.startsWith('https://')) {
-          // Already a full URL (ImageKit or external) - use as-is
-          resolvedSubtitleUrl = project.subtitleFileUrl;
-          console.log("Using ImageKit/external subtitle URL:", resolvedSubtitleUrl);
-        } else if (project.subtitleFileUrl.startsWith('/public-objects/') || project.subtitleFileUrl.startsWith('/objects/')) {
-          // Legacy GCS paths - try to resolve to ImageKit URL if available
-          const { isImageKitConfigured, resolveImageKitUrl } = await import("./services/imagekit");
-          if (isImageKitConfigured()) {
-            // Try to find ImageKit URL for legacy subtitle
-            const imagekitUrl = await resolveImageKitUrl(project.subtitleFileUrl, storage);
-            if (imagekitUrl) {
-              resolvedSubtitleUrl = imagekitUrl;
-              console.log("Resolved legacy subtitle to ImageKit URL:", project.subtitleFileUrl, "->", resolvedSubtitleUrl);
-            } else {
-              // No ImageKit URL found for legacy subtitle - skip it
-              console.warn("Legacy subtitle path found but no ImageKit URL available. Subtitles should be stored in ImageKit. Skipping subtitle:", project.subtitleFileUrl);
-              resolvedSubtitleUrl = undefined;
-            }
-          } else {
-            // ImageKit not configured - this shouldn't happen for new subtitles, but handle legacy
-            console.warn("Legacy subtitle path found but ImageKit is not configured. This should not happen for new subtitles.");
-            resolvedSubtitleUrl = undefined;
-          }
-        } else {
-          // Unknown format - skip it
-          console.warn("Unknown subtitle URL format:", project.subtitleFileUrl);
-          resolvedSubtitleUrl = undefined;
-        }
-      } else if (!project.addSubtitles) {
-        console.log("Subtitles disabled by user - not including in final video");
-      }
-      console.log(
-        "Subtitle URL for FFMPEG merge:",
-        resolvedSubtitleUrl || "Not provided (disabled or no file)",
-      );
-      
       let finalVideo;
       let savedFinalVideoUrl: string;
-      let tempCaptionRenderPath: string | null = null;
       try {
         // Get watermark URL for branding (only Premium users can disable it)
-        // Double-check user plan server-side for security
         const userWithPlan = await storage.getUserWithPlan(project.userId);
         const isPremiumUser = userWithPlan?.plan?.name === "Premium";
         const shouldIncludeWatermark = isPremiumUser ? (project.includeWatermark !== false) : true;
@@ -8869,79 +8407,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           watermarkUrl = await getWatermarkUrl() || undefined;
         }
         
-        // CRITICAL: Never pass subtitle URL to FFmpeg when using TikTok-style captions
-        // This prevents double captions (FFmpeg + Remotion)
-        const subtitleUrlForInitialMerge = shouldRenderTikTokCaptions
-          ? undefined  // Never use FFmpeg subtitles when using Remotion TikTok captions
-          : resolvedSubtitleUrl;
-        
         console.log("=== VIDEO MERGE CONFIG ===");
-        console.log("Using TikTok-style captions:", shouldRenderTikTokCaptions);
-        console.log("Subtitle URL for FFmpeg:", subtitleUrlForInitialMerge || "NONE (TikTok captions will be used via Remotion)");
+        console.log("Captions will be added via ffmpegapi after upload (not during merge)");
         console.log("========================");
         
         finalVideo = await mergeVideos(
           signedVideoUrls,
           finalAudioUrl,
-          subtitleUrlForInitialMerge, // Will be undefined for TikTok captions - prevents double captions
+          undefined,
           watermarkUrl,
         );
         console.log("Final video merge successful:", finalVideo.download_url);
 
-        if (shouldRenderTikTokCaptions && subtitleData?.assContent) {
-          await storage.addGenerationLog({
-            projectId: req.params.id,
-            step: "video_generation",
-            message: `Rendering TikTok-style captions (${projectSubtitleStyle})`,
-            status: "progress",
-            metadata: { step: 4, total: 4, captionStyle: projectSubtitleStyle },
-          });
-
-          try {
-            // Get caption position from project (defaults to "bottom" if not specified)
-            // For instrumental videos, this should be the textPosition that was saved as captionPosition
-            const captionPosition = ((project as any).captionPosition || "bottom") as "top" | "center" | "bottom";
-            console.log(`[VIDEO-GEN] Rendering TikTok-style captions with position: ${captionPosition}, style: ${projectSubtitleStyle}`);
-            const projectFontFamily = (project as any).fontFamily || defaultGoogleFont;
-            tempCaptionRenderPath = await renderVideoWithTikTokCaptions({
-              videoSrc: finalVideo.download_url,
-              assContent: subtitleData.assContent,
-              subtitleStyle: projectSubtitleStyle,
-              aspectRatio: project.aspectRatio,
-              audioDurationSeconds: audioDuration,
-              captionPosition: captionPosition, // Use saved caption position (top, center, or bottom)
-              fontFamily: isGoogleFont(projectFontFamily) ? projectFontFamily : defaultGoogleFont,
-            });
-          } catch (captionRenderError) {
-            console.warn(
-              "Remotion caption render failed. Not using FFmpeg fallback to prevent double captions:",
-              captionRenderError,
-            );
-            // CRITICAL: Do NOT use FFmpeg subtitles as fallback - we only want Remotion captions
-            // This prevents double captions from appearing (one from FFmpeg, one from Remotion)
-            await storage.addGenerationLog({
-              projectId: req.params.id,
-              step: "video_generation",
-              message: `TikTok caption render failed, falling back to base merge: ${(captionRenderError as Error).message}`,
-              status: "warning",
-              metadata: { captionStyle: projectSubtitleStyle },
-            });
-          }
-        }
-
-        // Try to save the final video to object storage
+        // Save the merged video to object storage
         console.log("Saving final video to object storage...");
         const objectStorageService = new ObjectStorageService();
         
         try {
-          if (tempCaptionRenderPath) {
-            const renderedBuffer = fs.readFileSync(tempCaptionRenderPath);
-            savedFinalVideoUrl = await objectStorageService.uploadVideoBuffer(
-              renderedBuffer,
-              `neonvideo_${Date.now()}_captioned.mp4`,
-            );
-          } else if (finalVideo.download_url.includes("/api/ffmpeg-local/download/")) {
-            // Local ffmpeg output — read directly from disk instead of HTTP round-trip
+          if (finalVideo.download_url.includes("/api/ffmpeg-local/download/")) {
             const { OUTPUT_FOLDER } = await import("./services/ffmpegLocal.js");
             const localFilePath = path.join(OUTPUT_FOLDER, finalVideo.filename);
             const videoBuffer = fs.readFileSync(localFilePath);
@@ -8958,8 +8441,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("Final video saved to storage:", savedFinalVideoUrl);
         } catch (storageError) {
           console.warn("Failed to save video to object storage, using temporary URL:", storageError);
-          // Fallback: use the FFMPEG download URL temporarily
-          // Note: This URL may expire after some time
           savedFinalVideoUrl = finalVideo.download_url;
           
           await storage.addGenerationLog({
@@ -8973,9 +8454,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           });
         }
-        deleteRenderedVideoIfExists(tempCaptionRenderPath);
+
+        // Add TikTok-style captions via ffmpegapi (auto-transcribes and burns captions)
+        if (project.addSubtitles) {
+          try {
+            const projectSubtitleStyle = (project as any).subtitleStyle || "yellow-bg";
+            await storage.addGenerationLog({
+              projectId: req.params.id,
+              step: "video_generation",
+              message: `Adding TikTok-style captions (${projectSubtitleStyle})`,
+              status: "progress",
+              metadata: { step: 4, total: 4, captionStyle: projectSubtitleStyle },
+            });
+
+            const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
+            const captionResult = await addTikTokCaptions({
+              videoUrl: savedFinalVideoUrl,
+              subtitleStyle: projectSubtitleStyle,
+              aspectRatio: project.aspectRatio,
+              position: (project as any).captionPosition || "bottom",
+            });
+
+            // Upload the captioned video to storage
+            const captionedVideoUrl = await objectStorageService.uploadVideoFromUrl(
+              captionResult.download_url,
+              `neonvideo_${Date.now()}_captioned.mp4`,
+            );
+            savedFinalVideoUrl = captionedVideoUrl;
+            console.log("Captioned video saved to storage:", savedFinalVideoUrl);
+          } catch (captionError) {
+            console.warn("ffmpegapi caption rendering failed, proceeding without captions:", captionError);
+            await storage.addGenerationLog({
+              projectId: req.params.id,
+              step: "video_generation",
+              message: `Caption rendering failed, using uncaptioned video: ${(captionError as Error).message}`,
+              status: "warning",
+              metadata: { error: (captionError as Error).message },
+            });
+          }
+        }
       } catch (mergeError) {
-        deleteRenderedVideoIfExists(tempCaptionRenderPath);
         console.error("Final video merge failed:", mergeError);
         await storage.addGenerationLog({
           projectId: req.params.id,
@@ -12230,38 +11748,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
         metadata: {}
       });
 
-      // Step 6: Generate subtitles on full song first (before trimming) - if requested
-      // This ensures accurate forced alignment, then we'll trim the subtitles to match trimmed audio
-      let fullSongSubtitleAssContent: string | null = null;
-      if (addSubtitles && lyrics) {
-        try {
-          console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Step 6a: Generating subtitles on full song for accurate alignment...`);
-          await storage.addGenerationLog({
-            projectId: project.id,
-            step: "subtitle_generation",
-            message: "Creating captions...",
-            status: "progress",
-            metadata: {}
-          });
-
-          // Do forced alignment on the FULL song with full lyrics for better accuracy
-          const alignmentResponse = await createForcedAlignment(songResult.audioUrl, lyrics);
-          fullSongSubtitleAssContent = convertElevenLabsAlignmentToASS(alignmentResponse);
-          
-          console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Forced alignment completed on full song (${alignmentResponse.words?.length || 0} words)`);
-        } catch (subtitleError) {
-          console.error(`[NEON-SINGLE-PROMPT-CUSTOM] Failed to generate subtitles on full song:`, subtitleError);
-          await storage.addGenerationLog({
-            projectId: project.id,
-            step: "subtitle_generation",
-            message: `Subtitle generation failed: ${(subtitleError as Error).message}`,
-            status: "warning",
-            metadata: { error: (subtitleError as Error).message },
-          });
-        }
-      }
-
-      // Step 6b: Trim audio from 0 to specified duration
+      // Step 6: Trim audio from 0 to specified duration
       console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Step 6b: Trimming audio from 0s to ${duration}s...`);
       
       await storage.addGenerationLog({
@@ -12299,52 +11786,11 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
         metadata: {}
       });
 
-      // Step 7: Trim subtitles to match trimmed audio (if we have subtitles)
-      let subtitleFileUrl = null;
-      if (addSubtitles && fullSongSubtitleAssContent) {
-        try {
-          console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Step 7: Trimming subtitles to match trimmed audio (0s to ${duration}s)...`);
-          
-          // Import trimAssToWindow function
-          const { trimAssToWindow } = await import("./services/captions");
-          
-          // Trim subtitles to match the trimmed audio window (0 to duration seconds)
-          const trimmedAssContent = trimAssToWindow(
-            fullSongSubtitleAssContent,
-            0, // Start at 0 seconds
-            duration * 1000 // End at duration (convert to milliseconds)
-          );
-          
-          const songId = trimmedAudioPath.split('/').pop()?.replace(/\.[^/.]+$/, '') || undefined;
-          subtitleFileUrl = await storeElevenLabsSubtitleFile(trimmedAssContent, songId);
-          
-          console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Subtitles trimmed and stored: ${subtitleFileUrl}`);
-          
-          await storage.addGenerationLog({
-            projectId: project.id,
-            step: "subtitle_generation",
-            message: "Captions created successfully",
-            status: "completed",
-            metadata: { subtitleFileUrl }
-          });
-        } catch (subtitleError) {
-          console.error(`[NEON-SINGLE-PROMPT-CUSTOM] Failed to trim subtitles:`, subtitleError);
-          await storage.addGenerationLog({
-            projectId: project.id,
-            step: "subtitle_generation",
-            message: `Subtitle trimming failed: ${(subtitleError as Error).message}`,
-            status: "warning",
-            metadata: { error: (subtitleError as Error).message },
-          });
-        }
-      }
-
       await storage.updateProject(project.id, { 
         audioUrl: trimmedAudioUrl,
-        audioDuration: duration, // Use the requested duration, not the actual song duration
+        audioDuration: duration,
         currentStep: 2,
-        subtitleFileUrl: subtitleFileUrl,
-        addSubtitles: addSubtitles && !!subtitleFileUrl
+        addSubtitles: !!addSubtitles
       } as any);
       console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Trimmed audio and subtitles saved (${duration} seconds)`);
 
@@ -12399,7 +11845,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
           lyrics: lyrics.substring(0, 100) + "...",
           sceneCount: sceneImages.length,
           duration: duration,
-          subtitles: addSubtitles && !!subtitleFileUrl
+          subtitles: !!addSubtitles
         }
       });
 
@@ -12832,14 +12278,8 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
               }
             }
 
-            const latestProjectForPostProcess = await storage.getProject(project.id);
-            const hasRenderedSubtitleSource =
-              !!latestProjectForPostProcess?.addSubtitles &&
-              !!latestProjectForPostProcess?.subtitleFileUrl;
-
-            // Post-process text overlay only for non-caption flows.
-            // If captions were requested, never run a second overwrite pass.
-            if (hasTextOverlay && finalVideoUrl && !hasRenderedSubtitleSource && !addSubtitles) {
+            // Render text overlay if present; captions are added separately via ffmpegapi afterwards.
+            if (hasTextOverlay && finalVideoUrl) {
               console.log(`[INSTRUMENTAL] Rendering text overlay at position: ${overlayPosition}`);
               
               await storage.addGenerationLog({
@@ -12862,126 +12302,8 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
                 });
 
                 if (textOverlayVideoPath) {
-                  let finalVideoPath = textOverlayVideoPath;
-                  let finalVideoUrl: string;
-
-                  // Check if TikTok captions should be rendered on top of text overlay
-                  const updatedProject = await storage.getProject(project.id);
-                  console.log(`[INSTRUMENTAL] Checking if TikTok captions should be rendered...`);
-                  console.log(`[INSTRUMENTAL] Project addSubtitles: ${updatedProject?.addSubtitles}`);
-                  console.log(`[INSTRUMENTAL] Project subtitleFileUrl: ${updatedProject?.subtitleFileUrl || 'none'}`);
-                  
-                  if (updatedProject) {
-                    const projectSubtitleStyle = normalizeSubtitleStyle((updatedProject as any).subtitleStyle);
-                    console.log(`[INSTRUMENTAL] Project subtitle style: ${projectSubtitleStyle}`);
-                    const shouldRenderTikTokCaptions =
-                      updatedProject.addSubtitles &&
-                      isTikTokSubtitleStyle(projectSubtitleStyle) &&
-                      !!updatedProject.subtitleFileUrl;
-
-                    console.log(`[INSTRUMENTAL] shouldRenderTikTokCaptions: ${shouldRenderTikTokCaptions}`);
-
-                    if (shouldRenderTikTokCaptions && updatedProject.subtitleFileUrl) {
-                      try {
-                        console.log(`[INSTRUMENTAL] Rendering TikTok captions on text overlay video...`);
-                        console.log(`[INSTRUMENTAL] Text overlay video path: ${textOverlayVideoPath}`);
-                        await storage.addGenerationLog({
-                          projectId: project.id,
-                          step: "video_generation",
-                          message: `Rendering TikTok-style captions (${projectSubtitleStyle})...`,
-                          status: "progress",
-                          metadata: { captionStyle: projectSubtitleStyle },
-                        });
-
-                        // Load subtitle file content
-                        let subtitleAssContent: string | null = null;
-                        if (updatedProject.subtitleFileUrl.startsWith("http://") || updatedProject.subtitleFileUrl.startsWith("https://")) {
-                          console.log(`[INSTRUMENTAL] Fetching subtitle file from URL: ${updatedProject.subtitleFileUrl}`);
-                          const subtitleResponse = await fetch(updatedProject.subtitleFileUrl);
-                          if (subtitleResponse.ok) {
-                            subtitleAssContent = await subtitleResponse.text();
-                            console.log(`[INSTRUMENTAL] Loaded subtitle file from URL: ${updatedProject.subtitleFileUrl}, length: ${subtitleAssContent.length} chars`);
-                          } else {
-                            console.warn(`[INSTRUMENTAL] Failed to fetch subtitle file: ${subtitleResponse.status} ${subtitleResponse.statusText}`);
-                          }
-                        } else {
-                          console.warn(`[INSTRUMENTAL] Subtitle file URL is not HTTP/HTTPS: ${updatedProject.subtitleFileUrl}`);
-                        }
-
-                        if (subtitleAssContent) {
-                          const captionPosition = ((updatedProject as any).captionPosition || "bottom") as "top" | "center" | "bottom";
-                          const projectFontFamily = (updatedProject as any).fontFamily || defaultGoogleFont;
-                          
-                          console.log(`[INSTRUMENTAL] Uploading text overlay video to get URL for Remotion caption rendering...`);
-                          
-                          // Upload text overlay video temporarily to get a URL for Remotion
-                          // Remotion requires HTTP/HTTPS URLs, not local file paths
-                          const textOverlayVideoBuffer = fs.readFileSync(textOverlayVideoPath);
-                          const tempVideoFileName = `temp-text-overlay-${crypto.randomUUID()}.mp4`;
-                          const objectStorageService = new ObjectStorageService();
-                          const uploadedTempVideoUrl = await objectStorageService.uploadVideoBuffer(
-                            textOverlayVideoBuffer,
-                            tempVideoFileName
-                          );
-                          
-                          const textOverlayVideoUrl = uploadedTempVideoUrl.startsWith('http')
-                            ? uploadedTempVideoUrl
-                            : await objectStorageService.getSignedUrlForPath(uploadedTempVideoUrl, 3600); // 1 hour expiry
-                          
-                          console.log(`[INSTRUMENTAL] Text overlay video uploaded: ${textOverlayVideoUrl}`);
-                          console.log(`[INSTRUMENTAL] Calling renderVideoWithTikTokCaptions with:`);
-                          console.log(`[INSTRUMENTAL]   videoSrc: ${textOverlayVideoUrl}`);
-                          console.log(`[INSTRUMENTAL]   subtitleStyle: ${projectSubtitleStyle}`);
-                          console.log(`[INSTRUMENTAL]   captionPosition: ${captionPosition}`);
-                          console.log(`[INSTRUMENTAL]   fontFamily: ${projectFontFamily}`);
-                          console.log(`[INSTRUMENTAL]   aspectRatio: ${aspectRatio}`);
-                          console.log(`[INSTRUMENTAL]   audioDurationSeconds: ${duration}`);
-                          
-                          const captionedVideoPath = await renderVideoWithTikTokCaptions({
-                            videoSrc: textOverlayVideoUrl, // Use uploaded URL for Remotion
-                            assContent: subtitleAssContent,
-                            subtitleStyle: projectSubtitleStyle,
-                            aspectRatio: aspectRatio,
-                            audioDurationSeconds: duration,
-                            captionPosition: captionPosition,
-                            fontFamily: isGoogleFont(projectFontFamily) ? projectFontFamily : defaultGoogleFont,
-                          });
-
-                          if (captionedVideoPath) {
-                            // Clean up the text overlay video (we'll use the captioned one)
-                            deleteRenderedVideoIfExists(textOverlayVideoPath);
-                            finalVideoPath = captionedVideoPath;
-                            console.log(`[INSTRUMENTAL] TikTok captions rendered successfully: ${captionedVideoPath}`);
-                          } else {
-                            console.warn(`[INSTRUMENTAL] TikTok caption rendering returned null, using text overlay video`);
-                          }
-                        } else {
-                          console.warn(`[INSTRUMENTAL] Could not load subtitle content for TikTok captions`);
-                        }
-                      } catch (captionError) {
-                        console.error(`[INSTRUMENTAL] Failed to render TikTok captions:`, captionError);
-                        console.error(`[INSTRUMENTAL] Error stack:`, (captionError as Error).stack);
-                        await storage.addGenerationLog({
-                          projectId: project.id,
-                          step: "video_generation",
-                          message: `TikTok caption rendering failed: ${(captionError as Error).message}`,
-                          status: "warning",
-                          metadata: { error: (captionError as Error).message },
-                        });
-                        // Continue with text overlay video if caption rendering fails
-                      }
-                    } else {
-                      console.log(`[INSTRUMENTAL] TikTok captions not needed or conditions not met:`);
-                      console.log(`[INSTRUMENTAL]   addSubtitles: ${updatedProject.addSubtitles}`);
-                      console.log(`[INSTRUMENTAL]   isTikTokStyle: ${isTikTokSubtitleStyle(projectSubtitleStyle)}`);
-                      console.log(`[INSTRUMENTAL]   hasSubtitleFileUrl: ${!!updatedProject.subtitleFileUrl}`);
-                    }
-                  } else {
-                    console.warn(`[INSTRUMENTAL] Could not load updated project for caption rendering`);
-                  }
-
-                  // Upload the final video (text overlay + captions if applicable)
-                  const finalVideoBuffer = fs.readFileSync(finalVideoPath);
+                  // Upload the text overlay video to storage
+                  const finalVideoBuffer = fs.readFileSync(textOverlayVideoPath);
                   const finalVideoFileName = `videos/${crypto.randomUUID()}.mp4`;
                   const objectStorageService = new ObjectStorageService();
                   const uploadedFinalVideoUrl = await objectStorageService.uploadVideoBuffer(
@@ -12991,10 +12313,51 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
                   
                   finalVideoUrl = uploadedFinalVideoUrl.startsWith('http')
                     ? uploadedFinalVideoUrl
-                    : await objectStorageService.getSignedUrlForPath(uploadedFinalVideoUrl, 86400 * 7); // 7 days
+                    : await objectStorageService.getSignedUrlForPath(uploadedFinalVideoUrl, 86400 * 7);
 
-                  // Clean up temporary file
-                  deleteRenderedVideoIfExists(finalVideoPath);
+                  deleteRenderedVideoIfExists(textOverlayVideoPath);
+
+                  // Add TikTok-style captions via ffmpegapi if requested
+                  const updatedProject = await storage.getProject(project.id);
+                  if (updatedProject?.addSubtitles) {
+                    try {
+                      const projectSubtitleStyle = (updatedProject as any).subtitleStyle || "yellow-bg";
+                      console.log(`[INSTRUMENTAL] Adding TikTok captions via ffmpegapi (style: ${projectSubtitleStyle})...`);
+                      await storage.addGenerationLog({
+                        projectId: project.id,
+                        step: "video_generation",
+                        message: `Adding TikTok-style captions (${projectSubtitleStyle})...`,
+                        status: "progress",
+                        metadata: { captionStyle: projectSubtitleStyle },
+                      });
+
+                      const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
+                      const captionResult = await addTikTokCaptions({
+                        videoUrl: finalVideoUrl,
+                        subtitleStyle: projectSubtitleStyle,
+                        aspectRatio: aspectRatio,
+                        position: (updatedProject as any).captionPosition || "bottom",
+                      });
+
+                      const captionedVideoUrl = await objectStorageService.uploadVideoFromUrl(
+                        captionResult.download_url,
+                        `videos/${crypto.randomUUID()}_captioned.mp4`,
+                      );
+                      finalVideoUrl = captionedVideoUrl.startsWith('http')
+                        ? captionedVideoUrl
+                        : await objectStorageService.getSignedUrlForPath(captionedVideoUrl, 86400 * 7);
+                      console.log(`[INSTRUMENTAL] Captioned video saved: ${finalVideoUrl}`);
+                    } catch (captionError) {
+                      console.warn(`[INSTRUMENTAL] ffmpegapi caption rendering failed, proceeding without captions:`, captionError);
+                      await storage.addGenerationLog({
+                        projectId: project.id,
+                        step: "video_generation",
+                        message: `Caption rendering failed, using uncaptioned video: ${(captionError as Error).message}`,
+                        status: "warning",
+                        metadata: { error: (captionError as Error).message },
+                      });
+                    }
+                  }
 
                   // Update project with final video URL
                   await storage.updateProject(project.id, {
@@ -13023,18 +12386,11 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
                 });
               }
             } else if (finalVideoUrl) {
-              if (hasRenderedSubtitleSource) {
-                console.log(`[INSTRUMENTAL] Skipping text-overlay post-process because Remotion captions are already rendered in generate-video`);
-              } else {
-                // No text overlay, just mark as completed
-                // Note: finalVideoUrl should already be set by the video generation endpoint,
-                // but we ensure isCompleted is set here as well
-                await storage.updateProject(project.id, {
-                  isCompleted: true,
-                  currentStep: 5
-                });
-                console.log(`[INSTRUMENTAL] Marked project ${project.id} as completed (no text overlay)`);
-              }
+              await storage.updateProject(project.id, {
+                isCompleted: true,
+                currentStep: 5
+              });
+              console.log(`[INSTRUMENTAL] Marked project ${project.id} as completed (no text overlay)`);
             } else {
               // Polling timed out - check if video generation endpoint already completed it
               const timeoutCheckProject = await storage.getProject(project.id);
