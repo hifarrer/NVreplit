@@ -11912,12 +11912,12 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
         ? Math.max(15, Math.min(180, Math.round(requestedDuration)))
         : 30; // Default to 30 seconds
 
-      // Treat any non-empty text overlay as an explicit caption request for instrumental mode.
-      // This prevents silent "no captions" flows when the toggle state is out-of-sync.
+      // Text overlay = lyric lines burned into video. Captions = TikTok-style word captions (ffmpegapi).
+      // Only add TikTok captions when the user explicitly enabled the captions toggle.
       const normalizedTextOverlay = typeof textOverlay === "string" ? textOverlay.trim() : "";
       const hasTextOverlay = normalizedTextOverlay.length > 0;
       const addSubtitlesRequested = requestedAddSubtitles === true || requestedAddSubtitles === 'true';
-      const addSubtitles = addSubtitlesRequested || hasTextOverlay;
+      const addSubtitles = addSubtitlesRequested;
       const subtitleStyle = isSubtitleStyle(requestedSubtitleStyle) ? requestedSubtitleStyle : defaultSubtitleStyle;
       const fontFamily = isGoogleFont(requestedFontFamily) ? requestedFontFamily : defaultGoogleFont;
 
@@ -11936,7 +11936,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       }
       console.log(`[INSTRUMENTAL] Aspect Ratio: ${aspectRatio}, Duration: ${duration}s`);
       console.log(`[INSTRUMENTAL] Text Overlay: ${hasTextOverlay ? 'Yes' : 'No'}, Position: ${overlayPosition}`);
-      console.log(`[INSTRUMENTAL] Captions requested: ${addSubtitlesRequested}, effective caption mode: ${addSubtitles}`);
+      console.log(`[INSTRUMENTAL] Captions toggle: ${addSubtitlesRequested} (TikTok captions only when enabled)`);
 
       // Step 1: Get or create project
       let project;
@@ -12156,10 +12156,10 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
         audioDuration: duration,
         currentStep: 2,
         subtitleFileUrl: subtitleFileUrl,
-        addSubtitles: addSubtitles && !!subtitleFileUrl,
-        subtitleStyle: subtitleStyle, // Ensure subtitle style is saved
-        fontFamily: fontFamily, // Ensure font family is saved
-        captionPosition: addSubtitles ? overlayPosition : undefined // Save caption position for instrumental videos
+        addSubtitles: addSubtitles, // User's captions toggle; ffmpegapi adds captions at video end
+        subtitleStyle: subtitleStyle,
+        fontFamily: fontFamily,
+        captionPosition: addSubtitles ? overlayPosition : undefined
       } as any);
       console.log(`[INSTRUMENTAL] Trimmed audio and subtitles saved (${duration} seconds)`);
 
