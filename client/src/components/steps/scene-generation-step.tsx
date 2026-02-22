@@ -118,6 +118,14 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   const [cameraAngleModalOpen, setCameraAngleModalOpen] = useState(false);
   const [cameraAngleSceneIndex, setCameraAngleSceneIndex] = useState<number | null>(null);
   const { toast } = useToast();
+
+  const getDefaultLipsync = useCallback((index: number): boolean => {
+    if (!audioDuration) return false;
+    if (audioDuration <= 30) {
+      return index === 1 || index === 2;
+    }
+    return index % 2 === 1;
+  }, [audioDuration]);
   
   // Compute which scenes have been modified (image or lipsync changed) in edit mode
   const modifiedSceneIndices = useMemo(() => {
@@ -132,7 +140,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
         return imageChanged || lipsyncChanged ? index : -1;
       })
       .filter(index => index !== -1);
-  }, [generatedScenes, scenes, isEditMode]);
+  }, [generatedScenes, scenes, isEditMode, getDefaultLipsync]);
   
   // Check if a scene needs video regeneration (image was modified but video wasn't regenerated)
   const needsVideoRegeneration = useCallback((index: number): boolean => {
@@ -171,14 +179,6 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       });
     };
   }, []);
-
-  const getDefaultLipsync = (index: number): boolean => {
-    if (!audioDuration) return false;
-    if (audioDuration <= 30) {
-      return index === 1 || index === 2;
-    }
-    return index % 2 === 1;
-  };
 
   const isLipsyncScene = (index: number): boolean => {
     // Instrumental videos never use lipsync
