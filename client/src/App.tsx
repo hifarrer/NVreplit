@@ -86,7 +86,7 @@ function AppRouter() {
   return (
     <>
       <Switch>
-        <Route path="/" component={user ? () => <ProtectedRoute component={Home} /> : LandingPage} />
+        <Route path="/" component={user ? () => <ProtectedRoute component={CreateSelect} /> : LandingPage} />
         <Route path="/create/story-mode" component={() => <ProtectedRoute component={Home} />} />
         <Route path="/create/single-prompt" component={() => <ProtectedRoute component={CreateSinglePrompt} />} />
         <Route path="/create/instrumental" component={() => <ProtectedRoute component={CreateInstrumental} />} />
