@@ -1352,20 +1352,16 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
         {isEditMode && audioDuration && (
           <div className="bg-muted/30 border border-border rounded-lg p-4 mb-6" data-testid="regeneration-cost-info">
             <div className="flex flex-col gap-3">
-              {/* Partial regeneration cost - only show if there are modified scenes */}
+              {/* Modified scenes info - only show if there are modified scenes */}
               {hasExistingVideoSegments && modifiedSceneIndices.length > 0 && (
-                <div className="flex items-center gap-2 text-sm bg-green-500/10 border border-green-500/30 rounded-md p-3">
-                  <Zap className="w-4 h-4 text-green-500" />
+                <div className="flex items-center gap-2 text-sm bg-amber-500/10 border border-amber-500/30 rounded-md p-3">
+                  <Zap className="w-4 h-4 text-amber-500" />
                   <div className="flex-1">
-                    <span className="font-medium text-green-600 dark:text-green-400">
-                      Regenerate Final Video:
-                    </span>
-                    <span className="text-green-600 dark:text-green-400 ml-2">
-                      {calculatePartialRegenerationCost().toLocaleString()} credits
+                    <span className="font-medium text-amber-600 dark:text-amber-400">
+                      {modifiedSceneIndices.length} scene{modifiedSceneIndices.length > 1 ? 's' : ''} modified
                     </span>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {modifiedSceneIndices.length} scene{modifiedSceneIndices.length > 1 ? 's' : ''} modified (500 credits each). 
-                      Only regenerates the video for changed scenes, keeping the rest.
+                      Use Re-generate Music Video below to generate the video with your changes.
                     </p>
                   </div>
                 </div>
@@ -1396,7 +1392,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
               </Button>
             )}
             
-            {/* Edit mode with existing video: one button only — Re-generate Music Video when there are modified scenes, else Regenerate Final Video */}
+            {/* Edit mode with existing video: one button only — Re-generate Music Video (partial "Regenerate Final Video" only works when there are modified scenes and is used elsewhere) */}
             {isEditMode && hasExistingVideoSegments ? (
               <>
                 {modifiedSceneIndices.length > 0 && (
@@ -1404,30 +1400,19 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                     Generate the video for modified scenes first. Then you can regenerate the final video.
                   </p>
                 )}
-                {modifiedSceneIndices.length > 0 ? (
-                  <Button
-                    onClick={handleProceedToVideo}
-                    disabled={generatedScenes.length === 0 || saveScenesMutation.isPending || regenerateVideoMutation.isPending}
-                    className={`floating-button py-3 px-4 sm:px-8 text-sm sm:text-base ${generatedScenes.length > 0 && !saveScenesMutation.isPending && !regenerateVideoMutation.isPending ? 'button-glow' : ''} ring-2 ring-orange-500 ring-offset-2 ring-offset-background`}
-                    data-testid="proceed-to-video-generation-button"
-                  >
-                    <i className="fas fa-video mr-2"></i>
-                    {regenerateVideoMutation.isPending ? "Regenerating..." : 
-                     saveScenesMutation.isPending ? "Saving..." : "Re-generate Music Video"}
+                <Button
+                  onClick={handleProceedToVideo}
+                  disabled={generatedScenes.length === 0 || saveScenesMutation.isPending || regenerateVideoMutation.isPending}
+                  className={`floating-button py-3 px-4 sm:px-8 text-sm sm:text-base ${generatedScenes.length > 0 && !saveScenesMutation.isPending && !regenerateVideoMutation.isPending ? 'button-glow' : ''} ${modifiedSceneIndices.length > 0 ? 'ring-2 ring-orange-500 ring-offset-2 ring-offset-background' : ''}`}
+                  data-testid="proceed-to-video-generation-button"
+                >
+                  <i className="fas fa-video mr-2"></i>
+                  {regenerateVideoMutation.isPending ? "Regenerating..." : 
+                   saveScenesMutation.isPending ? "Saving..." : "Re-generate Music Video"}
+                  {modifiedSceneIndices.length > 0 && (
                     <span className="ml-2 text-xs font-normal opacity-90">({modifiedSceneIndices.length} modified)</span>
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={() => partialRegenerateMutation.mutate()}
-                    disabled={generatedScenes.length === 0 || partialRegenerateMutation.isPending || regenerateVideoMutation.isPending}
-                    className={`floating-button py-3 px-4 sm:px-8 text-sm sm:text-base flex items-center gap-2 w-full sm:w-auto ${generatedScenes.length > 0 && !partialRegenerateMutation.isPending ? 'button-glow' : ''}`}
-                    data-testid="partial-regenerate-button"
-                  >
-                    <Zap className="w-4 h-4" />
-                    {partialRegenerateMutation.isPending ? "Regenerating..." : 
-                      `Regenerate Final Video (${calculatePartialRegenerationCost().toLocaleString()} credits)`}
-                  </Button>
-                )}
+                  )}
+                </Button>
               </>
             ) : (
               <Button
