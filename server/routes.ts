@@ -9493,6 +9493,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ============= END GIFT SUBSCRIPTION ENDPOINTS =============
 
+  // Public reCAPTCHA site key for contact form (safe to expose; used at runtime so build doesn't need VITE_*)
+  app.get("/api/recaptcha-site-key", (_req, res) => {
+    const siteKey = (process.env.VITE_RECAPTCHA_SITE_KEY || process.env.RECAPTCHA_SITE_KEY || "").trim();
+    res.json({ siteKey: siteKey || "" });
+  });
+
   // Contact form submission endpoint
   app.post("/api/contact", async (req, res) => {
     try {

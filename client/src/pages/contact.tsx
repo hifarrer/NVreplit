@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
 import {
   Card,
@@ -24,11 +24,12 @@ import {
 import { Link } from "wouter";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
-const HAS_RECAPTCHA = Boolean(RECAPTCHA_SITE_KEY?.trim());
+const BUILD_TIME_SITE_KEY = (import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined)?.trim() || "";
 
 export default function ContactPage() {
   const { toast } = useToast();
+  const [runtimeSiteKey, setRuntimeSiteKey] = useState<string>("");
+  const [runtimeConfigFetched, setRuntimeConfigFetched] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
@@ -38,6 +39,31 @@ export default function ContactPage() {
     subject: "",
     message: "",
   });
+
+  const recaptchaSiteKey = BUILD_TIME_SITE_KEY || runtimeSiteKey;
+  const hasRecaptcha = Boolean(recaptchaSiteKey);
+
+  useEffect(() => {
+    if (BUILD_TIME_SITE_KEY) {
+      setRuntimeConfigFetched(true);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/recaptcha-site-key")
+      .then((res) => res.json())
+      .then((data: { siteKey?: string }) => {
+        if (!cancelled) {
+          if (data.siteKey?.trim()) setRuntimeSiteKey(data.siteKey.trim());
+          setRuntimeConfigFetched(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setRuntimeConfigFetched(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -70,7 +96,7 @@ export default function ContactPage() {
       return;
     }
 
-    if (HAS_RECAPTCHA && !captchaToken) {
+    if (hasRecaptcha && !captchaToken) {
       toast({
         title: "Captcha Required",
         description: "Please complete the captcha verification.",
@@ -330,13 +356,17 @@ export default function ContactPage() {
                     </div>
 
                     <div className="flex justify-center">
-                      {HAS_RECAPTCHA ? (
+                      {hasRecaptcha ? (
                         <ReCAPTCHA
                           ref={recaptchaRef}
-                          sitekey={RECAPTCHA_SITE_KEY!}
+                          sitekey={recaptchaSiteKey}
                           onChange={handleCaptchaChange}
                           data-testid="contact-recaptcha"
                         />
+                      ) : !runtimeConfigFetched ? (
+                        <div className="rounded-md border border-muted bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                          Loading verification...
+                        </div>
                       ) : (
                         <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
                           Captcha verification is not configured. Please email us directly at{" "}
@@ -348,7 +378,7 @@ export default function ContactPage() {
                     <Button
                       type="submit"
                       size="lg"
-                      disabled={isSubmitting || (HAS_RECAPTCHA ? !captchaToken : true)}
+                      disabled={isSubmitting || (hasRecaptcha ? !captchaToken : true)}
                       className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                       data-testid="contact-submit-button"
                     >
