@@ -1,6 +1,7 @@
 const FFMPEG_API_KEY = process.env.FFMPEG_API_KEY || "";
-const FFMPEG_CAPTIONS_URL = "https://ffmpegapi-production.up.railway.app/api/videos/add-tiktok-captions";
-const FFMPEG_TEXT_OVERLAY_URL = "https://ffmpegapi-production.up.railway.app/api/videos/add-text-overlay-captions";
+// Use internal Railway URL when set (e.g. FFMPEG_CAPTIONS_URL), otherwise public
+const FFMPEG_CAPTIONS_URL = process.env.FFMPEG_CAPTIONS_URL || "https://ffmpegapi-production.up.railway.app/api/videos/add-tiktok-captions";
+const FFMPEG_TEXT_OVERLAY_URL = process.env.FFMPEG_TEXT_OVERLAY_URL || "https://ffmpegapi-production.up.railway.app/api/videos/add-text-overlay-captions";
 
 const RETRYABLE_ERROR_CODES = new Set(["EAI_AGAIN", "ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT"]);
 

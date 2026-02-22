@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users, Share2, Edit3, Edit, Gift, Lock, Globe } from "lucide-react";
+import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users, Share2, Edit3, Edit, Gift, Lock, Globe, Subtitles } from "lucide-react";
 import { SendGreetingCardModal } from "@/components/modals/send-greeting-card-modal";
+import { AddCaptionsModal } from "@/components/modals/add-captions-modal";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { MuxVideoPlayer } from "@/components/mux-video-player";
@@ -28,6 +29,7 @@ interface CompletedVideo {
   createdAt: string;
   updatedAt: string;
   isPublic?: boolean;
+  aspectRatio?: string;
   mux?: {
     playbackId: string | null;
     assetStatus: string | null;
@@ -47,6 +49,7 @@ export default function MyVideosPage() {
   const [editTitle, setEditTitle] = useState<string>("");
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [greetingCardVideo, setGreetingCardVideo] = useState<CompletedVideo | null>(null);
+  const [captionsVideo, setCaptionsVideo] = useState<CompletedVideo | null>(null);
   const [togglingVisibilityId, setTogglingVisibilityId] = useState<string | null>(null);
   const [showPrivateUpsellModal, setShowPrivateUpsellModal] = useState(false);
 
@@ -409,6 +412,19 @@ export default function MyVideosPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          className="flex-1 text-xs px-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCaptionsVideo(video);
+                          }}
+                          data-testid={`button-captions-${video.id}`}
+                        >
+                          <Subtitles className="h-3 w-3 mr-1" />
+                          + Captions
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
                           className="flex-1 text-xs px-2 text-pink-500 border-pink-500/50 hover:bg-pink-500/10"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -527,6 +543,14 @@ export default function MyVideosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add Captions Modal */}
+      <AddCaptionsModal
+        isOpen={!!captionsVideo}
+        onClose={() => setCaptionsVideo(null)}
+        video={captionsVideo}
+        onSuccess={() => refetch()}
+      />
 
       {/* Send as Greeting Card Modal */}
       <SendGreetingCardModal

@@ -4442,6 +4442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             createdAt: p.createdAt,
             updatedAt: p.updatedAt,
             isPublic: p.isPublic !== false, // default true for backwards compatibility
+            aspectRatio: p.aspectRatio || "16:9",
             // Mux streaming data for performance optimization
             mux: {
               playbackId: p.muxPlaybackId || null,
@@ -4488,6 +4489,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Like video error:", error);
       res.status(500).json({ error: "Failed to like video" });
+    }
+  });
+
+  // Add captions to an existing video (my-videos page); creates a new video and uploads to ImageKit
+  app.post("/api/videos/:videoId/add-captions", authenticateToken, async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      const userId = (req as any).user.userId;
+      const { subtitleStyle: subtitleStyleInput, position } = req.body;
+
+      const project = await storage.getProject(videoId);
+      if (!project || !project.isCompleted || !project.finalVideoUrl) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+      if (project.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized to add captions to this video" });
+      }
+
+      const subtitleStyle = isSubtitleStyle(subtitleStyleInput) ? subtitleStyleInput : defaultSubtitleStyle;
+      const validPositions = ["top", "center", "bottom"];
+      const captionPosition = typeof position === "string" && validPositions.includes(position) ? position : "bottom";
+
+      const videoUrl = await resolveUrlWithImageKitFallback(project.finalVideoUrl, storage);
+      if (!videoUrl) {
+        return res.status(400).json({ error: "Could not resolve video URL for captions" });
+      }
+
+      const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
+      const captionResult = await addTikTokCaptions({
+        videoUrl,
+        subtitleStyle,
+        position: captionPosition,
+        aspectRatio: project.aspectRatio || "16:9",
+      });
+
+      const ObjectStorageService = (await import("./objectStorage")).ObjectStorageService;
+      const objectStorageService = new ObjectStorageService();
+      const captionedVideoUrl = await objectStorageService.uploadVideoFromUrl(
+        captionResult.download_url,
+        `neonvideo_${Date.now()}_captioned.mp4`,
+      );
+
+      const newProject = await storage.createProject({
+        userId,
+        title: `${project.title} (with captions)`,
+        finalVideoUrl: captionedVideoUrl,
+        isCompleted: true,
+        currentStep: 6,
+        aspectRatio: project.aspectRatio || "16:9",
+        isPublic: project.isPublic !== false,
+      });
+
+      res.json({
+        success: true,
+        videoId: newProject.id,
+        title: newProject.title,
+      });
+    } catch (error) {
+      console.error("Add captions error:", error);
+      res.status(500).json({
+        error: "Failed to add captions",
+        details: (error as Error).message,
+      });
     }
   });
 
@@ -7973,11 +8037,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const sceneOrder = ((project as any).sceneOrder as number[]) || originalSceneImages.map((_, i) => i);
       
+      // Restrict sceneOrder to in-bounds indices to avoid undefined scene images
+      // (e.g. partial regeneration clone has 13 images but source sceneOrder had 14 indices)
+      const validIndices = sceneOrder.filter(
+        (idx: number) => typeof idx === 'number' && idx >= 0 && idx < originalSceneImages.length
+      );
+      if (validIndices.length < sceneOrder.length) {
+        console.log(`⚠️ sceneOrder had ${sceneOrder.length} indices but only ${originalSceneImages.length} scene images; using ${validIndices.length} valid indices`);
+      }
+      
       // Apply custom scene order if provided (reorder scenes for video merge)
-      let sceneImages = sceneOrder.map(idx => originalSceneImages[idx]);
-      let orderedScenePrompts = sceneOrder.map(idx => originalScenePrompts[idx]);
+      let sceneImages = validIndices.map(idx => originalSceneImages[idx]);
+      let orderedScenePrompts = validIndices.map(idx => originalScenePrompts[idx]);
       // Apply scene order to lipsync settings as well
-      let orderedSceneLipsyncSettings = sceneOrder.map(idx => 
+      let orderedSceneLipsyncSettings = validIndices.map(idx => 
         originalSceneLipsyncSettings[idx] !== undefined ? originalSceneLipsyncSettings[idx] : null
       );
       
@@ -8014,12 +8087,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           console.log(`   Updated project with filtered scene images (${sceneImages.length} scenes)`);
         } else {
-          // This shouldn't happen, but log it if it does
-          console.warn(`   Scene images (${sceneImages.length}) are fewer than audio segments (${audioSegments.length}) - this may cause issues`);
+          // Scene images fewer than audio segments (e.g. partial regen clone has 13 images, audio split into 14)
+          // Trim audio segments to match scene count so we don't reference undefined scene images
+          console.warn(`   Scene images (${sceneImages.length}) are fewer than audio segments (${audioSegments.length}) - trimming audio to match scenes`);
+          audioSegments = audioSegments.slice(0, sceneImages.length);
+          audioUrls = audioSegments.map((seg: any) => seg.download_url);
+          segmentDurations = audioSegments.map((seg: any) => seg.duration);
+          await storage.updateProject(req.params.id, { audioSegments });
+          console.log(`   Trimmed audio to ${audioSegments.length} segments to match scene images`);
         }
       }
       
-      console.log(`Applied scene order: [${sceneOrder.join(', ')}]`);
+      console.log(`Applied scene order: [${validIndices.join(', ')}]`);
       console.log(`Ordered lipsync settings: [${orderedSceneLipsyncSettings.map(s => s === null ? 'null' : s).join(', ')}]`);
       console.log(`Final scene count after filtering: ${sceneImages.length} scenes, ${audioSegments.length} audio segments`);
       
@@ -8028,7 +8107,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         for (let i = 0; i < sceneImages.length; i++) {
           const imageUrl = sceneImages[i];
-          
+          if (!imageUrl || typeof imageUrl !== 'string') {
+            throw new Error(
+              `Scene ${i + 1} has missing or invalid image URL (sceneOrder index may be out of bounds or image was not set). ` +
+              `sceneImages.length=${sceneImages.length}, originalSceneImages.length=${originalSceneImages.length}.`
+            );
+          }
           if (imageUrl.startsWith('/objects/')) {
             // Private object storage URL - convert to signed URL
             const signedUrl = await objectStorageService.getSignedUrlForPath(imageUrl, 86400); // 24 hours
@@ -8058,7 +8142,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "error",
           metadata: { error: errorMsg }
         });
-        return res.status(500).json({ error: errorMsg });
+        // Do not send response here - we are inside background async and response was already sent
+        throw error;
       }
 
       const videoQuality = (project as any).videoQuality || "quick";
