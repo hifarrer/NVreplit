@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Music, Video, Monitor, Smartphone, Palette, ArrowLeft, Clock, Subtitles, ChevronDown, CheckCircle2, Edit, ArrowUp, AlignVerticalSpaceAround, ArrowDown } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { downloadFileFromUrl } from "@/lib/utils";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { useLocation } from "wouter";
@@ -638,7 +639,15 @@ export default function CreateSinglePrompt() {
                         </video>
                         <div className="flex gap-2">
                           <Button
-                            onClick={() => project.finalVideoUrl && window.open(project.finalVideoUrl, "_blank")}
+                            onClick={async () => {
+                            if (!project.finalVideoUrl) return;
+                            try {
+                              await downloadFileFromUrl(project.finalVideoUrl, "music-video.mp4");
+                              toast({ title: "Download started", description: "Your video is downloading." });
+                            } catch {
+                              toast({ title: "Download failed", description: "Could not download. Try opening the link and saving from your browser.", variant: "destructive" });
+                            }
+                          }}
                             className="flex-1 bg-green-600 hover:bg-green-700"
                             data-testid="button-download"
                           >

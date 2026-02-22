@@ -53,3 +53,24 @@ export function convertAvatarUrlToImageKit(avatarUrl: string | null | undefined)
   // If not an avatar path, return as-is (might be a custom uploaded avatar)
   return avatarUrl;
 }
+
+/**
+ * Triggers a real file download for a URL (e.g. ImageKit CDN).
+ * Fetches the resource as a blob so cross-origin URLs download instead of opening in the browser.
+ * @param url - The video or file URL to download
+ * @param filename - Suggested filename for the download (e.g. "music-video.mp4")
+ * @returns Promise that resolves when download has started, or rejects on fetch error
+ */
+export async function downloadFileFromUrl(url: string, filename: string): Promise<void> {
+  const res = await fetch(url, { mode: "cors" });
+  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(objectUrl);
+}

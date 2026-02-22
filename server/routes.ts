@@ -6726,7 +6726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Regenerate individual scene endpoint
   app.post("/api/projects/:id/regenerate-scene", async (req, res) => {
     try {
-      const { sceneIndex, prompt } = req.body;
+      const { sceneIndex, prompt, lipsyncScene } = req.body;
       
       if (sceneIndex === undefined || !prompt) {
         return res.status(400).json({ error: "Scene index and prompt are required" });
@@ -6784,14 +6784,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use the aspect ratio from the project (set in step 1) - defaults to 16:9 for horizontal
       const aspectRatio = project.aspectRatio || "16:9";
       
-      // Get the current scene image URL if it exists (for edit-plus model)
-      const currentSceneImageUrl = sceneImages[sceneIndex] || undefined;
+      // For regular videos (not lipsync), only use character image to avoid confusing the AI.
+      // For lipsync scenes we pass current scene image for edit-plus behavior.
+      const currentSceneImageUrl = lipsyncScene ? (sceneImages[sceneIndex] || undefined) : undefined;
       if (currentSceneImageUrl) {
-        console.log(`Using current scene image for edit-plus model: ${currentSceneImageUrl}`);
+        console.log(`Using current scene image for edit-plus model (lipsync scene): ${currentSceneImageUrl}`);
       }
       
       // Generate a single scene image with the custom prompt
-      // If currentSceneImageUrl exists, it will use edit-plus model with both images
+      // If currentSceneImageUrl exists (lipsync only), it will use edit-plus model with both images
       const imageUrl = await generateSingleSceneImage(prompt, project.characterImageUrl, aspectRatio, currentSceneImageUrl);
 
       // Update the arrays with new values
@@ -7070,38 +7071,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Processed image size: ${processedImageBuffer.length} bytes`);
 
-      // Store the processed image in object storage
       const { randomUUID } = await import("crypto");
       const filename = `scenes/${randomUUID()}.jpg`;
-      
-      const objectStorageService = new ObjectStorageService();
-      const privateObjectDir = objectStorageService.getPrivateObjectDir();
-      const fullPath = `${privateObjectDir}/${filename}`;
-      
-      // Parse the path to get bucket and object name
-      const pathParts = fullPath.startsWith("/") ? fullPath.slice(1).split("/") : fullPath.split("/");
-      const bucketName = pathParts[0];
-      const objectName = pathParts.slice(1).join("/");
-      
-      const bucket = objectStorageClient.bucket(bucketName);
-      const file = bucket.file(objectName);
-      
-      await file.save(processedImageBuffer, {
-        metadata: {
-          contentType: 'image/jpeg',
+      const fileNameOnly = filename.replace("scenes/", "");
+
+      let imageUrl: string;
+
+      if (isImageKitConfigured()) {
+        // Upload user's image to ImageKit when ImageKit is configured
+        const result = await uploadImageToImageKit(processedImageBuffer, fileNameOnly, "/scenes");
+        imageUrl = result.url;
+        console.log(`[ImageKit] Standalone scene image uploaded: ${imageUrl}`);
+      } else {
+        // Fall back to object storage (GCS) when ImageKit is not configured
+        const objectStorageService = new ObjectStorageService();
+        const privateObjectDir = objectStorageService.getPrivateObjectDir();
+        const fullPath = `${privateObjectDir}/${filename}`;
+
+        const pathParts = fullPath.startsWith("/") ? fullPath.slice(1).split("/") : fullPath.split("/");
+        const bucketName = pathParts[0];
+        const objectName = pathParts.slice(1).join("/");
+
+        const bucket = objectStorageClient.bucket(bucketName);
+        const file = bucket.file(objectName);
+
+        await file.save(processedImageBuffer, {
           metadata: {
-            category: 'scenes',
-            uploadedAt: new Date().toISOString(),
-            isUserUpload: 'true'
+            contentType: "image/jpeg",
+            metadata: {
+              category: "scenes",
+              uploadedAt: new Date().toISOString(),
+              isUserUpload: "true",
+            },
           },
-        },
-      });
+        });
 
-      const storedUrl = `/objects/${filename}`;
-      console.log(`Scene image stored at: ${storedUrl}`);
+        imageUrl = `/objects/${filename}`;
+        console.log(`Scene image stored at: ${imageUrl}`);
+      }
 
-      res.json({ 
-        imageUrl: storedUrl
+      res.json({
+        imageUrl,
       });
     } catch (error) {
       console.error("Scene image upload error:", error);

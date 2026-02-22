@@ -117,7 +117,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   const [uploadStatus, setUploadStatus] = useState(""); // Status message for upload progress
   const [uploadSongTitle, setUploadSongTitle] = useState(""); // Song title for upload tab
   const [uploadSongDescription, setUploadSongDescription] = useState(""); // Song description for upload tab
-  const [uploadAddSubtitles, setUploadAddSubtitles] = useState(true); // Subtitle toggle for uploaded songs - enabled by default
+  const [uploadAddSubtitles, setUploadAddSubtitles] = useState(false); // Subtitle toggle for uploaded songs - disabled by default
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Trim interface state (for upload tab)
@@ -137,7 +137,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   const [lyrics, setLyrics] = useState("");
   const [songTitle, setSongTitle] = useState(""); // Song title for generate tab
   // Duration removed - user will trim after song selection
-  const [addSubtitles, setAddSubtitles] = useState(true); // Subtitle toggle - enabled by default in all tabs
+  const [addSubtitles, setAddSubtitles] = useState(false); // Subtitle toggle - disabled by default in all tabs
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(
     isSubtitleStyle(projectSubtitleStyle) ? projectSubtitleStyle : defaultSubtitleStyle
   );
@@ -167,16 +167,12 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   }, [aspectRatio, audioUrl]);
   
   // Only respect projectAddSubtitles if this is an existing project (has audioUrl)
-  // For new projects, always default to true (enabled)
-  // This ensures the toggle stays enabled by default even when project data loads
+  // For new projects, default to false (disabled)
   useEffect(() => {
-    // Only update if this is an existing project with audio AND projectAddSubtitles is explicitly false
-    // Otherwise, keep the default of true
-    if (audioUrl && projectAddSubtitles === false) {
-      setAddSubtitles(false);
+    if (audioUrl && projectAddSubtitles !== undefined) {
+      setAddSubtitles(projectAddSubtitles);
     } else if (!audioUrl) {
-      // For new projects, always ensure it's true
-      setAddSubtitles(true);
+      setAddSubtitles(false);
     }
   }, [projectAddSubtitles, audioUrl]);
 

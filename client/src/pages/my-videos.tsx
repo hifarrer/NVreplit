@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
+import { downloadFileFromUrl } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 interface CompletedVideo {
@@ -68,14 +69,18 @@ export default function MyVideosPage() {
     setLocation(`/create/story-mode?edit=${videoId}&t=${Date.now()}`);
   };
 
-  const handleDownload = (videoUrl: string, title: string) => {
-    const link = document.createElement('a');
-    link.href = videoUrl;
-    link.download = `${title.replace(/\s+/g, '_')}.mp4`;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async (videoUrl: string, title: string) => {
+    const filename = `${title.replace(/\s+/g, "_")}.mp4`;
+    try {
+      await downloadFileFromUrl(videoUrl, filename);
+      toast({ title: "Download started", description: `"${title}" is downloading.` });
+    } catch {
+      toast({
+        title: "Download failed",
+        description: "Could not download. Try opening the link and saving from your browser.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDeleteConfirm = async () => {

@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { VideoPlayer } from "@/components/ui/video-player";
 import { useToast } from "@/hooks/use-toast";
+import { downloadFileFromUrl } from "@/lib/utils";
+import { useState } from "react";
 import { RotateCcw, Download, Share2, Plus, Edit } from "lucide-react";
 
 interface VideoResultStepProps {
@@ -19,19 +21,25 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew, aspectRatio 
     window.location.href = `/create/story-mode?edit=${projectId}&t=${Date.now()}`;
   };
 
-  const downloadVideo = () => {
-    // Create a temporary link to download the video
-    const link = document.createElement('a');
-    link.href = videoUrl;
-    link.download = 'music-video.mp4';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    toast({
-      title: "Download Started",
-      description: "Your music video download has started.",
-    });
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const downloadVideo = async () => {
+    setIsDownloading(true);
+    try {
+      await downloadFileFromUrl(videoUrl, "music-video.mp4");
+      toast({
+        title: "Download Started",
+        description: "Your music video download has started.",
+      });
+    } catch {
+      toast({
+        title: "Download failed",
+        description: "Could not download the video. Try opening the link and saving from your browser.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const shareVideo = () => {
@@ -84,11 +92,18 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew, aspectRatio 
         <div className="flex flex-wrap gap-4 justify-center mb-8">
           <Button 
             onClick={downloadVideo}
+            disabled={isDownloading}
             className="floating-button"
             data-testid="download-video-button"
           >
-            <Download className="w-4 h-4 mr-2" />
-            Download Video
+            {isDownloading ? (
+              <>Downloading…</>
+            ) : (
+              <>
+                <Download className="w-4 h-4 mr-2" />
+                Download Video
+              </>
+            )}
           </Button>
           <Button 
             variant="secondary"

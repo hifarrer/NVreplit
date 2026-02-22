@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Music, Video, Monitor, Smartphone, ArrowLeft, Clock, ChevronDown, CheckCircle2, Edit, Tags, ArrowUp, AlignVerticalSpaceAround, ArrowDown, Sparkles, Check, Save, Upload } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { downloadFileFromUrl } from "@/lib/utils";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { useLocation } from "wouter";
@@ -60,7 +61,7 @@ export default function CreateLyric() {
   const [tags, setTags] = useState("");
   const [lyrics, setLyrics] = useState("");
   const [songTitle, setSongTitle] = useState("");
-  const [addSubtitles, setAddSubtitles] = useState(true);
+  const [addSubtitles, setAddSubtitles] = useState(false);
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(defaultSubtitleStyle);
   const [textPosition, setTextPosition] = useState<"top" | "center" | "bottom">("bottom");
   const [fontFamily, setFontFamily] = useState<GoogleFont>(defaultGoogleFont);
@@ -1315,7 +1316,15 @@ export default function CreateLyric() {
                           Your browser does not support the video tag.
                         </video>
                         <div className="flex gap-2">
-                          <Button onClick={() => project.finalVideoUrl && window.open(project.finalVideoUrl, "_blank")} className="flex-1 bg-green-600 hover:bg-green-700" data-testid="button-download">
+                          <Button onClick={async () => {
+                            if (!project.finalVideoUrl) return;
+                            try {
+                              await downloadFileFromUrl(project.finalVideoUrl, "music-video.mp4");
+                              toast({ title: "Download started", description: "Your video is downloading." });
+                            } catch {
+                              toast({ title: "Download failed", description: "Could not download. Try opening the link and saving from your browser.", variant: "destructive" });
+                            }
+                          }} className="flex-1 bg-green-600 hover:bg-green-700" data-testid="button-download">
                             Download Video
                           </Button>
                           <Button onClick={() => navigate(`/create/story-mode?edit=${project.id}&t=${Date.now()}`)} variant="outline" className="flex-1" data-testid="button-edit">

@@ -552,9 +552,11 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
 
   const regenerateSceneMutation = useMutation({
     mutationFn: async ({ sceneIndex, prompt }: { sceneIndex: number; prompt: string }) => {
-      // Get the current scene image URL if it exists (for edit-plus model)
+      // For regular videos (not lipsync), only send character image to avoid confusing the AI.
+      // For lipsync scenes we still send current scene image for edit-plus behavior.
+      const useCurrentSceneImage = isLipsyncScene(sceneIndex);
       const currentScene = generatedScenes[sceneIndex];
-      const currentSceneImageUrl = currentScene?.imageUrl;
+      const currentSceneImageUrl = useCurrentSceneImage ? currentScene?.imageUrl : undefined;
       
       // In edit mode, generate scene locally without saving to original project
       if (isEditMode) {
@@ -576,10 +578,11 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       }
       
       // Normal mode: use the regular regenerate-scene endpoint that updates the project
-      // Note: The backend will automatically get the current scene image from the project
+      // Tell backend to only use current scene image for lipsync scenes (regular = character image only)
       const response = await apiRequest("POST", `/api/projects/${projectId}/regenerate-scene`, {
         sceneIndex,
-        prompt
+        prompt,
+        lipsyncScene: useCurrentSceneImage
       });
       return response.json();
     },

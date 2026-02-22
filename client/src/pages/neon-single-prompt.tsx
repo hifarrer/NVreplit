@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles, Music, Video, Monitor, Smartphone, Palette } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { downloadFileFromUrl } from "@/lib/utils";
 import type { Project } from "@shared/schema";
 
 export default function NeonSinglePrompt() {
@@ -276,7 +277,15 @@ export default function NeonSinglePrompt() {
                         Your browser does not support the video tag.
                       </video>
                       <Button
-                        onClick={() => project.finalVideoUrl && window.open(project.finalVideoUrl, "_blank")}
+                        onClick={async () => {
+                        if (!project.finalVideoUrl) return;
+                        try {
+                          await downloadFileFromUrl(project.finalVideoUrl, "music-video.mp4");
+                          toast({ title: "Download started", description: "Your video is downloading." });
+                        } catch {
+                          toast({ title: "Download failed", description: "Could not download. Try opening the link and saving from your browser.", variant: "destructive" });
+                        }
+                      }}
                         className="w-full bg-green-600 hover:bg-green-700"
                         data-testid="button-download"
                       >

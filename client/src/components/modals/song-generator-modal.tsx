@@ -47,7 +47,7 @@ export function SongGeneratorModal({
   const [lyrics, setLyrics] = useState("");
   const [songTitle, setSongTitle] = useState("");
   const [duration, setDuration] = useState([60]); // Default 1 minute (60 seconds)
-  const [addSubtitles, setAddSubtitles] = useState(true); // Enabled by default
+  const [addSubtitles, setAddSubtitles] = useState(false); // Disabled by default
   const [includeWatermark, setIncludeWatermark] = useState(true);
   const [progress, setProgress] = useState(0);
   const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(
