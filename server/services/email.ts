@@ -32,12 +32,19 @@ class EmailService {
   }
 
   private initializeResend() {
-    if (!process.env.RESEND_API_KEY) {
-      console.warn('RESEND_API_KEY not found. Email service will not be available.');
+    const key = process.env.RESEND_API_KEY?.trim();
+    if (!key) {
+      console.warn('RESEND_API_KEY is missing or empty. Email service will not be available. Add RESEND_API_KEY to your environment (e.g. Railway Variables).');
       return;
     }
-    this.resend = new Resend(process.env.RESEND_API_KEY);
+    this.resend = new Resend(key);
     console.log('Resend email service initialized');
+  }
+
+  private ensureResend(): boolean {
+    if (this.resend) return true;
+    this.initializeResend();
+    return this.resend !== null;
   }
 
   private async send(options: {
@@ -48,8 +55,8 @@ class EmailService {
     html?: string;
     reply_to?: string;
   }): Promise<boolean> {
-    if (!this.resend) {
-      console.error('Resend client not initialized');
+    if (!this.ensureResend()) {
+      console.error('Resend client not initialized. Ensure RESEND_API_KEY is set in your environment.');
       return false;
     }
     try {
