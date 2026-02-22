@@ -631,6 +631,10 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       const formData = new FormData();
       formData.append('image', file);
       formData.append('sceneIndex', sceneIndex.toString());
+      // In edit mode we use standalone endpoint which has no project context — send aspect ratio so crop matches video
+      if (isEditMode) {
+        formData.append('aspectRatio', aspectRatio);
+      }
 
       // Use different endpoints based on mode
       const endpoint = isEditMode 

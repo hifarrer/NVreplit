@@ -369,71 +369,71 @@ export default function MyVideosPage() {
                           )}
                         </Label>
                       </div>
-                      <div className="flex gap-2 mt-3">
+                      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mt-3">
                         <Button
                           size="sm"
                           variant="outline"
-                          className="flex-1 text-xs px-2"
+                          className="w-full sm:flex-1 text-xs px-2 justify-center sm:justify-start"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleEditVideo(video.id);
                           }}
                           data-testid={`button-edit-${video.id}`}
                         >
-                          <Edit className="h-3 w-3 mr-1" />
-                          Edit
+                          <Edit className="h-3 w-3 shrink-0 mr-1" />
+                          <span className="truncate">Edit</span>
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          className="flex-1 text-xs px-2"
+                          className="w-full sm:flex-1 text-xs px-2 justify-center sm:justify-start"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDownload(video.videoUrl, video.title);
                           }}
                           data-testid={`button-download-${video.id}`}
                         >
-                          <Download className="h-3 w-3 mr-1" />
-                          Download
+                          <Download className="h-3 w-3 shrink-0 mr-1" />
+                          <span className="truncate">Download</span>
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          className="flex-1 text-xs px-2"
+                          className="w-full sm:flex-1 text-xs px-2 justify-center sm:justify-start"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleShareVideo(video.id, video.title);
                           }}
                           data-testid={`button-share-${video.id}`}
                         >
-                          <Share2 className="h-3 w-3 mr-1" />
-                          Share
+                          <Share2 className="h-3 w-3 shrink-0 mr-1" />
+                          <span className="truncate">Share</span>
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          className="flex-1 text-xs px-2"
+                          className="w-full sm:flex-1 text-xs px-2 justify-center sm:justify-start"
                           onClick={(e) => {
                             e.stopPropagation();
                             setCaptionsVideo(video);
                           }}
                           data-testid={`button-captions-${video.id}`}
                         >
-                          <Subtitles className="h-3 w-3 mr-1" />
-                          + Captions
+                          <Subtitles className="h-3 w-3 shrink-0 mr-1" />
+                          <span className="truncate">+ Captions</span>
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          className="flex-1 text-xs px-2 text-pink-500 border-pink-500/50 hover:bg-pink-500/10"
+                          className="w-full sm:flex-1 text-xs px-2 text-pink-500 border-pink-500/50 hover:bg-pink-500/10 justify-center sm:justify-start"
                           onClick={(e) => {
                             e.stopPropagation();
                             setGreetingCardVideo(video);
                           }}
                           data-testid={`button-greeting-${video.id}`}
                         >
-                          <Gift className="h-3 w-3 mr-1" />
-                          Gift
+                          <Gift className="h-3 w-3 shrink-0 mr-1" />
+                          <span className="truncate">Gift</span>
                         </Button>
                       </div>
                     </CardContent>
