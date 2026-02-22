@@ -277,6 +277,7 @@ REQUIREMENTS FOR REGULAR SCENES:
 - Never a closeup of the character.
 - Never a character singing or with a microphone.
 - Can have slow motion movements.
+- IMPORTANT: keep the style of the image as similar as possible to the attached image.
 
 REQUIREMENTS FOR LIPSYNC SCENES:
 - MUST be CLOSEUP shots (head and shoulders, face clearly visible)

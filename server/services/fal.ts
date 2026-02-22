@@ -76,6 +76,17 @@ function aspectRatioToSize(aspectRatio: string = "16:9"): string {
 }
 
 /**
+ * Size for bytedance/seedream-v4.5/edit (Regenerate Image button only).
+ * 3:4 and 9:16 -> 1728*2304; 16:9 -> 2560*1440.
+ */
+function seedreamV45EditSizeForAspectRatio(aspectRatio: string = "16:9"): string {
+  if (aspectRatio === "3:4" || aspectRatio === "9:16") {
+    return "1728*2304";
+  }
+  return "2560*1440";
+}
+
+/**
  * Model configurations for scene generation
  */
 type WavespeedModel = {
@@ -423,6 +434,82 @@ async function generateSceneWithFallback(
       throw new Error(errorMsg);
     }
   }
+}
+
+/**
+ * Submit and poll bytedance/seedream-v4.5/edit for Regenerate Image button only.
+ * Uses size 1728*2304 for 3:4 (and 9:16), 2560*1440 for 16:9.
+ */
+async function submitAndPollSeedreamV45EditForRegenerate(
+  characterImageUrl: string,
+  prompt: string,
+  aspectRatio: string = "16:9",
+): Promise<string> {
+  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
+
+  const size = seedreamV45EditSizeForAspectRatio(aspectRatio);
+  const endpoint = "https://api.wavespeed.ai/api/v3/bytedance/seedream-v4.5/edit";
+
+  console.log(`[seedream-v4.5/edit] Regenerate Image: size=${size}, aspectRatio=${aspectRatio}`);
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+    },
+    body: JSON.stringify({
+      enable_base64_output: false,
+      enable_sync_mode: false,
+      images: [characterImageUrl],
+      prompt,
+      size,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[seedream-v4.5/edit] submission failed:`, errorText);
+    throw new Error(`seedream-v4.5/edit submission failed: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  if (result.code !== 200) {
+    throw new Error(`seedream-v4.5/edit API error: ${result.message || "Unknown error"}`);
+  }
+
+  const requestId = result.data?.id ?? result.id;
+  if (!requestId) {
+    throw new Error("No request ID received from WaveSpeed");
+  }
+
+  const maxAttempts = 180;
+  for (let attempts = 0; attempts < maxAttempts; attempts++) {
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    const statusResponse = await fetch(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      { headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` } },
+    );
+    if (!statusResponse.ok) {
+      const err = await statusResponse.text();
+      throw new Error(`Status check failed: ${statusResponse.status} - ${err}`);
+    }
+    const statusResult = await statusResponse.json();
+    if (statusResult.code === 200 && statusResult.data?.status === "completed") {
+      const outputs = statusResult.data?.outputs;
+      if (outputs && Array.isArray(outputs) && outputs.length > 0) {
+        return outputs[0];
+      }
+      throw new Error("No images in results");
+    }
+    if (statusResult.data?.status === "failed") {
+      throw new Error(`Generation failed: ${statusResult.data?.error || "Unknown error"}`);
+    }
+  }
+  throw new Error("seedream-v4.5/edit generation timed out");
 }
 
 // New Wavespeed.ai character generation function (used for 3D and Cartoon styles)
@@ -1647,37 +1734,15 @@ export async function generateSingleSceneImage(
   const publicCharacterImageUrl = await ensurePublicImageUrl(characterImageUrl, 86400);
   console.log(`✓ Using validated character image URL for Wavespeed API`);
 
-  let resultImageUrl: string;
-  let modelUsed: string;
+  // Regenerate Image button: always use bytedance/seedream-v4.5/edit with character image and size by aspect ratio
+  console.log(`Using bytedance/seedream-v4.5/edit for Regenerate Image (size: ${seedreamV45EditSizeForAspectRatio(aspectRatio)})`);
+  const resultImageUrl = await submitAndPollSeedreamV45EditForRegenerate(
+    publicCharacterImageUrl,
+    prompt,
+    aspectRatio,
+  );
 
-  // If currentSceneImageUrl is provided, use edit-plus model with both images
-  if (currentSceneImageUrl) {
-    // Ensure current scene image URL is also a valid public URL
-    const publicCurrentSceneImageUrl = await ensurePublicImageUrl(currentSceneImageUrl, 86400);
-    console.log(`✓ Using validated current scene image URL for Wavespeed API`);
-    
-    console.log(`Using edit-plus model with both current scene image and character image`);
-    resultImageUrl = await submitAndPollSceneGenerationWithMultipleImages(
-      WAVESPEED_EDIT_PLUS_MODEL,
-      [publicCurrentSceneImageUrl, publicCharacterImageUrl],
-      prompt,
-      "single scene (edit)",
-      aspectRatio,
-    );
-    modelUsed = WAVESPEED_EDIT_PLUS_MODEL.name;
-  } else {
-    // Use the fallback system (tries google/nano-banana/edit first, falls back to alibaba/wan-2.5/image-edit if it fails)
-    const result = await generateSceneWithFallback(
-      publicCharacterImageUrl,
-      prompt,
-      "single scene",
-      aspectRatio,
-    );
-    resultImageUrl = result.imageUrl;
-    modelUsed = result.modelUsed;
-  }
-
-  console.log(`Single scene generated successfully using model: ${modelUsed}`);
+  console.log(`Single scene generated successfully using model: bytedance/seedream-v4.5/edit`);
   
   // Download and store the scene image permanently
   console.log(`Downloading and storing scene image permanently...`);

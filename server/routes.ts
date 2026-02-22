@@ -7366,10 +7366,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Changing camera angle for image: ${imageUrl}`);
       console.log(`Parameters: horizontal=${horizontalAngle}, vertical=${verticalAngle}, distance=${distance}`);
 
-      // WaveSpeed API expects horizontal_angle >= 0 and likely vertical_angle in a non-negative range.
-      // UI uses horizontal -180..180 and vertical -90..90; convert to 0..360 and 0..180.
+      // WaveSpeed API: horizontal_angle >= 0; vertical_angle 0..60 (at most 60).
+      // UI uses horizontal -180..180 and vertical -90..90; convert to 0..360 and 0..60.
       const horizontalForApi = horizontalAngle >= 0 ? horizontalAngle : horizontalAngle + 360;
-      const verticalForApi = verticalAngle + 90; // -90..90 -> 0..180
+      const verticalForApi = Math.min(60, Math.max(0, Math.round(((verticalAngle + 90) / 180) * 60))); // -90..90 -> 0..60
 
       // Convert relative URL to absolute URL if needed
       let absoluteImageUrl = imageUrl;
