@@ -4441,6 +4441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             sceneImages: p.sceneImages || [],
             createdAt: p.createdAt,
             updatedAt: p.updatedAt,
+            isPublic: p.isPublic !== false, // default true for backwards compatibility
             // Mux streaming data for performance optimization
             mux: {
               playbackId: p.muxPlaybackId || null,
@@ -5014,10 +5015,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update project
+  // Update project (owner only; allowed fields: title, isPublic, etc.)
   app.patch("/api/projects/:id", authenticateToken, async (req, res) => {
     try {
-      const project = await storage.updateProject(req.params.id, req.body);
+      const userId = (req as any).user.userId;
+      const existing = await storage.getProject(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (existing.userId !== userId) {
+        return res.status(403).json({ error: "You can only update your own projects" });
+      }
+      // Only allow safe updatable fields
+      const allowed = ["title", "isPublic"] as const;
+      const updates: Record<string, unknown> = {};
+      for (const key of allowed) {
+        if (req.body[key] !== undefined) {
+          if (key === "isPublic") {
+            updates[key] = req.body[key] === true || req.body[key] === "true";
+          } else {
+            updates[key] = req.body[key];
+          }
+        }
+      }
+      const project = await storage.updateProject(req.params.id, updates);
       if (!project) {
         return res.status(404).json({ error: "Project not found" });
       }

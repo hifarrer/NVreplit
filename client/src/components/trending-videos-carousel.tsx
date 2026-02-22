@@ -19,13 +19,29 @@ interface TrendingVideo {
   };
 }
 
+// Static featured videos (ImageKit URLs) used while video is loading - avoids broken Replit storage URLs
+const STATIC_FEATURED_VIDEOS: TrendingVideo[] = [
+  { id: "featured-1", title: "NeonVideo", videoUrl: "https://ik.imagekit.io/neonvideo/videos/neonvideo_1771741007951_captioned_aSgYYd8yE.mp4", thumbnailUrl: null, createdAt: new Date(), duration: 30, creator: { username: "NeonVideo" } },
+  { id: "featured-2", title: "NeonVideo", videoUrl: "https://ik.imagekit.io/neonvideo/videos/neonvideo_1771740214845_m932Op8ks.mp4", thumbnailUrl: null, createdAt: new Date(), duration: 30, creator: { username: "NeonVideo" } },
+  { id: "featured-3", title: "NeonVideo", videoUrl: "https://ik.imagekit.io/neonvideo/videos/neonvideo_1771735933375_rxcp9YckL.mp4", thumbnailUrl: null, createdAt: new Date(), duration: 30, creator: { username: "NeonVideo" } },
+  { id: "featured-4", title: "NeonVideo", videoUrl: "https://ik.imagekit.io/neonvideo/videos/neonvideo_1771718298468_captioned_708oQe-LU.mp4", thumbnailUrl: null, createdAt: new Date(), duration: 30, creator: { username: "NeonVideo" } },
+  { id: "featured-5", title: "NeonVideo", videoUrl: "https://ik.imagekit.io/neonvideo/videos/neonvideo_1771628710421_0xNAJ_kII.mp4", thumbnailUrl: null, createdAt: new Date(), duration: 30, creator: { username: "NeonVideo" } },
+  { id: "featured-6", title: "NeonVideo", videoUrl: "https://ik.imagekit.io/neonvideo/videos/neonvideo_1771610628956_captioned_y6h9Bfc7X.mp4", thumbnailUrl: null, createdAt: new Date(), duration: 30, creator: { username: "NeonVideo" } },
+  { id: "featured-7", title: "NeonVideo", videoUrl: "https://ik.imagekit.io/neonvideo/videos/neonvideo_1771472683273_OvQeWWz22.mp4", thumbnailUrl: null, createdAt: new Date(), duration: 30, creator: { username: "NeonVideo" } },
+];
+
 function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-export function TrendingVideosCarousel() {
+interface TrendingVideosCarouselProps {
+  /** When true, use static ImageKit featured videos instead of API (for "while loading" on video generation step) */
+  useStaticFeaturedVideos?: boolean;
+}
+
+export function TrendingVideosCarousel({ useStaticFeaturedVideos = false }: TrendingVideosCarouselProps) {
   const [selectedVideo, setSelectedVideo] = useState<TrendingVideo | null>(null);
   const [videoError, setVideoError] = useState(false);
   const { user } = useAuth();
@@ -38,11 +54,12 @@ export function TrendingVideosCarousel() {
       if (!response.ok) throw new Error('Failed to fetch trending videos');
       return response.json();
     },
+    enabled: !useStaticFeaturedVideos,
   });
 
-  const videos = data || [];
+  const videos = useStaticFeaturedVideos ? STATIC_FEATURED_VIDEOS : (data || []);
 
-  if (isLoading) {
+  if (isLoading && !useStaticFeaturedVideos) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="loading-spinner w-6 h-6"></div>

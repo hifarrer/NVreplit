@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users, Share2, Edit3, Edit, Gift } from "lucide-react";
+import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users, Share2, Edit3, Edit, Gift, Lock, Globe } from "lucide-react";
 import { SendGreetingCardModal } from "@/components/modals/send-greeting-card-modal";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
@@ -16,6 +16,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import { downloadFileFromUrl } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface CompletedVideo {
   id: string;
@@ -25,6 +27,7 @@ interface CompletedVideo {
   sceneImages?: string[];
   createdAt: string;
   updatedAt: string;
+  isPublic?: boolean;
   mux?: {
     playbackId: string | null;
     assetStatus: string | null;
@@ -44,6 +47,7 @@ export default function MyVideosPage() {
   const [editTitle, setEditTitle] = useState<string>("");
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [greetingCardVideo, setGreetingCardVideo] = useState<CompletedVideo | null>(null);
+  const [togglingVisibilityId, setTogglingVisibilityId] = useState<string | null>(null);
 
   const { data: rawVideos = [], isLoading, refetch } = useQuery<CompletedVideo[]>({
     queryKey: ["/api/my-videos"],
@@ -146,6 +150,30 @@ export default function MyVideosPage() {
   const handleCancelEdit = () => {
     setEditingVideo(null);
     setEditTitle("");
+  };
+
+  const handleToggleVisibility = async (video: CompletedVideo) => {
+    const nextPublic = !(video.isPublic !== false);
+    setTogglingVisibilityId(video.id);
+    try {
+      await apiRequest("PATCH", `/api/projects/${video.id}`, { isPublic: nextPublic });
+      refetch();
+      toast({
+        title: nextPublic ? "Video is now public" : "Video is now private",
+        description: nextPublic
+          ? "Your video can be seen by others and may appear on your profile."
+          : "Only you can see this video.",
+      });
+    } catch (error) {
+      console.error("Error updating visibility:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update video visibility",
+        variant: "destructive",
+      });
+    } finally {
+      setTogglingVisibilityId(null);
+    }
   };
 
   return (
@@ -302,6 +330,28 @@ export default function MyVideosPage() {
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Calendar className="h-3 w-3" />
                         {format(new Date(video.createdAt), "MMM d, yyyy")}
+                      </div>
+                      <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                        <Switch
+                          id={`visibility-${video.id}`}
+                          checked={video.isPublic !== false}
+                          disabled={togglingVisibilityId === video.id}
+                          onCheckedChange={() => handleToggleVisibility(video)}
+                          data-testid={`visibility-toggle-${video.id}`}
+                        />
+                        <Label htmlFor={`visibility-${video.id}`} className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
+                          {video.isPublic !== false ? (
+                            <>
+                              <Globe className="h-3 w-3" />
+                              Public
+                            </>
+                          ) : (
+                            <>
+                              <Lock className="h-3 w-3" />
+                              Private
+                            </>
+                          )}
+                        </Label>
                       </div>
                       <div className="flex gap-2 mt-3">
                         <Button

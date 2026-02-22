@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Share2, Images, Film, Clock, Mic, Type, Play, Pause, Music, Upload, Sparkles, Download } from "lucide-react";
+import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Share2, Images, Film, Clock, Mic, Type, Play, Pause, Music, Upload, Sparkles, Download, Eye, EyeOff } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Project } from "@shared/schema";
@@ -715,6 +715,30 @@ export function VideoManagement() {
                       data-testid={`edit-video-${video.id}`}
                     >
                       <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        updateVideoMutation.mutate({
+                          id: video.id,
+                          updates: { isPublic: video.isPublic === false },
+                        });
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className={`border-emerald-500/30 ${
+                        video.isPublic !== false
+                          ? "text-emerald-300 bg-emerald-600/20"
+                          : "text-emerald-300 hover:bg-emerald-600/20"
+                      }`}
+                      disabled={updateVideoMutation.isPending}
+                      data-testid={`visibility-video-${video.id}`}
+                      title={video.isPublic !== false ? "Hide from public (set private)" : "Make public"}
+                    >
+                      {video.isPublic !== false ? (
+                        <Eye className="h-4 w-4" />
+                      ) : (
+                        <EyeOff className="h-4 w-4" />
+                      )}
                     </Button>
                     <Button
                       onClick={() => {

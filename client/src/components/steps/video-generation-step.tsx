@@ -307,7 +307,7 @@ export function VideoGenerationStep({ projectId, onVideoComplete, onBack, onRese
             <h3 className="text-xl font-semibold text-center mb-6">
               While you wait for your video, watch other fun videos!
             </h3>
-            <TrendingVideosCarousel />
+            <TrendingVideosCarousel useStaticFeaturedVideos />
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center mb-8">
