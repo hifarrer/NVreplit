@@ -59,6 +59,7 @@ export interface IStorage {
   getQueuePosition(projectId: string): Promise<number | null>;
   startVideoProcessing(projectId: string): Promise<boolean>;
   completeVideoProcessing(projectId: string, status: 'completed' | 'failed'): Promise<boolean>;
+  deleteVideoQueueByProject(projectId: string): Promise<void>;
   cleanupStaleEntries(): Promise<void>;
 
   // Song methods
@@ -650,6 +651,11 @@ export class MemStorage implements IStorage {
       return true;
     }
     return false;
+  }
+
+  async deleteVideoQueueByProject(projectId: string): Promise<void> {
+    const entry = Array.from(this.videoQueues.values()).find(e => e.projectId === projectId);
+    if (entry) this.videoQueues.delete(entry.id);
   }
 
   async cleanupStaleEntries(): Promise<void> {
@@ -1911,6 +1917,8 @@ export class DbStorage implements IStorage {
       await this.db.transaction(async (tx) => {
         // First delete greeting cards that reference this project
         await tx.delete(greetingCards).where(eq(greetingCards.projectId, id));
+        // Delete video_queue entries so FK allows project deletion
+        await tx.delete(videoQueue).where(eq(videoQueue.projectId, id));
         // Then delete generation logs
         await tx.delete(generationLogs).where(eq(generationLogs.projectId, id));
         // Finally delete the project
@@ -2101,6 +2109,10 @@ export class DbStorage implements IStorage {
         .returning();
       return result.length > 0;
     }, { operationName: 'completeVideoProcessing' });
+  }
+
+  async deleteVideoQueueByProject(projectId: string): Promise<void> {
+    await this.db.delete(videoQueue).where(eq(videoQueue.projectId, projectId));
   }
 
   async cleanupStaleEntries(): Promise<void> {

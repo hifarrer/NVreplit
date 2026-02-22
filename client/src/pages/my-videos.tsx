@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users, Share2, Edit3, Edit, Gift, Lock, Globe } from "lucide-react";
@@ -48,6 +48,10 @@ export default function MyVideosPage() {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [greetingCardVideo, setGreetingCardVideo] = useState<CompletedVideo | null>(null);
   const [togglingVisibilityId, setTogglingVisibilityId] = useState<string | null>(null);
+  const [showPrivateUpsellModal, setShowPrivateUpsellModal] = useState(false);
+
+  // Paid users (plan with monthlyPrice > 0) can make videos private; free users see toggle but get upsell modal
+  const isPaidUser = user?.plan && user.plan.monthlyPrice > 0;
 
   const { data: rawVideos = [], isLoading, refetch } = useQuery<CompletedVideo[]>({
     queryKey: ["/api/my-videos"],
@@ -150,6 +154,15 @@ export default function MyVideosPage() {
   const handleCancelEdit = () => {
     setEditingVideo(null);
     setEditTitle("");
+  };
+
+  const onVisibilityChange = (video: CompletedVideo, checked: boolean) => {
+    // User is trying to set to private (checked === false); only paid users can
+    if (checked === false && !isPaidUser) {
+      setShowPrivateUpsellModal(true);
+      return;
+    }
+    handleToggleVisibility(video);
   };
 
   const handleToggleVisibility = async (video: CompletedVideo) => {
@@ -336,7 +349,7 @@ export default function MyVideosPage() {
                           id={`visibility-${video.id}`}
                           checked={video.isPublic !== false}
                           disabled={togglingVisibilityId === video.id}
-                          onCheckedChange={() => handleToggleVisibility(video)}
+                          onCheckedChange={(checked) => onVisibilityChange(video, checked)}
                           data-testid={`visibility-toggle-${video.id}`}
                         />
                         <Label htmlFor={`visibility-${video.id}`} className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
@@ -489,6 +502,31 @@ export default function MyVideosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Private videos upsell: free users see this when trying to make a video private */}
+      <Dialog open={showPrivateUpsellModal} onOpenChange={setShowPrivateUpsellModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-muted-foreground" />
+              Private Videos on Paid Plans
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Making videos private is only available on paid plans. Your videos are public by default. Upgrade to keep selected videos visible only to you.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowPrivateUpsellModal(false)} className="w-full sm:w-auto">
+              Close
+            </Button>
+            <Link href="/plans">
+              <Button className="w-full sm:w-auto" onClick={() => setShowPrivateUpsellModal(false)}>
+                View Plans
+              </Button>
+            </Link>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Send as Greeting Card Modal */}
       <SendGreetingCardModal

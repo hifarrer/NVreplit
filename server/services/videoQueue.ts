@@ -42,14 +42,23 @@ export class VideoQueueService {
   }
   
   /**
-   * Marks video processing as completed and processes queue
+   * Marks video processing as completed and processes queue.
+   * When success is true, removes the project from video_queue so it no longer blocks project deletion.
    */
   async completeVideoGeneration(projectId: string, success: boolean): Promise<void> {
     // Mark the current video as completed
     await storage.completeVideoProcessing(projectId, success ? 'completed' : 'failed');
-    
+    // Remove from video_queue when done so completed videos don't keep FK references (enables project delete)
+    await storage.deleteVideoQueueByProject(projectId);
     // Process the next item in the queue
     await this.processNextInQueue();
+  }
+
+  /**
+   * Removes a project from the video queue (e.g. when user cancels or regeneration fails).
+   */
+  async removeFromQueue(projectId: string): Promise<void> {
+    await storage.deleteVideoQueueByProject(projectId);
   }
   
   /**
