@@ -12008,7 +12008,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       }
       console.log(`[INSTRUMENTAL] Aspect Ratio: ${aspectRatio}, Duration: ${duration}s`);
       console.log(`[INSTRUMENTAL] Text Overlay: ${hasTextOverlay ? 'Yes' : 'No'}, Position: ${overlayPosition}`);
-      console.log(`[INSTRUMENTAL] Captions toggle: ${addSubtitlesRequested} (TikTok captions only when enabled)`);
+      console.log(`[INSTRUMENTAL] Captions toggle: ${addSubtitlesRequested} (text overlay only; add-tiktok-captions not used)`);
 
       // Step 1: Get or create project
       let project;
@@ -12350,7 +12350,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
               }
             }
 
-            // Add text overlay and/or TikTok captions via ffmpegapi
+            // Add text overlay via ffmpegapi (add-text-overlay-captions only; do not call add-tiktok-captions)
             if (hasTextOverlay && finalVideoUrl) {
               console.log(`[INSTRUMENTAL] Adding text overlay at position: ${overlayPosition}`);
               
@@ -12382,47 +12382,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
                   : await objectStorageService.getSignedUrlForPath(uploadedOverlayUrl, 86400 * 7);
                 console.log(`[INSTRUMENTAL] Text overlay video saved: ${finalVideoUrl}`);
 
-                // Add TikTok-style captions via ffmpegapi if requested
-                const updatedProject = await storage.getProject(project.id);
-                if (updatedProject?.addSubtitles) {
-                  try {
-                    const captionStyle = (updatedProject as any).subtitleStyle || "yellow-bg";
-                    console.log(`[INSTRUMENTAL] Adding TikTok captions via ffmpegapi (style: ${captionStyle})...`);
-                    await storage.addGenerationLog({
-                      projectId: project.id,
-                      step: "video_generation",
-                      message: `Adding TikTok-style captions (${captionStyle})...`,
-                      status: "progress",
-                      metadata: { captionStyle },
-                    });
-
-                    const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
-                    const captionResult = await addTikTokCaptions({
-                      videoUrl: finalVideoUrl,
-                      subtitleStyle: captionStyle,
-                      aspectRatio: aspectRatio,
-                      position: (updatedProject as any).captionPosition || "bottom",
-                    });
-
-                    const captionedVideoUrl = await objectStorageService.uploadVideoFromUrl(
-                      captionResult.download_url,
-                      `videos/${crypto.randomUUID()}_captioned.mp4`,
-                    );
-                    finalVideoUrl = captionedVideoUrl.startsWith('http')
-                      ? captionedVideoUrl
-                      : await objectStorageService.getSignedUrlForPath(captionedVideoUrl, 86400 * 7);
-                    console.log(`[INSTRUMENTAL] Captioned video saved: ${finalVideoUrl}`);
-                  } catch (captionError) {
-                    console.warn(`[INSTRUMENTAL] ffmpegapi caption rendering failed, proceeding without captions:`, captionError);
-                    await storage.addGenerationLog({
-                      projectId: project.id,
-                      step: "video_generation",
-                      message: `Caption rendering failed, using uncaptioned video: ${(captionError as Error).message}`,
-                      status: "warning",
-                      metadata: { error: (captionError as Error).message },
-                    });
-                  }
-                }
+                // Instrumental page uses only add-text-overlay-captions; do NOT call add-tiktok-captions.
 
                 // Update project with final video URL
                 await storage.updateProject(project.id, {
@@ -12434,7 +12394,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
                 await storage.addGenerationLog({
                   projectId: project.id,
                   step: "video_generation",
-                  message: "Video with text overlay and captions completed successfully",
+                  message: "Video with text overlay completed successfully",
                   status: "completed",
                   metadata: {}
                 });
