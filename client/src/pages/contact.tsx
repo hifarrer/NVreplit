@@ -24,6 +24,9 @@ import {
 import { Link } from "wouter";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
+const HAS_RECAPTCHA = Boolean(RECAPTCHA_SITE_KEY?.trim());
+
 export default function ContactPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,7 +70,7 @@ export default function ContactPage() {
       return;
     }
 
-    if (!captchaToken) {
+    if (HAS_RECAPTCHA && !captchaToken) {
       toast({
         title: "Captcha Required",
         description: "Please complete the captcha verification.",
@@ -327,18 +330,25 @@ export default function ContactPage() {
                     </div>
 
                     <div className="flex justify-center">
-                      <ReCAPTCHA
-                        ref={recaptchaRef}
-                        sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || ""}
-                        onChange={handleCaptchaChange}
-                        data-testid="contact-recaptcha"
-                      />
+                      {HAS_RECAPTCHA ? (
+                        <ReCAPTCHA
+                          ref={recaptchaRef}
+                          sitekey={RECAPTCHA_SITE_KEY!}
+                          onChange={handleCaptchaChange}
+                          data-testid="contact-recaptcha"
+                        />
+                      ) : (
+                        <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+                          Captcha verification is not configured. Please email us directly at{" "}
+                          <a href="mailto:info@neonvideo.ai" className="underline font-medium">info@neonvideo.ai</a>.
+                        </div>
+                      )}
                     </div>
 
                     <Button
                       type="submit"
                       size="lg"
-                      disabled={isSubmitting || !captchaToken}
+                      disabled={isSubmitting || (HAS_RECAPTCHA ? !captchaToken : true)}
                       className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                       data-testid="contact-submit-button"
                     >
