@@ -127,9 +127,9 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
     return index % 2 === 1;
   }, [audioDuration]);
   
-  // Compute which scenes have been modified (image or lipsync changed) in edit mode
+  // Compute which scenes have been modified (image or lipsync changed).
+  // In edit mode: compare to loaded project; in create mode: compare to initial/default so lipsync toggles show as modified.
   const modifiedSceneIndices = useMemo(() => {
-    if (!isEditMode) return [];
     return generatedScenes
       .map((scene, index) => {
         const originalImageUrl = originalSceneImagesRef.current[index];
@@ -140,7 +140,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
         return imageChanged || lipsyncChanged ? index : -1;
       })
       .filter(index => index !== -1);
-  }, [generatedScenes, scenes, isEditMode, getDefaultLipsync]);
+  }, [generatedScenes, scenes, getDefaultLipsync]);
   
   // Check if a scene needs video regeneration (image was modified but video wasn't regenerated)
   const needsVideoRegeneration = useCallback((index: number): boolean => {
@@ -1166,8 +1166,8 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                     {/* Scene title and icons */}
                     <div className="flex items-center gap-2 flex-1">
                       <h5 className="font-semibold">Scene {index + 1}</h5>
-                      {/* Modified indicator - shows when scene image has been changed in edit mode */}
-                      {isEditMode && modifiedSceneIndices.includes(index) && (
+                      {/* Modified indicator - shows when scene image or lipsync has been changed */}
+                      {modifiedSceneIndices.includes(index) && (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -1363,7 +1363,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
               {/* No modifications message */}
               {hasExistingVideoSegments && modifiedSceneIndices.length === 0 && (
                 <div className="text-xs text-muted-foreground italic">
-                  No scenes have been modified. Change a scene image to enable regeneration and save credits.
+                  No scenes have been modified. Change a scene image or lipsync setting to enable regeneration and save credits.
                 </div>
               )}
             </div>
@@ -1401,13 +1401,16 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
               <Button
                 onClick={handleProceedToVideo}
                 disabled={generatedScenes.length === 0 || saveScenesMutation.isPending || regenerateVideoMutation.isPending}
-                className={`floating-button py-3 px-4 sm:px-8 text-sm sm:text-base ${generatedScenes.length > 0 && !saveScenesMutation.isPending && !regenerateVideoMutation.isPending ? 'button-glow' : ''}`}
+                className={`floating-button py-3 px-4 sm:px-8 text-sm sm:text-base ${generatedScenes.length > 0 && !saveScenesMutation.isPending && !regenerateVideoMutation.isPending ? 'button-glow' : ''} ${modifiedSceneIndices.length > 0 ? 'ring-2 ring-orange-500 ring-offset-2 ring-offset-background' : ''}`}
                 data-testid="proceed-to-video-generation-button"
               >
                 <i className="fas fa-video mr-2"></i>
                 {regenerateVideoMutation.isPending ? "Regenerating..." : 
                  saveScenesMutation.isPending ? "Saving..." : 
                  isEditMode ? "Re-generate Music Video" : "Generate Music Video"}
+                {modifiedSceneIndices.length > 0 && (
+                  <span className="ml-2 text-xs font-normal opacity-90">({modifiedSceneIndices.length} modified)</span>
+                )}
               </Button>
             )}
           </div>
