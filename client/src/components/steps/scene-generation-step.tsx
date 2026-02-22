@@ -119,16 +119,20 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   const [cameraAngleSceneIndex, setCameraAngleSceneIndex] = useState<number | null>(null);
   const { toast } = useToast();
   
-  // Compute which scenes have been modified (image changed) in edit mode
+  // Compute which scenes have been modified (image or lipsync changed) in edit mode
   const modifiedSceneIndices = useMemo(() => {
     if (!isEditMode) return [];
     return generatedScenes
       .map((scene, index) => {
         const originalImageUrl = originalSceneImagesRef.current[index];
-        return scene.imageUrl !== originalImageUrl ? index : -1;
+        const imageChanged = scene.imageUrl !== originalImageUrl;
+        const originalLipsync = scenes[index]?.lipsync !== undefined ? scenes[index].lipsync! : getDefaultLipsync(index);
+        const currentLipsync = scene.lipsync !== undefined ? scene.lipsync : getDefaultLipsync(index);
+        const lipsyncChanged = originalLipsync !== currentLipsync;
+        return imageChanged || lipsyncChanged ? index : -1;
       })
       .filter(index => index !== -1);
-  }, [generatedScenes, isEditMode]);
+  }, [generatedScenes, scenes, isEditMode]);
   
   // Check if a scene needs video regeneration (image was modified but video wasn't regenerated)
   const needsVideoRegeneration = useCallback((index: number): boolean => {
@@ -1176,7 +1180,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                               </div>
                             </TooltipTrigger>
                             <TooltipContent className="max-w-[250px]">
-                              <p>This scene has been modified. You can regenerate only modified scene videos to save credits.</p>
+                              <p>This scene has been modified (image or lipsync setting changed). Regenerate modified scene videos to apply changes and save credits.</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>

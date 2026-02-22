@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users, Share2, Edit3, Edit, Gift, Lock, Globe, Subtitles } from "lucide-react";
+import { Video, Calendar, Download, Play, AlertTriangle, X, Trash2, Users, Share2, Edit3, Edit, Gift, Lock, Globe, Subtitles, ChevronLeft, ChevronRight } from "lucide-react";
 import { SendGreetingCardModal } from "@/components/modals/send-greeting-card-modal";
 import { AddCaptionsModal } from "@/components/modals/add-captions-modal";
 import { NavigationHeader } from "@/components/navigation-header";
@@ -52,6 +52,9 @@ export default function MyVideosPage() {
   const [captionsVideo, setCaptionsVideo] = useState<CompletedVideo | null>(null);
   const [togglingVisibilityId, setTogglingVisibilityId] = useState<string | null>(null);
   const [showPrivateUpsellModal, setShowPrivateUpsellModal] = useState(false);
+  const [page, setPage] = useState(1);
+
+  const PAGE_SIZE = 9;
 
   // Paid users (plan with monthlyPrice > 0) can make videos private; free users see toggle but get upsell modal
   const isPaidUser = user?.plan && user.plan.monthlyPrice > 0;
@@ -62,6 +65,16 @@ export default function MyVideosPage() {
 
   // Ensure videos are sorted by creation date (newest first)
   const videos = rawVideos.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const totalPages = Math.max(1, Math.ceil(videos.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedVideos = videos.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // When list shrinks (e.g. after delete), go back to last valid page
+  useEffect(() => {
+    if (totalPages > 0 && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [totalPages, page]);
 
   // Check if a video has valid (non-expired) scene images stored in object storage
   const hasValidSceneImages = (video: CompletedVideo): boolean => {
@@ -233,7 +246,7 @@ export default function MyVideosPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {videos.map((video) => (
+                {paginatedVideos.map((video) => (
                   <Card 
                     key={video.id} 
                     className="overflow-hidden hover:border-primary/50 transition-colors cursor-pointer relative"
@@ -440,6 +453,38 @@ export default function MyVideosPage() {
                   </Card>
                 ))}
               </div>
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-border/50">
+                  <p className="text-sm text-muted-foreground order-2 sm:order-1">
+                    Page {currentPage} of {totalPages}
+                    <span className="ml-2 text-muted-foreground/80">
+                      ({(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, videos.length)} of {videos.length})
+                    </span>
+                  </p>
+                  <div className="flex items-center gap-2 order-1 sm:order-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage <= 1}
+                      className="gap-1"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage >= totalPages}
+                      className="gap-1"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             )}
           </CardContent>
         </Card>
