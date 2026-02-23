@@ -8569,10 +8569,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: errorMsg });
       }
       
-      // Add outro video to the end of the video list  
-      const outroVideoUrl = "https://res.cloudinary.com/dqemas8ht/video/upload/v1766090577/Neonvideo_outro_wovkn3.mp4";
+      // Add outro video to the end of the video list (by aspect ratio: landscape vs portrait)
+      const isPortrait = aspectRatio === "3:4" || aspectRatio === "9:16";
+      const outroVideoUrl = isPortrait
+        ? "https://ik.imagekit.io/neonvideo/neonvideo_outros/neonvideo_vertical.mp4"
+        : "https://ik.imagekit.io/neonvideo/neonvideo_outros/neonvideo_horizontal.mp4";
       signedVideoUrls.push(outroVideoUrl);
-      console.log("Added outro video to merge:", outroVideoUrl);
+      console.log("Added outro video to merge:", outroVideoUrl, `(aspect ${aspectRatio}, ${isPortrait ? "portrait" : "landscape"})`);
       
       console.log("Signed video URLs for FFMPEG merge (including outro):", signedVideoUrls);
       
