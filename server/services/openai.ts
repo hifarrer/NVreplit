@@ -265,7 +265,6 @@ SECOND, create a list of scenes based on the story.
 THIRD, create a list of prompts based on the scenes.
 FOURTH, keep scene backgrounds mostly consistent across the scenes to make the video more coherent. For example if the first scene is a cityscape, the other scenes should also be cityscapes.
 
-
 IMPORTANT PATTERN:
 ${isThirtySecondVideo ? 
   `Scene 1: REGULAR video (wider shots allowed, dynamic movements)
