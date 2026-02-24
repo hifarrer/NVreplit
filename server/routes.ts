@@ -4552,7 +4552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newProject = await storage.createProject({
         userId,
         title: `${project.title} (with captions)`,
-        finalVideoUrl: captionedResult.bunnyVideoId ? captionResult.download_url : captionedResult.url,
+        finalVideoUrl: captionedResult.url,
         isCompleted: true,
         currentStep: 6,
         aspectRatio: project.aspectRatio || "16:9",
@@ -8668,6 +8668,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let savedFinalVideoUrl: string;
       let savedBunnyVideoId: string | null = null;
       let savedBunnyLibraryId: string | null = null;
+      /** Temporary URL used only for Mux ingestion (ffmpegapi); not stored as finalVideoUrl */
+      let muxIngestUrl: string | null = null;
       try {
         // Get watermark URL for branding (only Premium users can disable it)
         const userWithPlan = await storage.getUserWithPlan(project.userId);
@@ -8715,13 +8717,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           savedBunnyVideoId = uploadResult.bunnyVideoId || null;
           savedBunnyLibraryId = uploadResult.bunnyLibraryId || null;
-          // For Bunny uploads, keep the original ffmpegapi download URL as finalVideoUrl
-          // for immediate playback (Bunny HLS won't be ready until processing finishes).
-          // The webhook will update finalVideoUrl to Bunny HLS once processing completes.
+          savedFinalVideoUrl = uploadResult.url;
           if (savedBunnyVideoId && !finalVideo.download_url.includes("/api/ffmpeg-local/download/")) {
-            savedFinalVideoUrl = finalVideo.download_url;
-          } else {
-            savedFinalVideoUrl = uploadResult.url;
+            muxIngestUrl = finalVideo.download_url;
           }
           console.log("Final video saved to storage:", savedFinalVideoUrl, "bunnyVideoId:", savedBunnyVideoId);
         } catch (storageError) {
@@ -8772,8 +8770,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             );
             savedBunnyVideoId = captionedUploadResult.bunnyVideoId || null;
             savedBunnyLibraryId = captionedUploadResult.bunnyLibraryId || null;
-            // Keep ffmpegapi captioned download URL for immediate playback
-            savedFinalVideoUrl = savedBunnyVideoId ? captionResult.download_url : captionedUploadResult.url;
+            savedFinalVideoUrl = captionedUploadResult.url;
+            if (savedBunnyVideoId) muxIngestUrl = captionResult.download_url;
             console.log("Captioned video saved to storage:", savedFinalVideoUrl, "bunnyVideoId:", savedBunnyVideoId);
           } catch (captionError) {
             console.warn("ffmpegapi caption rendering failed, proceeding without captions:", captionError);
@@ -8824,13 +8822,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Complete video processing in queue
           await videoQueueService.completeVideoGeneration(req.params.id, true);
 
-          // Create Mux asset for improved streaming (non-blocking) — skip for Bunny videos
-          if (!savedBunnyVideoId) {
-            try {
-              await createMuxAssetForVideo(req.params.id, savedFinalVideoUrl);
-            } catch (muxError) {
-              console.error("Failed to create Mux asset (non-blocking):", muxError);
-            }
+          // Create Mux asset: use temporary ffmpegapi URL for ingestion when we have Bunny (Bunny URL not ingestible by Mux); otherwise use finalVideoUrl
+          try {
+            const urlForMux = muxIngestUrl || savedFinalVideoUrl;
+            await createMuxAssetForVideo(req.params.id, urlForMux);
+          } catch (muxError) {
+            console.error("Failed to create Mux asset (non-blocking):", muxError);
           }
 
           // Deduct credits for successful video generation

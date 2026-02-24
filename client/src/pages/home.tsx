@@ -250,6 +250,8 @@ export default function Home() {
           <VideoResultStep
             projectId={projectId}
             videoUrl={project.finalVideoUrl}
+            muxPlaybackId={(project as any)?.muxPlaybackId ?? null}
+            muxAssetStatus={(project as any)?.muxAssetStatus ?? null}
             onCreateNew={resetProject}
             aspectRatio={project?.aspectRatio}
           />
