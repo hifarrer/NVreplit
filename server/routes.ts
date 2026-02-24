@@ -22,7 +22,7 @@ import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWaterm
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback, uploadImageToImageKit, isImageKitConfigured } from "./services/imagekit";
-import { isBunnyConfigured, createAndUploadBunnyVideo, getBunnyHlsUrl, getBunnyThumbnailUrl, isBunnyUrl, getBunnyVideoIdFromUrl, getBunnyLibraryFromUrl, mapBunnyWebhookStatus } from "./services/bunny";
+import { isBunnyConfigured, createAndUploadBunnyVideo, getBunnyHlsUrl, getBunnyThumbnailUrl, getBunnyEmbedUrl, isBunnyUrl, getBunnyVideoIdFromUrl, getBunnyLibraryFromUrl, mapBunnyWebhookStatus } from "./services/bunny";
 import { emailService } from "./services/email";
 import { createMuxAssetForVideo } from "./services/muxJobs";
 import bcrypt from "bcryptjs";
@@ -4122,6 +4122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: project.bunnyVideoStatus || null,
           hlsUrl: project.bunnyVideoId ? getBunnyHlsUrl('final', project.bunnyVideoId) : null,
           thumbnailUrl: project.bunnyVideoId ? getBunnyThumbnailUrl('final', project.bunnyVideoId) : null,
+          embedUrl: project.bunnyVideoId && project.bunnyLibraryId ? getBunnyEmbedUrl(project.bunnyLibraryId, project.bunnyVideoId) : null,
         },
         creator: {
           id: user.id,
@@ -4327,6 +4328,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               status: project.bunnyVideoStatus || null,
               hlsUrl: project.bunnyVideoId ? getBunnyHlsUrl('final', project.bunnyVideoId) : null,
               thumbnailUrl: project.bunnyVideoId ? getBunnyThumbnailUrl('final', project.bunnyVideoId) : null,
+              embedUrl: project.bunnyVideoId && project.bunnyLibraryId ? getBunnyEmbedUrl(project.bunnyLibraryId, project.bunnyVideoId) : null,
             },
             creator: {
               id: user?.id || project.userId,
@@ -4467,6 +4469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               status: p.bunnyVideoStatus || null,
               hlsUrl: p.bunnyVideoId ? getBunnyHlsUrl('final', p.bunnyVideoId) : null,
               thumbnailUrl: p.bunnyVideoId ? getBunnyThumbnailUrl('final', p.bunnyVideoId) : null,
+              embedUrl: p.bunnyVideoId && p.bunnyLibraryId ? getBunnyEmbedUrl(p.bunnyLibraryId, p.bunnyVideoId) : null,
             }
           };
         })
@@ -4976,6 +4979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: project.bunnyVideoStatus || null,
           hlsUrl: project.bunnyVideoId ? getBunnyHlsUrl('final', project.bunnyVideoId) : null,
           thumbnailUrl: project.bunnyVideoId ? getBunnyThumbnailUrl('final', project.bunnyVideoId) : null,
+          embedUrl: project.bunnyVideoId && project.bunnyLibraryId ? getBunnyEmbedUrl(project.bunnyLibraryId, project.bunnyVideoId) : null,
         },
         aspectRatio: project.aspectRatio || '16:9',
         createdAt: greetingCard.createdAt
@@ -5091,14 +5095,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Project not found" });
       }
       
-      // Resolve ImageKit URLs for media fields
+      // Resolve ImageKit URLs for media fields; add Bunny embed URL for playback (avoids 403 on direct CDN)
+      const bunnyEmbedUrl = project.bunnyVideoId && project.bunnyLibraryId
+        ? getBunnyEmbedUrl(project.bunnyLibraryId, project.bunnyVideoId)
+        : null;
       const resolvedProject = {
         ...project,
         characterImageUrl: await resolveUrlWithImageKitFallback(project.characterImageUrl, storage),
         audioUrl: await resolveUrlWithImageKitFallback(project.audioUrl, storage),
         sceneImages: project.sceneImages 
           ? await Promise.all(project.sceneImages.map(url => resolveUrlWithImageKitFallback(url, storage)))
-          : null
+          : null,
+        ...(bunnyEmbedUrl && { bunnyEmbedUrl }),
       };
       
       res.json(resolvedProject);

@@ -7,6 +7,8 @@ interface MuxVideoPlayerProps {
   playbackId?: string | null;
   fallbackUrl?: string;
   bunnyHlsUrl?: string | null;
+  /** Bunny official embed URL (iframe) - use for playback to avoid 403 on direct CDN */
+  bunnyEmbedUrl?: string | null;
 
   className?: string;
   style?: React.CSSProperties;
@@ -32,6 +34,7 @@ export const MuxVideoPlayer = forwardRef<HTMLVideoElement, MuxVideoPlayerProps>(
     playbackId,
     fallbackUrl,
     bunnyHlsUrl,
+    bunnyEmbedUrl,
     className,
     style,
     loop = false,
@@ -108,32 +111,7 @@ export const MuxVideoPlayer = forwardRef<HTMLVideoElement, MuxVideoPlayerProps>(
       }
     }, [resolvedBunnyHlsUrl, bunnyHlsFailed]);
 
-    // Priority 1: Bunny HLS (or MP4 fallback if HLS failed)
-    if (resolvedBunnyHlsUrl || (bunnyHlsFailed && bunnyMp4Fallback)) {
-      return (
-        <video
-          ref={bunnyVideoRef}
-          src={bunnyHlsFailed && bunnyMp4Fallback ? bunnyMp4Fallback : undefined}
-          className={className}
-          style={style}
-          loop={loop}
-          muted={muted}
-          playsInline={playsInline}
-          preload={preload}
-          poster={poster}
-          autoPlay={autoPlay}
-          controls={controls}
-          data-testid={dataTestId}
-          data-video-index={dataVideoIndex}
-          onLoadStart={onLoadStart}
-          onError={() => onError?.(new Error('Bunny video playback failed'))}
-          onCanPlay={onCanPlay}
-          onLoadedData={onLoadedData}
-        />
-      );
-    }
-
-    // Priority 2: Mux HLS
+    // Priority 1: Mux when ready
     if (playbackId) {
       return (
         <MuxPlayer
@@ -159,7 +137,49 @@ export const MuxVideoPlayer = forwardRef<HTMLVideoElement, MuxVideoPlayerProps>(
       );
     }
 
-    // Priority 3: Direct URL fallback
+    // Priority 2: Bunny embed iframe (avoids 403 on direct CDN)
+    if (bunnyEmbedUrl) {
+      return (
+        <iframe
+          src={`${bunnyEmbedUrl}?autoplay=${autoPlay}&loop=${loop}&muted=${muted}&preload=true&responsive=true`}
+          loading="lazy"
+          className={className}
+          style={{ border: 0, ...style }}
+          allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
+          allowFullScreen
+          title="Video"
+          data-testid={dataTestId}
+          data-video-index={dataVideoIndex}
+        />
+      );
+    }
+
+    // Priority 3: Bunny HLS (or MP4 fallback if HLS failed)
+    if (resolvedBunnyHlsUrl || (bunnyHlsFailed && bunnyMp4Fallback)) {
+      return (
+        <video
+          ref={bunnyVideoRef}
+          src={bunnyHlsFailed && bunnyMp4Fallback ? bunnyMp4Fallback : undefined}
+          className={className}
+          style={style}
+          loop={loop}
+          muted={muted}
+          playsInline={playsInline}
+          preload={preload}
+          poster={poster}
+          autoPlay={autoPlay}
+          controls={controls}
+          data-testid={dataTestId}
+          data-video-index={dataVideoIndex}
+          onLoadStart={onLoadStart}
+          onError={() => onError?.(new Error('Bunny video playback failed'))}
+          onCanPlay={onCanPlay}
+          onLoadedData={onLoadedData}
+        />
+      );
+    }
+
+    // Priority 4: Direct URL fallback
     if (fallbackUrl) {
       return (
         <video

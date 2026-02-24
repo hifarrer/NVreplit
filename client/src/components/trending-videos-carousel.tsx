@@ -19,6 +19,8 @@ interface TrendingVideo {
     username: string;
     avatarUrl?: string;
   };
+  mux?: { playbackId: string | null; assetStatus: string | null };
+  bunny?: { embedUrl?: string | null };
 }
 
 // Static featured videos (ImageKit URLs) used while video is loading - avoids broken Replit storage URLs
@@ -136,6 +138,8 @@ export function TrendingVideosCarousel({ useStaticFeaturedVideos = false }: Tren
             <div className="relative aspect-video bg-black">
               <MuxVideoPlayer
                 className="w-full h-full"
+                playbackId={selectedVideo.mux?.assetStatus === 'ready' ? selectedVideo.mux.playbackId : null}
+                bunnyEmbedUrl={selectedVideo.bunny?.embedUrl ?? null}
                 fallbackUrl={selectedVideo.videoUrl}
                 controls
                 autoPlay

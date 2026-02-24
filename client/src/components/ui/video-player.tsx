@@ -11,14 +11,17 @@ interface VideoPlayerProps {
   className?: string;
   poster?: string;
   aspectRatio?: string;
+  /** When set, use Bunny's official embed iframe (avoids 403 on direct CDN); takes precedence over videoUrl for playback */
+  embedUrl?: string | null;
 }
 
-export function VideoPlayer({ videoUrl, title = "Video", className, poster, aspectRatio = "16:9" }: VideoPlayerProps) {
+export function VideoPlayer({ videoUrl, title = "Video", className, poster, aspectRatio = "16:9", embedUrl }: VideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hlsFailed, setHlsFailed] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
 
+  const useEmbed = !!embedUrl;
   const isBunny = isBunnyUrl(videoUrl);
   const hlsUrl = isBunny ? getBunnyHlsUrl(videoUrl) : null;
   const mp4Fallback = isBunny ? getBunnyMp4Url(videoUrl, "720p") : null;
@@ -28,7 +31,7 @@ export function VideoPlayer({ videoUrl, title = "Video", className, poster, aspe
   }, [videoUrl]);
 
   useEffect(() => {
-    if (!hlsUrl || !videoRef.current || hlsFailed) return;
+    if (useEmbed || !hlsUrl || !videoRef.current || hlsFailed) return;
 
     const video = videoRef.current;
 
@@ -53,7 +56,7 @@ export function VideoPlayer({ videoUrl, title = "Video", className, poster, aspe
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = hlsUrl;
     }
-  }, [hlsUrl, hlsFailed]);
+  }, [hlsUrl, hlsFailed, useEmbed]);
 
   const togglePlayback = () => {
     const video = videoRef.current;
@@ -69,6 +72,29 @@ export function VideoPlayer({ videoUrl, title = "Video", className, poster, aspe
 
   const isVertical = aspectRatio === "3:4";
   const aspectClass = isVertical ? "aspect-[3/4]" : "aspect-video";
+
+  if (useEmbed) {
+    return (
+      <div className={cn("relative", isVertical && "max-w-md mx-auto", className)} data-testid="video-player">
+        <div className={cn(aspectClass, "bg-muted rounded-lg overflow-hidden border border-border")} style={{ position: "relative" }}>
+          <iframe
+            src={`${embedUrl}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
+            loading="lazy"
+            style={{ border: 0, position: "absolute", top: 0, left: 0, height: "100%", width: "100%" }}
+            allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
+            allowFullScreen
+            title={title}
+            data-testid="video-element"
+          />
+        </div>
+        {title && (
+          <div className="mt-4 text-center">
+            <h4 className="text-lg font-semibold" data-testid="video-title">{title}</h4>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={cn("relative", isVertical && "max-w-md mx-auto", className)} data-testid="video-player">

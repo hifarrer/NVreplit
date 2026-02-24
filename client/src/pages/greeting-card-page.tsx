@@ -145,6 +145,7 @@ export default function GreetingCardPage() {
                     <MuxVideoPlayer
                       playbackId={greetingCard.muxPlaybackId}
                       bunnyHlsUrl={greetingCard.bunny?.status === 'finished' ? greetingCard.bunny.hlsUrl : null}
+                      bunnyEmbedUrl={greetingCard.bunny?.embedUrl ?? null}
                       fallbackUrl={greetingCard.videoUrl}
                       autoPlay={true}
                       controls

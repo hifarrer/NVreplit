@@ -240,6 +240,11 @@ export function getBunnyMp4Url(
   return `${getBunnyCdnBaseUrl(library, videoId)}/play_${resolution}.mp4`;
 }
 
+/** Official Bunny embed URL (iframe) - use for playback; avoids 403 on direct CDN MP4/HLS in some setups */
+export function getBunnyEmbedUrl(libraryId: string, videoId: string): string {
+  return `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}`;
+}
+
 export function isBunnyUrl(url: string): boolean {
   if (!url) return false;
   return url.includes(".b-cdn.net/");

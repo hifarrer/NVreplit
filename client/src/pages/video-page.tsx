@@ -347,6 +347,7 @@ export default function VideoPage() {
               <MuxVideoPlayer
                 playbackId={video.mux?.assetStatus === 'ready' ? video.mux.playbackId : null}
                 bunnyHlsUrl={video.bunny?.status === 'finished' ? video.bunny.hlsUrl : null}
+                bunnyEmbedUrl={video.bunny?.embedUrl ?? null}
                 fallbackUrl={video.videoUrl}
                 className="w-full h-full object-contain"
                 controls

@@ -13,11 +13,13 @@ interface VideoResultStepProps {
   muxPlaybackId?: string | null;
   muxAssetStatus?: string | null;
   bunnyHlsUrl?: string | null;
+  /** Bunny official embed URL (iframe) - use for playback when no Mux */
+  bunnyEmbedUrl?: string | null;
   onCreateNew: () => void;
   aspectRatio?: string;
 }
 
-export function VideoResultStep({ projectId, videoUrl, muxPlaybackId, muxAssetStatus, bunnyHlsUrl, onCreateNew, aspectRatio = "16:9" }: VideoResultStepProps) {
+export function VideoResultStep({ projectId, videoUrl, muxPlaybackId, muxAssetStatus, bunnyHlsUrl, bunnyEmbedUrl, onCreateNew, aspectRatio = "16:9" }: VideoResultStepProps) {
   const { toast } = useToast();
   const useMux = muxAssetStatus === "ready" && muxPlaybackId;
 
@@ -112,6 +114,7 @@ export function VideoResultStep({ projectId, videoUrl, muxPlaybackId, muxAssetSt
               title="Your AI Music Video"
               poster={bunnyPoster || videoUrl.replace('.mp4', '-poster.jpg')}
               aspectRatio={aspectRatio}
+              embedUrl={bunnyEmbedUrl ?? undefined}
             />
           )}
         </div>

@@ -252,6 +252,7 @@ export default function Home() {
             videoUrl={project.finalVideoUrl}
             muxPlaybackId={(project as any)?.muxPlaybackId ?? null}
             muxAssetStatus={(project as any)?.muxAssetStatus ?? null}
+            bunnyEmbedUrl={(project as any)?.bunnyEmbedUrl ?? null}
             onCreateNew={resetProject}
             aspectRatio={project?.aspectRatio}
           />
