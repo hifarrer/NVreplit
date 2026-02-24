@@ -4544,7 +4544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const ObjectStorageService = (await import("./objectStorage")).ObjectStorageService;
       const objectStorageService = new ObjectStorageService();
-      const captionedVideoUrl = await objectStorageService.uploadVideoFromUrl(
+      const captionedResult = await objectStorageService.uploadVideoFromUrl(
         captionResult.download_url,
         `neonvideo_${Date.now()}_captioned.mp4`,
       );
@@ -4552,11 +4552,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newProject = await storage.createProject({
         userId,
         title: `${project.title} (with captions)`,
-        finalVideoUrl: captionedVideoUrl,
+        finalVideoUrl: captionedResult.url,
         isCompleted: true,
         currentStep: 6,
         aspectRatio: project.aspectRatio || "16:9",
         isPublic: project.isPublic !== false,
+        ...(captionedResult.bunnyVideoId && {
+          bunnyVideoId: captionedResult.bunnyVideoId,
+          bunnyLibraryId: captionedResult.bunnyLibraryId,
+          bunnyVideoStatus: 'processing',
+        }),
       });
 
       res.json({
@@ -8661,6 +8666,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let finalVideo;
       let savedFinalVideoUrl: string;
+      let savedBunnyVideoId: string | null = null;
+      let savedBunnyLibraryId: string | null = null;
       try {
         // Get watermark URL for branding (only Premium users can disable it)
         const userWithPlan = await storage.getUserWithPlan(project.userId);
@@ -8691,21 +8698,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const objectStorageService = new ObjectStorageService();
         
         try {
+          let uploadResult: { url: string; bunnyVideoId?: string; bunnyLibraryId?: string };
           if (finalVideo.download_url.includes("/api/ffmpeg-local/download/")) {
             const { OUTPUT_FOLDER } = await import("./services/ffmpegLocal.js");
             const localFilePath = path.join(OUTPUT_FOLDER, finalVideo.filename);
             const videoBuffer = fs.readFileSync(localFilePath);
-            savedFinalVideoUrl = await objectStorageService.uploadVideoBuffer(
+            uploadResult = await objectStorageService.uploadVideoBuffer(
               videoBuffer,
               `neonvideo_${Date.now()}.mp4`,
             );
           } else {
-            savedFinalVideoUrl = await objectStorageService.uploadVideoFromUrl(
+            uploadResult = await objectStorageService.uploadVideoFromUrl(
               finalVideo.download_url,
               `neonvideo_${Date.now()}.mp4`
             );
           }
-          console.log("Final video saved to storage:", savedFinalVideoUrl);
+          savedFinalVideoUrl = uploadResult.url;
+          savedBunnyVideoId = uploadResult.bunnyVideoId || null;
+          savedBunnyLibraryId = uploadResult.bunnyLibraryId || null;
+          console.log("Final video saved to storage:", savedFinalVideoUrl, "bunnyVideoId:", savedBunnyVideoId);
         } catch (storageError) {
           console.warn("Failed to save video to object storage, using temporary URL:", storageError);
           savedFinalVideoUrl = finalVideo.download_url;
@@ -8734,21 +8745,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
               metadata: { step: 4, total: 4, captionStyle: projectSubtitleStyle },
             });
 
+            // Use the original ffmpeg download URL for captions (not Bunny HLS which may still be processing)
+            const captionInputUrl = finalVideo.download_url.includes("/api/ffmpeg-local/download/")
+              ? savedFinalVideoUrl
+              : finalVideo.download_url;
+
             const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
             const captionResult = await addTikTokCaptions({
-              videoUrl: savedFinalVideoUrl,
+              videoUrl: captionInputUrl,
               subtitleStyle: projectSubtitleStyle,
               aspectRatio: project.aspectRatio,
               position: (project as any).captionPosition || "bottom",
             });
 
-            // Upload the captioned video to storage
-            const captionedVideoUrl = await objectStorageService.uploadVideoFromUrl(
+            // Upload the captioned video to storage (this replaces the uncaptioned Bunny upload)
+            const captionedUploadResult = await objectStorageService.uploadVideoFromUrl(
               captionResult.download_url,
               `neonvideo_${Date.now()}_captioned.mp4`,
             );
-            savedFinalVideoUrl = captionedVideoUrl;
-            console.log("Captioned video saved to storage:", savedFinalVideoUrl);
+            savedFinalVideoUrl = captionedUploadResult.url;
+            savedBunnyVideoId = captionedUploadResult.bunnyVideoId || null;
+            savedBunnyLibraryId = captionedUploadResult.bunnyLibraryId || null;
+            console.log("Captioned video saved to storage:", savedFinalVideoUrl, "bunnyVideoId:", savedBunnyVideoId);
           } catch (captionError) {
             console.warn("ffmpegapi caption rendering failed, proceeding without captions:", captionError);
             await storage.addGenerationLog({
@@ -8775,18 +8793,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error(`Final video merge failed: ${(mergeError as Error).message}`);
       }
 
-          // Extract Bunny metadata if the URL was uploaded to Bunny Stream
-          const bunnyVideoId = (savedFinalVideoUrl as any).bunnyVideoId || null;
-          const bunnyLibraryId = (savedFinalVideoUrl as any).bunnyLibraryId || null;
-
           await storage.updateProject(req.params.id, {
             finalVideoUrl: savedFinalVideoUrl,
             isCompleted: true,
             currentStep: 6,
             generationStatus: 'completed' as any,
-            ...(bunnyVideoId && {
-              bunnyVideoId,
-              bunnyLibraryId,
+            ...(savedBunnyVideoId && {
+              bunnyVideoId: savedBunnyVideoId,
+              bunnyLibraryId: savedBunnyLibraryId,
               bunnyVideoStatus: 'processing',
             }),
           });
@@ -8796,7 +8810,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             step: "video_generation",
             message: "Video generation completed",
             status: "completed",
-            metadata: { finalVideoUrl: savedFinalVideoUrl, bunnyVideoId }
+            metadata: { finalVideoUrl: savedFinalVideoUrl, bunnyVideoId: savedBunnyVideoId }
           });
 
           // Complete video processing in queue
@@ -12625,13 +12639,13 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
                 });
 
                 const objectStorageService = new ObjectStorageService();
-                const uploadedOverlayUrl = await objectStorageService.uploadVideoFromUrl(
+                const overlayUploadResult = await objectStorageService.uploadVideoFromUrl(
                   overlayResult.download_url,
                   `videos/${crypto.randomUUID()}_overlay.mp4`,
                 );
-                finalVideoUrl = uploadedOverlayUrl.startsWith('http')
-                  ? uploadedOverlayUrl
-                  : await objectStorageService.getSignedUrlForPath(uploadedOverlayUrl, 86400 * 7);
+                finalVideoUrl = overlayUploadResult.url.startsWith('http')
+                  ? overlayUploadResult.url
+                  : await objectStorageService.getSignedUrlForPath(overlayUploadResult.url, 86400 * 7);
                 console.log(`[INSTRUMENTAL] Text overlay video saved: ${finalVideoUrl}`);
 
                 // Instrumental page uses only add-text-overlay-captions; do NOT call add-tiktok-captions.
@@ -12640,7 +12654,12 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
                 await storage.updateProject(project.id, {
                   finalVideoUrl: finalVideoUrl,
                   isCompleted: true,
-                  currentStep: 5
+                  currentStep: 5,
+                  ...(overlayUploadResult.bunnyVideoId && {
+                    bunnyVideoId: overlayUploadResult.bunnyVideoId,
+                    bunnyLibraryId: overlayUploadResult.bunnyLibraryId,
+                    bunnyVideoStatus: 'processing',
+                  }),
                 });
 
                 await storage.addGenerationLog({

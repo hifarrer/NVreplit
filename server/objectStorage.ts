@@ -336,7 +336,7 @@ export class ObjectStorageService {
     }
   }
 
-  async uploadVideoBuffer(buffer: Buffer, filename?: string): Promise<string & { bunnyVideoId?: string; bunnyLibraryId?: string }> {
+  async uploadVideoBuffer(buffer: Buffer, filename?: string): Promise<{ url: string; bunnyVideoId?: string; bunnyLibraryId?: string }> {
     try {
       const videoFilename = filename || `video_${randomUUID()}.mp4`;
 
@@ -345,10 +345,7 @@ export class ObjectStorageService {
         console.log(`[Bunny] Uploading video buffer to Bunny Stream: ${videoFilename}`);
         const result = await createAndUploadBunnyVideo("final", videoFilename, buffer);
         console.log(`[Bunny] Video buffer uploaded successfully: ${result.hlsUrl}`);
-        const url = result.hlsUrl as string & { bunnyVideoId?: string; bunnyLibraryId?: string };
-        url.bunnyVideoId = result.videoId;
-        url.bunnyLibraryId = result.libraryId;
-        return url;
+        return { url: result.hlsUrl, bunnyVideoId: result.videoId, bunnyLibraryId: result.libraryId };
       }
 
       // ImageKit as secondary storage if Bunny is not configured
@@ -365,7 +362,7 @@ export class ObjectStorageService {
           fileType: "video",
         });
 
-        return imagekitResult.url;
+        return { url: imagekitResult.url };
       }
 
       // Fallback to Google Cloud Storage
@@ -381,14 +378,14 @@ export class ObjectStorageService {
         },
       });
 
-      return `/objects/videos/${videoFilename}`;
+      return { url: `/objects/videos/${videoFilename}` };
     } catch (error) {
       console.error("Error uploading video buffer to storage:", error);
       throw error;
     }
   }
 
-  async uploadVideoFromUrl(videoUrl: string, filename?: string): Promise<string & { bunnyVideoId?: string; bunnyLibraryId?: string }> {
+  async uploadVideoFromUrl(videoUrl: string, filename?: string): Promise<{ url: string; bunnyVideoId?: string; bunnyLibraryId?: string }> {
     try {
       console.log("Downloading video from URL:", videoUrl);
       
@@ -431,10 +428,7 @@ export class ObjectStorageService {
         console.log(`[Bunny] Uploading video to Bunny Stream: ${videoFilename}`);
         const result = await createAndUploadBunnyVideo("final", videoFilename, buffer);
         console.log(`[Bunny] Video uploaded successfully: ${result.hlsUrl}`);
-        const url = result.hlsUrl as string & { bunnyVideoId?: string; bunnyLibraryId?: string };
-        url.bunnyVideoId = result.videoId;
-        url.bunnyLibraryId = result.libraryId;
-        return url;
+        return { url: result.hlsUrl, bunnyVideoId: result.videoId, bunnyLibraryId: result.libraryId };
       }
 
       // ImageKit as secondary storage if Bunny is not configured
@@ -452,7 +446,7 @@ export class ObjectStorageService {
             fileType: "video"
           });
           
-          return imagekitResult.url;
+          return { url: imagekitResult.url };
         } catch (imagekitError) {
           console.error(`[ImageKit] Failed to upload video to ImageKit:`, imagekitError);
           throw new Error(`ImageKit upload failed: ${(imagekitError as Error).message}`);
@@ -476,7 +470,7 @@ export class ObjectStorageService {
       console.log("Video uploaded to object storage:", objectPath);
       const permanentPath = `/objects/videos/${videoFilename}`;
       console.log("Generated permanent video path:", permanentPath);
-      return permanentPath;
+      return { url: permanentPath };
     } catch (error) {
       console.error("Error uploading video to storage:", error);
       throw error;
