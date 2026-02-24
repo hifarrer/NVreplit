@@ -8569,15 +8569,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: errorMsg });
       }
       
-      // Add outro video to the end of the video list (by aspect ratio: landscape vs portrait)
+      // Outro URL by aspect ratio (passed as outro_url to neonvideo_merge_videos API, not in video_urls)
       const isPortrait = aspectRatio === "3:4" || aspectRatio === "9:16";
       const outroVideoUrl = isPortrait
         ? "https://ik.imagekit.io/neonvideo/neonvideo_outros/neonvideo_vertical.mp4"
         : "https://ik.imagekit.io/neonvideo/neonvideo_outros/neonvideo_horizontal.mp4";
-      signedVideoUrls.push(outroVideoUrl);
-      console.log("Added outro video to merge:", outroVideoUrl, `(aspect ${aspectRatio}, ${isPortrait ? "portrait" : "landscape"})`);
-      
-      console.log("Signed video URLs for FFMPEG merge (including outro):", signedVideoUrls);
+      console.log("Outro URL for merge:", outroVideoUrl, `(aspect ${aspectRatio}, ${isPortrait ? "portrait" : "landscape"})`);
+
+      // Dimensions for merge API (width x height from aspect ratio)
+      const dimensions = aspectRatio === "9:16" ? "1080x1920" : aspectRatio === "3:4" ? "1080x1440" : "1920x1080";
+      console.log("Signed video URLs for FFMPEG merge (scene segments only):", signedVideoUrls);
       
       // Convert audio URL to signed URL if it's an internal object storage URL
       let finalAudioUrl = project.audioUrl; // Use original audio URL from project
@@ -8609,9 +8610,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         finalVideo = await mergeVideos(
           signedVideoUrls,
-          finalAudioUrl,
+          finalAudioUrl ?? undefined,
           undefined,
           watermarkUrl,
+          outroVideoUrl,
+          dimensions,
         );
         console.log("Final video merge successful:", finalVideo.download_url);
 

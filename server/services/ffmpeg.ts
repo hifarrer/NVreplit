@@ -317,7 +317,69 @@ export async function pictureInPicture(mainVideoUrl: string, pipVideoUrl: string
   }
 }
 
-export async function mergeVideos(videoUrls: string[], audioUrl?: string, subtitleUrl?: string, watermarkUrl?: string): Promise<{ download_url: string; filename: string }> {
+const NEONVIDEO_MERGE_URL = process.env.FFMPEG_NEONVIDEO_MERGE_URL || "https://ffmpegapi-production.up.railway.app/api/neonvideo_merge_videos";
+
+export async function mergeVideos(
+  videoUrls: string[],
+  audioUrl?: string,
+  subtitleUrl?: string,
+  watermarkUrl?: string,
+  outroUrl?: string,
+  dimensions?: string,
+): Promise<{ download_url: string; filename: string }> {
+  const useNeonvideoApi = !!outroUrl;
+
+  if (useNeonvideoApi) {
+    console.log("=== FFMPEG NEONVIDEO MERGE (remote API) ===");
+    console.log("Endpoint:", NEONVIDEO_MERGE_URL);
+    console.log("Number of scene videos:", videoUrls.length);
+    console.log("Outro URL:", outroUrl);
+    console.log("Audio URL:", audioUrl || "Not provided");
+    console.log("Subtitle URL:", subtitleUrl || "Not provided");
+    console.log("Watermark URL:", watermarkUrl || "Not provided");
+    console.log("Dimensions:", dimensions || "Not provided");
+
+    try {
+      const body: Record<string, unknown> = {
+        video_urls: videoUrls,
+        audio_url: audioUrl ?? "",
+        outro_url: outroUrl,
+        subtitle_url: subtitleUrl ?? undefined,
+        watermark_url: watermarkUrl ?? undefined,
+        dimensions: dimensions ?? undefined,
+        async: false,
+      };
+      const response = await fetchWithRetry(NEONVIDEO_MERGE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": FFMPEG_API_KEY,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Neonvideo merge API error: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(`Neonvideo merge failed: ${result.message || "Unknown error"}`);
+      }
+
+      const downloadUrl = result.download_url;
+      const filename = result.filename || "merged.mp4";
+      console.log("=== NEONVIDEO MERGE COMPLETE ===");
+      console.log("Download URL:", downloadUrl);
+      console.log("Filename:", filename);
+      return { download_url: downloadUrl, filename };
+    } catch (error) {
+      console.error("Neonvideo merge API error:", error);
+      throw new Error("Failed to merge videos (neonvideo API): " + (error as Error).message);
+    }
+  }
+
   console.log("=== FFMPEG LOCAL MERGE VIDEOS ===");
   console.log("Number of videos to merge:", videoUrls.length);
   console.log("Audio URL (full song):", audioUrl || "Not provided");
@@ -326,9 +388,8 @@ export async function mergeVideos(videoUrls: string[], audioUrl?: string, subtit
 
   try {
     const { localMergeVideos } = await import("./ffmpegLocal.js");
-    const result = await localMergeVideos(videoUrls, audioUrl, subtitleUrl, watermarkUrl);
+    const result = await localMergeVideos(videoUrls, audioUrl, subtitleUrl, watermarkUrl, dimensions);
 
-    // Build a full URL so fetch()-based consumers (object storage upload, Remotion download) can reach it
     const port = process.env.PORT || "5000";
     const fullDownloadUrl = `http://localhost:${port}${result.download_url}`;
 
