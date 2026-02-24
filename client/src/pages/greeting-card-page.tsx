@@ -14,12 +14,7 @@ interface GreetingCardData {
   videoUrl: string;
   thumbnailUrl: string | null;
   muxPlaybackId: string | null;
-  bunny?: {
-    videoId: string | null;
-    status: string | null;
-    hlsUrl: string | null;
-    thumbnailUrl: string | null;
-  };
+  bunnyStorageUrl?: string | null;
   aspectRatio: string;
   createdAt: string;
 }
@@ -141,11 +136,10 @@ export default function GreetingCardPage() {
                 </div>
               ) : (
                 <div className={greetingCard.aspectRatio === "3:4" ? "aspect-[3/4]" : "aspect-video"}>
-                  {greetingCard.muxPlaybackId || (greetingCard.bunny?.status === 'finished' && greetingCard.bunny?.hlsUrl) ? (
+                  {greetingCard.muxPlaybackId || greetingCard.bunnyStorageUrl ? (
                     <MuxVideoPlayer
                       playbackId={greetingCard.muxPlaybackId}
-                      bunnyHlsUrl={greetingCard.bunny?.status === 'finished' ? greetingCard.bunny.hlsUrl : null}
-                      bunnyEmbedUrl={greetingCard.bunny?.embedUrl ?? null}
+                      bunnyStorageUrl={greetingCard.bunnyStorageUrl}
                       fallbackUrl={greetingCard.videoUrl}
                       autoPlay={true}
                       controls

@@ -22,7 +22,7 @@ import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWaterm
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback, uploadImageToImageKit, isImageKitConfigured } from "./services/imagekit";
-import { isBunnyConfigured, createAndUploadBunnyVideo, getBunnyHlsUrl, getBunnyThumbnailUrl, getBunnyEmbedUrl, isBunnyUrl, getBunnyVideoIdFromUrl, getBunnyLibraryFromUrl, mapBunnyWebhookStatus } from "./services/bunny";
+import { isBunnyConfigured, uploadToBunnyStorage, isBunnyUrl } from "./services/bunny";
 import { emailService } from "./services/email";
 import { createMuxAssetForVideo } from "./services/muxJobs";
 import bcrypt from "bcryptjs";
@@ -2872,8 +2872,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalVideoUrl: project.finalVideoUrl,
         muxPlaybackId: project.muxPlaybackId,
         muxAssetStatus: project.muxAssetStatus,
-        bunnyVideoId: project.bunnyVideoId,
-        bunnyVideoStatus: project.bunnyVideoStatus,
         isCompleted: project.isCompleted,
         generationStatus: project.generationStatus,
         aspectRatio: project.aspectRatio,
@@ -4117,13 +4115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           playbackId: project.muxPlaybackId || null,
           assetStatus: project.muxAssetStatus || null
         },
-        bunny: {
-          videoId: project.bunnyVideoId || null,
-          status: project.bunnyVideoStatus || null,
-          hlsUrl: project.bunnyVideoId ? getBunnyHlsUrl('final', project.bunnyVideoId) : null,
-          thumbnailUrl: project.bunnyVideoId ? getBunnyThumbnailUrl('final', project.bunnyVideoId) : null,
-          embedUrl: project.bunnyVideoId && project.bunnyLibraryId ? getBunnyEmbedUrl(project.bunnyLibraryId, project.bunnyVideoId) : null,
-        },
+        bunnyStorageUrl: isBunnyUrl(project.finalVideoUrl || '') ? project.finalVideoUrl : null,
         creator: {
           id: user.id,
           username: user.username,
@@ -4323,13 +4315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               assetStatus: project.muxAssetStatus || null,
               hlsUrl: project.muxPlaybackId ? `https://stream.mux.com/${project.muxPlaybackId}.m3u8` : null
             },
-            bunny: {
-              videoId: project.bunnyVideoId || null,
-              status: project.bunnyVideoStatus || null,
-              hlsUrl: project.bunnyVideoId ? getBunnyHlsUrl('final', project.bunnyVideoId) : null,
-              thumbnailUrl: project.bunnyVideoId ? getBunnyThumbnailUrl('final', project.bunnyVideoId) : null,
-              embedUrl: project.bunnyVideoId && project.bunnyLibraryId ? getBunnyEmbedUrl(project.bunnyLibraryId, project.bunnyVideoId) : null,
-            },
+            bunnyStorageUrl: isBunnyUrl(project.finalVideoUrl || '') ? project.finalVideoUrl : null,
             creator: {
               id: user?.id || project.userId,
               username: user?.username || 'Unknown User',
@@ -4464,13 +4450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               assetStatus: p.muxAssetStatus || null,
               hlsUrl: p.muxPlaybackId ? `https://stream.mux.com/${p.muxPlaybackId}.m3u8` : null
             },
-            bunny: {
-              videoId: p.bunnyVideoId || null,
-              status: p.bunnyVideoStatus || null,
-              hlsUrl: p.bunnyVideoId ? getBunnyHlsUrl('final', p.bunnyVideoId) : null,
-              thumbnailUrl: p.bunnyVideoId ? getBunnyThumbnailUrl('final', p.bunnyVideoId) : null,
-              embedUrl: p.bunnyVideoId && p.bunnyLibraryId ? getBunnyEmbedUrl(p.bunnyLibraryId, p.bunnyVideoId) : null,
-            }
+            bunnyStorageUrl: isBunnyUrl(p.finalVideoUrl || '') ? p.finalVideoUrl : null,
           };
         })
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -4560,11 +4540,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentStep: 6,
         aspectRatio: project.aspectRatio || "16:9",
         isPublic: project.isPublic !== false,
-        ...(captionedResult.bunnyVideoId && {
-          bunnyVideoId: captionedResult.bunnyVideoId,
-          bunnyLibraryId: captionedResult.bunnyLibraryId,
-          bunnyVideoStatus: 'processing',
-        }),
       });
 
       res.json({
@@ -4974,13 +4949,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         videoUrl: project.finalVideoUrl,
         thumbnailUrl: project.thumbnailUrl || null,
         muxPlaybackId: project.muxPlaybackId || null,
-        bunny: {
-          videoId: project.bunnyVideoId || null,
-          status: project.bunnyVideoStatus || null,
-          hlsUrl: project.bunnyVideoId ? getBunnyHlsUrl('final', project.bunnyVideoId) : null,
-          thumbnailUrl: project.bunnyVideoId ? getBunnyThumbnailUrl('final', project.bunnyVideoId) : null,
-          embedUrl: project.bunnyVideoId && project.bunnyLibraryId ? getBunnyEmbedUrl(project.bunnyLibraryId, project.bunnyVideoId) : null,
-        },
+        bunnyStorageUrl: isBunnyUrl(project.finalVideoUrl || '') ? project.finalVideoUrl : null,
         aspectRatio: project.aspectRatio || '16:9',
         createdAt: greetingCard.createdAt
       });
@@ -5095,10 +5064,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Project not found" });
       }
       
-      // Resolve ImageKit URLs for media fields; add Bunny embed URL for playback (avoids 403 on direct CDN)
-      const bunnyEmbedUrl = project.bunnyVideoId && project.bunnyLibraryId
-        ? getBunnyEmbedUrl(project.bunnyLibraryId, project.bunnyVideoId)
-        : null;
       const resolvedProject = {
         ...project,
         characterImageUrl: await resolveUrlWithImageKitFallback(project.characterImageUrl, storage),
@@ -5106,7 +5071,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sceneImages: project.sceneImages 
           ? await Promise.all(project.sceneImages.map(url => resolveUrlWithImageKitFallback(url, storage)))
           : null,
-        ...(bunnyEmbedUrl && { bunnyEmbedUrl }),
       };
       
       res.json(resolvedProject);
@@ -7346,23 +7310,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aspectRatio
       );
 
-      // Upload scene video to Bunny Scenes library if configured
+      // Upload scene video to Bunny Storage if configured
       if (isBunnyConfigured("scenes")) {
         try {
-          console.log(`[Bunny] Uploading scene ${sceneIndexNum + 1} video to Bunny Scenes library`);
+          console.log(`[Bunny Storage] Uploading scene ${sceneIndexNum + 1} video`);
           const resp = await fetch(videoUrl);
           if (resp.ok) {
             const buffer = await resp.buffer();
-            const bunnyResult = await createAndUploadBunnyVideo(
+            const bunnyResult = await uploadToBunnyStorage(
               "scenes",
               `scene_${req.params.id}_${sceneIndexNum + 1}_${Date.now()}.mp4`,
               buffer
             );
-            videoUrl = bunnyResult.hlsUrl;
-            console.log(`[Bunny] Scene video uploaded: ${videoUrl}`);
+            videoUrl = bunnyResult.url;
+            console.log(`[Bunny Storage] Scene video uploaded: ${videoUrl}`);
           }
         } catch (bunnyErr) {
-          console.warn("[Bunny] Scene video upload failed (non-blocking), keeping Wavespeed URL:", bunnyErr);
+          console.warn("[Bunny Storage] Scene video upload failed (non-blocking), keeping Wavespeed URL:", bunnyErr);
         }
       }
 
@@ -8570,24 +8534,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Upload scene videos to Bunny Scenes library if configured
+      // Upload scene videos to Bunny Storage if configured
       if (isBunnyConfigured("scenes")) {
-        console.log(`[Bunny] Uploading ${allVideoUrls.length} scene videos to Bunny Scenes library`);
+        console.log(`[Bunny Storage] Uploading ${allVideoUrls.length} scene videos`);
         const bunnySceneUrls = await Promise.all(
           allVideoUrls.map(async (url, idx) => {
             try {
               const resp = await fetch(url);
               if (!resp.ok) return url;
               const buffer = await resp.buffer();
-              const result = await createAndUploadBunnyVideo(
+              const result = await uploadToBunnyStorage(
                 "scenes",
                 `scene_${req.params.id}_${idx + 1}_${Date.now()}.mp4`,
                 buffer
               );
-              console.log(`[Bunny] Scene ${idx + 1} uploaded: ${result.hlsUrl}`);
-              return result.hlsUrl;
+              console.log(`[Bunny Storage] Scene ${idx + 1} uploaded: ${result.url}`);
+              return result.url;
             } catch (err) {
-              console.warn(`[Bunny] Scene ${idx + 1} upload failed (non-blocking):`, err);
+              console.warn(`[Bunny Storage] Scene ${idx + 1} upload failed (non-blocking):`, err);
               return url;
             }
           })
@@ -8674,10 +8638,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let finalVideo;
       let savedFinalVideoUrl: string;
-      let savedBunnyVideoId: string | null = null;
-      let savedBunnyLibraryId: string | null = null;
-      /** Temporary URL used only for Mux ingestion (ffmpegapi); not stored as finalVideoUrl */
-      let muxIngestUrl: string | null = null;
       try {
         // Get watermark URL for branding (only Premium users can disable it)
         const userWithPlan = await storage.getUserWithPlan(project.userId);
@@ -8708,7 +8668,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const objectStorageService = new ObjectStorageService();
         
         try {
-          let uploadResult: { url: string; bunnyVideoId?: string; bunnyLibraryId?: string };
+          let uploadResult: { url: string };
           if (finalVideo.download_url.includes("/api/ffmpeg-local/download/")) {
             const { OUTPUT_FOLDER } = await import("./services/ffmpegLocal.js");
             const localFilePath = path.join(OUTPUT_FOLDER, finalVideo.filename);
@@ -8723,13 +8683,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               `neonvideo_${Date.now()}.mp4`
             );
           }
-          savedBunnyVideoId = uploadResult.bunnyVideoId || null;
-          savedBunnyLibraryId = uploadResult.bunnyLibraryId || null;
           savedFinalVideoUrl = uploadResult.url;
-          if (savedBunnyVideoId && !finalVideo.download_url.includes("/api/ffmpeg-local/download/")) {
-            muxIngestUrl = finalVideo.download_url;
-          }
-          console.log("Final video saved to storage:", savedFinalVideoUrl, "bunnyVideoId:", savedBunnyVideoId);
+          console.log("Final video saved to storage:", savedFinalVideoUrl);
         } catch (storageError) {
           console.warn("Failed to save video to object storage, using temporary URL:", storageError);
           savedFinalVideoUrl = finalVideo.download_url;
@@ -8771,16 +8726,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               position: (project as any).captionPosition || "bottom",
             });
 
-            // Upload the captioned video to storage (this replaces the uncaptioned Bunny upload)
+            // Upload the captioned video to storage (replaces the uncaptioned upload)
             const captionedUploadResult = await objectStorageService.uploadVideoFromUrl(
               captionResult.download_url,
               `neonvideo_${Date.now()}_captioned.mp4`,
             );
-            savedBunnyVideoId = captionedUploadResult.bunnyVideoId || null;
-            savedBunnyLibraryId = captionedUploadResult.bunnyLibraryId || null;
             savedFinalVideoUrl = captionedUploadResult.url;
-            if (savedBunnyVideoId) muxIngestUrl = captionResult.download_url;
-            console.log("Captioned video saved to storage:", savedFinalVideoUrl, "bunnyVideoId:", savedBunnyVideoId);
+            console.log("Captioned video saved to storage:", savedFinalVideoUrl);
           } catch (captionError) {
             console.warn("ffmpegapi caption rendering failed, proceeding without captions:", captionError);
             await storage.addGenerationLog({
@@ -8812,11 +8764,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isCompleted: true,
             currentStep: 6,
             generationStatus: 'completed' as any,
-            ...(savedBunnyVideoId && {
-              bunnyVideoId: savedBunnyVideoId,
-              bunnyLibraryId: savedBunnyLibraryId,
-              bunnyVideoStatus: 'processing',
-            }),
           });
 
           await storage.addGenerationLog({
@@ -8824,16 +8771,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             step: "video_generation",
             message: "Video generation completed",
             status: "completed",
-            metadata: { finalVideoUrl: savedFinalVideoUrl, bunnyVideoId: savedBunnyVideoId }
+            metadata: { finalVideoUrl: savedFinalVideoUrl }
           });
 
           // Complete video processing in queue
           await videoQueueService.completeVideoGeneration(req.params.id, true);
 
-          // Create Mux asset: use temporary ffmpegapi URL for ingestion when we have Bunny (Bunny URL not ingestible by Mux); otherwise use finalVideoUrl
+          // Create Mux asset from the Bunny Storage URL (Mux can ingest from public URLs)
           try {
-            const urlForMux = muxIngestUrl || savedFinalVideoUrl;
-            await createMuxAssetForVideo(req.params.id, urlForMux);
+            await createMuxAssetForVideo(req.params.id, savedFinalVideoUrl);
           } catch (muxError) {
             console.error("Failed to create Mux asset (non-blocking):", muxError);
           }
@@ -9807,43 +9753,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ===== BUNNY.NET WEBHOOK =====
+  // ===== BUNNY.NET WEBHOOK (deprecated - Bunny Storage doesn't use webhooks) =====
 
-  app.post("/api/webhooks/bunny", async (req, res) => {
-    try {
-      const { VideoLibraryId, VideoGuid, Status } = req.body;
-
-      if (!VideoGuid || Status === undefined) {
-        return res.status(400).json({ error: "Invalid webhook payload" });
-      }
-
-      const internalStatus = mapBunnyWebhookStatus(Status);
-      console.log(`[Bunny Webhook] Library=${VideoLibraryId} Video=${VideoGuid} Status=${Status} -> ${internalStatus}`);
-
-      // Look up the project by bunnyVideoId (final videos)
-      const project = await storage.getProjectByBunnyVideoId(VideoGuid);
-      if (project) {
-        const updateData: any = { bunnyVideoStatus: internalStatus };
-
-        // When Bunny finishes processing, update finalVideoUrl to the Bunny HLS URL
-        if (internalStatus === 'finished' && project.bunnyLibraryId) {
-          const library = project.bunnyLibraryId === process.env.BUNNY_STREAM_FINAL_LIBRARY_ID ? 'final' : 'scenes';
-          updateData.finalVideoUrl = getBunnyHlsUrl(library as any, VideoGuid);
-          console.log(`[Bunny Webhook] Updating finalVideoUrl to Bunny HLS: ${updateData.finalVideoUrl}`);
-        }
-
-        await storage.updateProject(project.id, updateData);
-        console.log(`[Bunny Webhook] Updated project ${project.id} bunnyVideoStatus -> ${internalStatus}`);
-        return res.json({ received: true });
-      }
-
-      // If not found as a final video, it may be a scene video — just acknowledge
-      console.log(`[Bunny Webhook] No project found for VideoGuid=${VideoGuid} (may be a scene video)`);
-      res.json({ received: true });
-    } catch (error) {
-      console.error("[Bunny Webhook] Error processing webhook:", error);
-      res.status(500).json({ error: "Webhook processing failed" });
-    }
+  app.post("/api/webhooks/bunny", async (_req, res) => {
+    console.log("[Bunny Webhook] Received webhook (deprecated - now using Bunny Storage)");
+    res.json({ received: true });
   });
 
   // ===== MUX MIGRATION ENDPOINTS =====
@@ -12677,11 +12591,6 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
                   finalVideoUrl: finalVideoUrl,
                   isCompleted: true,
                   currentStep: 5,
-                  ...(overlayUploadResult.bunnyVideoId && {
-                    bunnyVideoId: overlayUploadResult.bunnyVideoId,
-                    bunnyLibraryId: overlayUploadResult.bunnyLibraryId,
-                    bunnyVideoStatus: 'processing',
-                  }),
                 });
 
                 await storage.addGenerationLog({
@@ -12846,14 +12755,9 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
           response.muxAssetStatus = project.muxAssetStatus;
         }
 
-        // Include Bunny streaming data if available
-        if (project.bunnyVideoId) {
-          response.bunny = {
-            videoId: project.bunnyVideoId,
-            status: project.bunnyVideoStatus,
-            hlsUrl: getBunnyHlsUrl('final', project.bunnyVideoId),
-            thumbnailUrl: getBunnyThumbnailUrl('final', project.bunnyVideoId),
-          };
+        // Include Bunny Storage URL if the final video is on Bunny
+        if (project.finalVideoUrl && isBunnyUrl(project.finalVideoUrl)) {
+          response.bunnyStorageUrl = project.finalVideoUrl;
         }
       }
 

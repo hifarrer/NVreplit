@@ -7,7 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { isImageKitConfigured, uploadAudioToImageKit, uploadVideoToImageKit } from "./services/imagekit";
-import { isBunnyConfigured, createAndUploadBunnyVideo } from "./services/bunny";
+import { isBunnyConfigured, uploadToBunnyStorage } from "./services/bunny";
 import { storage } from "./storage";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -336,16 +336,16 @@ export class ObjectStorageService {
     }
   }
 
-  async uploadVideoBuffer(buffer: Buffer, filename?: string): Promise<{ url: string; bunnyVideoId?: string; bunnyLibraryId?: string }> {
+  async uploadVideoBuffer(buffer: Buffer, filename?: string): Promise<{ url: string }> {
     try {
       const videoFilename = filename || `video_${randomUUID()}.mp4`;
 
-      // Bunny.net Stream as primary storage for videos
+      // Bunny Storage as primary storage for videos (direct MP4 URL)
       if (isBunnyConfigured("final")) {
-        console.log(`[Bunny] Uploading video buffer to Bunny Stream: ${videoFilename}`);
-        const result = await createAndUploadBunnyVideo("final", videoFilename, buffer);
-        console.log(`[Bunny] Video buffer uploaded successfully: ${result.hlsUrl}`);
-        return { url: result.hlsUrl, bunnyVideoId: result.videoId, bunnyLibraryId: result.libraryId };
+        console.log(`[Bunny Storage] Uploading video buffer: ${videoFilename}`);
+        const result = await uploadToBunnyStorage("final", videoFilename, buffer);
+        console.log(`[Bunny Storage] Video buffer uploaded successfully: ${result.url}`);
+        return { url: result.url };
       }
 
       // ImageKit as secondary storage if Bunny is not configured
@@ -385,11 +385,10 @@ export class ObjectStorageService {
     }
   }
 
-  async uploadVideoFromUrl(videoUrl: string, filename?: string): Promise<{ url: string; bunnyVideoId?: string; bunnyLibraryId?: string }> {
+  async uploadVideoFromUrl(videoUrl: string, filename?: string): Promise<{ url: string }> {
     try {
       console.log("Downloading video from URL:", videoUrl);
       
-      // Retry logic for downloading the video
       let response: any = null;
       let attempts = 0;
       const maxAttempts = 3;
@@ -423,12 +422,12 @@ export class ObjectStorageService {
       const buffer = await response.buffer();
       const videoFilename = filename || `video_${randomUUID()}.mp4`;
       
-      // Bunny.net Stream as primary storage for videos
+      // Bunny Storage as primary storage for videos (direct MP4 URL)
       if (isBunnyConfigured("final")) {
-        console.log(`[Bunny] Uploading video to Bunny Stream: ${videoFilename}`);
-        const result = await createAndUploadBunnyVideo("final", videoFilename, buffer);
-        console.log(`[Bunny] Video uploaded successfully: ${result.hlsUrl}`);
-        return { url: result.hlsUrl, bunnyVideoId: result.videoId, bunnyLibraryId: result.libraryId };
+        console.log(`[Bunny Storage] Uploading video: ${videoFilename}`);
+        const result = await uploadToBunnyStorage("final", videoFilename, buffer);
+        console.log(`[Bunny Storage] Video uploaded successfully: ${result.url}`);
+        return { url: result.url };
       }
 
       // ImageKit as secondary storage if Bunny is not configured
@@ -499,8 +498,8 @@ export class ObjectStorageService {
   }
 
   async getSignedUrlForPath(objectPath: string, ttlSec: number = 3600): Promise<string> {
-    // Bunny CDN URLs are already public
-    if (objectPath.includes('.b-cdn.net/')) {
+    // Bunny CDN/Storage URLs are already public
+    if (objectPath.includes('.b-cdn.net/') || objectPath.includes('storage.bunnycdn.com')) {
       return objectPath;
     }
 

@@ -1,9 +1,7 @@
 import { Button } from "@/components/ui/button";
-import { VideoPlayer } from "@/components/ui/video-player";
 import { MuxVideoPlayer } from "@/components/mux-video-player";
 import { useToast } from "@/hooks/use-toast";
 import { downloadFileFromUrl } from "@/lib/utils";
-import { isBunnyUrl, getBunnyThumbnailUrl, getBunnyMp4Url } from "@/lib/bunny-utils";
 import { useState } from "react";
 import { RotateCcw, Download, Share2, Plus, Edit } from "lucide-react";
 
@@ -12,32 +10,24 @@ interface VideoResultStepProps {
   videoUrl: string;
   muxPlaybackId?: string | null;
   muxAssetStatus?: string | null;
-  bunnyHlsUrl?: string | null;
-  /** Bunny official embed URL (iframe) - use for playback when no Mux */
-  bunnyEmbedUrl?: string | null;
   onCreateNew: () => void;
   aspectRatio?: string;
 }
 
-export function VideoResultStep({ projectId, videoUrl, muxPlaybackId, muxAssetStatus, bunnyHlsUrl, bunnyEmbedUrl, onCreateNew, aspectRatio = "16:9" }: VideoResultStepProps) {
+export function VideoResultStep({ projectId, videoUrl, muxPlaybackId, muxAssetStatus, onCreateNew, aspectRatio = "16:9" }: VideoResultStepProps) {
   const { toast } = useToast();
   const useMux = muxAssetStatus === "ready" && muxPlaybackId;
 
   const handleEdit = () => {
-    // Force full page reload to ensure edit mode initializes properly
-    // Using window.location.href instead of setLocation because we're already on /create/story-mode
     window.location.href = `/create/story-mode?edit=${projectId}&t=${Date.now()}`;
   };
 
   const [isDownloading, setIsDownloading] = useState(false);
-  const isBunny = isBunnyUrl(videoUrl);
-  const bunnyPoster = isBunny ? getBunnyThumbnailUrl(videoUrl) : undefined;
-  const downloadUrl = isBunny ? getBunnyMp4Url(videoUrl, "720p") : videoUrl;
 
   const downloadVideo = async () => {
     setIsDownloading(true);
     try {
-      await downloadFileFromUrl(downloadUrl, "music-video.mp4");
+      await downloadFileFromUrl(videoUrl, "music-video.mp4");
       toast({
         title: "Download Started",
         description: "Your music video download has started.",
@@ -89,34 +79,22 @@ export function VideoResultStep({ projectId, videoUrl, muxPlaybackId, muxAssetSt
           <p className="text-muted-foreground">Here's your AI-generated music video. You can preview, download, or share it.</p>
         </div>
 
-        {/* Video Player — prefer Mux when ready, else fallback URL (ffmpegapi or Bunny) */}
+        {/* Video Player — Mux when ready, otherwise direct MP4 (Bunny Storage or other) */}
         <div className="mb-8">
-          {useMux ? (
-            <div className="relative w-full" data-testid="video-player">
-              <div className={aspectRatio === "3:4" ? "aspect-[3/4] max-w-md mx-auto" : "aspect-video"}>
-                <MuxVideoPlayer
-                  playbackId={muxPlaybackId}
-                  fallbackUrl={videoUrl}
-                  bunnyHlsUrl={bunnyHlsUrl ?? undefined}
-                  className="w-full h-full object-cover"
-                  controls
-                  poster={bunnyPoster || (videoUrl.includes(".mp4") ? videoUrl.replace(".mp4", "-poster.jpg") : undefined)}
-                  data-testid="video-element"
-                />
-              </div>
-              <div className="mt-4 text-center">
-                <h4 className="text-lg font-semibold" data-testid="video-title">Your AI Music Video</h4>
-              </div>
+          <div className="relative w-full" data-testid="video-player">
+            <div className={aspectRatio === "3:4" ? "aspect-[3/4] max-w-md mx-auto" : "aspect-video"}>
+              <MuxVideoPlayer
+                playbackId={useMux ? muxPlaybackId : undefined}
+                fallbackUrl={videoUrl}
+                className="w-full h-full object-cover"
+                controls
+                data-testid="video-element"
+              />
             </div>
-          ) : (
-            <VideoPlayer
-              videoUrl={videoUrl}
-              title="Your AI Music Video"
-              poster={bunnyPoster || videoUrl.replace('.mp4', '-poster.jpg')}
-              aspectRatio={aspectRatio}
-              embedUrl={bunnyEmbedUrl ?? undefined}
-            />
-          )}
+            <div className="mt-4 text-center">
+              <h4 className="text-lg font-semibold" data-testid="video-title">Your AI Music Video</h4>
+            </div>
+          </div>
         </div>
 
         {/* Action Buttons */}

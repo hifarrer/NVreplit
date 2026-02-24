@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
-import { isBunnyUrl, getBunnyThumbnailUrl, getBunnyMp4Url } from "@/lib/bunny-utils";
+
 import {
   Dialog,
   DialogContent,
@@ -1183,14 +1183,6 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                         {regeneratingVideoScenes.includes(index) ? (
                           <Loader2 className="w-6 h-6 animate-spin text-white" />
                         ) : scene.videoUrl ? (
-                          isBunnyUrl(scene.videoUrl) ? (
-                            <img
-                              src={getBunnyThumbnailUrl(scene.videoUrl)}
-                              alt={`Scene ${index + 1} video thumbnail`}
-                              className="w-full h-full object-cover rounded-lg pointer-events-none"
-                              data-testid={`scene-video-${index + 1}`}
-                            />
-                          ) : (
                             <video 
                               src={scene.videoUrl}
                               className="w-full h-full object-cover rounded-lg pointer-events-none"
@@ -1200,7 +1192,6 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                               autoPlay
                               data-testid={`scene-video-${index + 1}`}
                             />
-                          )
                         ) : needsVideoRegeneration(index) ? (
                           <div className="w-full h-full flex items-center justify-center bg-red-500/20 border-2 border-red-500/50 rounded-lg relative">
                             <X className="w-8 h-8 text-red-400" strokeWidth={3} />
@@ -1502,7 +1493,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
             )}
             {previewUrl && previewType === "video" && (
               <video
-                src={isBunnyUrl(previewUrl) ? getBunnyMp4Url(previewUrl, "720p") : previewUrl}
+                src={previewUrl}
                 className="max-w-full max-h-[70vh] w-auto h-auto rounded-lg shadow-lg"
                 controls
                 autoPlay
