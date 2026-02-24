@@ -280,7 +280,7 @@ export default function MyVideosPage() {
                       <MuxVideoPlayer
                         className="absolute inset-0 w-full h-full object-cover"
                         playbackId={video.mux?.assetStatus === 'ready' ? video.mux.playbackId : null}
-                        bunnyHlsUrl={video.bunny?.hlsUrl}
+                        bunnyHlsUrl={video.bunny?.status === 'finished' ? video.bunny.hlsUrl : null}
                         fallbackUrl={video.videoUrl}
                         preload="metadata"
                         muted
@@ -512,7 +512,7 @@ export default function MyVideosPage() {
             {selectedVideo && !videoError && (
               <MuxVideoPlayer
                 playbackId={selectedVideo.mux?.assetStatus === 'ready' ? selectedVideo.mux.playbackId : null}
-                bunnyHlsUrl={selectedVideo.bunny?.hlsUrl}
+                bunnyHlsUrl={selectedVideo.bunny?.status === 'finished' ? selectedVideo.bunny.hlsUrl : null}
                 fallbackUrl={selectedVideo.videoUrl}
                 className="w-full h-full"
                 autoPlay

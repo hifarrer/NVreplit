@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { VideoPlayer } from "@/components/ui/video-player";
 import { useToast } from "@/hooks/use-toast";
 import { downloadFileFromUrl } from "@/lib/utils";
+import { isBunnyUrl, getBunnyThumbnailUrl, getBunnyMp4Url } from "@/lib/bunny-utils";
 import { useState } from "react";
 import { RotateCcw, Download, Share2, Plus, Edit } from "lucide-react";
 
@@ -22,11 +23,14 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew, aspectRatio 
   };
 
   const [isDownloading, setIsDownloading] = useState(false);
+  const isBunny = isBunnyUrl(videoUrl);
+  const bunnyPoster = isBunny ? getBunnyThumbnailUrl(videoUrl) : undefined;
+  const downloadUrl = isBunny ? getBunnyMp4Url(videoUrl, "720p") : videoUrl;
 
   const downloadVideo = async () => {
     setIsDownloading(true);
     try {
-      await downloadFileFromUrl(videoUrl, "music-video.mp4");
+      await downloadFileFromUrl(downloadUrl, "music-video.mp4");
       toast({
         title: "Download Started",
         description: "Your music video download has started.",
@@ -83,7 +87,7 @@ export function VideoResultStep({ projectId, videoUrl, onCreateNew, aspectRatio 
           <VideoPlayer
             videoUrl={videoUrl}
             title="Your AI Music Video"
-            poster={videoUrl.replace('.mp4', '-poster.jpg')}
+            poster={bunnyPoster || videoUrl.replace('.mp4', '-poster.jpg')}
             aspectRatio={aspectRatio}
           />
         </div>

@@ -346,7 +346,7 @@ export default function VideoPage() {
             <div className={`relative bg-black ${video.aspectRatio === "3:4" ? "aspect-[3/4]" : "aspect-video"}`}>
               <MuxVideoPlayer
                 playbackId={video.mux?.assetStatus === 'ready' ? video.mux.playbackId : null}
-                bunnyHlsUrl={video.bunny?.hlsUrl}
+                bunnyHlsUrl={video.bunny?.status === 'finished' ? video.bunny.hlsUrl : null}
                 fallbackUrl={video.videoUrl}
                 className="w-full h-full object-contain"
                 controls

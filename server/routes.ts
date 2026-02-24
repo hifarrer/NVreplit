@@ -4552,7 +4552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newProject = await storage.createProject({
         userId,
         title: `${project.title} (with captions)`,
-        finalVideoUrl: captionedResult.url,
+        finalVideoUrl: captionedResult.bunnyVideoId ? captionResult.download_url : captionedResult.url,
         isCompleted: true,
         currentStep: 6,
         aspectRatio: project.aspectRatio || "16:9",
@@ -8713,9 +8713,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               `neonvideo_${Date.now()}.mp4`
             );
           }
-          savedFinalVideoUrl = uploadResult.url;
           savedBunnyVideoId = uploadResult.bunnyVideoId || null;
           savedBunnyLibraryId = uploadResult.bunnyLibraryId || null;
+          // For Bunny uploads, keep the original ffmpegapi download URL as finalVideoUrl
+          // for immediate playback (Bunny HLS won't be ready until processing finishes).
+          // The webhook will update finalVideoUrl to Bunny HLS once processing completes.
+          if (savedBunnyVideoId && !finalVideo.download_url.includes("/api/ffmpeg-local/download/")) {
+            savedFinalVideoUrl = finalVideo.download_url;
+          } else {
+            savedFinalVideoUrl = uploadResult.url;
+          }
           console.log("Final video saved to storage:", savedFinalVideoUrl, "bunnyVideoId:", savedBunnyVideoId);
         } catch (storageError) {
           console.warn("Failed to save video to object storage, using temporary URL:", storageError);
@@ -8763,9 +8770,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               captionResult.download_url,
               `neonvideo_${Date.now()}_captioned.mp4`,
             );
-            savedFinalVideoUrl = captionedUploadResult.url;
             savedBunnyVideoId = captionedUploadResult.bunnyVideoId || null;
             savedBunnyLibraryId = captionedUploadResult.bunnyLibraryId || null;
+            // Keep ffmpegapi captioned download URL for immediate playback
+            savedFinalVideoUrl = savedBunnyVideoId ? captionResult.download_url : captionedUploadResult.url;
             console.log("Captioned video saved to storage:", savedFinalVideoUrl, "bunnyVideoId:", savedBunnyVideoId);
           } catch (captionError) {
             console.warn("ffmpegapi caption rendering failed, proceeding without captions:", captionError);
@@ -8816,11 +8824,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Complete video processing in queue
           await videoQueueService.completeVideoGeneration(req.params.id, true);
 
-          // Create Mux asset for improved streaming (non-blocking)
-          try {
-            await createMuxAssetForVideo(req.params.id, savedFinalVideoUrl);
-          } catch (muxError) {
-            console.error("Failed to create Mux asset (non-blocking):", muxError);
+          // Create Mux asset for improved streaming (non-blocking) — skip for Bunny videos
+          if (!savedBunnyVideoId) {
+            try {
+              await createMuxAssetForVideo(req.params.id, savedFinalVideoUrl);
+            } catch (muxError) {
+              console.error("Failed to create Mux asset (non-blocking):", muxError);
+            }
           }
 
           // Deduct credits for successful video generation
@@ -9808,9 +9818,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Look up the project by bunnyVideoId (final videos)
       const project = await storage.getProjectByBunnyVideoId(VideoGuid);
       if (project) {
-        await storage.updateProject(project.id, {
-          bunnyVideoStatus: internalStatus,
-        });
+        const updateData: any = { bunnyVideoStatus: internalStatus };
+
+        // When Bunny finishes processing, update finalVideoUrl to the Bunny HLS URL
+        if (internalStatus === 'finished' && project.bunnyLibraryId) {
+          const library = project.bunnyLibraryId === process.env.BUNNY_STREAM_FINAL_LIBRARY_ID ? 'final' : 'scenes';
+          updateData.finalVideoUrl = getBunnyHlsUrl(library as any, VideoGuid);
+          console.log(`[Bunny Webhook] Updating finalVideoUrl to Bunny HLS: ${updateData.finalVideoUrl}`);
+        }
+
+        await storage.updateProject(project.id, updateData);
         console.log(`[Bunny Webhook] Updated project ${project.id} bunnyVideoStatus -> ${internalStatus}`);
         return res.json({ received: true });
       }

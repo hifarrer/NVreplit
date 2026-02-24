@@ -141,10 +141,10 @@ export default function GreetingCardPage() {
                 </div>
               ) : (
                 <div className={greetingCard.aspectRatio === "3:4" ? "aspect-[3/4]" : "aspect-video"}>
-                  {greetingCard.muxPlaybackId || greetingCard.bunny?.hlsUrl ? (
+                  {greetingCard.muxPlaybackId || (greetingCard.bunny?.status === 'finished' && greetingCard.bunny?.hlsUrl) ? (
                     <MuxVideoPlayer
                       playbackId={greetingCard.muxPlaybackId}
-                      bunnyHlsUrl={greetingCard.bunny?.hlsUrl}
+                      bunnyHlsUrl={greetingCard.bunny?.status === 'finished' ? greetingCard.bunny.hlsUrl : null}
                       fallbackUrl={greetingCard.videoUrl}
                       autoPlay={true}
                       controls

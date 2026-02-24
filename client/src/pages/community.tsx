@@ -501,7 +501,7 @@ export default function CommunityPage() {
                     }
                   }}
                   playbackId={video.mux?.assetStatus === 'ready' ? video.mux.playbackId : null}
-                  bunnyHlsUrl={video.bunny?.hlsUrl}
+                  bunnyHlsUrl={video.bunny?.status === 'finished' ? video.bunny.hlsUrl : null}
                   fallbackUrl={video.videoUrl}
                   className="w-full h-auto max-h-full object-contain"
                   loop

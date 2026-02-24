@@ -1,7 +1,7 @@
-import React, { forwardRef, useRef, useEffect, useImperativeHandle } from 'react';
+import React, { forwardRef, useRef, useEffect, useImperativeHandle, useState } from 'react';
 import MuxPlayer from '@mux/mux-player-react';
 import Hls from 'hls.js';
-import { isBunnyUrl, getBunnyHlsUrl } from '@/lib/bunny-utils';
+import { isBunnyUrl, getBunnyHlsUrl, getBunnyMp4Url } from '@/lib/bunny-utils';
 
 interface MuxVideoPlayerProps {
   playbackId?: string | null;
@@ -52,11 +52,15 @@ export const MuxVideoPlayer = forwardRef<HTMLVideoElement, MuxVideoPlayerProps>(
     const fallbackVideoRef = useRef<HTMLVideoElement>(null);
     const bunnyVideoRef = useRef<HTMLVideoElement>(null);
     const hlsRef = useRef<Hls | null>(null);
+    const [bunnyHlsFailed, setBunnyHlsFailed] = useState(false);
 
     // Determine if we should use Bunny HLS
     const resolvedBunnyHlsUrl =
       bunnyHlsUrl ||
       (fallbackUrl && isBunnyUrl(fallbackUrl) ? getBunnyHlsUrl(fallbackUrl) : null);
+    const bunnyMp4Fallback = resolvedBunnyHlsUrl
+      ? getBunnyMp4Url(resolvedBunnyHlsUrl, "720p")
+      : (fallbackUrl && isBunnyUrl(fallbackUrl) ? getBunnyMp4Url(fallbackUrl, "720p") : null);
 
     useImperativeHandle(ref, () => {
       if (resolvedBunnyHlsUrl && bunnyVideoRef.current) {
@@ -68,24 +72,29 @@ export const MuxVideoPlayer = forwardRef<HTMLVideoElement, MuxVideoPlayerProps>(
       return fallbackVideoRef.current!;
     });
 
+    useEffect(() => {
+      setBunnyHlsFailed(false);
+    }, [resolvedBunnyHlsUrl]);
+
     // Set up HLS.js for Bunny playback
     useEffect(() => {
-      if (!resolvedBunnyHlsUrl || !bunnyVideoRef.current) return;
+      if (!resolvedBunnyHlsUrl || !bunnyVideoRef.current || bunnyHlsFailed) return;
 
       const video = bunnyVideoRef.current;
 
       if (Hls.isSupported()) {
         const hls = new Hls({
           enableWorker: true,
-          startLevel: -1, // auto quality
+          startLevel: -1,
         });
         hls.loadSource(resolvedBunnyHlsUrl);
         hls.attachMedia(video);
         hls.on(Hls.Events.ERROR, (_event, data) => {
           if (data.fatal) {
-            console.error('[Bunny HLS] Fatal error:', data.type, data.details);
-            onError?.(new Error(`HLS playback error: ${data.details}`));
+            console.warn('[Bunny HLS] Fatal error, falling back to MP4:', data.type, data.details);
             hls.destroy();
+            hlsRef.current = null;
+            setBunnyHlsFailed(true);
           }
         });
         hlsRef.current = hls;
@@ -95,16 +104,16 @@ export const MuxVideoPlayer = forwardRef<HTMLVideoElement, MuxVideoPlayerProps>(
           hlsRef.current = null;
         };
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        // Safari native HLS support
         video.src = resolvedBunnyHlsUrl;
       }
-    }, [resolvedBunnyHlsUrl, onError]);
+    }, [resolvedBunnyHlsUrl, bunnyHlsFailed]);
 
-    // Priority 1: Bunny HLS
-    if (resolvedBunnyHlsUrl) {
+    // Priority 1: Bunny HLS (or MP4 fallback if HLS failed)
+    if (resolvedBunnyHlsUrl || (bunnyHlsFailed && bunnyMp4Fallback)) {
       return (
         <video
           ref={bunnyVideoRef}
+          src={bunnyHlsFailed && bunnyMp4Fallback ? bunnyMp4Fallback : undefined}
           className={className}
           style={style}
           loop={loop}
