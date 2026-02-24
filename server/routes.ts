@@ -10231,6 +10231,17 @@ Format your response as JSON:
     
     const content = `Create your own AI Music Videos Now! 🤩\n\n${hashtags}`;
 
+    // TikTok only: different caption and max 5 hashtags from allowed pool (TikTok limit)
+    const TIKTOK_HASHTAG_POOL = [
+      "#aimusic", "#newmusic", "#aimusicvideo", "#fypsounds", "#fyp",
+      "#aigeneratedart", "#aivideo", "#viralsong", "#musicdiscovery", "#newmusicalert"
+    ];
+    const tiktokHashtags = [...TIKTOK_HASHTAG_POOL]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 5)
+      .join(" ");
+    const tiktokContent = `Create your Music Videos Now! 🤩\n\n${tiktokHashtags}`;
+
     console.log(`[POSTIZ] Posting to Facebook, YouTube, and TikTok for project: ${project.title}`);
     console.log(`[POSTIZ] Video URL for upload: ${fullVideoUrl}`);
 
@@ -10320,7 +10331,7 @@ Format your response as JSON:
           integration: { id: TIKTOK_CHANNEL_ID },
           value: [
             {
-              content: content,
+              content: tiktokContent,
               image: [
                 {
                   id: uploadResult.id,

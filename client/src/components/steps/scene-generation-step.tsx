@@ -1345,7 +1345,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                         variant="outline"
                         size="sm"
                         onClick={() => regenerateSceneVideo(index)}
-                        disabled={regeneratingScenes.includes(index) || uploadingScenes.includes(index) || cameraAngleScenes.includes(index) || regeneratingVideoScenes.includes(index) || regeneratedVideoScenes.has(index)}
+                        disabled={regeneratingScenes.includes(index) || uploadingScenes.includes(index) || cameraAngleScenes.includes(index) || regeneratingVideoScenes.includes(index)}
                         className={`flex items-center gap-2 w-full sm:w-auto ${needsVideoRegeneration(index) ? 'border-pink-500/80 shadow-[0_0_20px_rgba(236,72,153,0.8),0_0_40px_rgba(236,72,153,0.4)] hover:shadow-[0_0_25px_rgba(236,72,153,1),0_0_50px_rgba(236,72,153,0.6)] animate-pulse bg-pink-500/10' : ''}`}
                         data-testid={`regenerate-video-${index + 1}`}
                       >
@@ -1353,11 +1353,6 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                           <>
                             <Loader2 className="w-4 h-4 animate-spin" />
                             Regenerating Video...
-                          </>
-                        ) : regeneratedVideoScenes.has(index) ? (
-                          <>
-                            <i className="fas fa-check w-4 h-4 text-green-500"></i>
-                            Video Regenerated
                           </>
                         ) : (
                           <>
