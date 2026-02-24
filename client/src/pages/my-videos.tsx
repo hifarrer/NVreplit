@@ -35,6 +35,12 @@ interface CompletedVideo {
     assetStatus: string | null;
     hlsUrl: string | null;
   };
+  bunny?: {
+    videoId: string | null;
+    status: string | null;
+    hlsUrl: string | null;
+    thumbnailUrl: string | null;
+  };
 }
 
 export default function MyVideosPage() {
@@ -274,6 +280,7 @@ export default function MyVideosPage() {
                       <MuxVideoPlayer
                         className="absolute inset-0 w-full h-full object-cover"
                         playbackId={video.mux?.assetStatus === 'ready' ? video.mux.playbackId : null}
+                        bunnyHlsUrl={video.bunny?.hlsUrl}
                         fallbackUrl={video.videoUrl}
                         preload="metadata"
                         muted
@@ -505,6 +512,7 @@ export default function MyVideosPage() {
             {selectedVideo && !videoError && (
               <MuxVideoPlayer
                 playbackId={selectedVideo.mux?.assetStatus === 'ready' ? selectedVideo.mux.playbackId : null}
+                bunnyHlsUrl={selectedVideo.bunny?.hlsUrl}
                 fallbackUrl={selectedVideo.videoUrl}
                 className="w-full h-full"
                 autoPlay

@@ -86,6 +86,10 @@ export const projects = pgTable("projects", {
   muxAssetId: text("mux_asset_id"), // Mux asset ID for video streaming
   muxPlaybackId: text("mux_playback_id"), // Mux playback ID for HLS streaming
   muxAssetStatus: text("mux_asset_status"), // 'preparing' | 'ready' | 'errored'
+  // Bunny.net Stream integration
+  bunnyVideoId: text("bunny_video_id"),
+  bunnyLibraryId: text("bunny_library_id"),
+  bunnyVideoStatus: text("bunny_video_status"), // 'uploading' | 'processing' | 'finished' | 'failed'
   isCompleted: boolean("is_completed").default(false),
   likesCount: integer("likes_count").default(0).notNull(),
   isFeatured: boolean("is_featured").default(false).notNull(), // Admin can feature videos for home page

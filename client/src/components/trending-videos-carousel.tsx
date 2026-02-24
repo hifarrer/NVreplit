@@ -5,6 +5,8 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Play, Video } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
+import { isBunnyUrl, getBunnyThumbnailUrl, getBunnyMp4Url } from "@/lib/bunny-utils";
+import { MuxVideoPlayer } from "@/components/mux-video-player";
 
 interface TrendingVideo {
   id: string;
@@ -91,13 +93,21 @@ export function TrendingVideosCarousel({ useStaticFeaturedVideos = false }: Tren
               data-testid={`trending-video-carousel-${video.id}`}
             >
               <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center relative overflow-hidden group">
-                <video
-                  className="absolute inset-0 w-full h-full object-cover"
-                  src={video.videoUrl}
-                  preload="metadata"
-                  muted
-                  onError={() => setVideoError(true)}
-                />
+                {isBunnyUrl(video.videoUrl) ? (
+                  <img
+                    className="absolute inset-0 w-full h-full object-cover"
+                    src={getBunnyThumbnailUrl(video.videoUrl)}
+                    alt={video.title}
+                  />
+                ) : (
+                  <video
+                    className="absolute inset-0 w-full h-full object-cover"
+                    src={video.videoUrl}
+                    preload="metadata"
+                    muted
+                    onError={() => setVideoError(true)}
+                  />
+                )}
                 <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                   <Play className="h-10 w-10 text-white opacity-80 group-hover:opacity-100 transition-opacity" />
                 </div>
@@ -124,9 +134,9 @@ export function TrendingVideosCarousel({ useStaticFeaturedVideos = false }: Tren
         <Dialog open={!!selectedVideo} onOpenChange={() => setSelectedVideo(null)}>
           <DialogContent className="max-w-4xl p-0 overflow-hidden" data-testid="video-player-modal-carousel">
             <div className="relative aspect-video bg-black">
-              <video
+              <MuxVideoPlayer
                 className="w-full h-full"
-                src={selectedVideo.videoUrl}
+                fallbackUrl={selectedVideo.videoUrl}
                 controls
                 autoPlay
                 onError={() => setVideoError(true)}

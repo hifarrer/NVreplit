@@ -23,6 +23,12 @@ type CommunityVideo = {
     assetStatus: string | null;
     hlsUrl: string | null;
   };
+  bunny?: {
+    videoId: string | null;
+    status: string | null;
+    hlsUrl: string | null;
+    thumbnailUrl: string | null;
+  };
   creator: {
     id: string;
     username: string;
@@ -495,6 +501,7 @@ export default function CommunityPage() {
                     }
                   }}
                   playbackId={video.mux?.assetStatus === 'ready' ? video.mux.playbackId : null}
+                  bunnyHlsUrl={video.bunny?.hlsUrl}
                   fallbackUrl={video.videoUrl}
                   className="w-full h-auto max-h-full object-contain"
                   loop

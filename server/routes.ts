@@ -22,6 +22,7 @@ import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWaterm
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback, uploadImageToImageKit, isImageKitConfigured } from "./services/imagekit";
+import { isBunnyConfigured, createAndUploadBunnyVideo, getBunnyHlsUrl, getBunnyThumbnailUrl, isBunnyUrl, getBunnyVideoIdFromUrl, getBunnyLibraryFromUrl, mapBunnyWebhookStatus } from "./services/bunny";
 import { emailService } from "./services/email";
 import { createMuxAssetForVideo } from "./services/muxJobs";
 import bcrypt from "bcryptjs";
@@ -2871,6 +2872,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalVideoUrl: project.finalVideoUrl,
         muxPlaybackId: project.muxPlaybackId,
         muxAssetStatus: project.muxAssetStatus,
+        bunnyVideoId: project.bunnyVideoId,
+        bunnyVideoStatus: project.bunnyVideoStatus,
         isCompleted: project.isCompleted,
         generationStatus: project.generationStatus,
         aspectRatio: project.aspectRatio,
@@ -4114,6 +4117,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           playbackId: project.muxPlaybackId || null,
           assetStatus: project.muxAssetStatus || null
         },
+        bunny: {
+          videoId: project.bunnyVideoId || null,
+          status: project.bunnyVideoStatus || null,
+          hlsUrl: project.bunnyVideoId ? getBunnyHlsUrl('final', project.bunnyVideoId) : null,
+          thumbnailUrl: project.bunnyVideoId ? getBunnyThumbnailUrl('final', project.bunnyVideoId) : null,
+        },
         creator: {
           id: user.id,
           username: user.username,
@@ -4308,11 +4317,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             thumbnailUrl,
             createdAt: project.createdAt,
             duration: project.audioDuration || 30,
-            // Mux streaming data for performance optimization
             mux: {
               playbackId: project.muxPlaybackId || null,
               assetStatus: project.muxAssetStatus || null,
               hlsUrl: project.muxPlaybackId ? `https://stream.mux.com/${project.muxPlaybackId}.m3u8` : null
+            },
+            bunny: {
+              videoId: project.bunnyVideoId || null,
+              status: project.bunnyVideoStatus || null,
+              hlsUrl: project.bunnyVideoId ? getBunnyHlsUrl('final', project.bunnyVideoId) : null,
+              thumbnailUrl: project.bunnyVideoId ? getBunnyThumbnailUrl('final', project.bunnyVideoId) : null,
             },
             creator: {
               id: user?.id || project.userId,
@@ -4443,15 +4457,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             updatedAt: p.updatedAt,
             isPublic: p.isPublic !== false, // default true for backwards compatibility
             aspectRatio: p.aspectRatio || "16:9",
-            // Mux streaming data for performance optimization
             mux: {
               playbackId: p.muxPlaybackId || null,
               assetStatus: p.muxAssetStatus || null,
               hlsUrl: p.muxPlaybackId ? `https://stream.mux.com/${p.muxPlaybackId}.m3u8` : null
+            },
+            bunny: {
+              videoId: p.bunnyVideoId || null,
+              status: p.bunnyVideoStatus || null,
+              hlsUrl: p.bunnyVideoId ? getBunnyHlsUrl('final', p.bunnyVideoId) : null,
+              thumbnailUrl: p.bunnyVideoId ? getBunnyThumbnailUrl('final', p.bunnyVideoId) : null,
             }
           };
         })
-        // Sort by creation date descending (newest first)
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       res.json(completedVideos);
     } catch (error) {
@@ -4948,6 +4966,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         videoUrl: project.finalVideoUrl,
         thumbnailUrl: project.thumbnailUrl || null,
         muxPlaybackId: project.muxPlaybackId || null,
+        bunny: {
+          videoId: project.bunnyVideoId || null,
+          status: project.bunnyVideoStatus || null,
+          hlsUrl: project.bunnyVideoId ? getBunnyHlsUrl('final', project.bunnyVideoId) : null,
+          thumbnailUrl: project.bunnyVideoId ? getBunnyThumbnailUrl('final', project.bunnyVideoId) : null,
+        },
         aspectRatio: project.aspectRatio || '16:9',
         createdAt: greetingCard.createdAt
       });
@@ -7299,7 +7323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const aspectRatio = (project as any).aspectRatio || "16:9";
 
       // Generate the video segment
-      const videoUrl = await generateVideoSegment(
+      let videoUrl = await generateVideoSegment(
         audioSegmentUrl,
         publicImageUrl,
         prompt,
@@ -7309,12 +7333,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aspectRatio
       );
 
+      // Upload scene video to Bunny Scenes library if configured
+      if (isBunnyConfigured("scenes")) {
+        try {
+          console.log(`[Bunny] Uploading scene ${sceneIndexNum + 1} video to Bunny Scenes library`);
+          const resp = await fetch(videoUrl);
+          if (resp.ok) {
+            const buffer = await resp.buffer();
+            const bunnyResult = await createAndUploadBunnyVideo(
+              "scenes",
+              `scene_${req.params.id}_${sceneIndexNum + 1}_${Date.now()}.mp4`,
+              buffer
+            );
+            videoUrl = bunnyResult.hlsUrl;
+            console.log(`[Bunny] Scene video uploaded: ${videoUrl}`);
+          }
+        } catch (bunnyErr) {
+          console.warn("[Bunny] Scene video upload failed (non-blocking), keeping Wavespeed URL:", bunnyErr);
+        }
+      }
+
       // Update the videoSegments array in the project
       const videoSegments = (project.videoSegments as string[]) || [];
       if (sceneIndexNum < videoSegments.length) {
         videoSegments[sceneIndexNum] = videoUrl;
       } else {
-        // Pad array if needed
         while (videoSegments.length < sceneIndexNum) {
           videoSegments.push("");
         }
@@ -7335,7 +7378,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Resolve URL for response
-      const resolvedVideoUrl = await resolveUrlWithImageKitFallback(videoUrl, storage);
+      const resolvedVideoUrl = isBunnyUrl(videoUrl) ? videoUrl : await resolveUrlWithImageKitFallback(videoUrl, storage);
 
       res.json({ 
         videoUrl: resolvedVideoUrl,
@@ -8514,6 +8557,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Upload scene videos to Bunny Scenes library if configured
+      if (isBunnyConfigured("scenes")) {
+        console.log(`[Bunny] Uploading ${allVideoUrls.length} scene videos to Bunny Scenes library`);
+        const bunnySceneUrls = await Promise.all(
+          allVideoUrls.map(async (url, idx) => {
+            try {
+              const resp = await fetch(url);
+              if (!resp.ok) return url;
+              const buffer = await resp.buffer();
+              const result = await createAndUploadBunnyVideo(
+                "scenes",
+                `scene_${req.params.id}_${idx + 1}_${Date.now()}.mp4`,
+                buffer
+              );
+              console.log(`[Bunny] Scene ${idx + 1} uploaded: ${result.hlsUrl}`);
+              return result.hlsUrl;
+            } catch (err) {
+              console.warn(`[Bunny] Scene ${idx + 1} upload failed (non-blocking):`, err);
+              return url;
+            }
+          })
+        );
+        allVideoUrls = bunnySceneUrls;
+      }
+
       await storage.updateProject(req.params.id, {
         videoSegments: allVideoUrls
       });
@@ -8707,11 +8775,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error(`Final video merge failed: ${(mergeError as Error).message}`);
       }
 
+          // Extract Bunny metadata if the URL was uploaded to Bunny Stream
+          const bunnyVideoId = (savedFinalVideoUrl as any).bunnyVideoId || null;
+          const bunnyLibraryId = (savedFinalVideoUrl as any).bunnyLibraryId || null;
+
           await storage.updateProject(req.params.id, {
             finalVideoUrl: savedFinalVideoUrl,
             isCompleted: true,
             currentStep: 6,
             generationStatus: 'completed' as any,
+            ...(bunnyVideoId && {
+              bunnyVideoId,
+              bunnyLibraryId,
+              bunnyVideoStatus: 'processing',
+            }),
           });
 
           await storage.addGenerationLog({
@@ -8719,7 +8796,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             step: "video_generation",
             message: "Video generation completed",
             status: "completed",
-            metadata: { finalVideoUrl: savedFinalVideoUrl }
+            metadata: { finalVideoUrl: savedFinalVideoUrl, bunnyVideoId }
           });
 
           // Complete video processing in queue
@@ -8730,7 +8807,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await createMuxAssetForVideo(req.params.id, savedFinalVideoUrl);
           } catch (muxError) {
             console.error("Failed to create Mux asset (non-blocking):", muxError);
-            // Don't fail the video generation if Mux asset creation fails
           }
 
           // Deduct credits for successful video generation
@@ -9699,6 +9775,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Contact form error:", error);
       res.status(500).json({ error: "Failed to submit contact form" });
+    }
+  });
+
+  // ===== BUNNY.NET WEBHOOK =====
+
+  app.post("/api/webhooks/bunny", async (req, res) => {
+    try {
+      const { VideoLibraryId, VideoGuid, Status } = req.body;
+
+      if (!VideoGuid || Status === undefined) {
+        return res.status(400).json({ error: "Invalid webhook payload" });
+      }
+
+      const internalStatus = mapBunnyWebhookStatus(Status);
+      console.log(`[Bunny Webhook] Library=${VideoLibraryId} Video=${VideoGuid} Status=${Status} -> ${internalStatus}`);
+
+      // Look up the project by bunnyVideoId (final videos)
+      const project = await storage.getProjectByBunnyVideoId(VideoGuid);
+      if (project) {
+        await storage.updateProject(project.id, {
+          bunnyVideoStatus: internalStatus,
+        });
+        console.log(`[Bunny Webhook] Updated project ${project.id} bunnyVideoStatus -> ${internalStatus}`);
+        return res.json({ received: true });
+      }
+
+      // If not found as a final video, it may be a scene video — just acknowledge
+      console.log(`[Bunny Webhook] No project found for VideoGuid=${VideoGuid} (may be a scene video)`);
+      res.json({ received: true });
+    } catch (error) {
+      console.error("[Bunny Webhook] Error processing webhook:", error);
+      res.status(500).json({ error: "Webhook processing failed" });
     }
   });
 
@@ -12695,6 +12803,16 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
           response.streamingUrl = `https://stream.mux.com/${project.muxPlaybackId}.m3u8`;
           response.muxPlaybackId = project.muxPlaybackId;
           response.muxAssetStatus = project.muxAssetStatus;
+        }
+
+        // Include Bunny streaming data if available
+        if (project.bunnyVideoId) {
+          response.bunny = {
+            videoId: project.bunnyVideoId,
+            status: project.bunnyVideoStatus,
+            hlsUrl: getBunnyHlsUrl('final', project.bunnyVideoId),
+            thumbnailUrl: getBunnyThumbnailUrl('final', project.bunnyVideoId),
+          };
         }
       }
 

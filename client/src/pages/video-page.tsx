@@ -29,6 +29,12 @@ interface VideoData {
     playbackId: string | null;
     assetStatus: string | null;
   };
+  bunny?: {
+    videoId: string | null;
+    status: string | null;
+    hlsUrl: string | null;
+    thumbnailUrl: string | null;
+  };
   creator: {
     id: string;
     username: string;
@@ -340,6 +346,7 @@ export default function VideoPage() {
             <div className={`relative bg-black ${video.aspectRatio === "3:4" ? "aspect-[3/4]" : "aspect-video"}`}>
               <MuxVideoPlayer
                 playbackId={video.mux?.assetStatus === 'ready' ? video.mux.playbackId : null}
+                bunnyHlsUrl={video.bunny?.hlsUrl}
                 fallbackUrl={video.videoUrl}
                 className="w-full h-full object-contain"
                 controls

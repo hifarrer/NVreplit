@@ -1,7 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Play } from "lucide-react";
+import Hls from "hls.js";
+import { isBunnyUrl, getBunnyHlsUrl } from "@/lib/bunny-utils";
 
 interface VideoPlayerProps {
   videoUrl: string;
@@ -14,6 +16,30 @@ interface VideoPlayerProps {
 export function VideoPlayer({ videoUrl, title = "Video", className, poster, aspectRatio = "16:9" }: VideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
+
+  const isHls = isBunnyUrl(videoUrl);
+  const hlsUrl = isHls ? getBunnyHlsUrl(videoUrl) : null;
+
+  useEffect(() => {
+    if (!hlsUrl || !videoRef.current) return;
+
+    const video = videoRef.current;
+
+    if (Hls.isSupported()) {
+      const hls = new Hls({ enableWorker: true, startLevel: -1 });
+      hls.loadSource(hlsUrl);
+      hls.attachMedia(video);
+      hlsRef.current = hls;
+
+      return () => {
+        hls.destroy();
+        hlsRef.current = null;
+      };
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = hlsUrl;
+    }
+  }, [hlsUrl]);
 
   const togglePlayback = () => {
     const video = videoRef.current;
@@ -35,7 +61,7 @@ export function VideoPlayer({ videoUrl, title = "Video", className, poster, aspe
       <div className={cn(aspectClass, "bg-muted rounded-lg relative overflow-hidden border border-border")}>
         <video
           ref={videoRef}
-          src={videoUrl}
+          src={isHls ? undefined : videoUrl}
           poster={poster}
           className="w-full h-full object-cover"
           controls
@@ -45,7 +71,6 @@ export function VideoPlayer({ videoUrl, title = "Video", className, poster, aspe
           data-testid="video-element"
         />
         
-        {/* Play button overlay - only show when paused */}
         {!isPlaying && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <Button

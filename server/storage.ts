@@ -33,6 +33,7 @@ export interface IStorage {
   getUserProjects(userId: string): Promise<Project[]>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, updates: Partial<Project>): Promise<Project | undefined>;
+  getProjectByBunnyVideoId(bunnyVideoId: string): Promise<Project | undefined>;
   deleteProject(id: string): Promise<boolean>;
   deleteProjectWithLogs(id: string): Promise<boolean>;
 
@@ -435,6 +436,12 @@ export class MemStorage implements IStorage {
   async getUserProjects(userId: string): Promise<Project[]> {
     return Array.from(this.projects.values()).filter(
       (project) => project.userId === userId,
+    );
+  }
+
+  async getProjectByBunnyVideoId(bunnyVideoId: string): Promise<Project | undefined> {
+    return Array.from(this.projects.values()).find(
+      (project) => project.bunnyVideoId === bunnyVideoId,
     );
   }
 
@@ -1889,6 +1896,11 @@ export class DbStorage implements IStorage {
 
   async getUserProjects(userId: string): Promise<Project[]> {
     return await this.db.select().from(projects).where(eq(projects.userId, userId));
+  }
+
+  async getProjectByBunnyVideoId(bunnyVideoId: string): Promise<Project | undefined> {
+    const result = await this.db.select().from(projects).where(eq(projects.bunnyVideoId, bunnyVideoId)).limit(1);
+    return result[0];
   }
 
   async createProject(insertProject: InsertProject): Promise<Project> {

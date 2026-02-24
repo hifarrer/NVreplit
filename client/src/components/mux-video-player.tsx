@@ -1,14 +1,13 @@
-import React, { forwardRef, useRef, useImperativeHandle } from 'react';
+import React, { forwardRef, useRef, useEffect, useImperativeHandle } from 'react';
 import MuxPlayer from '@mux/mux-player-react';
+import Hls from 'hls.js';
+import { isBunnyUrl, getBunnyHlsUrl } from '@/lib/bunny-utils';
 
 interface MuxVideoPlayerProps {
-  // Mux-specific props
   playbackId?: string | null;
-  
-  // Fallback video URL when Mux is not available
   fallbackUrl?: string;
-  
-  // Standard video props
+  bunnyHlsUrl?: string | null;
+
   className?: string;
   style?: React.CSSProperties;
   loop?: boolean;
@@ -18,14 +17,12 @@ interface MuxVideoPlayerProps {
   poster?: string;
   autoPlay?: boolean;
   controls?: boolean;
-  
-  // Event handlers
+
   onLoadStart?: () => void;
   onError?: (error: Error) => void;
   onCanPlay?: () => void;
   onLoadedData?: () => void;
-  
-  // Test attributes
+
   'data-testid'?: string;
   'data-video-index'?: number;
 }
@@ -34,6 +31,7 @@ export const MuxVideoPlayer = forwardRef<HTMLVideoElement, MuxVideoPlayerProps>(
   ({
     playbackId,
     fallbackUrl,
+    bunnyHlsUrl,
     className,
     style,
     loop = false,
@@ -52,16 +50,81 @@ export const MuxVideoPlayer = forwardRef<HTMLVideoElement, MuxVideoPlayerProps>(
   }, ref) => {
     const muxPlayerRef = useRef<any>(null);
     const fallbackVideoRef = useRef<HTMLVideoElement>(null);
+    const bunnyVideoRef = useRef<HTMLVideoElement>(null);
+    const hlsRef = useRef<Hls | null>(null);
 
-    // Expose the appropriate video element via ref
+    // Determine if we should use Bunny HLS
+    const resolvedBunnyHlsUrl =
+      bunnyHlsUrl ||
+      (fallbackUrl && isBunnyUrl(fallbackUrl) ? getBunnyHlsUrl(fallbackUrl) : null);
+
     useImperativeHandle(ref, () => {
+      if (resolvedBunnyHlsUrl && bunnyVideoRef.current) {
+        return bunnyVideoRef.current;
+      }
       if (playbackId && muxPlayerRef.current) {
         return muxPlayerRef.current;
       }
       return fallbackVideoRef.current!;
     });
 
-    // If we have a Mux playback ID, use the Mux player
+    // Set up HLS.js for Bunny playback
+    useEffect(() => {
+      if (!resolvedBunnyHlsUrl || !bunnyVideoRef.current) return;
+
+      const video = bunnyVideoRef.current;
+
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          enableWorker: true,
+          startLevel: -1, // auto quality
+        });
+        hls.loadSource(resolvedBunnyHlsUrl);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (data.fatal) {
+            console.error('[Bunny HLS] Fatal error:', data.type, data.details);
+            onError?.(new Error(`HLS playback error: ${data.details}`));
+            hls.destroy();
+          }
+        });
+        hlsRef.current = hls;
+
+        return () => {
+          hls.destroy();
+          hlsRef.current = null;
+        };
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        // Safari native HLS support
+        video.src = resolvedBunnyHlsUrl;
+      }
+    }, [resolvedBunnyHlsUrl, onError]);
+
+    // Priority 1: Bunny HLS
+    if (resolvedBunnyHlsUrl) {
+      return (
+        <video
+          ref={bunnyVideoRef}
+          className={className}
+          style={style}
+          loop={loop}
+          muted={muted}
+          playsInline={playsInline}
+          preload={preload}
+          poster={poster}
+          autoPlay={autoPlay}
+          controls={controls}
+          data-testid={dataTestId}
+          data-video-index={dataVideoIndex}
+          onLoadStart={onLoadStart}
+          onError={() => onError?.(new Error('Bunny video playback failed'))}
+          onCanPlay={onCanPlay}
+          onLoadedData={onLoadedData}
+        />
+      );
+    }
+
+    // Priority 2: Mux HLS
     if (playbackId) {
       return (
         <MuxPlayer
@@ -87,7 +150,7 @@ export const MuxVideoPlayer = forwardRef<HTMLVideoElement, MuxVideoPlayerProps>(
       );
     }
 
-    // Fallback to regular video element
+    // Priority 3: Direct URL fallback
     if (fallbackUrl) {
       return (
         <video
@@ -112,7 +175,6 @@ export const MuxVideoPlayer = forwardRef<HTMLVideoElement, MuxVideoPlayerProps>(
       );
     }
 
-    // No video source available
     return (
       <div 
         className={`${className} flex items-center justify-center bg-gray-900 text-white`}

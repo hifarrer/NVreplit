@@ -7,6 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { isImageKitConfigured, uploadAudioToImageKit, uploadVideoToImageKit } from "./services/imagekit";
+import { isBunnyConfigured, createAndUploadBunnyVideo } from "./services/bunny";
 import { storage } from "./storage";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -335,11 +336,22 @@ export class ObjectStorageService {
     }
   }
 
-  async uploadVideoBuffer(buffer: Buffer, filename?: string): Promise<string> {
+  async uploadVideoBuffer(buffer: Buffer, filename?: string): Promise<string & { bunnyVideoId?: string; bunnyLibraryId?: string }> {
     try {
       const videoFilename = filename || `video_${randomUUID()}.mp4`;
 
-      // Always use ImageKit as primary storage if configured (for all environments)
+      // Bunny.net Stream as primary storage for videos
+      if (isBunnyConfigured("final")) {
+        console.log(`[Bunny] Uploading video buffer to Bunny Stream: ${videoFilename}`);
+        const result = await createAndUploadBunnyVideo("final", videoFilename, buffer);
+        console.log(`[Bunny] Video buffer uploaded successfully: ${result.hlsUrl}`);
+        const url = result.hlsUrl as string & { bunnyVideoId?: string; bunnyLibraryId?: string };
+        url.bunnyVideoId = result.videoId;
+        url.bunnyLibraryId = result.libraryId;
+        return url;
+      }
+
+      // ImageKit as secondary storage if Bunny is not configured
       if (isImageKitConfigured()) {
         console.log(`[ImageKit] Uploading video buffer to ImageKit: ${videoFilename}`);
         const imagekitResult = await uploadVideoToImageKit(buffer, videoFilename, "/videos");
@@ -356,7 +368,7 @@ export class ObjectStorageService {
         return imagekitResult.url;
       }
 
-      // Fallback to Google Cloud Storage only if ImageKit is not configured
+      // Fallback to Google Cloud Storage
       const objectPath = `${this.getPrivateObjectDir()}/videos/${videoFilename}`;
       const { bucketName, objectName } = this.parseObjectPath(objectPath);
 
@@ -376,7 +388,7 @@ export class ObjectStorageService {
     }
   }
 
-  async uploadVideoFromUrl(videoUrl: string, filename?: string): Promise<string> {
+  async uploadVideoFromUrl(videoUrl: string, filename?: string): Promise<string & { bunnyVideoId?: string; bunnyLibraryId?: string }> {
     try {
       console.log("Downloading video from URL:", videoUrl);
       
@@ -404,7 +416,6 @@ export class ObjectStorageService {
         }
         
         attempts++;
-        // Wait 2 seconds before retrying
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
       
@@ -413,18 +424,26 @@ export class ObjectStorageService {
       }
       
       const buffer = await response.buffer();
-      
-      // Generate a unique filename if not provided
       const videoFilename = filename || `video_${randomUUID()}.mp4`;
       
-      // Always use ImageKit as primary storage if configured (for all environments)
+      // Bunny.net Stream as primary storage for videos
+      if (isBunnyConfigured("final")) {
+        console.log(`[Bunny] Uploading video to Bunny Stream: ${videoFilename}`);
+        const result = await createAndUploadBunnyVideo("final", videoFilename, buffer);
+        console.log(`[Bunny] Video uploaded successfully: ${result.hlsUrl}`);
+        const url = result.hlsUrl as string & { bunnyVideoId?: string; bunnyLibraryId?: string };
+        url.bunnyVideoId = result.videoId;
+        url.bunnyLibraryId = result.libraryId;
+        return url;
+      }
+
+      // ImageKit as secondary storage if Bunny is not configured
       if (isImageKitConfigured()) {
         try {
           console.log(`[ImageKit] Uploading video to ImageKit: ${videoFilename}`);
           const imagekitResult = await uploadVideoToImageKit(buffer, videoFilename, "/videos");
           console.log(`[ImageKit] Video uploaded successfully: ${imagekitResult.url}`);
           
-          // Record the backup in the database (for compatibility)
           const permanentPath = `/objects/videos/${videoFilename}`;
           await storage.recordImagekitBackup({
             originalPath: permanentPath,
@@ -433,24 +452,18 @@ export class ObjectStorageService {
             fileType: "video"
           });
           
-          // Return the ImageKit URL as the primary URL
           return imagekitResult.url;
         } catch (imagekitError) {
           console.error(`[ImageKit] Failed to upload video to ImageKit:`, imagekitError);
-          // Don't fall back to local storage if ImageKit is configured - throw the error
-          // This ensures we know when ImageKit upload fails
           throw new Error(`ImageKit upload failed: ${(imagekitError as Error).message}`);
         }
       }
       
-      // Fallback to Google Cloud Storage only if ImageKit is not configured
+      // Fallback to Google Cloud Storage
       console.log("[Storage] ImageKit not configured, falling back to Google Cloud Storage");
       const objectPath = `${this.getPrivateObjectDir()}/videos/${videoFilename}`;
-      
-      // Parse the path to get bucket and object name
       const { bucketName, objectName } = this.parseObjectPath(objectPath);
       
-      // Upload to object storage
       const bucket = objectStorageClient.bucket(bucketName);
       const file = bucket.file(objectName);
       
@@ -461,8 +474,6 @@ export class ObjectStorageService {
       });
       
       console.log("Video uploaded to object storage:", objectPath);
-      
-      // Return a permanent path that can be served through our application
       const permanentPath = `/objects/videos/${videoFilename}`;
       console.log("Generated permanent video path:", permanentPath);
       return permanentPath;
@@ -494,6 +505,11 @@ export class ObjectStorageService {
   }
 
   async getSignedUrlForPath(objectPath: string, ttlSec: number = 3600): Promise<string> {
+    // Bunny CDN URLs are already public
+    if (objectPath.includes('.b-cdn.net/')) {
+      return objectPath;
+    }
+
     // If ImageKit is configured and the path is already an ImageKit URL, return it as-is
     if (isImageKitConfigured() && (objectPath.startsWith('https://ik.imagekit.io/') || objectPath.startsWith('http'))) {
       console.log(`[ObjectStorage] Path is already a full URL (likely ImageKit), returning as-is: ${objectPath}`);
