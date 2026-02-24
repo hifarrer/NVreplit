@@ -258,11 +258,12 @@ export async function generateScenePrompts(
     const isThirtySecondVideo = numberOfScenes === 3;
     
     // Create prompts for the specified number of scenes
-    let userContent = `Generate ${numberOfScenes} SHORT and CONCISE image prompts for a music video based on "${songDescription}". Each prompt must be 1-2 sentences maximum.
+    let userContent = `Generate ${numberOfScenes} SHORT and CONCISE image prompts for a music video based on this description "${songDescription}". Each prompt must be 1-2 sentences maximum.
 
 FIRST, create a short story based on the song description, this way the scenes will be more coherent and the prompts will be more accurate.
 SECOND, create a list of scenes based on the story.
 THIRD, create a list of prompts based on the scenes.
+FOURTH, keep scene backgrounds mostly consistent across the scenes to make the video more coherent. For example if the first scene is a cityscape, the other scenes should also be cityscapes.
 
 
 IMPORTANT PATTERN:

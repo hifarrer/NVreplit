@@ -3,6 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -117,6 +123,11 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   const [cameraAngleScenes, setCameraAngleScenes] = useState<number[]>([]);
   const [cameraAngleModalOpen, setCameraAngleModalOpen] = useState(false);
   const [cameraAngleSceneIndex, setCameraAngleSceneIndex] = useState<number | null>(null);
+  // Preview modal: show image or video larger when user clicks thumbnail
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewType, setPreviewType] = useState<"image" | "video">("image");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewSceneIndex, setPreviewSceneIndex] = useState<number | null>(null);
   const { toast } = useToast();
 
   const getDefaultLipsync = useCallback((index: number): boolean => {
@@ -826,6 +837,13 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
     setCameraAngleModalOpen(true);
   };
 
+  const openPreviewModal = (type: "image" | "video", url: string, sceneIndex: number) => {
+    setPreviewType(type);
+    setPreviewUrl(url);
+    setPreviewSceneIndex(sceneIndex);
+    setPreviewModalOpen(true);
+  };
+
   const handleCameraAngleApply = (params: { horizontalAngle: number; verticalAngle: number; distance: number }) => {
     if (cameraAngleSceneIndex === null) return;
     setCameraAngleScenes(prev => [...prev, cameraAngleSceneIndex]);
@@ -1133,30 +1151,40 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                 <div className="space-y-4">
                   {/* Top row: [Image thumbnail][Video thumbnail] Scene 1 [lipsync icon] */}
                   <div className="flex items-center gap-3">
-                    {/* Image Thumbnail */}
-                    <div className="w-20 h-20 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center flex-shrink-0">
+                    {/* Image Thumbnail - click to preview larger */}
+                    <div 
+                      className={`w-20 h-20 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center flex-shrink-0 ${scene.imageUrl ? "cursor-pointer hover:ring-2 hover:ring-primary/50 transition-shadow" : ""}`}
+                      onClick={() => scene.imageUrl && openPreviewModal("image", scene.imageUrl, index)}
+                      role={scene.imageUrl ? "button" : undefined}
+                      aria-label={scene.imageUrl ? `View scene ${index + 1} image larger` : undefined}
+                    >
                       {regeneratingScenes.includes(index) || uploadingScenes.includes(index) ? (
                         <Loader2 className="w-6 h-6 animate-spin text-white" />
                       ) : scene.imageUrl ? (
                         <img 
                           src={scene.imageUrl}
                           alt={`Scene ${index + 1} thumbnail`} 
-                          className="w-full h-full object-cover rounded-lg" 
+                          className="w-full h-full object-cover rounded-lg pointer-events-none" 
                           data-testid={`scene-image-${index + 1}`}
                         />
                       ) : (
                         <Loader2 className="w-6 h-6 animate-spin text-white" />
                       )}
                     </div>
-                    {/* Video Preview - only show in edit mode */}
+                    {/* Video Preview - only show in edit mode; click to preview larger */}
                     {isEditMode && (
-                      <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center relative overflow-hidden flex-shrink-0">
+                      <div 
+                        className={`w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center relative overflow-hidden flex-shrink-0 ${scene.videoUrl ? "cursor-pointer hover:ring-2 hover:ring-purple-500/50 transition-shadow" : ""}`}
+                        onClick={() => scene.videoUrl && openPreviewModal("video", scene.videoUrl, index)}
+                        role={scene.videoUrl ? "button" : undefined}
+                        aria-label={scene.videoUrl ? `View scene ${index + 1} video larger` : undefined}
+                      >
                         {regeneratingVideoScenes.includes(index) ? (
                           <Loader2 className="w-6 h-6 animate-spin text-white" />
                         ) : scene.videoUrl ? (
                           <video 
                             src={scene.videoUrl}
-                            className="w-full h-full object-cover rounded-lg"
+                            className="w-full h-full object-cover rounded-lg pointer-events-none"
                             muted
                             loop
                             playsInline
@@ -1450,6 +1478,37 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
         isLoading={cameraAngleMutation.isPending}
         sceneIndex={cameraAngleSceneIndex ?? 0}
       />
+
+      {/* Preview Modal - show image or video larger when user clicks thumbnail */}
+      <Dialog open={previewModalOpen} onOpenChange={setPreviewModalOpen}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
+            <DialogTitle>
+              Scene {previewSceneIndex != null ? previewSceneIndex + 1 : ""} — {previewType === "image" ? "Image" : "Video"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 flex items-center justify-center p-6 pt-0 bg-muted/30 rounded-b-lg overflow-auto">
+            {previewUrl && previewType === "image" && (
+              <img
+                src={previewUrl}
+                alt={`Scene ${previewSceneIndex != null ? previewSceneIndex + 1 : ""} preview`}
+                className="max-w-full max-h-[70vh] w-auto h-auto object-contain rounded-lg shadow-lg"
+              />
+            )}
+            {previewUrl && previewType === "video" && (
+              <video
+                src={previewUrl}
+                className="max-w-full max-h-[70vh] w-auto h-auto rounded-lg shadow-lg"
+                controls
+                autoPlay
+                muted
+                loop
+                playsInline
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
