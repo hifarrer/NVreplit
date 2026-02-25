@@ -470,14 +470,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Proxy video for ffmpegapi captions (avoids download timeout when source is Bunny or slow merge API)
+  // Token is reusable until expiry (ffmpegapi may request the URL multiple times: probe, range, retry)
   app.get("/api/proxy-video-for-captions", async (req, res) => {
     const token = req.query.token as string;
     if (!token) {
       return res.status(400).json({ error: "Missing token" });
     }
     const entry = proxyVideoTokens.get(token);
-    proxyVideoTokens.delete(token); // one-time use
     if (!entry || Date.now() > entry.expiresAt) {
+      // Clean up expired entries to avoid unbounded map growth
+      const now = Date.now();
+      for (const [k, v] of proxyVideoTokens.entries()) {
+        if (v.expiresAt <= now) proxyVideoTokens.delete(k);
+      }
       return res.status(404).json({ error: "Invalid or expired token" });
     }
     try {
