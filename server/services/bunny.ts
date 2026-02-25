@@ -6,21 +6,27 @@ type BunnyStorageZone = "final" | "scenes";
 interface BunnyStorageConfig {
   storageZoneName: string;
   storagePassword: string;
+  storageHostname: string;
   cdnHostname: string;
   folderPath: string;
 }
 
-const BUNNY_STORAGE_BASE = "https://storage.bunnycdn.com";
+function getStorageBaseUrl(): string {
+  const hostname = process.env.BUNNY_STORAGE_HOSTNAME || "storage.bunnycdn.com";
+  return `https://${hostname}`;
+}
 
 function getStorageConfig(zone: BunnyStorageZone): BunnyStorageConfig {
   const zoneName = process.env.BUNNY_STORAGE_ZONE_NAME || "";
   const password = process.env.BUNNY_STORAGE_PASSWORD || "";
+  const storageHostname = process.env.BUNNY_STORAGE_HOSTNAME || "storage.bunnycdn.com";
   const cdnHostname = process.env.BUNNY_STORAGE_CDN_HOSTNAME || "";
 
   if (zone === "final") {
     return {
       storageZoneName: zoneName,
       storagePassword: password,
+      storageHostname,
       cdnHostname,
       folderPath: process.env.BUNNY_STORAGE_FINAL_PATH || "FinalVideos",
     };
@@ -28,6 +34,7 @@ function getStorageConfig(zone: BunnyStorageZone): BunnyStorageConfig {
   return {
     storageZoneName: zoneName,
     storagePassword: password,
+    storageHostname,
     cdnHostname,
     folderPath: process.env.BUNNY_STORAGE_SCENES_PATH || "VideoScenes",
   };
@@ -50,7 +57,7 @@ export async function uploadToBunnyStorage(
 
   const checksum = crypto.createHash("sha256").update(buffer).digest("hex").toUpperCase();
   const storagePath = `${config.folderPath}/${fileName}`;
-  const uploadUrl = `${BUNNY_STORAGE_BASE}/${config.storageZoneName}/${storagePath}`;
+  const uploadUrl = `${getStorageBaseUrl()}/${config.storageZoneName}/${storagePath}`;
 
   console.log(`[Bunny Storage] Uploading ${fileName} to ${zone} (${(buffer.length / 1024 / 1024).toFixed(1)} MB)`);
 
@@ -84,7 +91,7 @@ export async function downloadFromBunnyStorage(
 ): Promise<Buffer> {
   const config = getStorageConfig(zone);
   const storagePath = `${config.folderPath}/${fileName}`;
-  const downloadUrl = `${BUNNY_STORAGE_BASE}/${config.storageZoneName}/${storagePath}`;
+  const downloadUrl = `${getStorageBaseUrl()}/${config.storageZoneName}/${storagePath}`;
 
   const response = await fetch(downloadUrl, {
     method: "GET",
@@ -110,7 +117,7 @@ export async function deleteFromBunnyStorage(
 ): Promise<void> {
   const config = getStorageConfig(zone);
   const storagePath = `${config.folderPath}/${fileName}`;
-  const deleteUrl = `${BUNNY_STORAGE_BASE}/${config.storageZoneName}/${storagePath}`;
+  const deleteUrl = `${getStorageBaseUrl()}/${config.storageZoneName}/${storagePath}`;
 
   const response = await fetch(deleteUrl, {
     method: "DELETE",
@@ -162,7 +169,7 @@ export function getBunnyPublicUrl(zone: BunnyStorageZone, fileName: string): str
   if (config.cdnHostname) {
     return `https://${config.cdnHostname}/${config.folderPath}/${fileName}`;
   }
-  return `${BUNNY_STORAGE_BASE}/${config.storageZoneName}/${config.folderPath}/${fileName}`;
+  return `${getStorageBaseUrl()}/${config.storageZoneName}/${config.folderPath}/${fileName}`;
 }
 
 /**
