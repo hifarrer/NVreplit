@@ -7310,7 +7310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aspectRatio
       );
 
-      // Upload scene video to Bunny Storage if configured
+      // Persist scene video to Bunny Storage when configured (Wavespeed URLs expire after 7 days).
       if (isBunnyConfigured("scenes")) {
         try {
           console.log(`[Bunny Storage] Uploading scene ${sceneIndexNum + 1} video`);
@@ -7326,11 +7326,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`[Bunny Storage] Scene video uploaded: ${videoUrl}`);
           }
         } catch (bunnyErr) {
-          console.warn("[Bunny Storage] Scene video upload failed (non-blocking), keeping Wavespeed URL:", bunnyErr);
+          console.warn("[Bunny Storage] Scene video upload failed (non-blocking), keeping original URL:", bunnyErr);
         }
       }
 
-      // Update the videoSegments array in the project
+      // Update the videoSegments array in the project (Bunny URL when upload succeeded)
       const videoSegments = (project.videoSegments as string[]) || [];
       if (sceneIndexNum < videoSegments.length) {
         videoSegments[sceneIndexNum] = videoUrl;
@@ -8534,14 +8534,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Upload scene videos to Bunny Storage if configured
+      // Always persist scene videos to Bunny Storage when configured (Wavespeed keeps URLs only 7 days).
+      // Upload only non-Bunny URLs; keep already-Bunny URLs as-is to avoid re-uploading.
       if (isBunnyConfigured("scenes")) {
-        console.log(`[Bunny Storage] Uploading ${allVideoUrls.length} scene videos`);
+        console.log(`[Bunny Storage] Persisting ${allVideoUrls.length} scene videos to Bunny Storage`);
         const bunnySceneUrls = await Promise.all(
           allVideoUrls.map(async (url, idx) => {
+            if (isBunnyUrl(url)) {
+              console.log(`[Bunny Storage] Scene ${idx + 1} already on Bunny, keeping: ${url.substring(0, 50)}...`);
+              return url;
+            }
             try {
               const resp = await fetch(url);
-              if (!resp.ok) return url;
+              if (!resp.ok) {
+                console.warn(`[Bunny Storage] Scene ${idx + 1} fetch failed (${resp.status}), keeping original URL`);
+                return url;
+              }
               const buffer = await resp.buffer();
               const result = await uploadToBunnyStorage(
                 "scenes",
