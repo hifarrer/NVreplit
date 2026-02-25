@@ -1,7 +1,7 @@
 import fetch from "node-fetch";
 import crypto from "crypto";
 
-type BunnyStorageZone = "final" | "scenes";
+type BunnyStorageZone = "final" | "scenes" | "characters";
 
 interface BunnyStorageConfig {
   storageZoneName: string;
@@ -29,6 +29,15 @@ function getStorageConfig(zone: BunnyStorageZone): BunnyStorageConfig {
       storageHostname,
       cdnHostname,
       folderPath: process.env.BUNNY_STORAGE_FINAL_PATH || "FinalVideos",
+    };
+  }
+  if (zone === "characters") {
+    return {
+      storageZoneName: zoneName,
+      storagePassword: password,
+      storageHostname,
+      cdnHostname,
+      folderPath: process.env.BUNNY_STORAGE_CHARACTERS_PATH || "characters",
     };
   }
   return {
@@ -156,6 +165,16 @@ export async function uploadSceneVideo(
 ): Promise<{ url: string; storagePath: string }> {
   const fileName = `scene_${projectId}_${sceneIndex + 1}_${Date.now()}.mp4`;
   return uploadToBunnyStorage("scenes", fileName, buffer);
+}
+
+/**
+ * Upload a character image buffer to Bunny Storage (characters folder).
+ */
+export async function uploadCharacterImage(
+  fileName: string,
+  buffer: Buffer,
+): Promise<{ url: string; storagePath: string }> {
+  return uploadToBunnyStorage("characters", fileName, buffer);
 }
 
 // ─── URL helpers ────────────────────────────────────────────────

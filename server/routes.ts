@@ -22,7 +22,7 @@ import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWaterm
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback, uploadImageToImageKit, isImageKitConfigured } from "./services/imagekit";
-import { isBunnyConfigured, uploadToBunnyStorage, isBunnyUrl } from "./services/bunny";
+import { isBunnyConfigured, uploadToBunnyStorage, uploadCharacterImage, isBunnyUrl } from "./services/bunny";
 import { emailService } from "./services/email";
 import { createMuxAssetForVideo } from "./services/muxJobs";
 import bcrypt from "bcryptjs";
@@ -6082,8 +6082,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const imageUrl = await generateCharacterImage(prompt, aspectRatio);
       console.log("generateCharacterImage returned:", imageUrl);
       
+      // Persist to Bunny Storage (or ImageKit/GCS) so DB and client get a permanent URL
+      let finalImageUrl = imageUrl;
+      if (!isBunnyUrl(imageUrl) && !imageUrl.startsWith('/objects/')) {
+        const storedImage = await downloadAndStoreImage(imageUrl, "characters");
+        finalImageUrl = storedImage.storedUrl;
+        console.log("Character image persisted to storage:", finalImageUrl);
+      }
+      
       await storage.updateProject(req.params.id, {
-        characterImageUrl: imageUrl,
+        characterImageUrl: finalImageUrl,
         characterType: "generated",
         characterPrompt: prompt,
         currentStep: 3
@@ -6094,10 +6102,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         step: "character_generation",
         message: "Character generated successfully",
         status: "completed",
-        metadata: { imageUrl }
+        metadata: { imageUrl: finalImageUrl }
       });
 
-      res.json({ imageUrl });
+      res.json({ imageUrl: finalImageUrl });
     } catch (error) {
       console.error("Generate character error:", error);
       const errorMessage = (error as Error).message;
@@ -6213,12 +6221,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let finalImageUrl: string;
       
-      // Check if image is already stored in object storage (starts with /objects/)
-      if (imageUrl.startsWith('/objects/')) {
-        console.log("Image already in object storage, using existing URL:", imageUrl);
+      // Already stored: object storage path or Bunny Storage URL
+      if (imageUrl.startsWith('/objects/') || isBunnyUrl(imageUrl)) {
+        console.log("Image already stored, using existing URL:", imageUrl.substring(0, 60) + "...");
         finalImageUrl = imageUrl;
       } else {
-        // Download and store the image permanently
+        // Download and store to Bunny (or ImageKit/GCS fallback) permanently
         console.log("Downloading and storing character image...");
         const storedImage = await downloadAndStoreImage(imageUrl, "characters");
         console.log("Image stored successfully:", storedImage.storedUrl);
@@ -6471,8 +6479,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let characterImageUrl = imageUrl;
       
-      // For library characters (object storage URLs), we need to check if aspect ratio conversion is needed
-      if (imageUrl.startsWith('/objects/')) {
+      // Already on Bunny Storage: use as-is
+      if (isBunnyUrl(imageUrl)) {
+        console.log("Character image already on Bunny Storage, using as-is");
+      } else if (imageUrl.startsWith('/objects/')) {
+        // For library characters (object storage URLs), check if aspect ratio conversion is needed
         console.log("Processing library character for aspect ratio conversion...");
         
         // Read the image from object storage and check/convert aspect ratio
@@ -6534,14 +6545,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 .jpeg({ quality: 90 })
                 .toBuffer();
               
-              // Store the converted image
+              // Store the converted image: Bunny Storage when configured, else object storage
               const uniqueId = crypto.randomUUID();
               const filename = `${uniqueId}.jpg`;
-              const storagePath = path.join('/', process.env.REPL_ID ? `replit-objstore-${process.env.REPL_ID}` : 'replit-objstore', privateDir, 'characters', filename);
-              
-              await objectStorage.writeFile(storagePath, processedImageBuffer);
-              characterImageUrl = `/objects/characters/${filename}`;
-              console.log(`Converted character stored at: ${characterImageUrl}`);
+              if (isBunnyConfigured("characters")) {
+                const bunnyResult = await uploadCharacterImage(filename, processedImageBuffer);
+                characterImageUrl = bunnyResult.url;
+                console.log(`Converted character stored at Bunny: ${characterImageUrl}`);
+              } else {
+                const storagePath = path.join('/', process.env.REPL_ID ? `replit-objstore-${process.env.REPL_ID}` : 'replit-objstore', privateDir, 'characters', filename);
+                await objectStorage.writeFile(storagePath, processedImageBuffer);
+                characterImageUrl = `/objects/characters/${filename}`;
+                console.log(`Converted character stored at: ${characterImageUrl}`);
+              }
             } else {
               console.log("Aspect ratios match, using original character image");
             }
@@ -9001,41 +9017,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filename = `character_${nanoid()}.jpg`;
       const imagePath = `characters/${filename}`;
 
-      // Always use ImageKit as primary storage if configured
-      let imagekitUrl: string | undefined;
-      let imagekitFileId: string | undefined;
+      // Prefer Bunny Storage for character images when configured, then ImageKit, then GCS
       let permanentPath: string;
       
-      if (isImageKitConfigured()) {
-        // Upload to ImageKit first
-        console.log(`[ImageKit] Uploading character image to ImageKit: ${filename}`);
-        const imagekitResult = await uploadImageToImageKit(processedBuffer, filename, '/characters');
-        imagekitUrl = imagekitResult.url;
-        imagekitFileId = imagekitResult.fileId;
-        permanentPath = imagekitUrl; // Use ImageKit URL as permanent path
+      if (isBunnyConfigured("characters")) {
+        // Upload to Bunny Storage (characters folder)
+        console.log(`[Bunny Storage] Uploading character image: ${filename}`);
+        const bunnyResult = await uploadCharacterImage(filename, processedBuffer);
+        permanentPath = bunnyResult.url;
+        console.log(`[Bunny Storage] Character image uploaded: ${permanentPath}`);
         
-        console.log(`[ImageKit] Character image uploaded: ${imagekitUrl}`);
-        
-        // Run content moderation on the ImageKit URL
-        const moderationResult = await moderateImageContent(imagekitUrl);
+        const moderationResult = await moderateImageContent(permanentPath);
         
         if (!moderationResult.safe) {
-          console.log(`[Content Moderation] Image rejected but already uploaded to ImageKit: ${imagekitUrl}`);
-          
+          console.log(`[Content Moderation] Image rejected (already uploaded to Bunny): ${permanentPath}`);
           if (moderationResult.error) {
-            return res.status(503).json({ 
-              error: moderationResult.error
-            });
+            return res.status(503).json({ error: moderationResult.error });
           }
-          
+          const violationList = moderationResult.violations.join(", ");
+          return res.status(400).json({ 
+            error: `Image rejected: Our AI detected content that doesn't comply with our policies (${violationList}). Please upload a different image.`
+          });
+        }
+      } else if (isImageKitConfigured()) {
+        // Fallback to ImageKit
+        console.log(`[ImageKit] Uploading character image to ImageKit: ${filename}`);
+        const imagekitResult = await uploadImageToImageKit(processedBuffer, filename, '/characters');
+        permanentPath = imagekitResult.url;
+        console.log(`[ImageKit] Character image uploaded: ${permanentPath}`);
+        
+        const moderationResult = await moderateImageContent(permanentPath);
+        
+        if (!moderationResult.safe) {
+          console.log(`[Content Moderation] Image rejected but already uploaded to ImageKit: ${permanentPath}`);
+          if (moderationResult.error) {
+            return res.status(503).json({ error: moderationResult.error });
+          }
           const violationList = moderationResult.violations.join(", ");
           return res.status(400).json({ 
             error: `Image rejected: Our AI detected content that doesn't comply with our policies (${violationList}). Please upload a different image.`
           });
         }
       } else {
-        // Fallback to Google Cloud Storage only if ImageKit is not configured
-        console.log("[Storage] ImageKit not configured, falling back to Google Cloud Storage");
+        // Fallback to Google Cloud Storage
+        console.log("[Storage] Bunny and ImageKit not configured, falling back to Google Cloud Storage");
         const objectPath = `${objectStorage.getPrivateObjectDir()}/${imagePath}`;
         const { bucketName, objectName } = objectStorage.parseObjectPath(objectPath);
         
@@ -9043,9 +9068,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const fileObj = bucket.file(objectName);
         
         await fileObj.save(processedBuffer, {
-          metadata: {
-            contentType: 'image/jpeg',
-          },
+          metadata: { contentType: 'image/jpeg' },
         });
         
         permanentPath = `/objects/${imagePath}`;
@@ -9137,14 +9160,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let finalImageUrl = imageUrl;
       
       // Only download and re-upload if the image is from an external URL
-      // If it's already in our object storage (/objects/...), use it directly
-      if (!imageUrl.startsWith('/objects/')) {
+      // If it's already in our storage (/objects/... or Bunny URL), use it directly
+      if (!imageUrl.startsWith('/objects/') && !isBunnyUrl(imageUrl)) {
         console.log("Downloading and storing external character image for library...");
         const storedImage = await downloadAndStoreImage(imageUrl, "saved-characters");
         console.log("Image stored successfully:", storedImage.storedUrl);
         finalImageUrl = storedImage.storedUrl;
       } else {
-        console.log("Using existing object storage URL:", imageUrl);
+        console.log("Using existing storage URL:", imageUrl.substring(0, 60) + "...");
       }
       
       const characterData = {
@@ -9980,44 +10003,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filename = `character_${nanoid()}.jpg`;
       const imagePath = `characters/${filename}`;
 
-      // Always use ImageKit as primary storage if configured (for all environments)
-      let imagekitUrl: string | undefined;
-      let imagekitFileId: string | undefined;
+      // Prefer Bunny Storage for character images when configured, then ImageKit, then GCS
       let permanentPath: string;
       
-      if (isImageKitConfigured()) {
-        // Upload to ImageKit first
-        console.log(`[ImageKit] Uploading character image to ImageKit: ${filename}`);
-        const imagekitResult = await uploadImageToImageKit(processedBuffer, filename, '/characters');
-        imagekitUrl = imagekitResult.url;
-        imagekitFileId = imagekitResult.fileId;
-        permanentPath = imagekitUrl; // Use ImageKit URL as permanent path
+      if (isBunnyConfigured("characters")) {
+        console.log(`[Bunny Storage] Uploading character image: ${filename}`);
+        const bunnyResult = await uploadCharacterImage(filename, processedBuffer);
+        permanentPath = bunnyResult.url;
+        console.log(`[Bunny Storage] Character image uploaded: ${permanentPath}`);
         
-        console.log(`[ImageKit] Character image uploaded: ${imagekitUrl}`);
-        
-        // Run content moderation on the ImageKit URL
-        const moderationResult = await moderateImageContent(imagekitUrl);
+        const moderationResult = await moderateImageContent(permanentPath);
         
         if (!moderationResult.safe) {
-          // Note: We can't delete from ImageKit easily, but the image is already uploaded
-          // In production, you might want to implement ImageKit deletion
-          console.log(`[Content Moderation] Image rejected but already uploaded to ImageKit: ${imagekitUrl}`);
-          
-          // Check if it was a moderation service error vs actual content violation
+          console.log(`[Content Moderation] Image rejected (already uploaded to Bunny): ${permanentPath}`);
           if (moderationResult.error) {
-            return res.status(503).json({ 
-              error: moderationResult.error
-            });
+            return res.status(503).json({ error: moderationResult.error });
           }
-          
           const violationList = moderationResult.violations.join(", ");
           return res.status(400).json({ 
             error: `Image rejected: Our AI detected content that doesn't comply with our policies (${violationList}). Please upload a different image.`
           });
         }
+      } else if (isImageKitConfigured()) {
+        console.log(`[ImageKit] Uploading character image to ImageKit: ${filename}`);
+        const imagekitResult = await uploadImageToImageKit(processedBuffer, filename, '/characters');
+        permanentPath = imagekitResult.url;
+        console.log(`[ImageKit] Character image uploaded: ${permanentPath}`);
+        
+        const moderationResult = await moderateImageContent(permanentPath);
+        
+        if (!moderationResult.safe) {
+          console.log(`[Content Moderation] Image rejected but already uploaded to ImageKit: ${permanentPath}`);
+          if (moderationResult.error) {
+            return res.status(503).json({ error: moderationResult.error });
+          }
+          const violationList = moderationResult.violations.join(", ");
+          return res.status(400).json({ 
+            error: `Image rejected: Our AI detected content that doesn't comply with our policies (${violationList}). Please upload a different image.`
+          });
+        }
+        
+        try {
+          await storage.recordImagekitBackup({
+            originalPath: `/objects/${imagePath}`,
+            imagekitUrl: permanentPath,
+            imagekitFileId: imagekitResult.fileId,
+            fileType: 'character'
+          });
+        } catch (backupError) {
+          console.error('[ImageKit] Failed to record backup:', backupError);
+        }
       } else {
-        // Fallback to Google Cloud Storage only if ImageKit is not configured
-        console.log("[Storage] ImageKit not configured, falling back to Google Cloud Storage");
+        console.log("[Storage] Bunny and ImageKit not configured, falling back to Google Cloud Storage");
         const objectPath = `${objectStorage.getPrivateObjectDir()}/${imagePath}`;
         const { bucketName, objectName } = objectStorage.parseObjectPath(objectPath);
         
@@ -10025,36 +10062,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const fileObj = bucket.file(objectName);
         
         await fileObj.save(processedBuffer, {
-          metadata: {
-            contentType: 'image/jpeg',
-          },
+          metadata: { contentType: 'image/jpeg' },
         });
 
-        // Generate permanent path
         permanentPath = `/objects/${imagePath}`;
-        
-        // Get a signed URL for content moderation check
-        const signedUrl = await objectStorage.getSignedUrlForPath(permanentPath, 300); // 5 min TTL
-        
-        // Run content moderation on the uploaded image
+        const signedUrl = await objectStorage.getSignedUrlForPath(permanentPath, 300);
         const moderationResult = await moderateImageContent(signedUrl);
         
         if (!moderationResult.safe) {
-          // Delete the uploaded image since it violates content policies or moderation failed
           console.log(`[Content Moderation] Image rejected, deleting: ${permanentPath}`);
           try {
             await fileObj.delete();
           } catch (deleteError) {
             console.error("[Content Moderation] Failed to delete rejected image:", deleteError);
           }
-          
-          // Check if it was a moderation service error vs actual content violation
           if (moderationResult.error) {
-            return res.status(503).json({ 
-              error: moderationResult.error
-            });
+            return res.status(503).json({ error: moderationResult.error });
           }
-          
           const violationList = moderationResult.violations.join(", ");
           return res.status(400).json({ 
             error: `Image rejected: Our AI detected content that doesn't comply with our policies (${violationList}). Please upload a different image.`
@@ -10062,34 +10086,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Record ImageKit backup in database if using ImageKit
-      if (imagekitUrl && imagekitFileId && isImageKitConfigured()) {
-        try {
-          // Store the internal path format for reference
-          const originalPath = `/objects/${imagePath}`;
-          await storage.recordImagekitBackup({
-            originalPath: originalPath,
-            imagekitUrl: imagekitUrl,
-            imagekitFileId: imagekitFileId,
-            fileType: 'character'
-          });
-        } catch (backupError) {
-          console.error('[ImageKit] Failed to record backup:', backupError);
-          // Continue anyway - the image is already uploaded
-        }
-      }
-      
-      // Update project with character image URL
       await storage.updateProject(projectId, {
         characterImageUrl: permanentPath
       });
 
       console.log(`Character image uploaded and processed for ${projectAspectRatio} aspect ratio: ${permanentPath}`);
 
-      // Return ImageKit URL if available, otherwise internal URL
-      const responseUrl = imagekitUrl || permanentPath;
       res.json({
-        imageUrl: responseUrl,
+        imageUrl: permanentPath,
         message: "Character image uploaded successfully"
       });
     } catch (error) {

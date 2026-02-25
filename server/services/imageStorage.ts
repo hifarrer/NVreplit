@@ -2,6 +2,7 @@ import fetch from "node-fetch";
 import { ObjectStorageService } from "../objectStorage";
 import { randomUUID } from "crypto";
 import { isImageKitConfigured, uploadImageToImageKit } from "./imagekit";
+import { isBunnyConfigured, uploadCharacterImage } from "./bunny";
 import { storage } from "../storage";
 
 export interface StoredImageResult {
@@ -112,12 +113,32 @@ export async function downloadAndStoreImage(
   // Get content type and determine file extension
   const extension = getFileExtension(contentType);
   
-  // Generate unique filename
-  const filename = `${category}/${randomUUID()}${extension}`;
+  // Generate unique filename (for Bunny/ImageKit we use just the filename in the folder)
+  const uniqueFileName = `${randomUUID()}${extension}`;
+  const filename = `${category}/${uniqueFileName}`;
   
   console.log(`Storing image as: ${filename}`);
   
-  // Always use ImageKit as primary storage if configured (for all environments)
+  // Character images: use Bunny Storage when configured (same zone for "characters" and "saved-characters")
+  const isCharacterCategory = category === "characters" || category === "saved-characters";
+  if (isCharacterCategory && isBunnyConfigured("characters")) {
+    try {
+      const bunnyFileName = `${randomUUID()}${extension}`;
+      console.log(`[Bunny Storage] Uploading character image: ${bunnyFileName}`);
+      const result = await uploadCharacterImage(bunnyFileName, imageBuffer);
+      console.log(`[Bunny Storage] Character image uploaded: ${result.url}`);
+      return {
+        storedUrl: result.url,
+        originalUrl: imageUrl,
+        imagekitUrl: undefined,
+      };
+    } catch (error) {
+      console.error(`[Bunny Storage] Failed to upload character image:`, error);
+      // Fall through to ImageKit or GCS fallback
+    }
+  }
+  
+  // Always use ImageKit as primary storage if configured (for non-character or Bunny failed)
   if (isImageKitConfigured()) {
     try {
       console.log(`[ImageKit] Uploading image to ImageKit: ${filename}`);
