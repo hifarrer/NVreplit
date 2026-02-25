@@ -8786,9 +8786,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
 
             // Proxy URL so ffmpegapi downloads from our server (avoids timeout from Bunny or slow merge API)
+            // Must use getBaseUrl(req) so ffmpegapi gets a public URL (not localhost)
             const captionInputUrl = finalVideo.download_url;
             const proxyToken = createProxyVideoToken(captionInputUrl);
-            const captionVideoUrl = `${getBaseUrl()}/api/proxy-video-for-captions?token=${proxyToken}`;
+            const captionVideoUrl = `${getBaseUrl(req)}/api/proxy-video-for-captions?token=${proxyToken}`;
 
             const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
             const captionResult = await addTikTokCaptions({
