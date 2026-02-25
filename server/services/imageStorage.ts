@@ -2,7 +2,7 @@ import fetch from "node-fetch";
 import { ObjectStorageService } from "../objectStorage";
 import { randomUUID } from "crypto";
 import { isImageKitConfigured, uploadImageToImageKit } from "./imagekit";
-import { isBunnyConfigured, uploadCharacterImage } from "./bunny";
+import { isBunnyConfigured, uploadCharacterImage, uploadSceneImage } from "./bunny";
 import { storage } from "../storage";
 
 export interface StoredImageResult {
@@ -138,7 +138,25 @@ export async function downloadAndStoreImage(
     }
   }
   
-  // Always use ImageKit as primary storage if configured (for non-character or Bunny failed)
+  // Scene images: use Bunny Storage (imageScenes folder) when configured
+  if (category === "scenes" && isBunnyConfigured("imageScenes")) {
+    try {
+      const bunnyFileName = `${randomUUID()}${extension}`;
+      console.log(`[Bunny Storage] Uploading scene image: ${bunnyFileName}`);
+      const result = await uploadSceneImage(bunnyFileName, imageBuffer);
+      console.log(`[Bunny Storage] Scene image uploaded: ${result.url}`);
+      return {
+        storedUrl: result.url,
+        originalUrl: imageUrl,
+        imagekitUrl: undefined,
+      };
+    } catch (error) {
+      console.error(`[Bunny Storage] Failed to upload scene image:`, error);
+      // Fall through to ImageKit or GCS fallback
+    }
+  }
+  
+  // Always use ImageKit as primary storage if configured (for other categories or Bunny failed)
   if (isImageKitConfigured()) {
     try {
       console.log(`[ImageKit] Uploading image to ImageKit: ${filename}`);

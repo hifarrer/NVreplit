@@ -22,7 +22,7 @@ import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWaterm
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback, uploadImageToImageKit, isImageKitConfigured } from "./services/imagekit";
-import { isBunnyConfigured, uploadToBunnyStorage, uploadCharacterImage, isBunnyUrl } from "./services/bunny";
+import { isBunnyConfigured, uploadToBunnyStorage, uploadCharacterImage, uploadSceneImage, isBunnyUrl } from "./services/bunny";
 import { emailService } from "./services/email";
 import { createMuxAssetForVideo } from "./services/muxJobs";
 import bcrypt from "bcryptjs";
@@ -7022,56 +7022,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Processed image size: ${processedImageBuffer.length} bytes`);
 
-      // Store the processed image in object storage
       const { randomUUID } = await import("crypto");
-      const filename = `scenes/${randomUUID()}.jpg`;
-      
-      const objectStorageService = new ObjectStorageService();
-      const privateObjectDir = objectStorageService.getPrivateObjectDir();
-      const fullPath = `${privateObjectDir}/${filename}`;
-      
-      // Parse the path to get bucket and object name
-      const pathParts = fullPath.startsWith("/") ? fullPath.slice(1).split("/") : fullPath.split("/");
-      const bucketName = pathParts[0];
-      const objectName = pathParts.slice(1).join("/");
-      
-      const bucket = objectStorageClient.bucket(bucketName);
-      const file = bucket.file(objectName);
-      
-      await file.save(processedImageBuffer, {
-        metadata: {
-          contentType: 'image/jpeg',
-          metadata: {
-            category: 'scenes',
-            uploadedAt: new Date().toISOString(),
-            projectId: req.params.id,
-            sceneIndex: sceneIndex.toString(),
-            isUserUpload: 'true'
-          },
-        },
-      });
+      const filename = `${randomUUID()}.jpg`;
+      let storedUrl: string;
 
-      const storedUrl = `/objects/${filename}`;
-      console.log(`Scene image stored at: ${storedUrl}`);
-      
-      // Upload to ImageKit as well (non-blocking dual-write)
-      uploadImageToImageKit(processedImageBuffer, filename.replace('scenes/', ''), '/scenes')
-        .then(async (result) => {
-          console.log(`[ImageKit] Scene image uploaded: ${result.url}`);
-          try {
-            await storage.createImagekitBackup({
-              originalPath: storedUrl,
-              imagekitUrl: result.url,
-              imagekitFileId: result.fileId,
-              fileType: 'image',
-              fileSize: processedImageBuffer.length,
-              mimeType: 'image/jpeg'
-            });
-          } catch (err) {
-            console.error('[ImageKit] Failed to save backup record:', err);
-          }
-        })
-        .catch(err => console.error('[ImageKit] Upload failed (non-blocking):', err));
+      if (isBunnyConfigured("imageScenes")) {
+        const bunnyResult = await uploadSceneImage(filename, processedImageBuffer);
+        storedUrl = bunnyResult.url;
+        console.log(`[Bunny Storage] Scene image uploaded: ${storedUrl}`);
+      } else if (isImageKitConfigured()) {
+        const imagekitResult = await uploadImageToImageKit(processedImageBuffer, filename, '/scenes');
+        storedUrl = imagekitResult.url;
+        console.log(`[ImageKit] Scene image uploaded: ${storedUrl}`);
+        try {
+          await storage.recordImagekitBackup({
+            originalPath: `/objects/scenes/${filename}`,
+            imagekitUrl: imagekitResult.url,
+            imagekitFileId: imagekitResult.fileId,
+            fileType: 'image'
+          });
+        } catch (err) {
+          console.error('[ImageKit] Failed to save backup record:', err);
+        }
+      } else {
+        const imagePath = `scenes/${filename}`;
+        const objectStorageService = new ObjectStorageService();
+        const privateObjectDir = objectStorageService.getPrivateObjectDir();
+        const fullPath = `${privateObjectDir}/${imagePath}`;
+        const pathParts = fullPath.startsWith("/") ? fullPath.slice(1).split("/") : fullPath.split("/");
+        const bucketName = pathParts[0];
+        const objectName = pathParts.slice(1).join("/");
+        const bucket = objectStorageClient.bucket(bucketName);
+        const file = bucket.file(objectName);
+        await file.save(processedImageBuffer, {
+          metadata: {
+            contentType: 'image/jpeg',
+            metadata: {
+              category: 'scenes',
+              uploadedAt: new Date().toISOString(),
+              projectId: req.params.id,
+              sceneIndex: sceneIndex.toString(),
+              isUserUpload: 'true'
+            },
+          },
+        });
+        storedUrl = `/objects/${imagePath}`;
+        console.log(`Scene image stored at: ${storedUrl}`);
+      }
 
       // Update the scene image in the project
       sceneImages[sceneIndex] = storedUrl;
@@ -7174,29 +7171,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Processed image size: ${processedImageBuffer.length} bytes`);
 
       const { randomUUID } = await import("crypto");
-      const filename = `scenes/${randomUUID()}.jpg`;
-      const fileNameOnly = filename.replace("scenes/", "");
+      const filename = `${randomUUID()}.jpg`;
 
       let imageUrl: string;
 
-      if (isImageKitConfigured()) {
-        // Upload user's image to ImageKit when ImageKit is configured
-        const result = await uploadImageToImageKit(processedImageBuffer, fileNameOnly, "/scenes");
+      if (isBunnyConfigured("imageScenes")) {
+        const bunnyResult = await uploadSceneImage(filename, processedImageBuffer);
+        imageUrl = bunnyResult.url;
+        console.log(`[Bunny Storage] Standalone scene image uploaded: ${imageUrl}`);
+      } else if (isImageKitConfigured()) {
+        const result = await uploadImageToImageKit(processedImageBuffer, filename, "/scenes");
         imageUrl = result.url;
         console.log(`[ImageKit] Standalone scene image uploaded: ${imageUrl}`);
       } else {
-        // Fall back to object storage (GCS) when ImageKit is not configured
+        const imagePath = `scenes/${filename}`;
         const objectStorageService = new ObjectStorageService();
         const privateObjectDir = objectStorageService.getPrivateObjectDir();
-        const fullPath = `${privateObjectDir}/${filename}`;
-
+        const fullPath = `${privateObjectDir}/${imagePath}`;
         const pathParts = fullPath.startsWith("/") ? fullPath.slice(1).split("/") : fullPath.split("/");
         const bucketName = pathParts[0];
         const objectName = pathParts.slice(1).join("/");
-
         const bucket = objectStorageClient.bucket(bucketName);
         const file = bucket.file(objectName);
-
         await file.save(processedImageBuffer, {
           metadata: {
             contentType: "image/jpeg",
@@ -7207,8 +7203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             },
           },
         });
-
-        imageUrl = `/objects/${filename}`;
+        imageUrl = `/objects/${imagePath}`;
         console.log(`Scene image stored at: ${imageUrl}`);
       }
 
