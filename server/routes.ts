@@ -7316,7 +7316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`[Bunny Storage] Uploading scene ${sceneIndexNum + 1} video`);
           const resp = await fetch(videoUrl);
           if (resp.ok) {
-            const buffer = await resp.buffer();
+            const buffer = Buffer.from(await resp.arrayBuffer());
             const bunnyResult = await uploadToBunnyStorage(
               "scenes",
               `scene_${req.params.id}_${sceneIndexNum + 1}_${Date.now()}.mp4`,
@@ -8550,7 +8550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 console.warn(`[Bunny Storage] Scene ${idx + 1} fetch failed (${resp.status}), keeping original URL`);
                 return url;
               }
-              const buffer = await resp.buffer();
+              const buffer = Buffer.from(await resp.arrayBuffer());
               const result = await uploadToBunnyStorage(
                 "scenes",
                 `scene_${req.params.id}_${idx + 1}_${Date.now()}.mp4`,

@@ -105,7 +105,7 @@ export async function downloadFromBunnyStorage(
     throw new Error(`Bunny Storage download failed (${response.status}): ${text}`);
   }
 
-  return await response.buffer();
+  return Buffer.from(await response.arrayBuffer());
 }
 
 /**
