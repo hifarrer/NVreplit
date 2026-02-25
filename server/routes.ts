@@ -206,6 +206,30 @@ function getBaseUrl(req?: any): string {
   return `http://localhost:${port}`;
 }
 
+/**
+ * Get a publicly reachable base URL (never localhost).
+ * Used when building URLs that external services like ffmpegapi must fetch.
+ */
+function getPublicBaseUrl(req?: any): string {
+  if (process.env.BASE_URL) return process.env.BASE_URL;
+  if (process.env.API_URL) return process.env.API_URL;
+
+  if (req) {
+    const host = req.get('host') || req.headers?.host;
+    if (host && !host.startsWith('localhost') && !host.startsWith('127.0.0.1')) {
+      const forwardedProto = req.get('x-forwarded-proto') || req.headers?.['x-forwarded-proto'];
+      const protocol = forwardedProto || req.protocol || (req.secure ? 'https' : 'http');
+      return `${protocol}://${host}`;
+    }
+  }
+
+  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL.replace(/\/$/, '');
+  if (process.env.PRODUCTION_DOMAIN) return process.env.PRODUCTION_DOMAIN.replace(/\/$/, '');
+
+  const port = process.env.PORT || '5000';
+  return `http://localhost:${port}`;
+}
+
 /** Short-lived tokens for proxying video to ffmpegapi (avoids Bunny/merge-API download timeout) */
 const proxyVideoTokens = new Map<string, { url: string; expiresAt: number }>();
 const PROXY_VIDEO_TTL_MS = 10 * 60 * 1000; // 10 min
@@ -485,8 +509,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       return res.status(404).json({ error: "Invalid or expired token" });
     }
+    const ac = new AbortController();
+    const timeout = setTimeout(() => ac.abort(), 120_000);
     try {
-      const resp = await fetch(entry.url, { signal: AbortSignal.timeout(120_000) });
+      const resp = await fetch(entry.url, { signal: ac.signal });
+      clearTimeout(timeout);
       if (!resp.ok) {
         return res.status(resp.status).send(`Upstream returned ${resp.status}`);
       }
@@ -499,8 +526,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       Readable.fromWeb(resp.body).pipe(res);
     } catch (err) {
+      clearTimeout(timeout);
       console.warn("[proxy-video-for-captions]", err);
-      res.status(502).json({ error: "Failed to stream video" });
+      if (!res.headersSent) {
+        res.status(502).json({ error: "Failed to stream video" });
+      }
     }
   });
 
@@ -4568,7 +4598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Proxy URL so ffmpegapi downloads from our server (avoids Bunny/slow-CDN timeout)
       const proxyToken = createProxyVideoToken(videoUrl);
-      const captionVideoUrl = `${getBaseUrl(req)}/api/proxy-video-for-captions?token=${proxyToken}`;
+      const captionVideoUrl = `${getPublicBaseUrl(req)}/api/proxy-video-for-captions?token=${proxyToken}`;
 
       const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
       const captionResult = await addTikTokCaptions({
@@ -8789,7 +8819,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Must use getBaseUrl(req) so ffmpegapi gets a public URL (not localhost)
             const captionInputUrl = finalVideo.download_url;
             const proxyToken = createProxyVideoToken(captionInputUrl);
-            const captionVideoUrl = `${getBaseUrl(req)}/api/proxy-video-for-captions?token=${proxyToken}`;
+            const captionVideoUrl = `${getPublicBaseUrl(req)}/api/proxy-video-for-captions?token=${proxyToken}`;
 
             const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
             const captionResult = await addTikTokCaptions({
@@ -12627,9 +12657,12 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
 
               try {
                 const projectSubtitleStyle = (project as any).subtitleStyle || "yellow-bg";
+                // Proxy URL so ffmpegapi downloads from our server (avoids Bunny timeout)
+                const overlayProxyToken = createProxyVideoToken(finalVideoUrl);
+                const overlayVideoUrl = `${getPublicBaseUrl(req)}/api/proxy-video-for-captions?token=${overlayProxyToken}`;
                 const { addTextOverlayCaptions } = await import("./services/ffmpegCaptions");
                 const overlayResult = await addTextOverlayCaptions({
-                  videoUrl: finalVideoUrl,
+                  videoUrl: overlayVideoUrl,
                   text: normalizedTextOverlay,
                   subtitleStyle: projectSubtitleStyle,
                   position: overlayPosition,
