@@ -8732,10 +8732,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               metadata: { step: 4, total: 4, captionStyle: projectSubtitleStyle },
             });
 
-            // Use the original ffmpeg download URL for captions (not Bunny HLS which may still be processing)
-            const captionInputUrl = finalVideo.download_url.includes("/api/ffmpeg-local/download/")
-              ? savedFinalVideoUrl
-              : finalVideo.download_url;
+            // Use the merge output URL for captions so ffmpegapi downloads from our server or merge API,
+            // not from Bunny (avoids timeout when ffmpegapi pulls from Bunny CDN).
+            const captionInputUrl = finalVideo.download_url;
 
             const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
             const captionResult = await addTikTokCaptions({
