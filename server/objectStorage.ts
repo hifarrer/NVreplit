@@ -7,7 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { isImageKitConfigured, uploadAudioToImageKit, uploadVideoToImageKit } from "./services/imagekit";
-import { isBunnyConfigured, uploadToBunnyStorage } from "./services/bunny";
+import { isBunnyConfigured, uploadToBunnyStorage, uploadSongAudio } from "./services/bunny";
 import { storage } from "./storage";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -297,23 +297,28 @@ export class ObjectStorageService {
 
   async uploadAudioBuffer(buffer: Buffer, path: string): Promise<string> {
     try {
-      // Always use ImageKit as primary storage if configured (for all environments)
+      const fileName = path.split('/').pop() || path;
+
+      // Prefer Bunny Storage (songs folder) when configured
+      if (isBunnyConfigured("songs")) {
+        console.log(`[Bunny Storage] Uploading audio: ${fileName}`);
+        const result = await uploadSongAudio(fileName, buffer);
+        console.log(`[Bunny Storage] Audio uploaded successfully: ${result.url}`);
+        return result.url;
+      }
+
+      // Fallback to ImageKit if Bunny is not configured
       if (isImageKitConfigured()) {
-        const fileName = path.split('/').pop() || path;
         console.log(`[ImageKit] Uploading audio to ImageKit: ${fileName}`);
         const imagekitResult = await uploadAudioToImageKit(buffer, fileName, "/audio");
         console.log(`[ImageKit] Audio uploaded successfully: ${imagekitResult.url}`);
         return imagekitResult.url;
       }
       
-      // Fallback to Google Cloud Storage only if ImageKit is not configured
-      console.log("[Storage] ImageKit not configured, falling back to Google Cloud Storage");
+      // Fallback to Google Cloud Storage
+      console.log("[Storage] Bunny and ImageKit not configured, falling back to Google Cloud Storage");
       const objectPath = `${this.getPrivateObjectDir()}/${path}`;
-      
-      // Parse the path to get bucket and object name
       const { bucketName, objectName } = this.parseObjectPath(objectPath);
-      
-      // Upload to object storage
       const bucket = objectStorageClient.bucket(bucketName);
       const file = bucket.file(objectName);
       
@@ -324,11 +329,8 @@ export class ObjectStorageService {
       });
       
       console.log("Audio uploaded to object storage:", objectPath);
-      
-      // Return a permanent path that can be served through our application
       const permanentPath = `/objects/${path}`;
       console.log("Generated permanent audio path:", permanentPath);
-      
       return permanentPath;
     } catch (error) {
       console.error("Error uploading audio to storage:", error);

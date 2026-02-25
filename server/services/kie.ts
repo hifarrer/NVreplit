@@ -1,5 +1,6 @@
 import { downloadAndStoreImage } from "./imageStorage";
 import { isImageKitConfigured, uploadAudioToImageKit } from "./imagekit";
+import { isBunnyConfigured, uploadSongAudio } from "./bunny";
 import { storage } from "../storage";
 
 export interface KieLyricsResponse {
@@ -212,22 +213,44 @@ async function downloadAndStoreAudio(
     
     // Generate unique filename
     const { randomUUID } = await import("crypto");
-    const filename = `${category}/${randomUUID()}${extension}`;
+    const uniqueFileName = `${randomUUID()}${extension}`;
+    const filename = `${category}/${uniqueFileName}`;
     
     console.log(`Storing audio as: ${filename}`);
     
-    // Get object storage service
+    // Prefer Bunny Storage (songs folder) when configured (KIE/story-mode/lyrics)
+    if (isBunnyConfigured("songs")) {
+      console.log(`[Bunny Storage] Uploading audio: ${uniqueFileName}`);
+      const result = await uploadSongAudio(uniqueFileName, audioBuffer);
+      console.log(`[Bunny Storage] Audio uploaded successfully: ${result.url}`);
+      return result.url;
+    }
+    
+    // Fallback to ImageKit if configured
+    if (isImageKitConfigured()) {
+      try {
+        console.log(`[ImageKit] Uploading audio to ImageKit: ${uniqueFileName}`);
+        const imagekitResult = await uploadAudioToImageKit(audioBuffer, uniqueFileName, "/audio");
+        await storage.recordImagekitBackup({
+          originalPath: `/objects/${filename}`,
+          imagekitUrl: imagekitResult.url,
+          imagekitFileId: imagekitResult.fileId,
+          fileType: "song"
+        });
+        console.log(`[ImageKit] Audio uploaded successfully: ${imagekitResult.url}`);
+        return imagekitResult.url;
+      } catch (imagekitError) {
+        console.error(`[ImageKit] Failed to upload audio to ImageKit:`, imagekitError);
+        // Fall through to GCS
+      }
+    }
+    
+    // Fallback to Google Cloud Storage
     const { ObjectStorageService, objectStorageClient } = await import("../objectStorage");
     const objectStorageService = new ObjectStorageService();
     const privateObjectDir = objectStorageService.getPrivateObjectDir();
-    
-    // Create full path in private directory
     const fullPath = `${privateObjectDir}/${filename}`;
-    
-    // Parse the path to get bucket and object name
     const { bucketName, objectName } = parseObjectPath(fullPath);
-    
-    // Upload the audio buffer
     const bucket = objectStorageClient.bucket(bucketName);
     const file = bucket.file(objectName);
     
@@ -243,33 +266,7 @@ async function downloadAndStoreAudio(
     });
     
     console.log(`Audio stored successfully at: ${fullPath}`);
-    
-    // Return the stored URL that can be served via our API
-    const storedUrl = `/objects/${filename}`;
-    
-    // Also upload to ImageKit if configured
-    if (isImageKitConfigured()) {
-      try {
-        const fileNameOnly = filename.split('/').pop() || filename;
-        console.log(`[ImageKit] Uploading audio to ImageKit: ${fileNameOnly}`);
-        const imagekitResult = await uploadAudioToImageKit(audioBuffer, fileNameOnly, "/audio");
-        
-        // Record the backup in the database
-        await storage.recordImagekitBackup({
-          originalPath: storedUrl,
-          imagekitUrl: imagekitResult.url,
-          imagekitFileId: imagekitResult.fileId,
-          fileType: "song"
-        });
-        
-        console.log(`[ImageKit] Audio uploaded successfully: ${imagekitResult.url}`);
-      } catch (imagekitError) {
-        console.error(`[ImageKit] Failed to upload audio to ImageKit:`, imagekitError);
-        // Continue without ImageKit - we still have the internal storage URL
-      }
-    }
-    
-    return storedUrl;
+    return `/objects/${filename}`;
   } catch (error) {
     console.error("Error downloading and storing audio:", error);
     throw new Error(`Failed to store audio: ${(error as Error).message}`);
