@@ -4,6 +4,7 @@ import { spawn } from "child_process";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { Readable } from "stream";
 import sharp from "sharp";
 import { storage } from "./storage";
 import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema, insertPlanSchema, insertReferralSchema, type Plan, type InsertPlan } from "@shared/schema";
@@ -203,6 +204,19 @@ function getBaseUrl(req?: any): string {
   // Fall back to localhost for local development
   const port = process.env.PORT || '5000';
   return `http://localhost:${port}`;
+}
+
+/** Short-lived tokens for proxying video to ffmpegapi (avoids Bunny/merge-API download timeout) */
+const proxyVideoTokens = new Map<string, { url: string; expiresAt: number }>();
+const PROXY_VIDEO_TTL_MS = 10 * 60 * 1000; // 10 min
+
+function createProxyVideoToken(videoUrl: string): string {
+  const token = crypto.randomBytes(32).toString("hex");
+  proxyVideoTokens.set(token, {
+    url: videoUrl,
+    expiresAt: Date.now() + PROXY_VIDEO_TTL_MS,
+  });
+  return token;
 }
 
 // Google OAuth configuration
@@ -454,6 +468,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     startOutputCleanupJob();
   }
+
+  // Proxy video for ffmpegapi captions (avoids download timeout when source is Bunny or slow merge API)
+  app.get("/api/proxy-video-for-captions", async (req, res) => {
+    const token = req.query.token as string;
+    if (!token) {
+      return res.status(400).json({ error: "Missing token" });
+    }
+    const entry = proxyVideoTokens.get(token);
+    proxyVideoTokens.delete(token); // one-time use
+    if (!entry || Date.now() > entry.expiresAt) {
+      return res.status(404).json({ error: "Invalid or expired token" });
+    }
+    try {
+      const resp = await fetch(entry.url, { signal: AbortSignal.timeout(120_000) });
+      if (!resp.ok) {
+        return res.status(resp.status).send(`Upstream returned ${resp.status}`);
+      }
+      const contentType = resp.headers.get("content-type") || "video/mp4";
+      const contentLength = resp.headers.get("content-length");
+      res.setHeader("Content-Type", contentType);
+      if (contentLength) res.setHeader("Content-Length", contentLength);
+      if (!resp.body) {
+        return res.status(502).send("No body");
+      }
+      Readable.fromWeb(resp.body).pipe(res);
+    } catch (err) {
+      console.warn("[proxy-video-for-captions]", err);
+      res.status(502).json({ error: "Failed to stream video" });
+    }
+  });
 
   // Initialize OAuth keys on startup
   await initializeOAuthKeys();
@@ -4517,9 +4561,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Could not resolve video URL for captions" });
       }
 
+      // Proxy URL so ffmpegapi downloads from our server (avoids Bunny/slow-CDN timeout)
+      const proxyToken = createProxyVideoToken(videoUrl);
+      const captionVideoUrl = `${getBaseUrl(req)}/api/proxy-video-for-captions?token=${proxyToken}`;
+
       const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
       const captionResult = await addTikTokCaptions({
-        videoUrl,
+        videoUrl: captionVideoUrl,
         subtitleStyle,
         position: captionPosition,
         aspectRatio: project.aspectRatio || "16:9",
@@ -8732,13 +8780,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               metadata: { step: 4, total: 4, captionStyle: projectSubtitleStyle },
             });
 
-            // Use the merge output URL for captions so ffmpegapi downloads from our server or merge API,
-            // not from Bunny (avoids timeout when ffmpegapi pulls from Bunny CDN).
+            // Proxy URL so ffmpegapi downloads from our server (avoids timeout from Bunny or slow merge API)
             const captionInputUrl = finalVideo.download_url;
+            const proxyToken = createProxyVideoToken(captionInputUrl);
+            const captionVideoUrl = `${getBaseUrl()}/api/proxy-video-for-captions?token=${proxyToken}`;
 
             const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
             const captionResult = await addTikTokCaptions({
-              videoUrl: captionInputUrl,
+              videoUrl: captionVideoUrl,
               subtitleStyle: projectSubtitleStyle,
               aspectRatio: project.aspectRatio,
               position: (project as any).captionPosition || "bottom",
