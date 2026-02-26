@@ -4596,13 +4596,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Could not resolve video URL for captions" });
       }
 
-      // Proxy URL so ffmpegapi downloads from our server (avoids Bunny/slow-CDN timeout)
-      const proxyToken = createProxyVideoToken(videoUrl);
-      const captionVideoUrl = `${getPublicBaseUrl(req)}/api/proxy-video-for-captions?token=${proxyToken}`;
+      // Pass the resolved URL directly to ffmpegapi (Bunny CDN or other public URL)
+      console.log(`[ADD-CAPTIONS] Passing video URL to ffmpegapi: ${videoUrl}`);
 
       const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
       const captionResult = await addTikTokCaptions({
-        videoUrl: captionVideoUrl,
+        videoUrl,
         subtitleStyle,
         position: captionPosition,
         aspectRatio: project.aspectRatio || "16:9",
@@ -8815,15 +8814,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               metadata: { step: 4, total: 4, captionStyle: projectSubtitleStyle },
             });
 
-            // Proxy URL so ffmpegapi downloads from our server (avoids timeout from Bunny or slow merge API)
-            // Must use getBaseUrl(req) so ffmpegapi gets a public URL (not localhost)
-            const captionInputUrl = finalVideo.download_url;
-            const proxyToken = createProxyVideoToken(captionInputUrl);
-            const captionVideoUrl = `${getPublicBaseUrl(req)}/api/proxy-video-for-captions?token=${proxyToken}`;
+            // Use the ffmpegapi merge output URL directly (ffmpegapi.net) — ffmpegapi can
+            // access its own download server without timeout. Fall back to Bunny URL if needed.
+            const captionInputUrl = finalVideo.download_url.includes("ffmpegapi.net")
+              ? finalVideo.download_url
+              : savedFinalVideoUrl;
+            console.log(`[CAPTIONS] Using URL for captions: ${captionInputUrl}`);
 
             const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
             const captionResult = await addTikTokCaptions({
-              videoUrl: captionVideoUrl,
+              videoUrl: captionInputUrl,
               subtitleStyle: projectSubtitleStyle,
               aspectRatio: project.aspectRatio,
               position: (project as any).captionPosition || "bottom",
@@ -12657,12 +12657,11 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
 
               try {
                 const projectSubtitleStyle = (project as any).subtitleStyle || "yellow-bg";
-                // Proxy URL so ffmpegapi downloads from our server (avoids Bunny timeout)
-                const overlayProxyToken = createProxyVideoToken(finalVideoUrl);
-                const overlayVideoUrl = `${getPublicBaseUrl(req)}/api/proxy-video-for-captions?token=${overlayProxyToken}`;
+                // Pass Bunny/public URL directly to ffmpegapi
+                console.log(`[INSTRUMENTAL] Passing video URL to ffmpegapi overlay: ${finalVideoUrl}`);
                 const { addTextOverlayCaptions } = await import("./services/ffmpegCaptions");
                 const overlayResult = await addTextOverlayCaptions({
-                  videoUrl: overlayVideoUrl,
+                  videoUrl: finalVideoUrl,
                   text: normalizedTextOverlay,
                   subtitleStyle: projectSubtitleStyle,
                   position: overlayPosition,
