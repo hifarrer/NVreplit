@@ -17,6 +17,38 @@ interface BlogPost {
 
 const blogPosts: BlogPost[] = [
   {
+    title: "Best AI Music Generator",
+    slug: "/best-ai-music-generator",
+    excerpt: "NeonVideo.AI offers unlimited song generation on paid plans—while Suno and others limit you to just 10 songs per month. Create more music, no monthly cap.",
+    date: "February 26, 2026",
+    category: "AI Music",
+    readTime: "4 min read"
+  },
+  {
+    title: "Best AI Music Video Generator 2026",
+    slug: "/best-ai-music-video-generator-2026",
+    excerpt: "Compare the best AI music video generators in 2026: NeonVideo.AI, VidMuse.AI, and Aivideo.com. Free trials, HD quality, video limits, and pricing — so you can choose the right tool.",
+    date: "February 26, 2026",
+    category: "Comparison",
+    readTime: "5 min read"
+  },
+  {
+    title: "Best AI Tools for Independent Musicians",
+    slug: "/best-ai-tools-independent-musicians",
+    excerpt: "Discover the best AI tools for independent musicians: AI music generation, lyric writing, mastering, music video creation, and promotion. Level up your indie career without a big budget.",
+    date: "February 26, 2026",
+    category: "Guides",
+    readTime: "7 min read"
+  },
+  {
+    title: "NeonVideo.AI vs VidMuse.AI vs Aivideo.com – Best AI Music Video Generator 2026?",
+    slug: "/neonvideo-vs-vidmuse-vs-aivideo",
+    excerpt: "Compare NeonVideo.AI, VidMuse.AI, and Aivideo.com: pricing, video limits, AI quality, commercial rights, and professional output. Find the best AI music video tool for creators.",
+    date: "February 26, 2026",
+    category: "Comparison",
+    readTime: "6 min read"
+  },
+  {
     title: "Version 2.7.1 Released: Four Powerful Video Styles & TikTok-Style Captions",
     slug: "/version-2-7-1-release",
     excerpt: "NeonVideo.ai version 2.7.1 introduces four powerful video creation styles: Pro Mode, Single Prompt, Instrumental, and Lyric videos, plus stunning TikTok-style captions with word-by-word animations.",

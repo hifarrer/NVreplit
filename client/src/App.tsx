@@ -40,6 +40,10 @@ import Version260Release from "@/pages/blog-post-version-2-6-0";
 import Version251Release from "@/pages/blog-post-version-2-5-1";
 import Version271Release from "@/pages/blog-post-version-2-7-1";
 import ChristmasPostcardBlogPost from "@/pages/blog-post-christmas-postcard";
+import NeonVideoVsVidMuseVsAivideo from "@/pages/blog-post-neonvideo-vs-vidmuse-vs-aivideo";
+import BestAIToolsIndependentMusicians from "@/pages/blog-post-best-ai-tools-independent-musicians";
+import BestAIMusicVideoGenerator2026 from "@/pages/blog-post-best-ai-music-video-generator-2026";
+import BestAIMusicGenerator from "@/pages/blog-post-best-ai-music-generator-unlimited";
 import GiftPage from "@/pages/gift";
 import GiftSuccessPage from "@/pages/gift-success";
 import RedeemGiftPage from "@/pages/redeem-gift";
@@ -107,6 +111,7 @@ function AppRouter() {
         <Route path="/terms" component={TermsPage} />
         <Route path="/contact" component={ContactPage} />
         <Route path="/blog" component={BlogPage} />
+        <Route path="/best-ai-music-generator" component={BestAIMusicGenerator} />
         <Route path="/best-ai-music-generator-2025" component={BestAIMusicGenerator2025} />
         <Route path="/version-2-0-1-release" component={Version201Release} />
         <Route path="/version-2-1-1-release" component={Version211Release} />
@@ -116,6 +121,9 @@ function AppRouter() {
         <Route path="/version-2-5-1-release" component={Version251Release} />
         <Route path="/version-2-7-1-release" component={Version271Release} />
         <Route path="/christmas-postcard-video" component={ChristmasPostcardBlogPost} />
+        <Route path="/neonvideo-vs-vidmuse-vs-aivideo" component={NeonVideoVsVidMuseVsAivideo} />
+        <Route path="/best-ai-tools-independent-musicians" component={BestAIToolsIndependentMusicians} />
+        <Route path="/best-ai-music-video-generator-2026" component={BestAIMusicVideoGenerator2026} />
         <Route path="/neon-single-prompt" component={() => <ProtectedRoute component={NeonSinglePrompt} />} />
         <Route path="/gift" component={() => <ProtectedRoute component={GiftPage} />} />
         <Route path="/gift-success" component={() => <ProtectedRoute component={GiftSuccessPage} />} />
