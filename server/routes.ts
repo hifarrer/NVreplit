@@ -8814,12 +8814,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               metadata: { step: 4, total: 4, captionStyle: projectSubtitleStyle },
             });
 
-            // Use the ffmpegapi merge output URL directly (ffmpegapi.net) — ffmpegapi can
-            // access its own download server without timeout. Fall back to Bunny URL if needed.
-            const captionInputUrl = finalVideo.download_url.includes("ffmpegapi.net")
-              ? finalVideo.download_url
-              : savedFinalVideoUrl;
-            console.log(`[CAPTIONS] Using URL for captions: ${captionInputUrl}`);
+            // Use the Bunny CDN URL (savedFinalVideoUrl) for captions — this matches the
+            // my-videos add-captions flow which works reliably. The ffmpegapi.net download URL
+            // times out even though it's their own server.
+            const captionInputUrl = savedFinalVideoUrl;
+            console.log(`[CAPTIONS] Using Bunny CDN URL for captions: ${captionInputUrl}`);
 
             const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
             const captionResult = await addTikTokCaptions({
