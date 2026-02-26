@@ -65,7 +65,6 @@ Install with:
 ```bash
 pip install flask requests
 ```
-
 ---
 
 ## API Endpoint Specification
