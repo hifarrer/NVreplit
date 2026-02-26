@@ -202,7 +202,7 @@ export default function CommunityPage() {
       const container = feedContainerRef.current;
       if (container) {
         const targetIndex = currentIndex - 1;
-        const videoHeight = window.innerHeight;
+        const videoHeight = container.clientHeight;
         container.scrollTo({
           top: targetIndex * videoHeight,
           behavior: 'smooth'
@@ -217,7 +217,7 @@ export default function CommunityPage() {
       const container = feedContainerRef.current;
       if (container) {
         const targetIndex = currentIndex + 1;
-        const videoHeight = window.innerHeight;
+        const videoHeight = container.clientHeight;
         container.scrollTo({
           top: targetIndex * videoHeight,
           behavior: 'smooth'
@@ -236,7 +236,7 @@ export default function CommunityPage() {
   const scrollToVideo = (index: number) => {
     const container = feedContainerRef.current;
     if (container) {
-      const videoHeight = window.innerHeight;
+      const videoHeight = container.clientHeight;
       container.scrollTo({
         top: index * videoHeight,
         behavior: "smooth",
@@ -419,7 +419,7 @@ export default function CommunityPage() {
       clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(() => {
         const scrollTop = container.scrollTop;
-        const videoHeight = window.innerHeight;
+        const videoHeight = container.clientHeight;
         const newIndex = Math.round(scrollTop / videoHeight);
         
         if (newIndex !== currentIndex && newIndex >= 0 && newIndex < allVideos.length) {
@@ -484,11 +484,11 @@ export default function CommunityPage() {
           return (
             <div 
               key={video.id} 
-              className="h-screen snap-center relative flex items-center justify-center bg-black"
+              className="h-[calc(100vh-4rem)] snap-center relative flex items-center justify-center bg-black"
               data-testid={`community-video-${video.id}`}
             >
               {/* Mux Video Player with fallback */}
-              <div className="relative max-w-[800px] h-auto max-h-full mx-auto">
+              <div className="relative w-full h-full flex items-center justify-center">
                 <MuxVideoPlayer
                   ref={(el) => {
                     if (el) {
@@ -498,7 +498,7 @@ export default function CommunityPage() {
                   playbackId={video.mux?.assetStatus === 'ready' ? video.mux.playbackId : null}
                   bunnyStorageUrl={video.bunnyStorageUrl}
                   fallbackUrl={video.videoUrl}
-                  className="w-full h-auto max-h-full object-contain"
+                  className="w-full h-full object-contain"
                   loop
                   muted={isMuted}
                   playsInline

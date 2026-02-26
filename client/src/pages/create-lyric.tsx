@@ -61,7 +61,7 @@ export default function CreateLyric() {
   const [tags, setTags] = useState("");
   const [lyrics, setLyrics] = useState("");
   const [songTitle, setSongTitle] = useState("");
-  const [addSubtitles, setAddSubtitles] = useState(false);
+  const [addSubtitles, setAddSubtitles] = useState(true);
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(defaultSubtitleStyle);
   const [textPosition, setTextPosition] = useState<"top" | "center" | "bottom">("bottom");
   const [fontFamily, setFontFamily] = useState<GoogleFont>(defaultGoogleFont);

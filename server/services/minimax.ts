@@ -160,7 +160,36 @@ async function generateMultipleSongsInParallel(
   return successfulSongs;
 }
 
-// Generate 2 songs for user selection (no automatic selection)
+/** Resolve with the first n successful (non-null) results from the given promises, in completion order. */
+function firstNSuccessful<T>(
+  promises: Promise<T | null>[],
+  n: number
+): Promise<T[]> {
+  const successful: T[] = [];
+  let settled = 0;
+  const total = promises.length;
+  return new Promise((resolve, reject) => {
+    const check = (value: T | null) => {
+      if (value !== null) {
+        successful.push(value);
+        if (successful.length >= n) {
+          resolve(successful.slice(0, n));
+        }
+      }
+      settled++;
+      if (settled === total && successful.length < n) {
+        if (successful.length > 0) resolve(successful);
+        else reject(new Error("No songs generated"));
+      }
+    };
+    promises.forEach((p) => p.then(check).catch(() => check(null)));
+  });
+}
+
+const SONGS_IN_PARALLEL = 4;
+const SONGS_TO_SHOW = 2;
+
+// Generate 4 songs in parallel; return the first 2 that finish (faster UX). Used for user selection on story-mode, lyric, and song-generator.
 export async function generateMultipleSongsForSelection(
   tags: string,
   lyrics: string | undefined,
@@ -168,44 +197,42 @@ export async function generateMultipleSongsForSelection(
   description: string | undefined
 ): Promise<MinimaxSongResult[]> {
   const effectiveRequestDuration = Math.min(durationSeconds, MAX_SONG_DURATION);
-  const maxRetries = 2; // Retry up to 2 times if both songs fail/timeout
-  
-  console.log("=== GENERATING 2 SONGS FOR USER SELECTION ===");
+  const maxRetries = 2; // Retry up to 2 times if we get 0 songs
+
+  console.log(`=== GENERATING ${SONGS_IN_PARALLEL} SONGS IN PARALLEL (SHOW FIRST ${SONGS_TO_SHOW} TO FINISH) ===`);
   console.log("Requested duration:", durationSeconds, "seconds");
   console.log("Effective request duration (capped at 4 min):", effectiveRequestDuration, "seconds");
   console.log("Per-song timeout: 200 seconds");
-  
+
   for (let retryAttempt = 0; retryAttempt <= maxRetries; retryAttempt++) {
     if (retryAttempt > 0) {
-      console.log(`\n=== RETRY ATTEMPT ${retryAttempt}/${maxRetries} (both songs failed or timed out) ===`);
+      console.log(`\n=== RETRY ATTEMPT ${retryAttempt}/${maxRetries} (no songs finished in time) ===`);
     }
-    
-    const songs = await generateMultipleSongsInParallel(
-      tags,
-      lyrics,
-      effectiveRequestDuration,
-      description,
-      2
+
+    const generationPromises = Array.from({ length: SONGS_IN_PARALLEL }, (_, i) =>
+      withTimeout(
+        generateSingleSong(tags, lyrics, effectiveRequestDuration, description, i + 1),
+        SONG_GENERATION_TIMEOUT_MS,
+        i + 1
+      )
     );
 
-    // If at least 1 song was generated, return it immediately
-    if (songs.length > 0) {
-      console.log(`\n=== GENERATED ${songs.length} SONG(S) FOR USER SELECTION ===`);
+    try {
+      const songs = await firstNSuccessful(generationPromises, SONGS_TO_SHOW);
+      console.log(`\n=== FIRST ${songs.length} SONG(S) READY FOR USER SELECTION ===`);
       songs.forEach((song, i) => {
         console.log(`  Song ${i + 1}: duration=${song.duration}s, url=${song.audioUrl.substring(0, 50)}...`);
       });
       return songs;
-    }
-
-    // If both songs failed or timed out, retry if we have attempts left
-    if (retryAttempt < maxRetries) {
-      console.log(`\n=== BOTH SONGS FAILED OR TIMED OUT ===`);
-      console.log(`Retrying generation (attempt ${retryAttempt + 1}/${maxRetries})...`);
+    } catch {
+      if (retryAttempt < maxRetries) {
+        console.log(`\n=== FEWER THAN ${SONGS_TO_SHOW} SONGS COMPLETED ===`);
+        console.log(`Retrying with 4 more parallel generations...`);
+      }
     }
   }
 
-  // If we exhausted all retries and still have no songs, throw error
-  throw new Error("Failed to generate any songs after retries. Both songs timed out or failed.");
+  throw new Error("Failed to generate any songs after retries. No songs completed in time.");
 }
 
 function selectBestSong(

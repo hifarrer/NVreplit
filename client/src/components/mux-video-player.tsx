@@ -26,6 +26,11 @@ interface MuxVideoPlayerProps {
   'data-video-index'?: number;
 }
 
+const muxPlayerStyle: React.CSSProperties = {
+  '--media-object-fit': 'contain',
+  '--media-object-position': 'center',
+} as React.CSSProperties;
+
 export const MuxVideoPlayer = forwardRef<HTMLVideoElement, MuxVideoPlayerProps>(
   ({
     playbackId,
@@ -57,6 +62,8 @@ export const MuxVideoPlayer = forwardRef<HTMLVideoElement, MuxVideoPlayerProps>(
       return fallbackVideoRef.current!;
     });
 
+    const mergedStyle = { ...muxPlayerStyle, ...style };
+
     // Priority 1: Mux when ready
     if (playbackId) {
       return (
@@ -72,7 +79,7 @@ export const MuxVideoPlayer = forwardRef<HTMLVideoElement, MuxVideoPlayerProps>(
           preload={preload}
           poster={poster}
           className={className}
-          style={style}
+          style={mergedStyle}
           data-testid={dataTestId}
           data-video-index={dataVideoIndex}
           onLoadStart={onLoadStart}

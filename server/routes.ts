@@ -6073,11 +6073,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let kieTaskId = null;
       let kieAudioId = null;
       
-      // Use Minimax Music 02 for song generation - generates 2 songs in parallel
-      // This ensures at least 1 song is available if one generation fails
-      console.log("Using Minimax Music 02 for song generation (2 songs)...");
-      
-      // Generate 2 songs in parallel - user will select one, then trim it
+      // Use Minimax Music 02 for song generation - 4 in parallel, show first 2 to finish
+      console.log("Using Minimax Music 02 for song generation (4 parallel, first 2 to finish)...");
+
+      // Generate 4 songs in parallel; return first 2 that complete - user selects one, then trims
       const { generateMultipleSongsForSelection } = await import("./services/minimax");
       const minimaxSongs = await generateMultipleSongsForSelection(tags, lyrics, duration, description);
       
