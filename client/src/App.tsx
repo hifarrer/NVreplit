@@ -28,6 +28,7 @@ import ContactPage from "@/pages/contact";
 import NeonSinglePrompt from "@/pages/neon-single-prompt";
 import CreateSelect from "@/pages/create-select";
 import CreateSinglePrompt from "@/pages/create-single-prompt";
+import CreateSimpleMode from "@/pages/create-simple-mode";
 import CreateInstrumental from "@/pages/create-instrumental";
 import CreateLyric from "@/pages/create-lyric";
 import BlogPage from "@/pages/blog";
@@ -93,6 +94,7 @@ function AppRouter() {
         <Route path="/" component={user ? () => <ProtectedRoute component={CreateSelect} /> : LandingPage} />
         <Route path="/create/story-mode" component={() => <ProtectedRoute component={Home} />} />
         <Route path="/create/single-prompt" component={() => <ProtectedRoute component={CreateSinglePrompt} />} />
+        <Route path="/create/simple-mode" component={() => <ProtectedRoute component={CreateSimpleMode} />} />
         <Route path="/create/instrumental" component={() => <ProtectedRoute component={CreateInstrumental} />} />
         <Route path="/create/lyric" component={() => <ProtectedRoute component={CreateLyric} />} />
         <Route path="/create" component={() => <ProtectedRoute component={CreateSelect} />} />

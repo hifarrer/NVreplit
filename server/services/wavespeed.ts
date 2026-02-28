@@ -31,13 +31,13 @@ export function segmentHasLyrics(
       wordCount++;
     }
   }
-  
+
   if (wordCount > 0) {
     console.log(`Segment ${segmentStartTime.toFixed(1)}s-${segmentEndTime.toFixed(1)}s contains ${wordCount} word(s)`);
   } else {
     console.log(`Segment ${segmentStartTime.toFixed(1)}s-${segmentEndTime.toFixed(1)}s has NO lyrics`);
   }
-  
+
   return wordCount > 0;
 }
 
@@ -71,47 +71,66 @@ async function generateVideoSegmentInternal(
   let requestBody: any;
 
   if (model === "infinitetalk") {
-    // Infinitetalk is used for lipsync - uses audio
-    // Select endpoint and resolution based on video quality
+    // LTX-2-19B Lipsync model - uses audio + image + prompt
+    // Single endpoint for all quality tiers, differentiated by resolution
     switch (videoQuality) {
       case "premium":
-        // Premium quality: infinitetalk with 720p resolution
-        endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk";
+        // Premium quality: ltx-2-19b lipsync with 720p resolution
+        endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/ltx-2-19b/lipsync";
         requestBody = {
           audio: audioUrl,
           image: imageUrl,
+          prompt: prompt,
           resolution: "720p",
           seed: -1,
         };
         break;
       case "medium":
-        // Medium quality: infinitetalk with 480p resolution
-        endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk";
+        // Medium quality: ltx-2-19b lipsync with 480p resolution
+        endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/ltx-2-19b/lipsync";
         requestBody = {
           audio: audioUrl,
           image: imageUrl,
+          prompt: prompt,
           resolution: "480p",
           seed: -1,
         };
         break;
       case "quick":
       default:
-        // Quick quality: infinitetalk-fast (no resolution param)
-        endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk-fast";
+        // Quick quality: ltx-2-19b lipsync with 720p resolution
+        endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/ltx-2-19b/lipsync";
         requestBody = {
           audio: audioUrl,
           image: imageUrl,
           prompt: prompt,
+          resolution: "720p",
           seed: -1,
         };
         break;
     }
+    // BACKUP: Old infinitetalk endpoints (uncomment to rollback)
+    // switch (videoQuality) {
+    //   case "premium":
+    //     endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk";
+    //     requestBody = { audio: audioUrl, image: imageUrl, resolution: "720p", seed: -1 };
+    //     break;
+    //   case "medium":
+    //     endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk";
+    //     requestBody = { audio: audioUrl, image: imageUrl, resolution: "480p", seed: -1 };
+    //     break;
+    //   case "quick":
+    //   default:
+    //     endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk-fast";
+    //     requestBody = { audio: audioUrl, image: imageUrl, prompt: prompt, seed: -1 };
+    //     break;
+    // }
   } else {
     // Non-lipsync models (seedance for quick, Alibaba Wan 2.5 for medium/premium)
     // Seedance v1.5 Pro requires minimum 4 seconds, Wan 2.5 requires minimum 2 seconds
     let minDuration: number;
     let maxDuration: number;
-    
+
     if (videoQuality === "quick") {
       // Seedance v1.5 Pro requires minimum 4 seconds
       minDuration = 4;
@@ -121,10 +140,10 @@ async function generateVideoSegmentInternal(
       minDuration = 2;
       maxDuration = 12;
     }
-    
+
     const roundedDuration = Math.min(maxDuration, Math.max(minDuration, Math.round(segmentDuration)));
     console.log(`Video duration: ${segmentDuration}s → rounded to ${roundedDuration}s (valid range: ${minDuration}-${maxDuration})`);
-    
+
     // Select model based on video quality
     switch (videoQuality) {
       case "premium":
@@ -252,29 +271,29 @@ async function generateVideoSegmentInternal(
 // Check if error is due to sensitive content flagging
 function isSensitiveContentError(error: Error): boolean {
   const errorMessage = error.message.toLowerCase();
-  return errorMessage.includes('sensitive') || 
-         errorMessage.includes('flagged') ||
-         errorMessage.includes('content policy') ||
-         errorMessage.includes('nsfw') ||
-         errorMessage.includes('inappropriate');
+  return errorMessage.includes('sensitive') ||
+    errorMessage.includes('flagged') ||
+    errorMessage.includes('content policy') ||
+    errorMessage.includes('nsfw') ||
+    errorMessage.includes('inappropriate');
 }
 
 // Check if error is a transient/retryable network error or processing error
 function isTransientError(error: Error): boolean {
   const errorMessage = error.message.toLowerCase();
   return errorMessage.includes('connection aborted') ||
-         errorMessage.includes('remotedisconnected') ||
-         errorMessage.includes('remote end closed connection') ||
-         errorMessage.includes('econnreset') ||
-         errorMessage.includes('socket hang up') ||
-         errorMessage.includes('network error') ||
-         errorMessage.includes('timeout') ||
-         errorMessage.includes('502') ||
-         errorMessage.includes('503') ||
-         errorMessage.includes('504') ||
-         errorMessage.includes('ffmpeg') || // FFmpeg processing errors are often transient
-         errorMessage.includes('error during processing') || // Processing errors can be retried
-         errorMessage.includes('video generation failed'); // Failed status from API can be retried
+    errorMessage.includes('remotedisconnected') ||
+    errorMessage.includes('remote end closed connection') ||
+    errorMessage.includes('econnreset') ||
+    errorMessage.includes('socket hang up') ||
+    errorMessage.includes('network error') ||
+    errorMessage.includes('timeout') ||
+    errorMessage.includes('502') ||
+    errorMessage.includes('503') ||
+    errorMessage.includes('504') ||
+    errorMessage.includes('ffmpeg') || // FFmpeg processing errors are often transient
+    errorMessage.includes('error during processing') || // Processing errors can be retried
+    errorMessage.includes('video generation failed'); // Failed status from API can be retried
 }
 
 // Maximum number of retries for transient errors
@@ -292,7 +311,7 @@ export async function generateVideoSegment(
 ): Promise<string> {
   let lastError: Error | null = null;
   let currentPrompt = prompt;
-  
+
   // Retry loop for transient errors
   for (let attempt = 1; attempt <= MAX_TRANSIENT_RETRIES; attempt++) {
     try {
@@ -301,35 +320,35 @@ export async function generateVideoSegment(
     } catch (error) {
       const err = error as Error;
       lastError = err;
-      
+
       // Check if the error is due to sensitive content
       if (isSensitiveContentError(err)) {
         console.log(`\n=== SENSITIVE CONTENT DETECTED ===`);
         console.log(`Original prompt was flagged: "${currentPrompt}"`);
         console.log(`Retrying with safe fallback prompt: "${SAFE_FALLBACK_PROMPT}"`);
         console.log(`================================\n`);
-        
+
         // Switch to safe fallback prompt and retry
         currentPrompt = SAFE_FALLBACK_PROMPT;
         continue;
       }
-      
+
       // Check if this is a transient/retryable error
       if (isTransientError(err) && attempt < MAX_TRANSIENT_RETRIES) {
         console.log(`\n=== TRANSIENT ERROR DETECTED (attempt ${attempt}/${MAX_TRANSIENT_RETRIES}) ===`);
         console.log(`Error: ${err.message}`);
-        console.log(`Waiting ${RETRY_DELAY_MS/1000} seconds before retry...`);
+        console.log(`Waiting ${RETRY_DELAY_MS / 1000} seconds before retry...`);
         console.log(`================================================\n`);
-        
+
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
         continue;
       }
-      
+
       // For non-retryable errors or max retries exceeded, break out
       break;
     }
   }
-  
+
   // If we get here, all retries failed
   console.error("Wavespeed generation error after all retries:", lastError);
   throw new Error(
@@ -363,22 +382,22 @@ export async function generateAllVideoSegmentsDynamic(
   const videoQuality = config.videoQuality || "quick";
   const sceneLipsyncSettings = config.sceneLipsyncSettings;
   const aspectRatio = config.aspectRatio || "16:9";
-  
+
   // CRITICAL: For instrumental videos, never use infinitetalk
   const isInstrumental = config.isInstrumental === true;
   if (isInstrumental) {
-    console.log(`⚠️ INSTRUMENTAL VIDEO DETECTED - Forcing seedance only (no infinitetalk)`);
+    console.log(`⚠️ INSTRUMENTAL VIDEO DETECTED - Forcing seedance only (no ltx-lipsync)`);
     config.makeCharacterSing = false;
     config.numberOfVideosLipsync = 0;
   }
-  
+
   console.log(`Starting dynamic video generation:`);
   console.log(`- Audio segments: ${audioSegments.length}`);
   console.log(`- Scene images: ${imageUrls.length}`);
   console.log(
     `- Regular videos (seedance): ${config.numberOfVideosRegularApi}`,
   );
-  console.log(`- Lipsync videos (infinitetalk): ${config.numberOfVideosLipsync}`);
+  console.log(`- Lipsync videos (ltx-lipsync): ${config.numberOfVideosLipsync}`);
   console.log(`- Make character sing: ${config.makeCharacterSing}`);
   console.log(`- Is instrumental: ${isInstrumental}`);
   console.log(`- Video quality: ${videoQuality}`);
@@ -407,11 +426,11 @@ export async function generateAllVideoSegmentsDynamic(
   } else {
     console.log("No subtitle data available - will not use lipsync for segments without detected lyrics");
   }
-  
+
   // Use provided segment durations or calculate from total duration
   // For proper sync, each segment should be 6 seconds except potentially the last one
   const totalDuration = subtitleData?.totalDuration || (audioSegments.length * 6);
-  
+
   // Helper to get segment duration for a given index
   const getSegmentDuration = (index: number): number => {
     if (segmentDurations && segmentDurations[index] !== undefined) {
@@ -431,41 +450,41 @@ export async function generateAllVideoSegmentsDynamic(
     // Cap at 6, minimum of 1 second (handle edge case of exact multiples)
     return Math.min(defaultDuration, Math.max(1, remainder));
   };
-  
+
   // Log calculated segment durations
   for (let i = 0; i < audioSegments.length; i++) {
     console.log(`Segment ${i + 1} duration: ${getSegmentDuration(i)}s`);
   }
-  
+
   // Helper function to determine if a scene should use lipsync
   // Priority: 1) Explicit per-scene setting, 2) Duration check for last segment, 3) Default pattern based on scene number
   const shouldUseLipsync = (index: number, segDuration: number): { useLipsync: boolean; reason: string } => {
     const isLastSegment = index === audioSegments.length - 1;
     const sceneNumber = index + 1; // 1-indexed
-    
+
     // Check if there's an explicit per-scene lipsync setting
     if (sceneLipsyncSettings && sceneLipsyncSettings[index] !== null && sceneLipsyncSettings[index] !== undefined) {
       const explicitSetting = sceneLipsyncSettings[index];
-      return { 
-        useLipsync: explicitSetting === true, 
-        reason: `per-scene toggle = ${explicitSetting ? 'LIPSYNC' : 'REGULAR'}` 
+      return {
+        useLipsync: explicitSetting === true,
+        reason: `per-scene toggle = ${explicitSetting ? 'LIPSYNC' : 'REGULAR'}`
       };
     }
-    
-    // IMPORTANT: If last segment is less than 4 seconds, do NOT use lipsync (infinitetalk)
-    // Very short audio segments can cause FFmpeg errors in infinitetalk
+
+    // IMPORTANT: If last segment is less than 4 seconds, do NOT use lipsync (ltx-lipsync)
+    // Very short audio segments can cause errors with lipsync models
     if (isLastSegment && segDuration < 4) {
       console.log(`⚠️ Last segment duration (${segDuration}s) is too short for lipsync - forcing REGULAR (seedance)`);
       return { useLipsync: false, reason: `last segment ${segDuration}s < 4s → forcing REGULAR (too short for lipsync)` };
     }
-    
+
     // For last segment between 4-6 seconds, we can use lipsync if needed
     // Seedance requires minimum 2 seconds, so segments < 6s can still use seedance
     if (isLastSegment && segDuration < 6) {
       // Use default pattern for segments 4-6 seconds (can use either model)
       // Continue to pattern logic below
     }
-    
+
     // Default pattern for 18-second videos (3 segments): Scene 1 = regular, Scenes 2-3 = lipsync
     // Note: With 6-second segments, 30-second videos have 5 segments and use ODD/EVEN pattern
     if (audioSegments.length === 3) {
@@ -479,7 +498,7 @@ export async function generateAllVideoSegmentsDynamic(
         return { useLipsync: true, reason: `30s pattern: Scene ${sceneNumber} → LIPSYNC` };
       }
     }
-    
+
     // Default pattern for longer videos: ODD scenes = regular, EVEN scenes = lipsync
     if (sceneNumber % 2 === 1) {
       return { useLipsync: false, reason: 'ODD scene → REGULAR' };
@@ -491,7 +510,7 @@ export async function generateAllVideoSegmentsDynamic(
       return { useLipsync: true, reason: 'EVEN scene → LIPSYNC' };
     }
   };
-  
+
   // Generate videos using intercalated pattern when makeCharacterSing is enabled
   const videoPromises: Promise<string>[] = [];
   const videoTypes: ("seedance" | "infinitetalk")[] = [];
@@ -501,25 +520,25 @@ export async function generateAllVideoSegmentsDynamic(
     for (let i = 0; i < audioSegments.length; i++) {
       const segDuration = getSegmentDuration(i);
       const sceneNumber = i + 1;
-      
+
       // Calculate time range for logging
       let cumulativeStart = 0;
       for (let j = 0; j < i; j++) {
         cumulativeStart += getSegmentDuration(j);
       }
       const segmentEnd = cumulativeStart + segDuration;
-      
+
       console.log(`\n=== SEGMENT ${i + 1} (${cumulativeStart.toFixed(1)}s-${segmentEnd.toFixed(1)}s, duration: ${segDuration}s) ===`);
       console.log(`  - Scene ${sceneNumber} (index ${i})`);
-      
+
       // Determine model based on per-scene lipsync setting or default pattern
       const { useLipsync, reason } = shouldUseLipsync(i, segDuration);
       const model: "seedance" | "infinitetalk" = useLipsync ? "infinitetalk" : "seedance";
-      
+
       console.log(`  - ${reason} → using ${model}`);
-      
+
       videoTypes.push(model);
-      
+
       if (model === "infinitetalk") {
         // Infinitetalk requires audio for lipsync (duration comes from audio)
         console.log(`  → Audio URL: ${audioSegments[i].substring(0, 50)}...`);
@@ -552,7 +571,7 @@ export async function generateAllVideoSegmentsDynamic(
       const segDuration = getSegmentDuration(i);
       // Seedance requires minimum 6 seconds, use full 6s for short last segment
       const effectiveDuration = Math.max(6, segDuration);
-      
+
       console.log(
         `Generating video segment ${i + 1} using seedance model (no lipsync, ${effectiveDuration}s)`,
       );
@@ -574,26 +593,26 @@ export async function generateAllVideoSegmentsDynamic(
 
   if (config.makeCharacterSing) {
     // Separate videos by type
-    const infinitetalkVideos: string[] = [];
+    const lipsyncVideos: string[] = [];
     const seedanceVideos: string[] = [];
 
     for (let i = 0; i < videoUrls.length; i++) {
       if (videoTypes[i] === "infinitetalk") {
-        infinitetalkVideos.push(videoUrls[i]);
+        lipsyncVideos.push(videoUrls[i]);
       } else {
         seedanceVideos.push(videoUrls[i]);
       }
     }
 
     console.log(
-      `Separating videos for PiP: ${infinitetalkVideos.length} infinitetalk, ${seedanceVideos.length} seedance`,
+      `Separating videos for PiP: ${lipsyncVideos.length} ltx-lipsync, ${seedanceVideos.length} seedance`,
     );
 
-    // Create pairs: infinitetalk as main video (a), seedance as overlay (b)
-    const pairCount = Math.min(infinitetalkVideos.length, seedanceVideos.length);
+    // Create pairs: lipsync as main video (a), seedance as overlay (b)
+    const pairCount = Math.min(lipsyncVideos.length, seedanceVideos.length);
     for (let i = 0; i < pairCount; i++) {
       segmentPairs.push({
-        a: infinitetalkVideos[i], // Main video (infinitetalk with lipsync)
+        a: lipsyncVideos[i], // Main video (ltx-lipsync)
         b: seedanceVideos[i], // Overlay video (seedance)
       });
     }
@@ -783,20 +802,20 @@ export async function enhanceImageHyperReal(
     if (statusResult.data?.status === "completed") {
       // Handle various WaveSpeed response formats
       let enhancedImageUrl: string | undefined;
-      
+
       if (statusResult.data.outputs && statusResult.data.outputs.length > 0) {
         // Format: { data: { outputs: ["url1", "url2"] } }
         enhancedImageUrl = statusResult.data.outputs[0];
       } else if (statusResult.data.output) {
         // Format: { data: { output: "url" } } or { data: { output: ["url"] } }
-        enhancedImageUrl = Array.isArray(statusResult.data.output) 
-          ? statusResult.data.output[0] 
+        enhancedImageUrl = Array.isArray(statusResult.data.output)
+          ? statusResult.data.output[0]
           : statusResult.data.output;
       } else if (statusResult.data.image) {
         // Format: { data: { image: "url" } }
         enhancedImageUrl = statusResult.data.image;
       }
-      
+
       if (enhancedImageUrl) {
         console.log("Hyper real enhancement completed:", enhancedImageUrl);
         return enhancedImageUrl;

@@ -15,9 +15,9 @@ export const openai = new OpenAI({
 export async function transcribeAudio(audioFilePath: string): Promise<string> {
   try {
     console.log("Starting Whisper transcription for:", audioFilePath);
-    
+
     const audioFile = fs.createReadStream(audioFilePath);
-    
+
     const transcription = await openai.audio.transcriptions.create({
       file: audioFile,
       model: "whisper-1",
@@ -29,7 +29,7 @@ export async function transcribeAudio(audioFilePath: string): Promise<string> {
     console.log("Transcription completed successfully");
     console.log("Transcribed text:", transcription);
     console.log("Transcribed text length:", transcription.length);
-    
+
     return transcription;
   } catch (error) {
     console.error("Whisper transcription error:", error);
@@ -123,15 +123,15 @@ IMPORTANT: Return ONLY a valid JSON object with exactly these two fields:
     });
 
     const content = response.choices[0]?.message?.content;
-    
+
     if (!content || content === "{}") {
       console.error("Empty or invalid response from OpenAI");
       console.error("Full OpenAI response:", JSON.stringify(response, null, 2));
       throw new Error("OpenAI returned an empty response. Please try again.");
     }
-    
+
     console.log("OpenAI response content:", content);
-    
+
     let result;
     try {
       result = JSON.parse(content);
@@ -252,11 +252,11 @@ export async function generateScenePrompts(
   lyricsSections?: string[],
 ): Promise<string[]> {
   try {
-    // Determine which scenes will be used for infinitetalk (lipsync) vs seedance (regular)
-    // For 30-second videos (3 scenes): scene 1 is seedance, scenes 2-3 are infinitetalk
+    // Determine which scenes will be used for ltx-lipsync vs seedance (regular)
+    // For 30-second videos (3 scenes): scene 1 is seedance, scenes 2-3 are ltx-lipsync
     // For other videos: they alternate starting with seedance
     const isThirtySecondVideo = numberOfScenes === 3;
-    
+
     // Create prompts for the specified number of scenes
     let userContent = `Generate ${numberOfScenes} SHORT and CONCISE image prompts for a music video based on this description "${songDescription}". Each prompt must be 1-2 sentences maximum.
 
@@ -266,11 +266,11 @@ THIRD, create a list of prompts based on the scenes.
 FOURTH, keep scene backgrounds mostly consistent across the scenes to make the video more coherent. For example if the first scene is a cityscape, the other scenes should also be cityscapes.
 
 IMPORTANT PATTERN:
-${isThirtySecondVideo ? 
-  `Scene 1: REGULAR video (wider shots allowed, dynamic movements)
+${isThirtySecondVideo ?
+        `Scene 1: REGULAR video (wider shots allowed, dynamic movements)
 Scene 2: LIPSYNC video (CLOSEUP required, slight camera movements)
 Scene 3: LIPSYNC video (CLOSEUP required, slight camera movements)` :
-  `ODD scenes (1, 3, 5, etc.): REGULAR videos (wider shots allowed, more dynamic)
+        `ODD scenes (1, 3, 5, etc.): REGULAR videos (wider shots allowed, more dynamic)
 EVEN scenes (2, 4, 6, etc.): LIPSYNC videos (CLOSEUPS required, slight camera movements)`}
 
 REQUIREMENTS FOR REGULAR SCENES:
@@ -352,9 +352,9 @@ Keep them simple and focused for video generation.
 Respond with JSON in this format: {"prompts": [${Array(
             numberOfScenes,
           )
-            .fill(0)
-            .map((_, i) => `"scene ${i + 1} description"`)
-            .join(", ")}]}`,
+              .fill(0)
+              .map((_, i) => `"scene ${i + 1} description"`)
+              .join(", ")}]}`,
         },
         {
           role: "user",
@@ -366,33 +366,33 @@ Respond with JSON in this format: {"prompts": [${Array(
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
     let prompts = result.prompts || [];
-    
+
     // Validate that prompts is actually an array
     if (!Array.isArray(prompts)) {
       console.error("⚠️ OpenAI response 'prompts' is not an array:", typeof prompts);
       prompts = [];
     }
-    
+
     // CRITICAL: Ensure we have exactly the requested number of scenes
     console.log(`OpenAI returned ${prompts.length} prompts, requested ${numberOfScenes}`);
-    
+
     if (prompts.length < numberOfScenes) {
       // If OpenAI returned fewer scenes, generate fallback prompts that respect the REGULAR/LIPSYNC pattern
       console.warn(`⚠️ OpenAI returned ${prompts.length} scenes instead of ${numberOfScenes}. Generating fallback prompts.`);
-      
+
       while (prompts.length < numberOfScenes) {
         const sceneIndex = prompts.length;
         const sceneNumber = sceneIndex + 1;
-        
+
         // Determine if this should be a REGULAR or LIPSYNC scene
-        const isLipsyncScene = isThirtySecondVideo 
+        const isLipsyncScene = isThirtySecondVideo
           ? (sceneNumber === 2 || sceneNumber === 3)  // For 30s: scenes 2-3 are lipsync
           : (sceneNumber % 2 === 0);  // For others: even scenes are lipsync
-        
+
         const fallbackPrompt = isLipsyncScene
           ? `Closeup of character's face as they sing passionately. Camera slowly pans around to capture their emotion.`
           : `Character performs energetically in a vibrant setting. Camera pulls back to reveal the full scene.`;
-        
+
         prompts.push(fallbackPrompt);
       }
     } else if (prompts.length > numberOfScenes) {
@@ -400,7 +400,7 @@ Respond with JSON in this format: {"prompts": [${Array(
       console.warn(`⚠️ OpenAI returned ${prompts.length} scenes instead of ${numberOfScenes}. Trimming excess.`);
       prompts = prompts.slice(0, numberOfScenes);
     }
-    
+
     console.log(`✓ Returning exactly ${prompts.length} scene prompts`);
     return prompts;
   } catch (error) {
@@ -454,9 +454,9 @@ Keep them simple and focused for video generation.
 Respond with JSON in this format: {"prompts": [${Array(
             numberOfScenes,
           )
-            .fill(0)
-            .map((_, i) => `"scene ${i + 1} description"`)
-            .join(", ")}]}`,
+              .fill(0)
+              .map((_, i) => `"scene ${i + 1} description"`)
+              .join(", ")}]}`,
         },
         {
           role: "user",
@@ -468,20 +468,20 @@ Respond with JSON in this format: {"prompts": [${Array(
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
     let prompts = result.prompts || [];
-    
+
     // Validate that prompts is actually an array
     if (!Array.isArray(prompts)) {
       console.error("⚠️ OpenAI response 'prompts' is not an array:", typeof prompts);
       prompts = [];
     }
-    
+
     // CRITICAL: Ensure we have exactly the requested number of scenes
     console.log(`OpenAI returned ${prompts.length} prompts for instrumental video, requested ${numberOfScenes}`);
-    
+
     if (prompts.length < numberOfScenes) {
       // Generate fallback prompts for instrumental videos (no characters)
       console.warn(`⚠️ OpenAI returned ${prompts.length} scenes instead of ${numberOfScenes}. Generating fallback prompts.`);
-      
+
       const fallbackPrompts = [
         "Sweeping cinematic view of a vast landscape at golden hour, camera slowly pans across the horizon.",
         "Epic aerial shot of dramatic cloud formations over mountains, camera descends revealing the terrain below.",
@@ -492,7 +492,7 @@ Respond with JSON in this format: {"prompts": [${Array(
         "Grand desert landscape with shifting sand dunes, camera pans across the vast expanse.",
         "Cinematic shot of a starry night sky over silhouetted mountains, camera tilts up revealing the cosmos.",
       ];
-      
+
       while (prompts.length < numberOfScenes) {
         const fallbackIndex = prompts.length % fallbackPrompts.length;
         prompts.push(fallbackPrompts[fallbackIndex]);
@@ -502,7 +502,7 @@ Respond with JSON in this format: {"prompts": [${Array(
       console.warn(`⚠️ OpenAI returned ${prompts.length} scenes instead of ${numberOfScenes}. Trimming excess.`);
       prompts = prompts.slice(0, numberOfScenes);
     }
-    
+
     console.log(`✓ Returning exactly ${prompts.length} instrumental scene prompts (no characters)`);
     return prompts;
   } catch (error) {
@@ -571,9 +571,9 @@ CRITICAL RULES:
 Respond with JSON in this format: {"prompts": [${Array(
             numberOfScenes,
           )
-            .fill(0)
-            .map((_, i) => `"scene ${i + 1} description"`)
-            .join(", ")}]}`,
+              .fill(0)
+              .map((_, i) => `"scene ${i + 1} description"`)
+              .join(", ")}]}`,
         },
         {
           role: "user",
@@ -585,13 +585,13 @@ Respond with JSON in this format: {"prompts": [${Array(
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
     let prompts = result.prompts || [];
-    
+
     // Validate that prompts is actually an array
     if (!Array.isArray(prompts)) {
       console.error("⚠️ OpenAI response 'prompts' is not an array:", typeof prompts);
       prompts = [];
     }
-    
+
     // Filter out any prompts that contain singing/microphone references (safety check)
     prompts = prompts.map((prompt: string) => {
       const lowerPrompt = prompt.toLowerCase();
@@ -608,14 +608,14 @@ Respond with JSON in this format: {"prompts": [${Array(
       }
       return prompt;
     });
-    
+
     // CRITICAL: Ensure we have exactly the requested number of scenes
     console.log(`OpenAI returned ${prompts.length} prompts for lyric video, requested ${numberOfScenes}`);
-    
+
     if (prompts.length < numberOfScenes) {
       // Generate fallback prompts for lyric videos (characters allowed but no singing)
       console.warn(`⚠️ OpenAI returned ${prompts.length} scenes instead of ${numberOfScenes}. Generating fallback prompts.`);
-      
+
       const fallbackPrompts = [
         "Character exploring a vibrant landscape, camera follows from behind as they move forward.",
         "Dynamic scene with colorful elements and engaging visuals, camera slowly pans across the scene.",
@@ -626,7 +626,7 @@ Respond with JSON in this format: {"prompts": [${Array(
         "Engaging scene with character in motion, camera follows the action smoothly.",
         "Cinematic view of an interesting environment, camera tilts and pans to reveal details.",
       ];
-      
+
       while (prompts.length < numberOfScenes) {
         const fallbackIndex = prompts.length % fallbackPrompts.length;
         prompts.push(fallbackPrompts[fallbackIndex]);
@@ -636,7 +636,7 @@ Respond with JSON in this format: {"prompts": [${Array(
       console.warn(`⚠️ OpenAI returned ${prompts.length} scenes instead of ${numberOfScenes}. Trimming excess.`);
       prompts = prompts.slice(0, numberOfScenes);
     }
-    
+
     console.log(`✓ Returning exactly ${prompts.length} lyric video scene prompts`);
     return prompts;
   } catch (error) {

@@ -73,7 +73,7 @@ Preferred communication style: Simple, everyday language.
 - **Video Generation**: Wavespeed AI for converting images and audio into video segments
   - **Non-lipsync model**: bytedance/seedance-v1.5-pro/image-to-video-fast (default, 6-second segments)
   - **Backup model**: bytedance/seedance-v1-pro-i2v-480p (kept for fallback)
-  - **Lipsync model**: infinitetalk-fast (no limit, but uses 6-second segments)
+  - **Lipsync model**: wavespeed-ai/ltx-2-19b/lipsync (all quality tiers, 6-second segments)
 - **Audio Processing**: FFMPEG API for splitting audio tracks (6-second segments) and merging video segments with watermark branding
 - **Database**: Neon Database (PostgreSQL) for data persistence
 - **Deployment**: Replit-optimized with development tooling and error overlays

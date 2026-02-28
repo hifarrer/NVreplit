@@ -36,7 +36,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const token = localStorage.getItem("adminToken");
     const user = localStorage.getItem("adminUser");
-    
+
     if (!token || !user) {
       setLocation("/admin");
       return;
@@ -87,7 +87,7 @@ export default function AdminDashboard() {
               <p className="text-sm text-gray-300">NeonVideo.ai Management</p>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
               <Avatar className="h-8 w-8">
@@ -208,7 +208,7 @@ export default function AdminDashboard() {
                   <span className="text-sm font-medium text-gray-300">Video Generation</span>
                 </div>
                 <p className="text-white font-mono text-sm">seedance-v1.5-pro</p>
-                <p className="text-xs text-gray-500 mt-1">Lipsync: infinitetalk-fast</p>
+                <p className="text-xs text-gray-500 mt-1">Lipsync: ltx-2-19b/lipsync</p>
               </div>
             </div>
           </CardContent>
@@ -302,7 +302,7 @@ export default function AdminDashboard() {
                 Manage Plans
               </Button>
             </div>
-            
+
             <Card className="bg-black/30 border-purple-500/20">
               <CardContent className="p-6">
                 <div className="text-center py-8">

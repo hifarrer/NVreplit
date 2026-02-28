@@ -29,11 +29,11 @@ export async function getAudioDurationFromFile(filePath: string): Promise<number
   try {
     const { parseFile } = await import('music-metadata');
     console.log(`Getting audio duration from file: ${filePath}`);
-    
+
     const metadata = await parseFile(filePath);
     // Use Math.ceil to ensure we don't lose any audio content
     const duration = Math.ceil(metadata.format.duration || 0);
-    
+
     console.log(`Audio duration: ${duration} seconds`);
     return duration;
   } catch (error) {
@@ -46,7 +46,7 @@ export async function trimAudio(audioUrl: string, desiredLength: number): Promis
   try {
     console.log(`Trimming audio to ${desiredLength} seconds`);
     console.log(`Audio URL: ${audioUrl}`);
-    
+
     const response = await fetchWithRetry("https://ffmpegapi-production.up.railway.app/api/trim_audio", {
       method: "POST",
       headers: {
@@ -66,7 +66,7 @@ export async function trimAudio(audioUrl: string, desiredLength: number): Promis
     }
 
     const result = await response.json();
-    
+
     if (!result.success) {
       throw new Error(`Audio trimming failed: ${result.message || "Unknown error"}`);
     }
@@ -88,7 +88,7 @@ export async function splitAudioByTime(audioUrl: string, startTime: number, endT
   try {
     console.log(`Splitting audio from ${startTime}ms to ${endTime}ms`);
     console.log(`Audio URL: ${audioUrl}`);
-    
+
     const response = await fetchWithRetry("https://ffmpegapi-production.up.railway.app/api/split_audio_time", {
       method: "POST",
       headers: {
@@ -108,7 +108,7 @@ export async function splitAudioByTime(audioUrl: string, startTime: number, endT
     }
 
     const result = await response.json();
-    
+
     if (!result.success) {
       throw new Error(`Audio splitting failed: ${result.message || "Unknown error"}`);
     }
@@ -134,7 +134,7 @@ export interface AudioSegment {
 export async function splitAudioByParts(audioUrl: string, parts: number, totalDurationSeconds?: number): Promise<AudioSegment[]> {
   try {
     console.log(`Splitting audio into ${parts} equal parts using /api/split_audio (total duration: ${totalDurationSeconds || 'unknown'}s)`);
-    
+
     const response = await fetchWithRetry("https://ffmpegapi-production.up.railway.app/api/split_audio", {
       method: "POST",
       headers: {
@@ -153,10 +153,10 @@ export async function splitAudioByParts(audioUrl: string, parts: number, totalDu
     }
 
     const result = await response.json();
-    
+
     console.log("=== FFMPEG SPLIT AUDIO BY PARTS RESPONSE ===");
     console.log("Full response:", JSON.stringify(result, null, 2));
-    
+
     if (!result.success) {
       throw new Error(`Audio splitting failed: ${result.message || "Unknown error"}`);
     }
@@ -166,19 +166,19 @@ export async function splitAudioByParts(audioUrl: string, parts: number, totalDu
     // { audio_parts: [{ part: "split_part_01.mp3", download_url: "..." }, ...], parts: 4 }
     const audioParts = result.audio_parts || [];
     const segmentsWithDurations: AudioSegment[] = [];
-    
+
     // Calculate duration per segment (equal parts)
     const durationPerPart = totalDurationSeconds ? totalDurationSeconds / parts : 6;
-    
+
     console.log(`API returned ${audioParts.length} audio parts (requested: ${parts})`);
-    
+
     for (let i = 0; i < audioParts.length; i++) {
       segmentsWithDurations.push({
         part: audioParts[i].part,
         download_url: audioParts[i].download_url,
         duration: durationPerPart
       });
-      
+
       console.log(`Part ${i + 1}: ${durationPerPart.toFixed(2)} seconds (API url: ${audioParts[i].download_url})`);
     }
 
@@ -194,12 +194,12 @@ export async function splitAudioByParts(audioUrl: string, parts: number, totalDu
 export async function splitAudio(audioUrl: string, parts: number = 4, totalDurationSeconds?: number): Promise<AudioSegment[]> {
   try {
     // Split audio into fixed 6-second segments for consistent video generation
-    // This ensures both lipsync (infinitetalk-fast) and non-lipsync (bytedance/seedance) models
+    // This ensures both lipsync (ltx-2-19b/lipsync) and non-lipsync (bytedance/seedance) models
     // work with 6-second segments
     const segmentDuration = 6; // 6 seconds per segment
-    
+
     console.log(`Splitting audio into ${segmentDuration}-second segments using /api/split_audio_segments (total duration: ${totalDurationSeconds || 'unknown'}s)`);
-    
+
     // Use the new /api/split_audio_segments endpoint which properly splits by segment duration
     // This ensures each segment is exactly 6 seconds (except the last one which is the remainder)
     const response = await fetchWithRetry("https://ffmpegapi-production.up.railway.app/api/split_audio_segments", {
@@ -221,10 +221,10 @@ export async function splitAudio(audioUrl: string, parts: number = 4, totalDurat
     }
 
     const result = await response.json();
-    
+
     console.log("=== FFMPEG SPLIT AUDIO SEGMENTS RESPONSE ===");
     console.log("Full response:", JSON.stringify(result, null, 2));
-    
+
     if (!result.success) {
       throw new Error(`Audio splitting failed: ${result.message || "Unknown error"}`);
     }
@@ -234,12 +234,12 @@ export async function splitAudio(audioUrl: string, parts: number = 4, totalDurat
     // { segments: [{ segment: "segment_01.mp3", download_url: "..." }, ...], total_segments: 7 }
     const segments = result.segments || [];
     const segmentsWithDurations: AudioSegment[] = [];
-    
+
     console.log(`API returned ${segments.length} audio segments (total_segments: ${result.total_segments})`);
-    
+
     for (let i = 0; i < segments.length; i++) {
       let segDuration: number;
-      
+
       // Calculate duration: all segments except last are 6 seconds
       if (totalDurationSeconds) {
         if (i < segments.length - 1) {
@@ -255,13 +255,13 @@ export async function splitAudio(audioUrl: string, parts: number = 4, totalDurat
         // Fallback: assume 6 seconds per segment
         segDuration = segmentDuration;
       }
-      
+
       segmentsWithDurations.push({
         part: segments[i].segment,
         download_url: segments[i].download_url,
         duration: segDuration
       });
-      
+
       console.log(`Segment ${i + 1}: ${segDuration} seconds (API url: ${segments[i].download_url})`);
     }
 
@@ -282,11 +282,11 @@ export async function pictureInPicture(mainVideoUrl: string, pipVideoUrl: string
       scale: "iw:ih",
       audio_option: "video1"
     };
-    
+
     console.log("=== FFMPEG PICTURE-IN-PICTURE REQUEST ===");
     console.log("Endpoint: https://ffmpegapi-production.up.railway.app/api/picture_in_picture");
     console.log("Request body:", JSON.stringify(requestBody, null, 2));
-    
+
     const response = await fetchWithRetry("https://ffmpegapi-production.up.railway.app/api/picture_in_picture", {
       method: "POST",
       headers: {
@@ -302,7 +302,7 @@ export async function pictureInPicture(mainVideoUrl: string, pipVideoUrl: string
     }
 
     const result = await response.json();
-    
+
     if (!result.success) {
       throw new Error(`Picture-in-picture failed: ${result.message || "Unknown error"}`);
     }

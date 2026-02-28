@@ -18,6 +18,15 @@ export default function CreateSelect() {
       available: true,
     },
     {
+      id: "simple-mode",
+      title: "Simple Mode",
+      description: "Simple Mode",
+      explanation: "Prompt-first flow with optional song and image attachments",
+      imageUrl: "https://neonvideo.b-cdn.net/custom/1.png",
+      route: "/create/simple-mode",
+      available: true,
+    },
+    {
       id: "single-prompt",
       title: "Single Prompt",
       description: "Single Prompt",
