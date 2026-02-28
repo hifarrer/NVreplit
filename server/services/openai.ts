@@ -268,10 +268,10 @@ FOURTH, keep scene backgrounds mostly consistent across the scenes to make the v
 IMPORTANT PATTERN:
 ${isThirtySecondVideo ?
         `Scene 1: REGULAR video (wider shots allowed, dynamic movements)
-Scene 2: LIPSYNC video (CLOSEUP required, slight camera movements)
-Scene 3: LIPSYNC video (CLOSEUP required, slight camera movements)` :
+Scene 2: LIPSYNC video (CLOSEUP, MEDIUM SHOTS required, slight camera movements)
+Scene 3: LIPSYNC video (CLOSEUP, MEDIUM SHOTS required, slight camera movements)` :
         `ODD scenes (1, 3, 5, etc.): REGULAR videos (wider shots allowed, more dynamic)
-EVEN scenes (2, 4, 6, etc.): LIPSYNC videos (CLOSEUPS required, slight camera movements)`}
+EVEN scenes (2, 4, 6, etc.): LIPSYNC videos (CLOSEUPS, MEDIUM SHOTS, required, slight camera movements, NO WIDE SHOTS)`}
 
 REQUIREMENTS FOR REGULAR SCENES:
 - Can use wider shots and full body views
@@ -285,13 +285,12 @@ REQUIREMENTS FOR REGULAR SCENES:
 - IMPORTANT: keep the style of the image as similar as possible to the attached image.
 
 REQUIREMENTS FOR LIPSYNC SCENES:
-- MUST be CLOSEUP shots (head and shoulders, face clearly visible)
+- MUST be CLOSEUP OR MEDIUM SHOTS (head and shoulders, face clearly visible)
 - Use front-facing, side profile, or 3/4 angle shots
-- Character MUST be prominent and close to camera
-- Use SLIGHT camera movements (slowly panning to the side, gently rotating around character, subtle zoom in/out, slight tilt)
-- Focus on character's face for lip synchronization
+- Use SLIGHT camera movements (slowly panning to the side, gently rotating around character, subtle zoom in/out, slight tilt, slowly rotating camera)
 - Character should be singing or speaking.
 - background description should match the background description in the other scenes.
+- Never a wide shot of the character.
 
 General Requirements:
 - Each prompt must include a specific CHARACTER ACTION

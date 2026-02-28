@@ -5,7 +5,7 @@ import { pipeline } from "stream/promises";
 import { Readable } from "stream";
 import { normalizeSubtitleStyle, isTikTokSubtitleStyle, parseAssToCaptions, createTikTokPages } from "./captions";
 
-const RAILWAY_REMOTION_URL = process.env.REMOTION_RENDER_URL || "https://remotion-template-staging.up.railway.app";
+const RAILWAY_REMOTION_URL = process.env.REMOTION_RENDER_URL || "";
 
 const POLL_INTERVAL_MS = 3_000;
 const MAX_POLL_DURATION_MS = 10 * 60 * 1000; // 10 minutes

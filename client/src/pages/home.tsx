@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AudioCreationStep } from "@/components/steps/audio-creation-step";
 import { CharacterCreationStep } from "@/components/steps/character-creation-step";
 import { SceneGenerationStep } from "@/components/steps/scene-generation-step";
@@ -18,7 +18,8 @@ export default function Home() {
   const [currentStep, setCurrentStep] = useState(1);
   const [projectId, setProjectId] = useState<string>("");
   const [currentEditSession, setCurrentEditSession] = useState<string | null>(null);
-  
+  const hasCreatedRef = useRef(false);
+
   // Extract project ID and edit parameters from URL using window.location.search
   // This is needed because wouter's location doesn't include query params
   const urlParams = new URLSearchParams(window.location.search);
@@ -73,7 +74,7 @@ export default function Home() {
     if (!user) {
       return;
     }
-    
+
     // If we have a project ID in the URL (either 'id' or 'edit' param), load that project
     const targetProjectId = urlProjectId || editProjectId;
     if (targetProjectId) {
@@ -82,13 +83,15 @@ export default function Home() {
       }
       return;
     }
-    
+
     // Otherwise, create a new project when the Create page loads
     // Only create if we don't have a projectId already
-    if (!projectId && !targetProjectId && !createProjectMutation.isPending) {
+    // Use ref guard instead of mutation.isPending to prevent duplicate calls in React 18 dev mode
+    if (!projectId && !targetProjectId && !hasCreatedRef.current) {
+      hasCreatedRef.current = true;
       createProjectMutation.mutate();
     }
-  }, [user, urlProjectId, editProjectId, projectId, createProjectMutation]); // Include projectId to prevent duplicate creation
+  }, [user, urlProjectId, editProjectId, projectId]);
 
   // Handle edit session changes - jump to step 3 when a new edit session starts
   useEffect(() => {
@@ -132,6 +135,7 @@ export default function Home() {
     setCurrentStep(1);
     setProjectId(""); // Clear current project ID
     setCurrentEditSession(null); // Clear edit session
+    hasCreatedRef.current = false; // Allow new project creation
     // Clear the edit query param from URL and navigate to /create
     setLocation('/create');
     createProjectMutation.mutate(); // Create a new project

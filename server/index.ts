@@ -16,30 +16,30 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
   try {
     // Dynamic import of storage to avoid circular dependencies
     const { storage } = await import("./storage");
-    
+
     // Get Stripe settings from database
     const stripeSettings = await storage.getAllSettings();
     const stripeSecretKey = stripeSettings.find(s => s.key === 'stripe_secret_key')?.value;
     const stripeWebhookSecret = stripeSettings.find(s => s.key === 'stripe_webhook_secret')?.value;
-    
+
     if (!stripeSecretKey || !stripeWebhookSecret) {
       console.error("Stripe not configured for webhooks");
       return res.status(400).json({ error: "Webhook configuration missing" });
     }
-    
+
     const Stripe = (await import('stripe')).default;
     const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
-    
+
     const sig = req.headers['stripe-signature'] as string;
     let event;
-    
+
     try {
       event = stripe.webhooks.constructEvent(req.body, sig, stripeWebhookSecret);
     } catch (err: any) {
       console.error('Webhook signature verification failed:', err.message);
       return res.status(400).json({ error: `Webhook Error: ${err.message}` });
     }
-    
+
     // Handle the event
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -47,11 +47,11 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
         const userId = session.metadata?.userId;
         const planId = session.metadata?.planId;
         const purchaseType = session.metadata?.type;
-        
+
         // Handle credit purchase (one-time payment)
         if (purchaseType === 'credit_purchase' && userId) {
           const creditsToAdd = parseInt(session.metadata?.creditsToAdd || '5000');
-          
+
           if (session.payment_status === 'paid') {
             const user = await storage.getUser(userId);
             if (user) {
@@ -66,23 +66,23 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
           }
           break;
         }
-        
+
         // Handle gift subscription purchase
         if (purchaseType === 'gift_subscription') {
           const giftSubscriptionId = session.metadata?.giftSubscriptionId;
           const recipientEmail = session.metadata?.recipientEmail;
           const redemptionCode = session.metadata?.redemptionCode;
           const purchaserUserId = session.metadata?.purchaserUserId;
-          
+
           if (session.payment_status === 'paid' && giftSubscriptionId) {
             // Update gift subscription status to 'paid'
             await storage.updateGiftSubscription(giftSubscriptionId, {
               status: 'paid',
               stripePaymentIntentId: session.payment_intent
             });
-            
+
             console.log(`Gift subscription ${giftSubscriptionId} payment completed. Redemption code: ${redemptionCode}`);
-            
+
             // Send email to recipient
             if (recipientEmail && redemptionCode) {
               try {
@@ -90,13 +90,13 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
                 const purchaser = purchaserUserId ? await storage.getUser(purchaserUserId) : null;
                 const gift = await storage.getGiftSubscriptionByCode(redemptionCode);
                 const plan = gift ? await storage.getPlanById(gift.planId) : null;
-                
-                const baseUrl = process.env.FRONTEND_URL || 
-                  (process.env.NODE_ENV === 'production' 
-                    ? 'https://neonvideo.ai' 
+
+                const baseUrl = process.env.FRONTEND_URL ||
+                  (process.env.NODE_ENV === 'production'
+                    ? 'https://neonvideo.ai'
                     : `http://localhost:${process.env.PORT || 5000}`);
                 const redemptionUrl = `${baseUrl}/redeem-gift?code=${redemptionCode}`;
-                
+
                 await emailService.sendEmail({
                   to: recipientEmail,
                   subject: `You've received a gift subscription to neonvideo.ai!`,
@@ -149,7 +149,7 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
                     </div>
                   `
                 });
-                
+
                 console.log(`Gift subscription email sent to ${recipientEmail}`);
               } catch (emailError) {
                 console.error('Failed to send gift subscription email:', emailError);
@@ -160,7 +160,7 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
           }
           break;
         }
-        
+
         // Handle subscription purchase
         if (userId && planId) {
           // Update user with subscription details
@@ -168,21 +168,21 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
             stripeSubscriptionId: session.subscription,
             planId: planId,
           });
-          
+
           // Reset credits used for new subscription
           await storage.updateUser(userId, {
             creditsUsed: 0
           });
-          
+
           console.log(`Subscription created for user ${userId} with plan ${planId}`);
         }
         break;
       }
-      
+
       case 'customer.subscription.updated': {
         const subscription = event.data.object as any;
         const customerId = subscription.customer;
-        
+
         // Find user by Stripe customer ID
         const user = await storage.getUserByStripeCustomerId(customerId);
         if (user) {
@@ -193,11 +193,11 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
         }
         break;
       }
-      
+
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as any;
         const customerId = subscription.customer;
-        
+
         // Find user by Stripe customer ID
         const user = await storage.getUserByStripeCustomerId(customerId);
         if (user) {
@@ -210,21 +210,21 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
         }
         break;
       }
-      
+
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as any;
-        
+
         // Skip the first invoice from checkout.session.completed
         if (invoice.billing_reason === 'subscription_create') {
           console.log(`Skipping invoice for new subscription creation (handled by checkout.session.completed)`);
           break;
         }
-        
+
         const customerId = invoice.customer;
         const user = await storage.getUserByStripeCustomerId(customerId);
-        
+
         console.log(`Invoice payment succeeded - Customer: ${customerId}, User found: ${!!user}, Subscription: ${invoice.subscription}, Billing reason: ${invoice.billing_reason}`);
-        
+
         if (user && invoice.subscription) {
           // Reset credits for subscription renewal - this is the key action
           // We reset credits regardless of whether we can match the plan,
@@ -232,19 +232,19 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
           await storage.updateUser(user.id, {
             creditsUsed: 0
           });
-          
+
           // Try to find and log the plan for informational purposes
           try {
             const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
             const priceId = subscription.items.data[0]?.price.id;
-            
+
             if (priceId) {
               const plans = await storage.getAllPlans();
-              const plan = plans.find(p => 
-                p.stripeMonthlyPriceId === priceId || 
+              const plan = plans.find(p =>
+                p.stripeMonthlyPriceId === priceId ||
                 p.stripeYearlyPriceId === priceId
               );
-              
+
               if (plan) {
                 console.log(`Reset credits for user ${user.id} for subscription renewal (plan: ${plan.name})`);
               } else {
@@ -261,11 +261,11 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
         }
         break;
       }
-      
+
       default:
         console.log(`Unhandled event type ${event.type}`);
     }
-    
+
     res.json({ received: true });
   } catch (error) {
     console.error("Webhook error:", error);
@@ -347,7 +347,7 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  
+
   // Platform-specific server binding:
   // - Windows (local dev): Use localhost and disable reusePort (not supported on Windows)
   // - Linux/Unix (production/Replit): Use 0.0.0.0 with reusePort (original behavior preserved)
@@ -357,20 +357,14 @@ app.use((req, res, next) => {
     port,
     host,
   };
-  
+
   // reusePort is not supported on Windows, but required for production/Replit
   if (!isWindows) {
     listenOptions.reusePort = true;
   }
-  
+
   server.listen(listenOptions, () => {
     log(`serving on port ${port}`);
-
-    // Pre-download Chrome Headless Shell & bundle Remotion entry point in background
-    // so the first video render doesn't stall waiting for an 87 MB download.
-    import("./services/remotion")
-      .then((m) => m.warmUpRemotionRenderer())
-      .catch((err) => console.error("[REMOTION] Warm-up failed:", err));
   });
 
   // Global error handlers for uncaught exceptions and unhandled rejections
