@@ -1,6 +1,5 @@
 import { downloadAndStoreImage } from "./imageStorage";
-import { isImageKitConfigured, uploadAudioToImageKit } from "./imagekit";
-import { isBunnyConfigured, uploadSongAudio } from "./bunny";
+import { isBunnyConfigured, uploadSongAudio, uploadAudio } from "./bunny";
 import { storage } from "../storage";
 
 export interface KieLyricsResponse {
@@ -54,7 +53,7 @@ export interface KieTimestampedLyricsResponse {
 
 export async function generateSong(tags: string, lyrics?: string, duration: number = 60, description?: string): Promise<{ songs: Array<{ audioUrl: string; duration: number; title: string; id: string; taskId?: string; audioId?: string }> }> {
   const KIE_API_TOKEN = process.env.KIE_API_TOKEN || "f27547e627af203de39b3345de70c32b";
-  
+
   console.log("KIE.ai song generation request:");
   console.log("Tags:", tags);
   console.log("Lyrics:", lyrics);
@@ -136,15 +135,15 @@ export async function generateSong(tags: string, lyrics?: string, duration: numb
 
         if (statusResult.data.response?.sunoData && statusResult.data.response.sunoData.length > 0) {
           console.log(`Found ${statusResult.data.response.sunoData.length} songs`);
-          
+
           const songs = [];
-          
+
           // Process all generated songs (usually 2)
           for (let i = 0; i < statusResult.data.response.sunoData.length; i++) {
             const song = statusResult.data.response.sunoData[i];
             const audioUrl = song.audioUrl;
             const actualDuration = song.duration || duration;
-            
+
             console.log(`Processing song ${i + 1}: ${audioUrl}`);
             console.log(`Song ${i + 1} duration: ${actualDuration} seconds`);
 
@@ -155,7 +154,7 @@ export async function generateSong(tags: string, lyrics?: string, duration: numb
 
             // Use the title from the song response, which includes our formatted description
             const songTitle = song.title || (description && description.length > 30 ? description.substring(0, 30).trim() + '...' : description) || `Generated Song ${i + 1}`;
-            
+
             songs.push({
               audioUrl: storedUrl,
               duration: actualDuration,
@@ -197,27 +196,27 @@ async function downloadAndStoreAudio(
 ): Promise<string> {
   try {
     console.log(`Downloading audio from: ${audioUrl}`);
-    
+
     // Download the audio from the external URL
     const response = await fetch(audioUrl);
     if (!response.ok) {
       throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);
     }
-    
+
     // Get the audio content as buffer
     const audioBuffer = Buffer.from(await response.arrayBuffer());
-    
+
     // Get content type and determine file extension
     const contentType = response.headers.get("content-type") || "audio/mpeg";
     const extension = getAudioFileExtension(contentType);
-    
+
     // Generate unique filename
     const { randomUUID } = await import("crypto");
     const uniqueFileName = `${randomUUID()}${extension}`;
     const filename = `${category}/${uniqueFileName}`;
-    
+
     console.log(`Storing audio as: ${filename}`);
-    
+
     // Prefer Bunny Storage (songs folder) when configured (KIE/story-mode/lyrics)
     if (isBunnyConfigured("songs")) {
       console.log(`[Bunny Storage] Uploading audio: ${uniqueFileName}`);
@@ -225,26 +224,15 @@ async function downloadAndStoreAudio(
       console.log(`[Bunny Storage] Audio uploaded successfully: ${result.url}`);
       return result.url;
     }
-    
-    // Fallback to ImageKit if configured
-    if (isImageKitConfigured()) {
-      try {
-        console.log(`[ImageKit] Uploading audio to ImageKit: ${uniqueFileName}`);
-        const imagekitResult = await uploadAudioToImageKit(audioBuffer, uniqueFileName, "/audio");
-        await storage.recordImagekitBackup({
-          originalPath: `/objects/${filename}`,
-          imagekitUrl: imagekitResult.url,
-          imagekitFileId: imagekitResult.fileId,
-          fileType: "song"
-        });
-        console.log(`[ImageKit] Audio uploaded successfully: ${imagekitResult.url}`);
-        return imagekitResult.url;
-      } catch (imagekitError) {
-        console.error(`[ImageKit] Failed to upload audio to ImageKit:`, imagekitError);
-        // Fall through to GCS
-      }
+
+    // Fallback to Bunny audios zone
+    if (isBunnyConfigured("audios")) {
+      console.log(`[Bunny Storage] Uploading audio to audios zone: ${uniqueFileName}`);
+      const result = await uploadAudio(uniqueFileName, audioBuffer);
+      console.log(`[Bunny Storage] Audio uploaded successfully: ${result.url}`);
+      return result.url;
     }
-    
+
     // Fallback to Google Cloud Storage
     const { ObjectStorageService, objectStorageClient } = await import("../objectStorage");
     const objectStorageService = new ObjectStorageService();
@@ -253,7 +241,7 @@ async function downloadAndStoreAudio(
     const { bucketName, objectName } = parseObjectPath(fullPath);
     const bucket = objectStorageClient.bucket(bucketName);
     const file = bucket.file(objectName);
-    
+
     await file.save(audioBuffer, {
       metadata: {
         contentType,
@@ -264,7 +252,7 @@ async function downloadAndStoreAudio(
         },
       },
     });
-    
+
     console.log(`Audio stored successfully at: ${fullPath}`);
     return `/objects/${filename}`;
   } catch (error) {
@@ -279,13 +267,13 @@ async function downloadAndStoreAudio(
 function getAudioFileExtension(contentType: string): string {
   const extensions: Record<string, string> = {
     "audio/mpeg": ".mp3",
-    "audio/mp3": ".mp3", 
+    "audio/mp3": ".mp3",
     "audio/wav": ".wav",
     "audio/ogg": ".ogg",
     "audio/aac": ".aac",
     "audio/m4a": ".m4a",
   };
-  
+
   return extensions[contentType.toLowerCase()] || ".mp3";
 }
 
@@ -342,11 +330,11 @@ export async function getTimestampedLyrics(taskId: string, audioId: string): Pro
   }
 
   const result = await response.json();
-  
+
   console.log("=== KIE.AI TIMESTAMPED LYRICS RESPONSE ===");
   console.log("Response code:", result.code);
   console.log("Number of aligned words:", result.data?.alignedWords?.length || 0);
-  
+
   if (result.code !== 200) {
     throw new Error(`KIE.ai API error: ${result.msg || "Unknown error"}`);
   }
@@ -356,7 +344,7 @@ export async function getTimestampedLyrics(taskId: string, audioId: string): Pro
 
 export function convertTimestampedLyricsToASS(timestampedWords: TimestampedWord[]): string {
   console.log("Converting timestamped lyrics to .ass format...");
-  
+
   // .ass file header
   const assHeader = `[Script Info]
 ScriptType: v4.00
@@ -386,34 +374,34 @@ Format: Marked, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
   // Convert timestamped words to dialogue lines
   const dialogues: string[] = [];
-  
+
   for (const word of timestampedWords) {
     if (word.success && word.word.trim()) {
       // Convert seconds to ASS time format (H:MM:SS.CC)
       const startTime = formatTimeForASS(word.startS);
       const endTime = formatTimeForASS(word.endS);
-      
+
       // Clean up the word text (remove newlines and format)
       const cleanText = word.word.replace(/\n/g, ' ').trim();
-      
+
       dialogues.push(`Dialogue: Marked=0,${startTime},${endTime},Default,,0000,0000,0000,,${cleanText}`);
     }
   }
-  
+
   const assContent = assHeader + '\n' + dialogues.join('\n');
-  
+
   console.log(`Generated .ass file with ${dialogues.length} dialogue lines`);
-  
+
   return assContent;
 }
 
 export async function storeSubtitleFile(assContent: string, songId?: string): Promise<string> {
   try {
     console.log("Storing subtitle file...");
-    
+
     // Always use ImageKit for subtitle storage (required)
     const { isImageKitConfigured, uploadTextFileToImageKit } = await import("./imagekit");
-    
+
     if (!isImageKitConfigured()) {
       throw new Error("ImageKit must be configured to store subtitle files. Please configure ImageKit credentials.");
     }
@@ -422,10 +410,10 @@ export async function storeSubtitleFile(assContent: string, songId?: string): Pr
     const { randomUUID } = await import("crypto");
     const fileId = songId || randomUUID();
     const filename = `${fileId}.ass`;
-    
+
     console.log(`[ImageKit] Uploading subtitle file to ImageKit: ${filename}`);
     const imagekitResult = await uploadTextFileToImageKit(assContent, filename, "/subtitles");
-    
+
     console.log(`[ImageKit] Subtitle file uploaded successfully: ${imagekitResult.url}`);
     return imagekitResult.url;
   } catch (error) {
@@ -439,7 +427,7 @@ function formatTimeForASS(seconds: number): string {
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
   const centiseconds = Math.floor((seconds % 1) * 100);
-  
+
   return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
 }
 
@@ -447,10 +435,10 @@ function formatTimeForASS(seconds: number): string {
 
 export async function generateLyricsWithKie(prompt: string): Promise<string> {
   const KIE_API_TOKEN = process.env.KIE_API_TOKEN || "f27547e627af203de39b3345de70c32b";
-  
+
   try {
     console.log("Starting KIE.AI lyrics generation for prompt:", prompt);
-    
+
     // Submit lyrics generation request to KIE.AI
     const response = await fetch("https://api.kie.ai/api/v1/lyrics", {
       method: "POST",
@@ -480,15 +468,15 @@ export async function generateLyricsWithKie(prompt: string): Promise<string> {
     // Poll for results
     const taskId = data.data.taskId;
     const maxAttempts = 30; // Wait up to 5 minutes (30 * 10 seconds)
-    
+
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       console.log(`Checking KIE.AI lyrics task status, attempt ${attempt + 1}/${maxAttempts}`);
-      
+
       const result = await checkKieLyricsTask(taskId);
-      
+
       if (result.data.status === "SUCCESS" && result.data.response.data.length > 0) {
         const lyricsData = result.data.response.data[0];
-        
+
         if (lyricsData.status === "complete" && lyricsData.text) {
           console.log("KIE.AI lyrics generation completed successfully");
           return lyricsData.text;
@@ -498,11 +486,11 @@ export async function generateLyricsWithKie(prompt: string): Promise<string> {
       } else if (result.data.status === "FAILED") {
         throw new Error(`KIE.AI task failed: ${result.data.errorMessage || "Unknown error"}`);
       }
-      
+
       // Wait 10 seconds before next check
       await new Promise(resolve => setTimeout(resolve, 10000));
     }
-    
+
     throw new Error("KIE.AI lyrics generation timed out after 5 minutes");
   } catch (error) {
     console.error("KIE.AI lyrics generation error:", error);
@@ -512,7 +500,7 @@ export async function generateLyricsWithKie(prompt: string): Promise<string> {
 
 export async function checkKieLyricsTask(taskId: string): Promise<KieLyricsResult> {
   const KIE_API_TOKEN = process.env.KIE_API_TOKEN || "f27547e627af203de39b3345de70c32b";
-  
+
   const response = await fetch(`https://api.kie.ai/api/v1/lyrics/record-info?taskId=${taskId}`, {
     method: "GET",
     headers: {
@@ -527,7 +515,7 @@ export async function checkKieLyricsTask(taskId: string): Promise<KieLyricsResul
   }
 
   const data: KieLyricsResult = await response.json();
-  
+
   if (data.code !== 200) {
     throw new Error(`KIE.AI API error: ${data.msg}`);
   }
@@ -536,24 +524,24 @@ export async function checkKieLyricsTask(taskId: string): Promise<KieLyricsResul
 }
 
 export async function generateLyricsWithKieAndTitle(
-  songDescription: string, 
+  songDescription: string,
   duration: number = 120
 ): Promise<{ lyrics: string; title: string }> {
   try {
     console.log("Generating lyrics and title with KIE.AI");
-    
+
     // Create a prompt that requests both title and lyrics
     const prompt = `Generate a song title and complete lyrics for a song about: ${songDescription}. 
     The song should be approximately ${duration} seconds long. 
     Please include a clear song title and well-structured lyrics with verses, chorus, and other sections as appropriate.`;
-    
+
     const result = await generateLyricsWithKie(prompt);
-    
+
     // Parse the result to extract title and lyrics
     // KIE.AI might return the result in various formats, so we need to handle this flexibly
     let title = "Generated Song";
     let lyrics = result;
-    
+
     // Try to extract title if it's clearly marked
     const titleMatch = result.match(/(?:Title:|Song Title:|Song:)\s*(.+?)(?:\n|$)/i);
     if (titleMatch) {
@@ -568,7 +556,7 @@ export async function generateLyricsWithKieAndTitle(
         lyrics = lines.slice(1).join('\n').trim();
       }
     }
-    
+
     // Ensure lyrics have proper section formatting
     if (!lyrics.includes('[') && !lyrics.includes(']')) {
       // If no section markers, try to add basic structure
@@ -578,11 +566,11 @@ export async function generateLyricsWithKieAndTitle(
         lyrics = `[Verse 1]\n${lyricsLines.slice(0, mid).join('\n')}\n\n[Chorus]\n${lyricsLines.slice(mid).join('\n')}`;
       }
     }
-    
+
     console.log("KIE.AI lyrics and title generated successfully");
     console.log("Title:", title);
     console.log("Lyrics length:", lyrics.length);
-    
+
     return { lyrics, title };
   } catch (error) {
     console.error("KIE.AI lyrics and title generation error:", error);

@@ -1,7 +1,7 @@
 import fetch from "node-fetch";
 import crypto from "crypto";
 
-type BunnyStorageZone = "final" | "scenes" | "characters" | "imageScenes" | "songs";
+type BunnyStorageZone = "final" | "scenes" | "characters" | "imageScenes" | "songs" | "audios";
 
 interface BunnyStorageConfig {
   storageZoneName: string;
@@ -56,6 +56,15 @@ function getStorageConfig(zone: BunnyStorageZone): BunnyStorageConfig {
       storageHostname,
       cdnHostname,
       folderPath: process.env.BUNNY_STORAGE_SONGS_PATH || "songs",
+    };
+  }
+  if (zone === "audios") {
+    return {
+      storageZoneName: zoneName,
+      storagePassword: password,
+      storageHostname,
+      cdnHostname,
+      folderPath: process.env.BUNNY_STORAGE_AUDIOS_PATH || "audios",
     };
   }
   return {
@@ -213,6 +222,17 @@ export async function uploadSongAudio(
   buffer: Buffer,
 ): Promise<{ url: string; storagePath: string }> {
   return uploadToBunnyStorage("songs", fileName, buffer);
+}
+
+/**
+ * Upload a user-facing audio file to Bunny Storage (audios folder).
+ * Public CDN URL: https://neonvideo.b-cdn.net/audios/<fileName>
+ */
+export async function uploadAudio(
+  fileName: string,
+  buffer: Buffer,
+): Promise<{ url: string; storagePath: string }> {
+  return uploadToBunnyStorage("audios", fileName, buffer);
 }
 
 // ─── URL helpers ────────────────────────────────────────────────

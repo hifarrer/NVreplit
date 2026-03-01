@@ -68,7 +68,7 @@ export default function ProfilePage() {
   });
 
   const [copiedGiftCode, setCopiedGiftCode] = useState<string | null>(null);
-  
+
   const handleCopyGiftCode = (code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedGiftCode(code);
@@ -78,32 +78,32 @@ export default function ProfilePage() {
     });
     setTimeout(() => setCopiedGiftCode(null), 2000);
   };
-  
+
   const avatarOptions = avatarData?.avatarOptions || [
     // Default anonymous avatar
     {
       id: 0,
-      url: `https://ik.imagekit.io/neonvideo/avatars/anonymous.png`,
-      localUrl: `https://ik.imagekit.io/neonvideo/avatars/anonymous.png`
+      url: `https://neonvideo.b-cdn.net/avatars/anonymous.png`,
+      localUrl: `https://neonvideo.b-cdn.net/avatars/anonymous.png`
     },
     // Numbered avatars 1-19 (total 20 with anonymous)
     ...Array.from({ length: 19 }, (_, i) => ({
       id: i + 1,
-      url: `https://ik.imagekit.io/neonvideo/avatars/${i + 1}.png`,
-      localUrl: `https://ik.imagekit.io/neonvideo/avatars/${i + 1}.png`
+      url: `https://neonvideo.b-cdn.net/avatars/${i + 1}.png`,
+      localUrl: `https://neonvideo.b-cdn.net/avatars/${i + 1}.png`
     }))
   ];
 
   // Helper function to get display URL for user's current avatar
   const getDisplayAvatarUrl = (storedUrl: string | null | undefined): string | null => {
     if (!storedUrl) return null;
-    
+
     // First try to find matching avatar option
     const matchingAvatar = avatarOptions.find(avatar => avatar.localUrl === storedUrl);
     if (matchingAvatar) {
       return matchingAvatar.url;
     }
-    
+
     // If no match, convert old format URLs to ImageKit
     return convertAvatarUrlToImageKit(storedUrl);
   };
@@ -258,7 +258,7 @@ export default function ProfilePage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const creditPurchaseStatus = params.get('credit_purchase');
-    
+
     if (creditPurchaseStatus === 'success') {
       toast({
         title: "Credits Added!",
@@ -325,39 +325,39 @@ export default function ProfilePage() {
   const handleUsernameUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    
+
     if (!username.trim()) {
       setError("Username cannot be empty");
       return;
     }
-    
+
     if (username === user?.username) {
       setError("New username must be different from current username");
       return;
     }
-    
+
     updateUsernameMutation.mutate(username.trim());
   };
 
   const handlePasswordUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    
+
     if (!currentPassword || !newPassword || !confirmPassword) {
       setError("All password fields are required");
       return;
     }
-    
+
     if (newPassword !== confirmPassword) {
       setError("New passwords do not match");
       return;
     }
-    
+
     if (newPassword.length < 6) {
       setError("New password must be at least 6 characters long");
       return;
     }
-    
+
     updatePasswordMutation.mutate({
       currentPassword,
       newPassword
@@ -409,8 +409,8 @@ export default function ProfilePage() {
                   <div className="flex items-center gap-4">
                     <Avatar className="h-20 w-20">
                       {user?.avatarUrl ? (
-                        <AvatarImage 
-                          src={getDisplayAvatarUrl(user.avatarUrl) || user.avatarUrl} 
+                        <AvatarImage
+                          src={getDisplayAvatarUrl(user.avatarUrl) || user.avatarUrl}
                           alt={user.username}
                           data-testid="current-avatar-image"
                         />
@@ -431,13 +431,13 @@ export default function ProfilePage() {
                   {/* Avatar Selection Grid */}
                   <div>
                     <Label className="text-sm font-medium">Choose New Avatar</Label>
-                    
+
                     {avatarsLoading && (
                       <div className="flex items-center justify-center py-8">
                         <div className="text-sm text-muted-foreground">Loading avatar options...</div>
                       </div>
                     )}
-                    
+
                     {avatarsError && (
                       <Alert className="mt-2">
                         <AlertDescription>
@@ -445,7 +445,7 @@ export default function ProfilePage() {
                         </AlertDescription>
                       </Alert>
                     )}
-                    
+
                     {!avatarsLoading && (
                       <>
                         <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-10 gap-2 mt-2">
@@ -454,11 +454,10 @@ export default function ProfilePage() {
                               key={avatar.id}
                               onClick={() => handleAvatarSelect(avatar.localUrl)} // Use localUrl for database storage
                               disabled={updateAvatarMutation.isPending}
-                              className={`relative h-12 w-12 rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
-                                user?.avatarUrl === avatar.localUrl 
-                                  ? "border-primary ring-2 ring-primary/20" 
+                              className={`relative h-12 w-12 rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${user?.avatarUrl === avatar.localUrl
+                                  ? "border-primary ring-2 ring-primary/20"
                                   : "border-border hover:border-primary/50"
-                              }`}
+                                }`}
                               data-testid={`avatar-option-${avatar.id}`}
                             >
                               <img
@@ -571,10 +570,10 @@ export default function ProfilePage() {
                       </span>
                     </div>
                     <div className="h-3 bg-secondary/30 rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-500"
-                        style={{ 
-                          width: `${Math.min(100, ((user?.creditsUsed || 0) / ((user?.creditsUsed || 0) + (user?.creditsRemaining || 0) || 2500)) * 100)}%` 
+                        style={{
+                          width: `${Math.min(100, ((user?.creditsUsed || 0) / ((user?.creditsUsed || 0) + (user?.creditsRemaining || 0) || 2500)) * 100)}%`
                         }}
                       />
                     </div>
@@ -642,8 +641,8 @@ export default function ProfilePage() {
                       maxLength={20}
                       data-testid="redeem-code-input"
                     />
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       disabled={!redeemCode.trim() || redeemCouponMutation.isPending}
                       data-testid="redeem-code-button"
                     >
@@ -683,12 +682,12 @@ export default function ProfilePage() {
                           )}
                           <div>
                             <p className="font-medium">
-                              {subscriptionData?.cancelAtPeriodEnd 
-                                ? "Subscription will cancel" 
+                              {subscriptionData?.cancelAtPeriodEnd
+                                ? "Subscription will cancel"
                                 : `${user.plan.name} Plan Active`}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {subscriptionData?.currentPeriodEnd 
+                              {subscriptionData?.currentPeriodEnd
                                 ? `${subscriptionData.cancelAtPeriodEnd ? 'Ends' : 'Renews'} on ${new Date(subscriptionData.currentPeriodEnd).toLocaleDateString()}`
                                 : "Status: Active"
                               }
@@ -702,7 +701,7 @@ export default function ProfilePage() {
                         <Alert className="border-orange-200 bg-orange-50 text-orange-900 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-100">
                           <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                           <AlertDescription className="text-orange-900 dark:text-orange-100">
-                            Your subscription is scheduled to cancel at the end of your current billing period. 
+                            Your subscription is scheduled to cancel at the end of your current billing period.
                             You will retain access to your paid plan until then.
                           </AlertDescription>
                         </Alert>
@@ -728,7 +727,7 @@ export default function ProfilePage() {
                                 <AlertDescription className="text-red-900 dark:text-red-100">
                                   <strong>Are you sure you want to cancel your subscription?</strong>
                                   <br />
-                                  Your subscription will remain active until the end of your current billing period, 
+                                  Your subscription will remain active until the end of your current billing period,
                                   after which you'll be downgraded to the free plan.
                                 </AlertDescription>
                               </Alert>
@@ -761,7 +760,7 @@ export default function ProfilePage() {
                         <Alert className="border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100">
                           <AlertTriangle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                           <AlertDescription className="text-blue-900 dark:text-blue-100">
-                            Your account was upgraded manually by an administrator. 
+                            Your account was upgraded manually by an administrator.
                             To cancel or modify your subscription, please contact support.
                           </AlertDescription>
                         </Alert>
@@ -796,7 +795,7 @@ export default function ProfilePage() {
                             <p className="text-xs text-muted-foreground">No subscription</p>
                           </div>
                         </div>
-                        
+
                         <div className="space-y-2 text-sm text-muted-foreground mb-4">
                           <p className="flex items-center gap-2">
                             <CheckCircle className="h-4 w-4 text-green-500" />
@@ -812,8 +811,8 @@ export default function ProfilePage() {
                           </p>
                         </div>
 
-                        <Button 
-                          className="w-full" 
+                        <Button
+                          className="w-full"
                           size="lg"
                           onClick={() => buyCreditsMutation.mutate()}
                           disabled={buyCreditsMutation.isPending}
@@ -864,8 +863,8 @@ export default function ProfilePage() {
                     <div className="space-y-3 mt-4">
                       <h4 className="text-sm font-medium text-muted-foreground">Sent Gifts</h4>
                       {sentGifts.map((gift) => (
-                        <div 
-                          key={gift.id} 
+                        <div
+                          key={gift.id}
                           className="border rounded-lg p-4 space-y-2"
                           data-testid={`gift-item-${gift.id}`}
                         >
@@ -874,21 +873,20 @@ export default function ProfilePage() {
                               <Mail className="h-4 w-4 text-muted-foreground" />
                               <span className="font-medium">{gift.recipientEmail}</span>
                             </div>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              gift.status === 'redeemed' 
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${gift.status === 'redeemed'
                                 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                 : gift.status === 'paid'
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                                : gift.status === 'expired'
-                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                            }`}>
+                                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                  : gift.status === 'expired'
+                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                              }`}>
                               {gift.status === 'redeemed' && <CheckCircle className="inline h-3 w-3 mr-1" />}
                               {gift.status === 'paid' && <Clock className="inline h-3 w-3 mr-1" />}
                               {gift.status.charAt(0).toUpperCase() + gift.status.slice(1)}
                             </span>
                           </div>
-                          
+
                           <div className="text-sm text-muted-foreground">
                             <span>{gift.plan?.name} Plan</span>
                             <span className="mx-2">•</span>
@@ -956,8 +954,8 @@ export default function ProfilePage() {
                       data-testid="input-username"
                     />
                   </div>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={updateUsernameMutation.isPending}
                     data-testid="button-update-username"
                   >
@@ -1016,8 +1014,8 @@ export default function ProfilePage() {
                       data-testid="input-confirm-password"
                     />
                   </div>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={updatePasswordMutation.isPending}
                     data-testid="button-update-password"
                   >
@@ -1072,12 +1070,12 @@ export default function ProfilePage() {
                       <AlertDescription className="text-red-900 dark:text-red-100">
                         <strong>Are you absolutely sure?</strong>
                         <br />
-                        All of your videos will become inaccessible and your account will be permanently deleted. 
+                        All of your videos will become inaccessible and your account will be permanently deleted.
                         This action cannot be undone.
                         {user?.plan?.name !== "Free" && (
                           <>
                             <br /><br />
-                            <strong>Note:</strong> You have an active subscription. Please downgrade to the Free plan 
+                            <strong>Note:</strong> You have an active subscription. Please downgrade to the Free plan
                             from the <Link href="/plans" className="underline text-red-800 dark:text-red-200">Plans page</Link> before deleting your account.
                           </>
                         )}

@@ -1,0 +1,2350 @@
+[
+  {
+    "project_id": "366f8578-914a-4361-852a-8ac78898629d",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_366f8578-914a-4361-852a-8ac78898629d_1_1772292563411.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_366f8578-914a-4361-852a-8ac78898629d_2_1772293234528.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_366f8578-914a-4361-852a-8ac78898629d_3_1772292563417.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_366f8578-914a-4361-852a-8ac78898629d_4_1772292563177.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_366f8578-914a-4361-852a-8ac78898629d_5_1772292563446.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_366f8578-914a-4361-852a-8ac78898629d_1_1772292563411.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_366f8578-914a-4361-852a-8ac78898629d_2_1772293234528.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_366f8578-914a-4361-852a-8ac78898629d_3_1772292563417.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_366f8578-914a-4361-852a-8ac78898629d_4_1772292563177.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_366f8578-914a-4361-852a-8ac78898629d_5_1772292563446.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-02-28T21:40:35.334Z"
+  },
+  {
+    "project_id": "d5971532-ba26-40ac-ba1d-1ca8e2b47edf",
+    "title": "Love on the Edge",
+    "old_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_1_1772258762206.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_2_1772262876407.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_3_1772258948548.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_4_1772259153292.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_5_1772261762974.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_6_1772262571713.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_7_1772261872372.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_8_1772259439006.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_9_1772250606914.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_10_1772261630243.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_11_1772261429356.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_12_1772250606618.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_13_1772261973136.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_14_1772259639542.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_15_1772262691533.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_16_1772259802540.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_17_1772259902197.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_18_1772250606550.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_19_1772260046010.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_20_1772260258836.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_21_1772262162489.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_22_1772250606605.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_23_1772262422406.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_24_1772260890134.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_25_1772260388205.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_26_1772263453320.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_27_1772250606942.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_28_1772260764136.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_29_1772250606953.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_30_1772250606609.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_31_1772250606825.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_32_1772262286274.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_33_1772250606927.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_34_1772250606523.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_1_1772258762206.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_2_1772262876407.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_3_1772258948548.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_4_1772259153292.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_5_1772261762974.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_6_1772262571713.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_7_1772261872372.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_8_1772259439006.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_9_1772250606914.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_10_1772261630243.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_11_1772261429356.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_12_1772250606618.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_13_1772261973136.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_14_1772259639542.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_15_1772262691533.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_16_1772259802540.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_17_1772259902197.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_18_1772250606550.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_19_1772260046010.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_20_1772260258836.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_21_1772262162489.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_22_1772250606605.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_23_1772262422406.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_24_1772260890134.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_25_1772260388205.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_26_1772263453320.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_27_1772250606942.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_28_1772260764136.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_29_1772250606953.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_30_1772250606609.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_31_1772250606825.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_32_1772262286274.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_33_1772250606927.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_34_1772250606523.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-02-28T13:33:11.957Z"
+  },
+  {
+    "project_id": "f58e0243-efcc-49ff-8365-5ab8920f82be",
+    "title": "Love on the Edge",
+    "old_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_1_1772258762206.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_2_1772262876407.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_3_1772258948548.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_4_1772259153292.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_5_1772261762974.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_6_1772262571713.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_7_1772261872372.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_8_1772259439006.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_9_1772262814575.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_10_1772261630243.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_11_1772262634898.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_12_1772259622874.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_13_1772262643125.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_14_1772262673217.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_15_1772262691533.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_16_1772259802540.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_17_1772259902197.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_18_1772259876230.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_19_1772260046010.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_20_1772260258836.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_21_1772262679374.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_22_1772260347485.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_23_1772262422406.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_24_1772262393309.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_25_1772260388205.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_26_1772263453320.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_27_1772260523346.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_28_1772260764136.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_29_1772261206050.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_30_1772260849269.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_31_1772260689557.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_32_1772263347980.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_33_1772260652818.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_34_1772260683725.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_1_1772258762206.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_2_1772262876407.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_3_1772258948548.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_4_1772259153292.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_5_1772261762974.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_6_1772262571713.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_7_1772261872372.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_8_1772259439006.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_9_1772262814575.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_10_1772261630243.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_11_1772262634898.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_12_1772259622874.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_13_1772262643125.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_14_1772262673217.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_15_1772262691533.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_16_1772259802540.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_17_1772259902197.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_18_1772259876230.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_19_1772260046010.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_20_1772260258836.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_21_1772262679374.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_22_1772260347485.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_23_1772262422406.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_24_1772262393309.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_25_1772260388205.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_26_1772263453320.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_27_1772260523346.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_28_1772260764136.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_29_1772261206050.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_30_1772260849269.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_31_1772260689557.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_32_1772263347980.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_33_1772260652818.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_34_1772260683725.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-02-28T13:32:56.821Z"
+  },
+  {
+    "project_id": "b393c3bf-b347-4ef4-b1f8-5ec583fdb3ce",
+    "title": "Love on the Edge",
+    "old_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_1_1772258762206.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_2_1772262876407.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_3_1772258948548.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_4_1772259153292.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_5_1772261762974.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_6_1772262571713.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_7_1772261872372.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_8_1772259439006.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_9_1772262814575.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_10_1772261630243.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_11_1772262634898.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_12_1772259622874.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_13_1772262643125.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_14_1772262673217.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_15_1772262691533.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_16_1772259802540.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_17_1772259902197.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_18_1772259876230.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_19_1772260046010.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_20_1772260258836.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_21_1772262679374.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_22_1772260347485.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_23_1772262422406.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_24_1772262393309.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_25_1772260388205.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_26_1772263453320.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_27_1772260523346.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_28_1772260764136.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_29_1772261206050.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_30_1772260849269.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_31_1772260689557.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_32_1772263347980.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_33_1772260652818.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_34_1772260683725.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_1_1772258762206.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_2_1772262876407.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_3_1772258948548.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_4_1772259153292.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_5_1772261762974.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_6_1772262571713.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_7_1772261872372.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_8_1772259439006.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_9_1772262814575.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_10_1772261630243.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_11_1772262634898.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_12_1772259622874.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_13_1772262643125.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_14_1772262673217.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_15_1772262691533.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_16_1772259802540.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_17_1772259902197.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_18_1772259876230.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_19_1772260046010.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_20_1772260258836.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_21_1772262679374.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_22_1772260347485.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_23_1772262422406.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_24_1772262393309.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_25_1772260388205.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_26_1772263453320.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_27_1772260523346.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_28_1772260764136.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_29_1772261206050.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_30_1772260849269.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_31_1772260689557.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_32_1772263347980.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_33_1772260652818.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_34_1772260683725.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-02-28T13:28:09.634Z"
+  },
+  {
+    "project_id": "e75d0b47-21c1-4f17-a52d-ee0f48fed5b0",
+    "title": "Love on the Edge",
+    "old_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_1_1772258762206.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_2_1772262876407.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_3_1772258948548.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_4_1772259153292.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_5_1772261762974.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_6_1772262571713.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_7_1772261872372.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_8_1772259439006.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_9_1772262814575.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_10_1772261630243.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_11_1772262634898.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_12_1772259622874.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_13_1772262643125.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_14_1772262673217.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_15_1772262691533.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_16_1772259802540.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_17_1772259902197.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_18_1772259876230.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_19_1772260046010.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_20_1772260258836.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_21_1772262679374.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_22_1772260347485.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_23_1772262422406.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_24_1772262393309.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_25_1772260388205.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_26_1772263453320.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_27_1772260523346.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_28_1772260764136.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_29_1772261206050.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_30_1772260849269.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_31_1772260689557.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_32_1772263347980.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_33_1772260652818.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_34_1772260683725.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_1_1772258762206.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_2_1772262876407.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_3_1772258948548.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_4_1772259153292.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_5_1772261762974.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_6_1772262571713.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_7_1772261872372.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_8_1772259439006.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_9_1772262814575.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_10_1772261630243.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_11_1772262634898.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_12_1772259622874.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_13_1772262643125.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_14_1772262673217.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_15_1772262691533.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_16_1772259802540.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_17_1772259902197.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_18_1772259876230.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_19_1772260046010.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_20_1772260258836.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_21_1772262679374.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_22_1772260347485.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_23_1772262422406.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_24_1772262393309.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_25_1772260388205.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_26_1772263453320.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_27_1772260523346.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_28_1772260764136.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_29_1772261206050.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_30_1772260849269.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_31_1772260689557.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_32_1772263347980.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_33_1772260652818.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d5971532-ba26-40ac-ba1d-1ca8e2b47edf_34_1772260683725.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-02-28T13:25:08.288Z"
+  },
+  {
+    "project_id": "1bf196e6-25ea-422e-bd45-e071b0fa1d5f",
+    "title": "Cosmic Groove Cat",
+    "old_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1bf196e6-25ea-422e-bd45-e071b0fa1d5f_1_1772213533176.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1bf196e6-25ea-422e-bd45-e071b0fa1d5f_2_1772213533605.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1bf196e6-25ea-422e-bd45-e071b0fa1d5f_3_1772213533785.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1bf196e6-25ea-422e-bd45-e071b0fa1d5f_4_1772213533573.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1bf196e6-25ea-422e-bd45-e071b0fa1d5f_5_1772213533260.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1bf196e6-25ea-422e-bd45-e071b0fa1d5f_1_1772213533176.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1bf196e6-25ea-422e-bd45-e071b0fa1d5f_2_1772213533605.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1bf196e6-25ea-422e-bd45-e071b0fa1d5f_3_1772213533785.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1bf196e6-25ea-422e-bd45-e071b0fa1d5f_4_1772213533573.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1bf196e6-25ea-422e-bd45-e071b0fa1d5f_5_1772213533260.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-02-27T23:33:08.025Z"
+  },
+  {
+    "project_id": "d8a597ee-d636-401f-8ca9-5daea901c4c0",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/e7af8c040ca745c197da22a863287deb/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/a6ce627e-dd43-41bb-8211-c412f8528c8d-u1_44b300c3-29ec-400b-99a9-1b48e7177ae9.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/440aa6ec-f7db-4af8-b622-0a4ffd9043d7-u1_9073ec01-d931-41b9-8668-f61948275031.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d8a597ee-d636-401f-8ca9-5daea901c4c0_1_1772305036064.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d8a597ee-d636-401f-8ca9-5daea901c4c0_2_1772305037450.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d8a597ee-d636-401f-8ca9-5daea901c4c0_3_1772305037898.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-02-01T06:29:12.348Z"
+  },
+  {
+    "project_id": "3e5fe950-9dcb-4f7f-b24c-9286e7de9c64",
+    "title": "Dance of the Clockwork City",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/bd87e2dd4e8c4ed38aeec720fe8a12de/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f70e0271-88bd-434e-82d1-b2cbce669ea6-u2_9f61e654-45fd-4511-9911-b7422179d0d9.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5b69fd5e-0bff-4a0b-905c-4f1af47906e1-u2_88293157-f4ae-4860-9f80-93f73d23d50f.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_3e5fe950-9dcb-4f7f-b24c-9286e7de9c64_1_1772305038719.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_3e5fe950-9dcb-4f7f-b24c-9286e7de9c64_2_1772305039352.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_3e5fe950-9dcb-4f7f-b24c-9286e7de9c64_3_1772305039879.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-02-01T04:06:12.048Z"
+  },
+  {
+    "project_id": "6179313e-25d8-4cdc-85e5-503abb53f649",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cb6561ab573244da9928b2a74a66acce/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/d056eb44-4a50-41c2-9765-a0be2c547d86-u1_89412e72-24c3-412a-8c3a-f2d8731011f9.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/87d432162479442b903268b461ac2eb2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/2847a9f3-ab29-433d-93c8-2344684b3497-u2_8cb1bcb8-37a6-49a3-beea-1ec2d7f0f103.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_6179313e-25d8-4cdc-85e5-503abb53f649_1_1772305040809.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_6179313e-25d8-4cdc-85e5-503abb53f649_2_1772305041875.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_6179313e-25d8-4cdc-85e5-503abb53f649_3_1772305042635.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_6179313e-25d8-4cdc-85e5-503abb53f649_4_1772305043307.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-31T21:11:19.202Z"
+  },
+  {
+    "project_id": "ab8f2c9d-d03b-4eb5-9dfd-41684799bd1d",
+    "title": "Shadow Serenade",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/a682ca2565034034932607f24daa977c/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/312242da-7dfc-4de2-8227-a38ec22e7f8f-u2_0c5c1f3f-6c11-4032-af6a-dbc3a1587058.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/f7f1611d33bb4076b17d6f1065fd1a5c/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/8b1cade4-65d0-47c5-a672-8dfe49a926ff-u2_9e0ffe94-82e7-498f-9de5-3757ed41995b.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/142c1331-d970-4817-b5f9-8ef517f0e660-u2_c161bc72-b367-416c-82bc-f8c5a1ba2b5d.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_ab8f2c9d-d03b-4eb5-9dfd-41684799bd1d_1_1772305044096.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_ab8f2c9d-d03b-4eb5-9dfd-41684799bd1d_2_1772305044639.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_ab8f2c9d-d03b-4eb5-9dfd-41684799bd1d_3_1772305045426.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_ab8f2c9d-d03b-4eb5-9dfd-41684799bd1d_4_1772305046061.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_ab8f2c9d-d03b-4eb5-9dfd-41684799bd1d_5_1772305046528.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-31T20:11:54.989Z"
+  },
+  {
+    "project_id": "987f0520-b4ca-4a24-9b35-6ab557cfe087",
+    "title": "Cosmic Circus Dream",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/57e4b1d27cba45aa80f769d0a19d4851/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/9abaae20-9f0a-42e8-87c0-1dce19550c22-u1_340b387d-cfb7-49a3-a52f-b1eea28e66a9.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/c88672951463486f8be36de439ea7bbd/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e5dbc955-ed01-42bf-b48e-73eb2dce4c66-u2_976c98d7-8205-4d0e-9479-c501f4aa609c.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f4978228-8658-4e0f-af72-38076f95c922-u2_7d4cf25f-0951-4f2e-b052-77d49b13fb30.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_987f0520-b4ca-4a24-9b35-6ab557cfe087_1_1772305047360.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_987f0520-b4ca-4a24-9b35-6ab557cfe087_2_1772305048108.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_987f0520-b4ca-4a24-9b35-6ab557cfe087_3_1772305049030.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_987f0520-b4ca-4a24-9b35-6ab557cfe087_4_1772305049668.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_987f0520-b4ca-4a24-9b35-6ab557cfe087_5_1772305050223.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-31T12:07:11.520Z"
+  },
+  {
+    "project_id": "8a1483e0-f879-4738-b4dd-439938b47f43",
+    "title": "Astrocowgirl Serenade",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/45f5bfda842c4ade8651b7b541b30da6/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/be50dd98-5071-4376-8f38-271683f5d09c-u1_287f5374-43ba-4c41-ad84-b25a3a56920d.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/1c4047bdc43a4cc4a58347ca4b3644e1/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/00f17c46-aec4-48d9-8c5b-e12f78c52a4f-u1_19fa415e-c12d-4748-89bf-d44e52405a18.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_8a1483e0-f879-4738-b4dd-439938b47f43_1_1772305051125.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_8a1483e0-f879-4738-b4dd-439938b47f43_2_1772305051911.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_8a1483e0-f879-4738-b4dd-439938b47f43_3_1772305052761.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_8a1483e0-f879-4738-b4dd-439938b47f43_4_1772305053382.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-31T04:06:48.020Z"
+  },
+  {
+    "project_id": "5e2e62e4-2980-46fc-98f8-40984325262a",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/97787e09b5a54c5cbeae5f609f6eac71/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fd9362cb-c719-489a-af38-48e52a802708-u2_752c1437-4221-4d77-84c3-72618b269d06.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/52ff54f081b14b88b6354920ad8be993/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/7b37ba2b-c695-466d-81e0-f2483222a583-u2_ee2026b2-078d-42de-88fc-fba687c27351.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5e2e62e4-2980-46fc-98f8-40984325262a_1_1772305054210.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5e2e62e4-2980-46fc-98f8-40984325262a_2_1772305054833.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5e2e62e4-2980-46fc-98f8-40984325262a_3_1772305055720.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5e2e62e4-2980-46fc-98f8-40984325262a_4_1772305056299.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-30T21:24:17.692Z"
+  },
+  {
+    "project_id": "5021ed39-d1ce-4843-a117-6e94515824aa",
+    "title": "Cloud Dance Rave",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/e8455af885894ed09b29f94fb74756eb/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/85c91437-394b-4fb1-ba13-023a9ba1582d-u2_a456ec75-ee58-45e0-8271-73b8d2d4049d.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/a712e0c6ea774341b00044a62f007041/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/8834b883-b97e-4f20-9f43-e33b1e3bde66-u1_0a5df89d-578c-434a-8217-e235f510964e.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/c24120a910c845d78a850410d3d97bb1/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/109c980a-75c0-42b7-9090-b2d0e2363859-u1_e511af8b-fe8a-4c99-962a-b0af5971450f.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5021ed39-d1ce-4843-a117-6e94515824aa_1_1772305057143.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5021ed39-d1ce-4843-a117-6e94515824aa_2_1772305057853.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5021ed39-d1ce-4843-a117-6e94515824aa_3_1772305058626.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5021ed39-d1ce-4843-a117-6e94515824aa_4_1772305059208.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5021ed39-d1ce-4843-a117-6e94515824aa_5_1772305060090.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5021ed39-d1ce-4843-a117-6e94515824aa_6_1772305060921.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-30T20:07:44.895Z"
+  },
+  {
+    "project_id": "17173fff-2a2c-4aa7-98de-0370e875fca5",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/a137a95f22374c8fb1ade4cd8d9539cf/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/0e9e3812-782a-43e3-8711-451af283db55-u2_b39fb033-6e57-4e8d-ba06-1903d30c0e99.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/c6bc6b92-e665-487e-bee8-281ef76c9f2f-u1_3f58f50a-5770-40c2-a82f-cf650c0b5cb4.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_17173fff-2a2c-4aa7-98de-0370e875fca5_1_1772305061825.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_17173fff-2a2c-4aa7-98de-0370e875fca5_2_1772305062664.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_17173fff-2a2c-4aa7-98de-0370e875fca5_3_1772305063157.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-30T15:56:30.407Z"
+  },
+  {
+    "project_id": "b21a848b-f209-4606-a3be-acea5d6d5729",
+    "title": "Guardians of the Spacetime Bloom",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/3d18b3a0f60f45e4b2f30b9ea9de5dca/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/11948ec9-18d9-49d0-8d2b-c729ca42a86c-u1_5f7294e7-2e42-4070-98c2-92fdd13ffeb0.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/3d8ae827-6762-48f2-88b8-7e0fee0e8af8-u1_327a47f8-7435-4631-b0c5-95a88924a736.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_b21a848b-f209-4606-a3be-acea5d6d5729_1_1772305064039.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_b21a848b-f209-4606-a3be-acea5d6d5729_2_1772305064691.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_b21a848b-f209-4606-a3be-acea5d6d5729_3_1772305065182.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-30T12:06:03.547Z"
+  },
+  {
+    "project_id": "168c51e1-c775-444e-a919-9ba96a7963a6",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/619d48195e90486ba2fa4e470db06f67/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/d93b8910-6fd5-4e27-8d5e-75a610945b46-u2_c2935954-887a-4cd6-8809-81055e736c42.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/556c8df4-1d86-42d3-8fb0-0bd5fe8bb288-u2_03e2f75f-9b5b-4ab6-9adc-23500595dcb1.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_168c51e1-c775-444e-a919-9ba96a7963a6_1_1772305066058.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_168c51e1-c775-444e-a919-9ba96a7963a6_2_1772305066845.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_168c51e1-c775-444e-a919-9ba96a7963a6_3_1772305067319.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-30T12:04:03.201Z"
+  },
+  {
+    "project_id": "8d60e2a0-33a0-4b79-8de2-86accd829446",
+    "title": "Melody Among the Clouds",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/e62d4dd84f054b0abc365c2b2c9daf4f/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b119b0aa-0e9d-478b-8cd3-5f52a96de2d1-u2_151865ad-d39a-4daf-9787-344edc0577cd.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/580ae60210e749ad8720fa66532cdc5e/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/0de765ef-118c-4d69-8119-9aa52add7a90-u1_5472736b-c1ff-4c6e-a0a3-7b5d903fff93.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_8d60e2a0-33a0-4b79-8de2-86accd829446_1_1772305067711.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_8d60e2a0-33a0-4b79-8de2-86accd829446_2_1772305068298.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_8d60e2a0-33a0-4b79-8de2-86accd829446_3_1772305069214.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_8d60e2a0-33a0-4b79-8de2-86accd829446_4_1772305069764.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-30T04:06:45.817Z"
+  },
+  {
+    "project_id": "196f8ede-a103-4259-bfbb-f5c6a4035d12",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/ee1f8a444636430e910ce2f984b35cfa/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f53beaa8-a19d-42fe-bd9e-4193b3f3bd02-u1_2d7fd3da-a350-467a-b9b0-bb90a68a330f.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/dd4a38f3de4c4426a93c88f12aae7afc/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/3bbf3a1a-6882-40d5-8c7a-132af217c0fd-u2_655d0a35-aca6-480c-9359-ea126ff97f91.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e44a47f2-3600-4c2b-9ab1-188d1936e49d-u1_e236e669-3e91-4249-9230-f58df981414e.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_196f8ede-a103-4259-bfbb-f5c6a4035d12_1_1772305070640.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_196f8ede-a103-4259-bfbb-f5c6a4035d12_2_1772305071532.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_196f8ede-a103-4259-bfbb-f5c6a4035d12_3_1772305072348.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_196f8ede-a103-4259-bfbb-f5c6a4035d12_4_1772305073139.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_196f8ede-a103-4259-bfbb-f5c6a4035d12_5_1772305073576.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-29T20:10:37.570Z"
+  },
+  {
+    "project_id": "12c1cafa-1ce0-4f70-8a5a-4049d02beecc",
+    "title": "Celestial Tango in Time",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/f81086a494fd4e3185dbb61f88fcc29d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/66d1420f-2e04-45b8-bc33-351416427fc9-u1_21a33e7c-830a-493e-997b-f91022c234e3.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1422d6b5-686e-484f-a26c-db6879a6569f-u1_f1880f99-bb97-4e1c-92bc-08f6aa5b2464.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_12c1cafa-1ce0-4f70-8a5a-4049d02beecc_1_1772305074972.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_12c1cafa-1ce0-4f70-8a5a-4049d02beecc_2_1772305075699.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_12c1cafa-1ce0-4f70-8a5a-4049d02beecc_3_1772305076236.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-29T20:05:07.750Z"
+  },
+  {
+    "project_id": "2048f80b-cb3f-408a-9c2c-b8a7c34897a4",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/4d51982eb3a1414583cd4ab07fa2c86e/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/c827f1cc-d8b8-466c-8269-0bf3f9681b72-u1_a3086554-d9cd-4d81-804d-dd1c4b0bb6d5.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/e15e7d62a65d409e8fab67a6874c566b/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fad870b3-8a78-4b4c-a344-973819b90cda-u1_e3b48007-85d7-4b64-8c1c-5126b43b8869.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/602d1423eab94df7b6df8752e6711a35/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f3c10a2e-9969-4e4a-b0db-906b2d06df53-u2_b7bf468f-7107-4a7c-907e-4d838675f8f8.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_2048f80b-cb3f-408a-9c2c-b8a7c34897a4_1_1772305077342.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/c827f1cc-d8b8-466c-8269-0bf3f9681b72-u1_a3086554-d9cd-4d81-804d-dd1c4b0bb6d5.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_2048f80b-cb3f-408a-9c2c-b8a7c34897a4_3_1772305078386.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fad870b3-8a78-4b4c-a344-973819b90cda-u1_e3b48007-85d7-4b64-8c1c-5126b43b8869.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_2048f80b-cb3f-408a-9c2c-b8a7c34897a4_5_1772305082209.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f3c10a2e-9969-4e4a-b0db-906b2d06df53-u2_b7bf468f-7107-4a7c-907e-4d838675f8f8.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 6: HTTP 403",
+    "updated_at": "2026-01-29T11:05:59.997Z"
+  },
+  {
+    "project_id": "df747331-8281-4dd6-8115-6c77f1d7a2d1",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/a9d59e2c9992415f85497af694964c45/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/4d904503-7271-4845-8517-1c562a455103-u2_0ee197c7-d8ff-4e76-aa99-d2beb53e517d.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/1ddef9414ba249b4bd7d77b55ec15c5f/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/9b8d5e72-f81a-4cbf-a1d4-629e7f36ed1d-u1_a6c0e47e-7fff-44d6-842f-305839e8caf0.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/a3cc0e4d56f348599e4ce68b743eb90d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/828d310f-21e6-4353-bfe7-167360657b9d-u2_4348c0b7-6f42-4a85-9886-683d9f8858d9.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_df747331-8281-4dd6-8115-6c77f1d7a2d1_1_1772305084480.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_df747331-8281-4dd6-8115-6c77f1d7a2d1_2_1772305085459.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_df747331-8281-4dd6-8115-6c77f1d7a2d1_3_1772305086248.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_df747331-8281-4dd6-8115-6c77f1d7a2d1_4_1772305086972.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_df747331-8281-4dd6-8115-6c77f1d7a2d1_5_1772305087799.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_df747331-8281-4dd6-8115-6c77f1d7a2d1_6_1772305088639.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-29T10:46:45.467Z"
+  },
+  {
+    "project_id": "89654bc8-2c21-4a6f-be2b-16bce07f6295",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/a8f73354e13c482db64099ef2538e03a/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/3d40dca5-e2b0-4c94-8465-9fe64677d32e-u2_b4bc7c26-a3bf-4ab1-8d02-fae448dbaefe.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/2b009189556f475db98857f9684acce0/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/679034ed-6c17-4597-9dc7-2ca9e8ab4cdb-u1_d97057b1-0392-466d-99b1-5a62dd45cc7d.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/ddf98766f79b430b9f7ac79c5e51e0a6/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/7c98a794-d82e-4c6d-9be9-d36281b50d81-u1_45192930-12cf-49d3-845d-911341c8a52e.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_89654bc8-2c21-4a6f-be2b-16bce07f6295_1_1772305089563.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/3d40dca5-e2b0-4c94-8465-9fe64677d32e-u2_b4bc7c26-a3bf-4ab1-8d02-fae448dbaefe.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_89654bc8-2c21-4a6f-be2b-16bce07f6295_3_1772305090953.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/679034ed-6c17-4597-9dc7-2ca9e8ab4cdb-u1_d97057b1-0392-466d-99b1-5a62dd45cc7d.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_89654bc8-2c21-4a6f-be2b-16bce07f6295_5_1772305092418.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/7c98a794-d82e-4c6d-9be9-d36281b50d81-u1_45192930-12cf-49d3-845d-911341c8a52e.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 6: HTTP 403",
+    "updated_at": "2026-01-29T10:03:53.752Z"
+  },
+  {
+    "project_id": "4fa121d7-5ec8-4ef2-88a5-73dd05bbc9fb",
+    "title": "Chronicles of Bloom",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cd1e40b1086845098888ab1531d97af8/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/51c38ea6-dd25-47d2-b82e-18dfa7780d8a-u2_22868db3-5a83-442f-b824-2af53f6cc314.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1b026de0-2fee-48f9-b143-7d4002d640ea-u2_8cd80c93-a079-42d8-989f-e010018c0407.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_4fa121d7-5ec8-4ef2-88a5-73dd05bbc9fb_1_1772305094097.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/51c38ea6-dd25-47d2-b82e-18dfa7780d8a-u2_22868db3-5a83-442f-b824-2af53f6cc314.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1b026de0-2fee-48f9-b143-7d4002d640ea-u2_8cd80c93-a079-42d8-989f-e010018c0407.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 3: HTTP 403",
+    "updated_at": "2026-01-29T08:01:23.807Z"
+  },
+  {
+    "project_id": "ad3793ec-9454-4926-a6be-089cca448f9a",
+    "title": "A black male and female lovers sitting and standing on the white sandy beach singing emotionally reminiscing on their love",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/fcfb27eac61f435ca49fecb680b0e7b9/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/c8877f80-43f5-43da-8c7c-fec2fa08a7de-u2_da24a780-0369-4bb4-91b5-b0b6faf70397.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/31061eb8cfd84b7dbfba24ef107d9bbc/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/56e76e02-46b9-471e-b0fc-5ab63a899b3d-u1_fdf9a14c-96f7-4bdc-b9b5-81607c4af758.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_ad3793ec-9454-4926-a6be-089cca448f9a_1_1772305097980.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/c8877f80-43f5-43da-8c7c-fec2fa08a7de-u2_da24a780-0369-4bb4-91b5-b0b6faf70397.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_ad3793ec-9454-4926-a6be-089cca448f9a_3_1772305099241.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/56e76e02-46b9-471e-b0fc-5ab63a899b3d-u1_fdf9a14c-96f7-4bdc-b9b5-81607c4af758.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 4: HTTP 403",
+    "updated_at": "2026-01-29T07:44:23.507Z"
+  },
+  {
+    "project_id": "157de22b-85c1-4b12-9b18-689594cabddb",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/7168ad5dae9a4c368f672df5616c8917/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ff46de68-988c-4d2a-8be0-1a45f526f81a-u1_41b83706-8af0-4a1c-99dd-824516ad5885.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/3025b10d-6212-4aa1-a247-815aa5a3b2a8-u2_193c8f1f-8492-4351-a761-cf810c8f6019.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_157de22b-85c1-4b12-9b18-689594cabddb_1_1772305100742.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_157de22b-85c1-4b12-9b18-689594cabddb_2_1772305101585.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_157de22b-85c1-4b12-9b18-689594cabddb_3_1772305101949.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-29T05:14:15.685Z"
+  },
+  {
+    "project_id": "ab27bd41-3908-44ed-b3fb-47afd7ea35e5",
+    "title": "Clara in the Sky City",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/ab5b69cdd785448abf2ee7fc37f7c160/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b211ee33-9a9c-4741-9e75-6472347663f3-u1_02543078-f57d-4e10-9814-431b96353931.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/d5bd5b0f-3245-4c75-a98d-56f07e17dbc2-u2_ab8aef54-66fa-42ba-b8a9-b33c4c834d93.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_ab27bd41-3908-44ed-b3fb-47afd7ea35e5_1_1772305102737.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b211ee33-9a9c-4741-9e75-6472347663f3-u1_02543078-f57d-4e10-9814-431b96353931.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/d5bd5b0f-3245-4c75-a98d-56f07e17dbc2-u2_ab8aef54-66fa-42ba-b8a9-b33c4c834d93.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 3: HTTP 403",
+    "updated_at": "2026-01-29T04:08:11.761Z"
+  },
+  {
+    "project_id": "fb2e3ff4-c2e8-4f78-af26-442e7abd2738",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/aef442fff7d04d55bf6e6299b42e7659/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e69b84ba-360f-4677-aa9d-14b9a119230b-u1_bf25f68c-611a-4ce4-855b-1b2fd0995d1f.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/9e819b71-a2ec-49ed-8fb8-1001aab8f2a2-u2_21f4c618-aad7-4a6d-b035-a6a26a8444f3.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_fb2e3ff4-c2e8-4f78-af26-442e7abd2738_1_1772305104206.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e69b84ba-360f-4677-aa9d-14b9a119230b-u1_bf25f68c-611a-4ce4-855b-1b2fd0995d1f.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/9e819b71-a2ec-49ed-8fb8-1001aab8f2a2-u2_21f4c618-aad7-4a6d-b035-a6a26a8444f3.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 3: HTTP 403",
+    "updated_at": "2026-01-28T23:03:18.961Z"
+  },
+  {
+    "project_id": "d300736c-e6e4-4744-96c1-f7db58837543",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/520e150e9ad440b8aa983b021333a3c0/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e8f3ac53-4a9a-48a1-ad9f-5c15f117b989-u2_af0f4dbc-0701-4d57-b66e-238dd055c144.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/bc3a1346bcbf402cbe560704f523a09d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/46e57f66-d745-47eb-9be8-7d5f5b663a7f-u2_28ad604a-edbe-4e31-8603-4d9d12d9d22e.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d300736c-e6e4-4744-96c1-f7db58837543_1_1772305105816.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d300736c-e6e4-4744-96c1-f7db58837543_2_1772305106654.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d300736c-e6e4-4744-96c1-f7db58837543_3_1772305107425.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d300736c-e6e4-4744-96c1-f7db58837543_4_1772305108181.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-28T22:19:13.100Z"
+  },
+  {
+    "project_id": "1242a16a-5ae0-4435-9438-8e53fd5053d6",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/5be8637009c947f89b1dfd9e338a5b3a/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1a109276-9932-411b-afa7-6a024e6f8101-u2_4c445145-3dc7-49f5-89ae-cc67c0a9ef98.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/b194f53199d14f55877b8fdceffd5674/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/70effda7-f441-45b3-8825-e51ab694b2d8-u2_a6d3b970-dbb8-48dc-a8cd-470524cd2c02.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1242a16a-5ae0-4435-9438-8e53fd5053d6_1_1772305109008.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1a109276-9932-411b-afa7-6a024e6f8101-u2_4c445145-3dc7-49f5-89ae-cc67c0a9ef98.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1242a16a-5ae0-4435-9438-8e53fd5053d6_3_1772305110291.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/70effda7-f441-45b3-8825-e51ab694b2d8-u2_a6d3b970-dbb8-48dc-a8cd-470524cd2c02.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 4: HTTP 403",
+    "updated_at": "2026-01-28T21:17:10.562Z"
+  },
+  {
+    "project_id": "e1fbccb1-04d6-4bbc-8166-7d19c753798e",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/3d4e549f2d7c4ff398e58c1efefe9399/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e0f1a5c6-2113-4636-8318-af5294cf4565-u2_9e904b2d-4654-4d6b-9c74-0ada7848693d.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/68dcec37239142d7a9e249ae684c8f5d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/c84ea245-196b-46f2-a292-75071bd649c6-u2_d888b1f3-a6bb-4e9a-a15b-7f6e2fb538bb.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_e1fbccb1-04d6-4bbc-8166-7d19c753798e_1_1772305111713.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_e1fbccb1-04d6-4bbc-8166-7d19c753798e_2_1772305112611.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_e1fbccb1-04d6-4bbc-8166-7d19c753798e_3_1772305113371.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_e1fbccb1-04d6-4bbc-8166-7d19c753798e_4_1772305114010.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-28T19:18:33.189Z"
+  },
+  {
+    "project_id": "0a8b1061-5fac-4fa1-ae64-ea57ea9c9185",
+    "title": "Celestial Café Rhythms",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/afa2f60533b64802b4d2d557b5fdcb8e/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ce9379c2-871e-4be4-9390-ca3f37feea00-u2_4b0c2906-46c0-4275-934f-1eaee0a6a319.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/5c467ac33d274bde931aaa1fdb74f1b4/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/11d57597-00fb-4be9-93a2-5642d6e5cf83-u1_6fa3a16a-01f8-44ed-b4e3-322abb3ac8e7.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_0a8b1061-5fac-4fa1-ae64-ea57ea9c9185_1_1772305114818.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_0a8b1061-5fac-4fa1-ae64-ea57ea9c9185_2_1772305115542.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_0a8b1061-5fac-4fa1-ae64-ea57ea9c9185_3_1772305116488.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_0a8b1061-5fac-4fa1-ae64-ea57ea9c9185_4_1772305117087.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-28T12:06:23.503Z"
+  },
+  {
+    "project_id": "dbfa671e-dc9f-41d0-837b-b71bb288d8c4",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/010cefe9170744c4aaa36796c0c705f4/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/06463754-2ca6-44c8-93fb-98061dc4dec0-u1_a6095518-a865-4bfa-b63a-93aed39ca3e1.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cac5ee3247bc47da9fb6eec50b436a37/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ec002b7d-0d57-4807-887c-1911f1d7678f-u2_2af00b50-fb47-4c96-b66e-d207eb7bde38.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9d196ec0922d4c9f9f8989056a351c3d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/91d78ccf-2b97-408a-aa3e-0207bef22874-u2_603d30f2-fede-4cdf-9408-36bcbabb5e1a.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/465b7e1ad02b4b1bb2a13a6474cf1bc2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/810ce668-0110-418b-8d8f-7399c88131d5-u1_bd3f022f-7757-4dbb-92b7-b3137f27066c.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9baf7443d0774d7ebaab70b7dda7e635/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1595d879-9405-4b08-9b3b-d5e753c1c3d7-u2_97455beb-37d5-442a-9c0a-2b1756048b2d.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/52b4cda19afd4863927f8f769e5d849d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fc11ed35-dfd9-4361-a230-1f8012ca9dcd-u2_e81a207f-b6dd-4e77-b913-c7a95468a429.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/89462763492a49e58a1d1b71ed5c94a2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/55be7e19-d5f2-402b-8208-3b259db8a551-u2_af967bea-f56e-4d2d-a9d4-56bea32f764f.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cb831a4201ad411d8514e7c28a0e8738/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f95dec3f-6c8c-4dbf-8e92-33107d9a5385-u1_a4a0da36-11f3-4f74-99c6-f8d1bfedfa30.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/3128e6bd899348faa735c53934fbe63f/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e2717eef-8724-42f1-b20c-66d2358933d9-u1_0a8811f5-0573-43ca-8656-510e250e41ca.mp4"
+    ],
+    "new_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/010cefe9170744c4aaa36796c0c705f4/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/06463754-2ca6-44c8-93fb-98061dc4dec0-u1_a6095518-a865-4bfa-b63a-93aed39ca3e1.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cac5ee3247bc47da9fb6eec50b436a37/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ec002b7d-0d57-4807-887c-1911f1d7678f-u2_2af00b50-fb47-4c96-b66e-d207eb7bde38.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9d196ec0922d4c9f9f8989056a351c3d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/91d78ccf-2b97-408a-aa3e-0207bef22874-u2_603d30f2-fede-4cdf-9408-36bcbabb5e1a.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/465b7e1ad02b4b1bb2a13a6474cf1bc2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/810ce668-0110-418b-8d8f-7399c88131d5-u1_bd3f022f-7757-4dbb-92b7-b3137f27066c.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9baf7443d0774d7ebaab70b7dda7e635/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1595d879-9405-4b08-9b3b-d5e753c1c3d7-u2_97455beb-37d5-442a-9c0a-2b1756048b2d.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/52b4cda19afd4863927f8f769e5d849d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fc11ed35-dfd9-4361-a230-1f8012ca9dcd-u2_e81a207f-b6dd-4e77-b913-c7a95468a429.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/89462763492a49e58a1d1b71ed5c94a2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/55be7e19-d5f2-402b-8208-3b259db8a551-u2_af967bea-f56e-4d2d-a9d4-56bea32f764f.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cb831a4201ad411d8514e7c28a0e8738/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f95dec3f-6c8c-4dbf-8e92-33107d9a5385-u1_a4a0da36-11f3-4f74-99c6-f8d1bfedfa30.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/3128e6bd899348faa735c53934fbe63f/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e2717eef-8724-42f1-b20c-66d2358933d9-u1_0a8811f5-0573-43ca-8656-510e250e41ca.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 18: HTTP 403",
+    "updated_at": "2026-01-28T07:35:31.293Z"
+  },
+  {
+    "project_id": "ed2fef43-9d33-439e-aec2-f3436a216a57",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/010cefe9170744c4aaa36796c0c705f4/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/06463754-2ca6-44c8-93fb-98061dc4dec0-u1_a6095518-a865-4bfa-b63a-93aed39ca3e1.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cac5ee3247bc47da9fb6eec50b436a37/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ec002b7d-0d57-4807-887c-1911f1d7678f-u2_2af00b50-fb47-4c96-b66e-d207eb7bde38.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9d196ec0922d4c9f9f8989056a351c3d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/91d78ccf-2b97-408a-aa3e-0207bef22874-u2_603d30f2-fede-4cdf-9408-36bcbabb5e1a.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/465b7e1ad02b4b1bb2a13a6474cf1bc2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/810ce668-0110-418b-8d8f-7399c88131d5-u1_bd3f022f-7757-4dbb-92b7-b3137f27066c.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9baf7443d0774d7ebaab70b7dda7e635/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1595d879-9405-4b08-9b3b-d5e753c1c3d7-u2_97455beb-37d5-442a-9c0a-2b1756048b2d.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/f95da159ba4349bf9a76125537b367a4/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fc11ed35-dfd9-4361-a230-1f8012ca9dcd-u2_e81a207f-b6dd-4e77-b913-c7a95468a429.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/89462763492a49e58a1d1b71ed5c94a2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/55be7e19-d5f2-402b-8208-3b259db8a551-u2_af967bea-f56e-4d2d-a9d4-56bea32f764f.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cb831a4201ad411d8514e7c28a0e8738/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f95dec3f-6c8c-4dbf-8e92-33107d9a5385-u1_a4a0da36-11f3-4f74-99c6-f8d1bfedfa30.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/2139754c-b35e-4aff-9d66-4c3e266a3366-u2_6d57b418-544b-4316-8b22-70f5c1af2a41.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/4dd75c0f-1364-4c9c-9bff-ee60a275ceed-u2_5bb6b6b2-147a-4935-a72e-2d57230254fe.mp4"
+    ],
+    "new_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/010cefe9170744c4aaa36796c0c705f4/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/06463754-2ca6-44c8-93fb-98061dc4dec0-u1_a6095518-a865-4bfa-b63a-93aed39ca3e1.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cac5ee3247bc47da9fb6eec50b436a37/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ec002b7d-0d57-4807-887c-1911f1d7678f-u2_2af00b50-fb47-4c96-b66e-d207eb7bde38.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9d196ec0922d4c9f9f8989056a351c3d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/91d78ccf-2b97-408a-aa3e-0207bef22874-u2_603d30f2-fede-4cdf-9408-36bcbabb5e1a.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/465b7e1ad02b4b1bb2a13a6474cf1bc2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/810ce668-0110-418b-8d8f-7399c88131d5-u1_bd3f022f-7757-4dbb-92b7-b3137f27066c.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9baf7443d0774d7ebaab70b7dda7e635/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1595d879-9405-4b08-9b3b-d5e753c1c3d7-u2_97455beb-37d5-442a-9c0a-2b1756048b2d.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_ed2fef43-9d33-439e-aec2-f3436a216a57_11_1772305122307.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fc11ed35-dfd9-4361-a230-1f8012ca9dcd-u2_e81a207f-b6dd-4e77-b913-c7a95468a429.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/89462763492a49e58a1d1b71ed5c94a2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/55be7e19-d5f2-402b-8208-3b259db8a551-u2_af967bea-f56e-4d2d-a9d4-56bea32f764f.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cb831a4201ad411d8514e7c28a0e8738/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f95dec3f-6c8c-4dbf-8e92-33107d9a5385-u1_a4a0da36-11f3-4f74-99c6-f8d1bfedfa30.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/2139754c-b35e-4aff-9d66-4c3e266a3366-u2_6d57b418-544b-4316-8b22-70f5c1af2a41.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/4dd75c0f-1364-4c9c-9bff-ee60a275ceed-u2_5bb6b6b2-147a-4935-a72e-2d57230254fe.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 18: HTTP 403",
+    "updated_at": "2026-01-28T07:32:08.111Z"
+  },
+  {
+    "project_id": "9a740a12-1412-48bf-83c4-70d8b2bc813e",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/f6c6db217fd44838b3537bdc858c4af6/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/de19726d-0c9c-49bd-bb3b-415e32e5c4c4-u1_8e1894b9-80d6-4e50-af29-dc25d3975288.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/34672b3c233543e8b4547db6026f0df3/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/a057a823-2590-419e-8162-ed553bc3f9ac-u1_3eb1228e-7612-4eae-aca1-5f1f405d6992.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_9a740a12-1412-48bf-83c4-70d8b2bc813e_1_1772305124938.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_9a740a12-1412-48bf-83c4-70d8b2bc813e_2_1772305125848.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_9a740a12-1412-48bf-83c4-70d8b2bc813e_3_1772305126697.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/a057a823-2590-419e-8162-ed553bc3f9ac-u1_3eb1228e-7612-4eae-aca1-5f1f405d6992.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 4: HTTP 403",
+    "updated_at": "2026-01-28T07:12:50.080Z"
+  },
+  {
+    "project_id": "39bd1f1f-8a89-481f-af5e-acfaec759f22",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/010cefe9170744c4aaa36796c0c705f4/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/06463754-2ca6-44c8-93fb-98061dc4dec0-u1_a6095518-a865-4bfa-b63a-93aed39ca3e1.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cac5ee3247bc47da9fb6eec50b436a37/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ec002b7d-0d57-4807-887c-1911f1d7678f-u2_2af00b50-fb47-4c96-b66e-d207eb7bde38.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9d196ec0922d4c9f9f8989056a351c3d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/91d78ccf-2b97-408a-aa3e-0207bef22874-u2_603d30f2-fede-4cdf-9408-36bcbabb5e1a.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/465b7e1ad02b4b1bb2a13a6474cf1bc2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/810ce668-0110-418b-8d8f-7399c88131d5-u1_bd3f022f-7757-4dbb-92b7-b3137f27066c.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9baf7443d0774d7ebaab70b7dda7e635/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1595d879-9405-4b08-9b3b-d5e753c1c3d7-u2_97455beb-37d5-442a-9c0a-2b1756048b2d.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/17539286e3bc48abab534f15b7b0ac63/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fc11ed35-dfd9-4361-a230-1f8012ca9dcd-u2_e81a207f-b6dd-4e77-b913-c7a95468a429.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/89462763492a49e58a1d1b71ed5c94a2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/55be7e19-d5f2-402b-8208-3b259db8a551-u2_af967bea-f56e-4d2d-a9d4-56bea32f764f.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cb831a4201ad411d8514e7c28a0e8738/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f95dec3f-6c8c-4dbf-8e92-33107d9a5385-u1_a4a0da36-11f3-4f74-99c6-f8d1bfedfa30.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fe88303a-6048-4285-a552-c670697b6eae-u2_e7a48de9-2dd9-4037-814e-a8ac1e3113d0.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5b4ff442-1298-4506-8c6a-58878ca12f68-u1_44f48f9c-e042-4db1-9447-cacddf104daf.mp4"
+    ],
+    "new_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/010cefe9170744c4aaa36796c0c705f4/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/06463754-2ca6-44c8-93fb-98061dc4dec0-u1_a6095518-a865-4bfa-b63a-93aed39ca3e1.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cac5ee3247bc47da9fb6eec50b436a37/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ec002b7d-0d57-4807-887c-1911f1d7678f-u2_2af00b50-fb47-4c96-b66e-d207eb7bde38.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9d196ec0922d4c9f9f8989056a351c3d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/91d78ccf-2b97-408a-aa3e-0207bef22874-u2_603d30f2-fede-4cdf-9408-36bcbabb5e1a.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/465b7e1ad02b4b1bb2a13a6474cf1bc2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/810ce668-0110-418b-8d8f-7399c88131d5-u1_bd3f022f-7757-4dbb-92b7-b3137f27066c.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9baf7443d0774d7ebaab70b7dda7e635/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1595d879-9405-4b08-9b3b-d5e753c1c3d7-u2_97455beb-37d5-442a-9c0a-2b1756048b2d.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_39bd1f1f-8a89-481f-af5e-acfaec759f22_11_1772305129404.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fc11ed35-dfd9-4361-a230-1f8012ca9dcd-u2_e81a207f-b6dd-4e77-b913-c7a95468a429.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/89462763492a49e58a1d1b71ed5c94a2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/55be7e19-d5f2-402b-8208-3b259db8a551-u2_af967bea-f56e-4d2d-a9d4-56bea32f764f.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cb831a4201ad411d8514e7c28a0e8738/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f95dec3f-6c8c-4dbf-8e92-33107d9a5385-u1_a4a0da36-11f3-4f74-99c6-f8d1bfedfa30.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_39bd1f1f-8a89-481f-af5e-acfaec759f22_17_1772305130998.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_39bd1f1f-8a89-481f-af5e-acfaec759f22_18_1772305131406.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 16: HTTP 403",
+    "updated_at": "2026-01-28T06:58:45.479Z"
+  },
+  {
+    "project_id": "ca9c8340-6018-4b7e-8ba0-4056ca54bfb6",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/010cefe9170744c4aaa36796c0c705f4/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/06463754-2ca6-44c8-93fb-98061dc4dec0-u1_a6095518-a865-4bfa-b63a-93aed39ca3e1.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cac5ee3247bc47da9fb6eec50b436a37/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ec002b7d-0d57-4807-887c-1911f1d7678f-u2_2af00b50-fb47-4c96-b66e-d207eb7bde38.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9d196ec0922d4c9f9f8989056a351c3d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/91d78ccf-2b97-408a-aa3e-0207bef22874-u2_603d30f2-fede-4cdf-9408-36bcbabb5e1a.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/465b7e1ad02b4b1bb2a13a6474cf1bc2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/810ce668-0110-418b-8d8f-7399c88131d5-u1_bd3f022f-7757-4dbb-92b7-b3137f27066c.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9baf7443d0774d7ebaab70b7dda7e635/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1595d879-9405-4b08-9b3b-d5e753c1c3d7-u2_97455beb-37d5-442a-9c0a-2b1756048b2d.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/52b4cda19afd4863927f8f769e5d849d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fc11ed35-dfd9-4361-a230-1f8012ca9dcd-u2_e81a207f-b6dd-4e77-b913-c7a95468a429.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/89462763492a49e58a1d1b71ed5c94a2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/55be7e19-d5f2-402b-8208-3b259db8a551-u2_af967bea-f56e-4d2d-a9d4-56bea32f764f.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cb831a4201ad411d8514e7c28a0e8738/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f95dec3f-6c8c-4dbf-8e92-33107d9a5385-u1_a4a0da36-11f3-4f74-99c6-f8d1bfedfa30.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/3128e6bd899348faa735c53934fbe63f/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e2717eef-8724-42f1-b20c-66d2358933d9-u1_0a8811f5-0573-43ca-8656-510e250e41ca.mp4"
+    ],
+    "new_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/010cefe9170744c4aaa36796c0c705f4/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/06463754-2ca6-44c8-93fb-98061dc4dec0-u1_a6095518-a865-4bfa-b63a-93aed39ca3e1.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cac5ee3247bc47da9fb6eec50b436a37/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ec002b7d-0d57-4807-887c-1911f1d7678f-u2_2af00b50-fb47-4c96-b66e-d207eb7bde38.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9d196ec0922d4c9f9f8989056a351c3d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/91d78ccf-2b97-408a-aa3e-0207bef22874-u2_603d30f2-fede-4cdf-9408-36bcbabb5e1a.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/465b7e1ad02b4b1bb2a13a6474cf1bc2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/810ce668-0110-418b-8d8f-7399c88131d5-u1_bd3f022f-7757-4dbb-92b7-b3137f27066c.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9baf7443d0774d7ebaab70b7dda7e635/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1595d879-9405-4b08-9b3b-d5e753c1c3d7-u2_97455beb-37d5-442a-9c0a-2b1756048b2d.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/52b4cda19afd4863927f8f769e5d849d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fc11ed35-dfd9-4361-a230-1f8012ca9dcd-u2_e81a207f-b6dd-4e77-b913-c7a95468a429.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/89462763492a49e58a1d1b71ed5c94a2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/55be7e19-d5f2-402b-8208-3b259db8a551-u2_af967bea-f56e-4d2d-a9d4-56bea32f764f.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cb831a4201ad411d8514e7c28a0e8738/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f95dec3f-6c8c-4dbf-8e92-33107d9a5385-u1_a4a0da36-11f3-4f74-99c6-f8d1bfedfa30.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/3128e6bd899348faa735c53934fbe63f/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e2717eef-8724-42f1-b20c-66d2358933d9-u1_0a8811f5-0573-43ca-8656-510e250e41ca.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 18: HTTP 403",
+    "updated_at": "2026-01-28T06:55:07.047Z"
+  },
+  {
+    "project_id": "5b779268-2946-4100-86f8-2db20442f757",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9528e4559ef346d693ded3e0aa0278a9/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/0c695114-f72b-4b02-8c53-f397335e4788-u2_316842b7-8fa3-4478-b32c-a1e4dc73aa80.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5d05c83d-62c3-4bce-a25a-e0292a6b1709-u1_bcb6d8f8-ea2f-446c-b768-29639ffeff04.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5b779268-2946-4100-86f8-2db20442f757_1_1772305134232.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/0c695114-f72b-4b02-8c53-f397335e4788-u2_316842b7-8fa3-4478-b32c-a1e4dc73aa80.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5d05c83d-62c3-4bce-a25a-e0292a6b1709-u1_bcb6d8f8-ea2f-446c-b768-29639ffeff04.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 3: HTTP 403",
+    "updated_at": "2026-01-28T05:22:07.079Z"
+  },
+  {
+    "project_id": "087bf3a9-8636-4415-a270-1c7fd4e748c7",
+    "title": "Petal Beat in Neon Jungle",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/5936c96788614f3cad221c0b6bcab176/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/554387b0-4f9c-4752-bd06-e22b5fea6772-u2_b9a5357c-8b61-4306-8ae2-a9ae35b8d51d.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/44ee07fb753f471db55d915e0059618a/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ecc49898-e67c-4a06-8cf4-265de1e2680e-u1_0316a9d1-f7e8-4ff3-8c70-b349a54707f6.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_087bf3a9-8636-4415-a270-1c7fd4e748c7_1_1772305135894.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_087bf3a9-8636-4415-a270-1c7fd4e748c7_2_1772305136809.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_087bf3a9-8636-4415-a270-1c7fd4e748c7_3_1772305137780.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_087bf3a9-8636-4415-a270-1c7fd4e748c7_4_1772305138566.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-28T04:06:58.423Z"
+  },
+  {
+    "project_id": "36f98e3e-d32a-4e2a-9d06-4d88ad1553e6",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/06b2219ac1e34d08882484bae37854bb/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/0caa4a55-f350-49a7-99a9-67a66a6b3340-u1_24c7471c-2ff7-42f5-86bf-fecc0686159f.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f4672e8b-1c17-47a9-bfb0-5d517eff440d-u2_c47ed71f-7d21-4a0a-b1f5-ae25555b672e.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_36f98e3e-d32a-4e2a-9d06-4d88ad1553e6_1_1772305139892.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_36f98e3e-d32a-4e2a-9d06-4d88ad1553e6_2_1772305140620.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_36f98e3e-d32a-4e2a-9d06-4d88ad1553e6_3_1772305141043.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-28T04:06:37.298Z"
+  },
+  {
+    "project_id": "8082cc84-818f-4756-a41a-55cd7075956b",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/c18cb04d871040688262ce1bfbc0a38f/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/665f4494-c1b6-4602-a8f4-556bc95f8134-u2_831b9688-872a-4568-abb6-8cc0edcf1f27.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/b32e1f3b23a746e1bd705e465e0cac0b/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b89183ed-6634-4249-acc0-a7bcc01e0381-u1_d21edc0b-c034-4cd4-b23e-d0d844f05403.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_8082cc84-818f-4756-a41a-55cd7075956b_1_1772305141877.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/665f4494-c1b6-4602-a8f4-556bc95f8134-u2_831b9688-872a-4568-abb6-8cc0edcf1f27.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_8082cc84-818f-4756-a41a-55cd7075956b_3_1772305142946.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b89183ed-6634-4249-acc0-a7bcc01e0381-u1_d21edc0b-c034-4cd4-b23e-d0d844f05403.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 4: HTTP 403",
+    "updated_at": "2026-01-27T23:35:13.147Z"
+  },
+  {
+    "project_id": "f5ef51b9-c0ab-4d84-8db0-b61e6c527e5b",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/7c27118b03c1447e8307ebd83de2bfe2/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/43b5475e-2eef-47cb-9a2f-fae93bba61b4-u1_fcf4d58e-7edf-42ba-9e7b-266e34540976.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/aad65e1e-ed18-4cf6-8f6b-25ec1adbf79c-u1_8782aea9-fa73-484f-b9ff-c7d88c45e3a1.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_f5ef51b9-c0ab-4d84-8db0-b61e6c527e5b_1_1772305144181.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_f5ef51b9-c0ab-4d84-8db0-b61e6c527e5b_2_1772305144989.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_f5ef51b9-c0ab-4d84-8db0-b61e6c527e5b_3_1772305145506.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-27T19:43:48.012Z"
+  },
+  {
+    "project_id": "47589c6c-5eeb-4dc8-811f-e433b9cb9e01",
+    "title": "Echoes of the Decades",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/6ecba5cbb76742108814dc9fbe1ffa60/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/479da92b-c423-4544-aab9-07c4cf8d7ae5-u1_d902db38-3a16-4840-b874-44b7e029a04a.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/2fb233b589c0428cbf4a8f2f3a58a570/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/19240881-b032-448f-9e65-2c47d6aad411-u1_e7da31ac-c83a-4531-8a04-5937d9adc024.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/c740ba15-0e1b-4966-ac6a-80f34c941aef-u2_2946619c-a358-4152-81d6-2b399d2802db.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_47589c6c-5eeb-4dc8-811f-e433b9cb9e01_1_1772305146383.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/479da92b-c423-4544-aab9-07c4cf8d7ae5-u1_d902db38-3a16-4840-b874-44b7e029a04a.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_47589c6c-5eeb-4dc8-811f-e433b9cb9e01_3_1772305147549.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/19240881-b032-448f-9e65-2c47d6aad411-u1_e7da31ac-c83a-4531-8a04-5937d9adc024.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/c740ba15-0e1b-4966-ac6a-80f34c941aef-u2_2946619c-a358-4152-81d6-2b399d2802db.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 5: HTTP 403",
+    "updated_at": "2026-01-27T12:07:24.725Z"
+  },
+  {
+    "project_id": "a371f081-9a85-4b5c-8e71-cb59a1c64fb6",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/497ce49432e441b2865ebf6154fa4315/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ddfe8551-d4e2-43aa-8758-6ec6f14ca73b-u1_c563bd35-af10-4cb4-868e-0bb88a150805.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/2d57582c58a748febe08bd971725b2e8/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f007244d-e872-499e-b9ba-93e769266b01-u1_83bfc06a-213b-4635-974a-cfe076d9ad3f.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/0851cdf363dc4922a951b7de4ed72032/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5a8ff61d-d4c2-4ff9-868b-76c92c62289f-u2_b3b09480-027f-441b-ba71-54e8ac3aa1af.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/a4ed8b37bebb447e8745099ae3fca32a/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b36a38e3-e63e-4525-82d3-f30ad2352aa2-u1_08509c86-5e34-47b2-875f-3a22b1c19783.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/a738fde8dc8f4ac2802ca59ac35b8e58/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/9aae7347-7a35-43ed-a76e-be4479a8dfe6-u1_e9b8f11c-cb6e-4896-971b-3d0151e1dbbc.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/34802297bdd04687b7929fc4fe099672/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/85afae22-e99d-4c41-97fe-88cc3464a603-u1_58532795-7cc6-49c9-96da-d192e52d8043.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/256cb6eb-54ab-4d10-87a1-38553cf79969-u2_2b517caf-c867-42e2-a1e8-1a0c6a68a89e.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a371f081-9a85-4b5c-8e71-cb59a1c64fb6_1_1772305148671.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ddfe8551-d4e2-43aa-8758-6ec6f14ca73b-u1_c563bd35-af10-4cb4-868e-0bb88a150805.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a371f081-9a85-4b5c-8e71-cb59a1c64fb6_3_1772305149954.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f007244d-e872-499e-b9ba-93e769266b01-u1_83bfc06a-213b-4635-974a-cfe076d9ad3f.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a371f081-9a85-4b5c-8e71-cb59a1c64fb6_5_1772305151168.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5a8ff61d-d4c2-4ff9-868b-76c92c62289f-u2_b3b09480-027f-441b-ba71-54e8ac3aa1af.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a371f081-9a85-4b5c-8e71-cb59a1c64fb6_7_1772305152481.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b36a38e3-e63e-4525-82d3-f30ad2352aa2-u1_08509c86-5e34-47b2-875f-3a22b1c19783.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a371f081-9a85-4b5c-8e71-cb59a1c64fb6_9_1772305153332.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/9aae7347-7a35-43ed-a76e-be4479a8dfe6-u1_e9b8f11c-cb6e-4896-971b-3d0151e1dbbc.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a371f081-9a85-4b5c-8e71-cb59a1c64fb6_11_1772305154806.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/85afae22-e99d-4c41-97fe-88cc3464a603-u1_58532795-7cc6-49c9-96da-d192e52d8043.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/256cb6eb-54ab-4d10-87a1-38553cf79969-u2_2b517caf-c867-42e2-a1e8-1a0c6a68a89e.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 13: HTTP 403",
+    "updated_at": "2026-01-27T06:18:02.550Z"
+  },
+  {
+    "project_id": "e8956725-a13b-4219-b25a-34dc3bed716b",
+    "title": "Bubblegum Bard of Tomorrow",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/307cb5376b814283af02c1004e3d8da5/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/6b9f33d2-a9dd-4cc7-844b-2d7df54632cb-u2_dcdc819a-c87e-4cab-ac78-71b16459d56f.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/fe7a0730bff34f2289e8f11b2049db78/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e71eec5d-3761-491e-8087-ac424e8151bc-u1_e0a06b64-1419-4d00-bb11-7763750ba283.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_e8956725-a13b-4219-b25a-34dc3bed716b_1_1772305156441.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/6b9f33d2-a9dd-4cc7-844b-2d7df54632cb-u2_dcdc819a-c87e-4cab-ac78-71b16459d56f.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_e8956725-a13b-4219-b25a-34dc3bed716b_3_1772305157447.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e71eec5d-3761-491e-8087-ac424e8151bc-u1_e0a06b64-1419-4d00-bb11-7763750ba283.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 4: HTTP 403",
+    "updated_at": "2026-01-27T06:04:31.938Z"
+  },
+  {
+    "project_id": "6cfed9be-4b70-49c3-b34d-315646f3dd8b",
+    "title": "Kaleidoscope Journey",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/1999e1bc1336404ca0c4611d7ab5c27e/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/287031e4-7dd7-44b3-b1a6-35fe4ce4c6f1-u2_d1361c27-13de-4def-baa6-b1b80f72a5a3.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/459701cb0bd646d7a08328e3cb99da39/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/26372555-a103-4ed6-8ca1-4e7663660735-u2_943bed59-071b-4a4f-b15c-91e28c2f3898.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_6cfed9be-4b70-49c3-b34d-315646f3dd8b_1_1772305158739.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_6cfed9be-4b70-49c3-b34d-315646f3dd8b_2_1772305159571.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_6cfed9be-4b70-49c3-b34d-315646f3dd8b_3_1772305160409.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_6cfed9be-4b70-49c3-b34d-315646f3dd8b_4_1772305160973.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-27T04:46:31.117Z"
+  },
+  {
+    "project_id": "61d500ff-055d-4261-a7e3-e37562ef072f",
+    "title": "Garden of Whispers",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/3fe8194fa1944caebaf09b97d2f35e7c/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1fa43a35-722c-4851-bcef-42b311a18e10-u2_e70ae62e-0bd6-472a-b068-bb0787655dcd.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/64228825dea645c3b5dd3c7565946371/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/23acf557-b3a4-404e-a633-b6131e14aeb3-u1_4ad476bf-6916-4b86-a1fd-38702750b6be.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_61d500ff-055d-4261-a7e3-e37562ef072f_1_1772305161808.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1fa43a35-722c-4851-bcef-42b311a18e10-u2_e70ae62e-0bd6-472a-b068-bb0787655dcd.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_61d500ff-055d-4261-a7e3-e37562ef072f_3_1772305163086.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/23acf557-b3a4-404e-a633-b6131e14aeb3-u1_4ad476bf-6916-4b86-a1fd-38702750b6be.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 4: HTTP 403",
+    "updated_at": "2026-01-27T04:37:00.664Z"
+  },
+  {
+    "project_id": "5aa587ad-c6fe-4834-8635-eff7f24536cd",
+    "title": "Neon Blade: Dance of Shadows",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/a30f54e124ae4901a6fd37c68c4c110f/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/8690fbd4-1dc7-450a-95e0-8b6d98ae2757-u2_460f4a0c-1732-4af9-b4d3-0ec546ea4002.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/b94d61272f5c4b5fbd1ea27aacb8f1c7/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f16a1a67-73cf-4b50-a63d-64ca574d4028-u1_198125de-1433-48cd-abd6-144d615391f6.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f4221d1a-ed09-403f-885d-c82c96b5ee4c-u2_94e455c5-dbf9-43b8-a3a2-a8e03b276b7d.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5aa587ad-c6fe-4834-8635-eff7f24536cd_1_1772305164373.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/8690fbd4-1dc7-450a-95e0-8b6d98ae2757-u2_460f4a0c-1732-4af9-b4d3-0ec546ea4002.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5aa587ad-c6fe-4834-8635-eff7f24536cd_3_1772305165726.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f16a1a67-73cf-4b50-a63d-64ca574d4028-u1_198125de-1433-48cd-abd6-144d615391f6.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f4221d1a-ed09-403f-885d-c82c96b5ee4c-u2_94e455c5-dbf9-43b8-a3a2-a8e03b276b7d.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 5: HTTP 403",
+    "updated_at": "2026-01-27T04:06:20.611Z"
+  },
+  {
+    "project_id": "1a871f59-6a5a-457a-a44c-dbd36596abf6",
+    "title": "Retro Robots Revolution",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/227e1fc9c73e41c0ad56507b6bff22d4/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/7965fe23-ce79-4ad6-93fb-87ea0e397519-u1_dfde2c08-0f43-4878-bee4-b3970df1d4c7.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/d7d81dac8d324b208cec3d0c8ee42e95/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/449bc142-5967-4935-957c-6e3b52d19396-u1_dffd016a-e0b6-4ef4-8701-456a277c53b9.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/9585b17a-7750-43c4-bd7e-f60ad1128796-u2_f811c94c-c323-471f-a2f7-244f5eba56e0.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1a871f59-6a5a-457a-a44c-dbd36596abf6_1_1772305167508.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1a871f59-6a5a-457a-a44c-dbd36596abf6_2_1772305168369.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1a871f59-6a5a-457a-a44c-dbd36596abf6_3_1772305169295.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1a871f59-6a5a-457a-a44c-dbd36596abf6_4_1772305170247.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1a871f59-6a5a-457a-a44c-dbd36596abf6_5_1772305170832.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-27T00:16:14.412Z"
+  },
+  {
+    "project_id": "4a538f23-dc3c-457a-be65-6fd9c90aaac3",
+    "title": "Cosmic Juggler",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/880b6a6140c0417db0c69a8f8ef2c973/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/67c57643-186b-4046-ad87-e2b1acf34d7a-u1_c1bd9640-70d6-434b-a86f-b4abaf2c1920.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/a71daee28e4d4531953e22e9c6d1e115/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/07c7e803-5225-4764-910c-9f1c70348299-u2_3607d582-7b40-48a8-8489-75f0ecc18004.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ad396c8a-880f-4364-b7aa-d5f875b6627d-u1_85abf8f2-54f3-49e7-b454-5a8aec239b8c.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_4a538f23-dc3c-457a-be65-6fd9c90aaac3_1_1772305171733.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_4a538f23-dc3c-457a-be65-6fd9c90aaac3_2_1772305172675.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_4a538f23-dc3c-457a-be65-6fd9c90aaac3_3_1772305173522.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_4a538f23-dc3c-457a-be65-6fd9c90aaac3_4_1772305174373.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_4a538f23-dc3c-457a-be65-6fd9c90aaac3_5_1772305174860.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-26T20:12:12.351Z"
+  },
+  {
+    "project_id": "55251dcd-6feb-4dad-b1c4-ab188ca543c5",
+    "title": "Solar Dance",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/eff0df46893e42439a47fe96bccf570f/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/c1020d84-eda7-43e5-a402-c9aa93968dc7-u2_42946037-57dd-450d-8dec-d76d0b068046.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/86a540f078004d7d95cec4b3188efe51/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/52072200-0a65-42f5-85df-24fb191a554d-u1_a9b6fe40-329e-4ed0-babd-dd9cb7b2e616.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_55251dcd-6feb-4dad-b1c4-ab188ca543c5_1_1772305175803.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/c1020d84-eda7-43e5-a402-c9aa93968dc7-u2_42946037-57dd-450d-8dec-d76d0b068046.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_55251dcd-6feb-4dad-b1c4-ab188ca543c5_3_1772305177307.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/52072200-0a65-42f5-85df-24fb191a554d-u1_a9b6fe40-329e-4ed0-babd-dd9cb7b2e616.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 4: HTTP 403",
+    "updated_at": "2026-01-26T12:06:09.744Z"
+  },
+  {
+    "project_id": "512494bc-4bfe-4217-8873-ac3d96fe9a76",
+    "title": "Limitless Dreams",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/6b2edbc716e64cb48d64db361ae67174/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/88c44111-f7e1-48cd-a5a6-ae8c1c53f9d7-u1_09ead5a3-bb0f-43b1-81bd-e4325fd6ebbc.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/e74ea2af7de84d12912479001e666fd1/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fa6413f4-d4c8-44da-8a7e-a5aa5ec2817e-u1_dcf27b3f-2525-4739-9b60-30e454c2738e.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5841981c-b44a-4568-9b9b-69e0b8142ac9-u2_ac601b9b-b635-48d1-8397-54291b8b4451.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_512494bc-4bfe-4217-8873-ac3d96fe9a76_1_1772305179036.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/88c44111-f7e1-48cd-a5a6-ae8c1c53f9d7-u1_09ead5a3-bb0f-43b1-81bd-e4325fd6ebbc.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_512494bc-4bfe-4217-8873-ac3d96fe9a76_3_1772305180222.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fa6413f4-d4c8-44da-8a7e-a5aa5ec2817e-u1_dcf27b3f-2525-4739-9b60-30e454c2738e.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5841981c-b44a-4568-9b9b-69e0b8142ac9-u2_ac601b9b-b635-48d1-8397-54291b8b4451.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 5: HTTP 403",
+    "updated_at": "2026-01-26T09:30:48.741Z"
+  },
+  {
+    "project_id": "c569a38a-18cb-4632-844c-f94b93d0ee5c",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/5837e2124f924484858311514dc266c7/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/d8d5f1b1-6d61-46f0-ac3b-5cb1f781e4a1-u2_ce53e400-5967-46d9-9e86-0fcd42adfd1c.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/94a3da6552134d44a83060f00a8e2a9a/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/8dc28728-a0e0-43c0-9a28-a17fc8eef2c4-u1_1678f433-b543-49e5-a2c5-a10af9e89f6e.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_c569a38a-18cb-4632-844c-f94b93d0ee5c_1_1772305181809.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_c569a38a-18cb-4632-844c-f94b93d0ee5c_2_1772305182505.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_c569a38a-18cb-4632-844c-f94b93d0ee5c_3_1772305183289.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_c569a38a-18cb-4632-844c-f94b93d0ee5c_4_1772305183858.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-26T05:40:10.344Z"
+  },
+  {
+    "project_id": "d0654aaf-3538-41de-bb3b-1e0b6145787c",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/4b1ad9666c3c4921ac6e2b9c0a4fc554/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/27b24e64-eee9-466b-b6d2-729fa68f8ed5-u2_1314ef78-26fe-4a7f-868d-a6f19292b35b.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/23f727a0d4404d3a8d34b8086e91c982/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/be90ce5f-0a8e-47fc-809a-cf3a2b6d7582-u2_34f68f4e-9eb9-41fc-8f0d-a7d17b4166e7.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d0654aaf-3538-41de-bb3b-1e0b6145787c_1_1772305184659.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d0654aaf-3538-41de-bb3b-1e0b6145787c_2_1772305185313.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d0654aaf-3538-41de-bb3b-1e0b6145787c_3_1772305186054.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d0654aaf-3538-41de-bb3b-1e0b6145787c_4_1772305186632.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-26T05:24:39.044Z"
+  },
+  {
+    "project_id": "bc496340-2c53-4190-acca-42de422da3f9",
+    "title": "Kaleidoscope Muse",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/ea2af637a0d74ea0b00697d7d93745a3/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/8dff8ca7-b6b2-48c0-b798-376da2a0cfe3-u2_80185719-0245-44ac-b6fc-0efbba13ee58.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/f944c79fd5514c1187feb0dfa7761a81/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/eb37857c-411d-48f9-b2d5-fc2b7c9a5511-u2_a5afe5fa-2fd2-4c20-8d34-41fb5579a6fc.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_bc496340-2c53-4190-acca-42de422da3f9_1_1772305187536.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_bc496340-2c53-4190-acca-42de422da3f9_2_1772305188472.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_bc496340-2c53-4190-acca-42de422da3f9_3_1772305189305.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_bc496340-2c53-4190-acca-42de422da3f9_4_1772305190808.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-26T02:57:30.143Z"
+  },
+  {
+    "project_id": "48647ddf-9f04-46c9-9579-22fe55693b4d",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/0fd75ceea4e242bc92645f66d51e5174/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/76c4c2e4-3c50-49d5-8a68-d8b0b8c2b990-u2_de56320e-0041-4aee-8f17-392424c68eef.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/39cb50287e6a4a98bb173b1570a6311e/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e3dbdbb0-e238-4ed5-b3c6-1ed3476f1dfd-u1_fb3667c5-a019-4134-b7b4-ac28bec9fc77.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/76b08619-54f0-4ed3-9a3f-7068f9c7acd7-u2_c84dd219-75a2-41fc-8532-e24cfaa0b41d.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_48647ddf-9f04-46c9-9579-22fe55693b4d_1_1772305191772.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_48647ddf-9f04-46c9-9579-22fe55693b4d_2_1772305192625.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_48647ddf-9f04-46c9-9579-22fe55693b4d_3_1772305193483.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_48647ddf-9f04-46c9-9579-22fe55693b4d_4_1772305194387.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_48647ddf-9f04-46c9-9579-22fe55693b4d_5_1772305195340.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-25T22:39:49.598Z"
+  },
+  {
+    "project_id": "492cf44a-afef-40c0-ad7d-142005775903",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/97a4f47e2e76425db4698c5be0dc9d36/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e7436803-a8ad-4477-8ad7-78d252999e6d-u1_7974ccd4-6575-4fe9-94e8-8a28212c1c87.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/458a74c791cc4892bfe6433126690081/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/02ab51f0-ac11-4f59-a208-c807c0f2285b-u1_b28f35a4-8940-48b6-8eef-22cc05f6f92e.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_492cf44a-afef-40c0-ad7d-142005775903_1_1772305196124.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_492cf44a-afef-40c0-ad7d-142005775903_2_1772305196910.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_492cf44a-afef-40c0-ad7d-142005775903_3_1772305197711.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_492cf44a-afef-40c0-ad7d-142005775903_4_1772305198474.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-25T22:15:18.378Z"
+  },
+  {
+    "project_id": "9a794312-a6d1-4db1-a1ba-7ea408186a82",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/4e8259a303ca4a06a7f32fd1fa79f982/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/036c253d-cfa1-4b01-839f-08ea79c0a2f4-u2_b0c26818-0f0a-4627-8e9c-5f9b805fe216.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9b97d267d3ba474085d06406e9f53e31/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b1b05144-44fd-4a8b-ad5f-62b8928bd20c-u1_b0796f88-4998-4aa0-965f-d908277817a6.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/f5fb50c43e5d4f9fbdf6073922554d8b/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/341d58ea-3ec5-4866-bc72-bfdbc2ab1065-u2_81a2068e-1938-4827-9425-228362173982.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_9a794312-a6d1-4db1-a1ba-7ea408186a82_1_1772305199304.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/036c253d-cfa1-4b01-839f-08ea79c0a2f4-u2_b0c26818-0f0a-4627-8e9c-5f9b805fe216.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_9a794312-a6d1-4db1-a1ba-7ea408186a82_3_1772305200587.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b1b05144-44fd-4a8b-ad5f-62b8928bd20c-u1_b0796f88-4998-4aa0-965f-d908277817a6.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_9a794312-a6d1-4db1-a1ba-7ea408186a82_5_1772305201846.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/341d58ea-3ec5-4866-bc72-bfdbc2ab1065-u2_81a2068e-1938-4827-9425-228362173982.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 6: HTTP 403",
+    "updated_at": "2026-01-25T22:09:23.345Z"
+  },
+  {
+    "project_id": "beaf2812-83ff-4129-b5b9-bc08157cf514",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/4b742ac51da34a1183c7a83cdb8e0e94/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/8b6701cc-9376-4f0e-9d1a-07861d1cff0d-u2_905b6918-4d02-47d7-9ae2-05034a0a250e.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/14546fdf6bbd47a8b5741f91d513209e/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b395bf03-4d01-41ee-8500-625b3df2e268-u2_0e978335-3b16-419d-abcb-22465578e275.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/3cfc7c5b-622a-4ddc-a532-64bc722134bd-u1_aa1d4297-196a-4276-9077-655a0a02933e.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_beaf2812-83ff-4129-b5b9-bc08157cf514_1_1772305203231.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_beaf2812-83ff-4129-b5b9-bc08157cf514_2_1772305204065.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_beaf2812-83ff-4129-b5b9-bc08157cf514_3_1772305205018.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_beaf2812-83ff-4129-b5b9-bc08157cf514_4_1772305205960.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_beaf2812-83ff-4129-b5b9-bc08157cf514_5_1772305206407.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-25T22:05:18.599Z"
+  },
+  {
+    "project_id": "5c9091be-57dc-4c12-b4d6-1f9fda1abb1c",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/689e3d8f4edf4de8a8c66fc90c174c17/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/cdf98eee-f83d-42c8-97ba-8d0ed28c9798-u2_ac0c9298-db67-4d3a-92bd-8a1ae93e5b3a.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/8f0ec6ff17f64e8695af64c38a62baf5/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/56db1239-6440-4e87-95c0-11f1dcb0b2e5-u1_8bcccfa5-15b0-4c06-ba32-a7e42e7a94ab.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5c9091be-57dc-4c12-b4d6-1f9fda1abb1c_1_1772305206940.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5c9091be-57dc-4c12-b4d6-1f9fda1abb1c_2_1772305207677.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5c9091be-57dc-4c12-b4d6-1f9fda1abb1c_3_1772305208534.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5c9091be-57dc-4c12-b4d6-1f9fda1abb1c_4_1772305211686.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-25T21:40:47.598Z"
+  },
+  {
+    "project_id": "2bca8b9f-6b3a-445b-8af5-c55520993b88",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/52f17a3c844d4635beab55979358a0ab/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/29634eee-b178-4a89-9399-def3027b0d06-u2_ee3daf91-47c8-4692-9edf-c09083fd3eba.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/caad7223-948a-461d-be7c-f092b5880036-u2_2c4d1713-8682-4e83-b471-fb2fa79f63da.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_2bca8b9f-6b3a-445b-8af5-c55520993b88_1_1772305212599.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/29634eee-b178-4a89-9399-def3027b0d06-u2_ee3daf91-47c8-4692-9edf-c09083fd3eba.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/caad7223-948a-461d-be7c-f092b5880036-u2_2c4d1713-8682-4e83-b471-fb2fa79f63da.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 3: HTTP 403",
+    "updated_at": "2026-01-25T21:26:46.637Z"
+  },
+  {
+    "project_id": "936962ba-1209-439c-b958-65532f9b3e1c",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/c85b99e4008443499f940c7889927fb7/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/791b693c-15d7-4e2a-b8b5-27600f224b05-u1_325c4aa7-38ff-4cd5-bd18-7a13711b635b.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/f08234caa49f44cda4c08c128a4a41f6/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/aaaa0ab8-0231-415f-9b42-118e8e0f8aa5-u1_564a7ddf-6b0c-4cae-b60b-c0a113c19a74.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/0b9a64eab8ff41bb8d73df4fc92a0c73/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/08e4b013-4c89-472a-9660-7c0fdbb3cf83-u1_0397da74-67f8-4717-bbc1-603ecc373dbe.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_936962ba-1209-439c-b958-65532f9b3e1c_1_1772305214211.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_936962ba-1209-439c-b958-65532f9b3e1c_2_1772305215076.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_936962ba-1209-439c-b958-65532f9b3e1c_3_1772305215902.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_936962ba-1209-439c-b958-65532f9b3e1c_4_1772305216675.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_936962ba-1209-439c-b958-65532f9b3e1c_5_1772305217521.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_936962ba-1209-439c-b958-65532f9b3e1c_6_1772305218380.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-25T18:47:50.028Z"
+  },
+  {
+    "project_id": "c1980d46-f335-41be-8623-0185d69b18db",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/7ea6e40e22354ae8b806f6baf09ec306/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/25a74a75-81ef-459f-a459-5dd80981bb39-u2_c076cdae-e63b-437f-8682-da7c9ee0d943.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/297a1aeefab34ce6a54a84345e572693/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/39d0c636-44f5-431d-8256-c6755b2e05d7-u1_aeb6fa21-8356-431c-9556-faa2863662f5.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_c1980d46-f335-41be-8623-0185d69b18db_1_1772305219268.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/25a74a75-81ef-459f-a459-5dd80981bb39-u2_c076cdae-e63b-437f-8682-da7c9ee0d943.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_c1980d46-f335-41be-8623-0185d69b18db_3_1772305220493.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/39d0c636-44f5-431d-8256-c6755b2e05d7-u1_aeb6fa21-8356-431c-9556-faa2863662f5.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 4: HTTP 403",
+    "updated_at": "2026-01-25T18:24:49.028Z"
+  },
+  {
+    "project_id": "22210bd4-ec2d-4e06-bb24-a8da2ede8832",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9030f3641f0145da94540e1f3302e4c5/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/74dbe809-1b8b-412c-a845-7bbc9d17cc55-u1_78d14629-b371-4824-b5a3-35f973c37490.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/e562664442f04c00b4fa59c3faa778a8/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/33e8a7f1-da40-4c7a-b218-43a7a53cd49c-u1_035feebe-7656-4c5e-a85b-4de4b861537f.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_22210bd4-ec2d-4e06-bb24-a8da2ede8832_1_1772305221816.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/74dbe809-1b8b-412c-a845-7bbc9d17cc55-u1_78d14629-b371-4824-b5a3-35f973c37490.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_22210bd4-ec2d-4e06-bb24-a8da2ede8832_3_1772305222854.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/33e8a7f1-da40-4c7a-b218-43a7a53cd49c-u1_035feebe-7656-4c5e-a85b-4de4b861537f.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 4: HTTP 403",
+    "updated_at": "2026-01-25T13:41:19.193Z"
+  },
+  {
+    "project_id": "e2d60a90-9f22-4864-b350-c94be07d49f1",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/3e78a5052f44419cb605e7bb425ce02d/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/dd9a9053-16a6-4c82-ae51-2d1831fa76a4-u2_88a781c0-472e-453f-bd71-70581231b020.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/725555898db4447b91b923fb33de3f93/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/d2f0fdac-62a7-41b9-9690-8f774175f781-u1_957c0c16-b2f3-480b-a0e1-cc0a54f528bd.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_e2d60a90-9f22-4864-b350-c94be07d49f1_1_1772305224088.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/dd9a9053-16a6-4c82-ae51-2d1831fa76a4-u2_88a781c0-472e-453f-bd71-70581231b020.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_e2d60a90-9f22-4864-b350-c94be07d49f1_3_1772305225113.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/d2f0fdac-62a7-41b9-9690-8f774175f781-u1_957c0c16-b2f3-480b-a0e1-cc0a54f528bd.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 4: HTTP 403",
+    "updated_at": "2026-01-25T13:20:00.542Z"
+  },
+  {
+    "project_id": "04f5d370-d74b-4a8f-b01a-4aa280d2085d",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/6f917e7baba34a68b86f291d25764f76/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f889f6fb-29c0-4746-b7cc-d79e1ee27b6c-u2_660d826d-cb9a-4702-9d47-f1e28aeef949.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9dfb87bb9d4e4e6cad54cce2112233b4/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/09e37cf3-ae94-4a59-8e9d-81d232d089e9-u1_c7eae349-a39c-46de-b756-1192bfc918ff.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_04f5d370-d74b-4a8f-b01a-4aa280d2085d_1_1772305226266.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f889f6fb-29c0-4746-b7cc-d79e1ee27b6c-u2_660d826d-cb9a-4702-9d47-f1e28aeef949.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_04f5d370-d74b-4a8f-b01a-4aa280d2085d_3_1772305227251.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/09e37cf3-ae94-4a59-8e9d-81d232d089e9-u1_c7eae349-a39c-46de-b756-1192bfc918ff.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 4: HTTP 403",
+    "updated_at": "2026-01-25T12:42:15.844Z"
+  },
+  {
+    "project_id": "a9b28c57-da7c-4f7c-9091-0f655ca078fb",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/b0dbdfc2c5f64bbca1965e584c4abd38/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/106282d0-825c-4c50-ab6a-9cd0a8d61a58-u2_d1a07282-782a-45d5-a856-9ad0a3ba2e9a.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/49d6297a44894e46a3e040ee12ad464c/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/29f55253-4a8b-4031-b7d9-c3dd63863c55-u2_dbc09c1e-dc73-49d5-9008-b6fd13abae3d.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a9b28c57-da7c-4f7c-9091-0f655ca078fb_1_1772305228548.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a9b28c57-da7c-4f7c-9091-0f655ca078fb_2_1772305229585.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a9b28c57-da7c-4f7c-9091-0f655ca078fb_3_1772305230408.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a9b28c57-da7c-4f7c-9091-0f655ca078fb_4_1772305231399.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-25T06:55:49.332Z"
+  },
+  {
+    "project_id": "62691f6a-9254-4644-b558-eb88a7e58bc7",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/efb7e6c58c0140ed806627026e18ecef/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/491b62c3-b9cd-455e-a897-3ea4166bbdc5-u1_006217ee-3f15-4419-81d4-24f32671778c.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/63a12f26e92d4f4f9da0bdc33e94cc8a/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ef2389df-ba6b-43eb-a37a-380ea68a31b2-u1_eeb4eba5-e06e-4af5-a4ae-f3c3c1471289.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/8be6717ccc3c4430a55777ed758db976/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/3b79125c-46ca-44d6-aa2e-f6f650a1cb4a-u1_118fe9fb-fe7a-41d2-bd76-52f02ab07191.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_62691f6a-9254-4644-b558-eb88a7e58bc7_1_1772305232242.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/491b62c3-b9cd-455e-a897-3ea4166bbdc5-u1_006217ee-3f15-4419-81d4-24f32671778c.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_62691f6a-9254-4644-b558-eb88a7e58bc7_3_1772305233310.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ef2389df-ba6b-43eb-a37a-380ea68a31b2-u1_eeb4eba5-e06e-4af5-a4ae-f3c3c1471289.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_62691f6a-9254-4644-b558-eb88a7e58bc7_5_1772305234376.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/3b79125c-46ca-44d6-aa2e-f6f650a1cb4a-u1_118fe9fb-fe7a-41d2-bd76-52f02ab07191.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 6: HTTP 403",
+    "updated_at": "2026-01-25T05:50:34.809Z"
+  },
+  {
+    "project_id": "923b929e-445d-4635-b47f-7ece2f3fffa0",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/4d6caf0142ae498caba6ce09f775d5a8/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f4a873af-62eb-435e-bd06-0a017b30cf06-u2_4253a8e5-61e3-40a9-8076-a9113a04a09b.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/71cb1d23cb464e7bb78e2a0f29cd3feb/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b9531b58-b404-48c7-a6f7-e3c993be778c-u1_049ccdb4-8a32-44ad-ae95-5cc3f06f3873.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/bd61aabf-fb6c-4094-99c1-db9bb0fa61ce-u1_06f05bff-fb97-4cd2-9376-ee3fecb10c96.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_923b929e-445d-4635-b47f-7ece2f3fffa0_1_1772305235724.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f4a873af-62eb-435e-bd06-0a017b30cf06-u2_4253a8e5-61e3-40a9-8076-a9113a04a09b.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_923b929e-445d-4635-b47f-7ece2f3fffa0_3_1772305236899.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b9531b58-b404-48c7-a6f7-e3c993be778c-u1_049ccdb4-8a32-44ad-ae95-5cc3f06f3873.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/bd61aabf-fb6c-4094-99c1-db9bb0fa61ce-u1_06f05bff-fb97-4cd2-9376-ee3fecb10c96.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 5: HTTP 403",
+    "updated_at": "2026-01-25T05:23:01.609Z"
+  },
+  {
+    "project_id": "007ad7fa-e5d1-492f-9c55-b66cc0b89987",
+    "title": "Jazz in the Sky",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/b575b9722ba44eaeb6e0201018b1c68e/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b05902e6-c110-4f8f-90dd-843f027d9295-u2_47995a81-a35c-4224-bf2e-5f870ccfa00a.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/b450375a974e42799cd86f0ddf7f9e51/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/80a35962-85eb-4229-8c66-e44a6fade809-u1_83775719-fb6d-46a3-b715-87b9bfbccacd.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_007ad7fa-e5d1-492f-9c55-b66cc0b89987_1_1772305238437.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_007ad7fa-e5d1-492f-9c55-b66cc0b89987_2_1772305239166.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_007ad7fa-e5d1-492f-9c55-b66cc0b89987_3_1772305240029.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_007ad7fa-e5d1-492f-9c55-b66cc0b89987_4_1772305240710.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-25T04:06:30.990Z"
+  },
+  {
+    "project_id": "7469de6a-9bf3-4889-ac1d-f79053e99a99",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/a06ae462683b4452a6476d480609813c/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b463ee4a-9cc7-4282-92e3-d01eda5fd5f3-u2_9141ffd9-ec9d-4709-bfac-a8104f7e59ab.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/fcc6be0121574b30b54459d9185e672f/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5e4c9730-4c38-439f-92b2-23e174fb65ae-u2_703947c4-2c37-4391-ac31-c9dc2fdc3cfc.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/d28d4115-be4a-47ad-bbc8-652d22414377-u1_6dc078e3-cd07-4ec5-a1d6-dc0cc244f311.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_7469de6a-9bf3-4889-ac1d-f79053e99a99_1_1772305241373.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_7469de6a-9bf3-4889-ac1d-f79053e99a99_2_1772305242153.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_7469de6a-9bf3-4889-ac1d-f79053e99a99_3_1772305242944.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_7469de6a-9bf3-4889-ac1d-f79053e99a99_4_1772305243777.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_7469de6a-9bf3-4889-ac1d-f79053e99a99_5_1772305244242.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-25T01:29:44.285Z"
+  },
+  {
+    "project_id": "5f11ecb4-e02d-4d4d-b3b2-c128a9a267bf",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/5b3c7cf96060410693c3534eb93d420f/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/7edadc82-05e5-4788-863f-43c2d55608d9-u2_08f7a790-4f77-415c-915c-d51b7adc92e8.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/71d996247c24492c91876060bd983bf0/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/6d6ddf3c-b5f4-4525-bd3d-29eccbc8f302-u1_2051e164-b823-473d-be16-9a1c1df52a29.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5f11ecb4-e02d-4d4d-b3b2-c128a9a267bf_1_1772305245071.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5f11ecb4-e02d-4d4d-b3b2-c128a9a267bf_2_1772305245959.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5f11ecb4-e02d-4d4d-b3b2-c128a9a267bf_3_1772305246746.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_5f11ecb4-e02d-4d4d-b3b2-c128a9a267bf_4_1772305247554.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-25T00:56:41.085Z"
+  },
+  {
+    "project_id": "8ba57563-7c1b-4b99-82fa-346e6a69981b",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/f5036bb230e54df0b8dc861bc14d14ac/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/4f642506-937b-4ba9-b4bc-89fac225da93-u2_d8008382-e2cf-4f4a-adb0-98aae782a357.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/aba6f1cc9ec24cd3ba3bb613eb44334a/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1446d80f-d625-485a-bf4a-b8b37f382f58-u2_5f44a72c-fd98-44a2-bcfb-89555ccf8f63.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/8e65a4df-e835-425d-b745-bf81f0910688-u1_b4b757f3-110d-4e0e-82ed-bcc57a74f861.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_8ba57563-7c1b-4b99-82fa-346e6a69981b_1_1772305248364.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_8ba57563-7c1b-4b99-82fa-346e6a69981b_2_1772305249073.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_8ba57563-7c1b-4b99-82fa-346e6a69981b_3_1772305249909.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_8ba57563-7c1b-4b99-82fa-346e6a69981b_4_1772305250711.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_8ba57563-7c1b-4b99-82fa-346e6a69981b_5_1772305251197.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-25T00:01:08.785Z"
+  },
+  {
+    "project_id": "b3f2ba7d-d342-4444-8928-13aef84b4a5e",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/0accc296b53a42cd9c48a43620d86a09/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b02e298e-0e74-47a5-9b0d-91a4c698cfaa-u2_b022a8b0-6ed9-4a21-8d37-5329103a9106.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9bc1dd3c1d0a47af919bfcaf27deb240/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/c32c405b-431b-472e-b2ee-5a0481ef9027-u1_2f83f867-cf20-4279-916d-b3ad211938dd.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_b3f2ba7d-d342-4444-8928-13aef84b4a5e_1_1772305252066.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_b3f2ba7d-d342-4444-8928-13aef84b4a5e_2_1772305252703.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_b3f2ba7d-d342-4444-8928-13aef84b4a5e_3_1772305253453.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_b3f2ba7d-d342-4444-8928-13aef84b4a5e_4_1772305254015.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-24T22:50:26.480Z"
+  },
+  {
+    "project_id": "870a7316-886d-4bab-974f-2b361164b41f",
+    "title": "Whirlwind Wizard",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/1e1a5c3e8c5f469399ebd3d223fdc37f/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/7762935d-3217-4cac-8416-58510ab5a7cd-u2_86254609-12f8-411c-b927-c3a86d4086d9.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/e74e2e90c59346e3ab02d77377a5f6e7/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/3af9653f-1c92-41c9-9c1d-04dd9aec5c7b-u2_05343308-dfe3-449b-8d72-56019f9564df.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_870a7316-886d-4bab-974f-2b361164b41f_1_1772305254833.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_870a7316-886d-4bab-974f-2b361164b41f_2_1772305255641.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_870a7316-886d-4bab-974f-2b361164b41f_3_1772305256508.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_870a7316-886d-4bab-974f-2b361164b41f_4_1772305257276.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-24T20:04:54.287Z"
+  },
+  {
+    "project_id": "7d08314d-9080-4d0b-b04e-a2b563ac9e82",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/931ee74067eb4b438d081d8e8cb3467c/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/81a7a6d1-cff0-4d62-b509-6db8bbd6bf30-u2_3f6ef30b-21f6-4873-97b8-aa2fd2909ab6.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/40a696bb9c524de286b6697e859c9021/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/a4d2312e-1dc9-461e-bd04-e3fa42abf4ba-u2_55c0848e-c609-4e05-8217-f92c8a077a1e.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_7d08314d-9080-4d0b-b04e-a2b563ac9e82_1_1772305258152.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/81a7a6d1-cff0-4d62-b509-6db8bbd6bf30-u2_3f6ef30b-21f6-4873-97b8-aa2fd2909ab6.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_7d08314d-9080-4d0b-b04e-a2b563ac9e82_3_1772305259323.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/a4d2312e-1dc9-461e-bd04-e3fa42abf4ba-u2_55c0848e-c609-4e05-8217-f92c8a077a1e.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 4: HTTP 403",
+    "updated_at": "2026-01-24T13:43:59.470Z"
+  },
+  {
+    "project_id": "357a0b4c-2f8e-4581-8dbe-d66e546d769d",
+    "title": "Cosmic Skater",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/e084e198f83c4b9a994fc91f40c07250/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/318fef9a-d70b-4fc1-bdaa-ff59f63c6346-u1_6fd0a4b9-3ce4-43df-86c5-fc2ecfa936a1.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/de76a083c8a34a298336f4e6e176676a/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/de51f9fc-5958-405b-8cac-0f29bb8c20ca-u1_51fa8d85-ec9d-4862-82a1-2bb97b409bf3.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/32efcf6e787d44ccbc00b1f8b189a4c6/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b9e90fcf-b44c-404c-9b4e-d14b00d1f75e-u1_1c568678-56bf-4b00-9456-9975d452a103.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_357a0b4c-2f8e-4581-8dbe-d66e546d769d_1_1772305260644.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/318fef9a-d70b-4fc1-bdaa-ff59f63c6346-u1_6fd0a4b9-3ce4-43df-86c5-fc2ecfa936a1.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_357a0b4c-2f8e-4581-8dbe-d66e546d769d_3_1772305261830.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/de51f9fc-5958-405b-8cac-0f29bb8c20ca-u1_51fa8d85-ec9d-4862-82a1-2bb97b409bf3.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_357a0b4c-2f8e-4581-8dbe-d66e546d769d_5_1772305263050.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b9e90fcf-b44c-404c-9b4e-d14b00d1f75e-u1_1c568678-56bf-4b00-9456-9975d452a103.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 6: HTTP 403",
+    "updated_at": "2026-01-24T12:09:17.362Z"
+  },
+  {
+    "project_id": "44cced52-63e3-41bc-befa-a98ed33f3744",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/69a834bda1db44ceb762f07b0dad8ccf/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/4d5dbb08-740c-488f-bbc5-7a0fef0b2ebf-u1_8346e671-6d95-4a20-8086-0abc2fe20748.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/736ba93a4ba64d7a8b1534d48d4d647a/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/eceff6bd-4437-4a6c-82f8-b0759fd2459b-u1_9b768eb4-8234-455a-8f28-90eee5eef511.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b52725f6-36cb-4704-821d-5c05c40a11a4-u2_a9ffafae-dc41-408d-bc09-71dbc0e49dce.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_44cced52-63e3-41bc-befa-a98ed33f3744_1_1772305264430.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/4d5dbb08-740c-488f-bbc5-7a0fef0b2ebf-u1_8346e671-6d95-4a20-8086-0abc2fe20748.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_44cced52-63e3-41bc-befa-a98ed33f3744_3_1772305265538.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/eceff6bd-4437-4a6c-82f8-b0759fd2459b-u1_9b768eb4-8234-455a-8f28-90eee5eef511.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b52725f6-36cb-4704-821d-5c05c40a11a4-u2_a9ffafae-dc41-408d-bc09-71dbc0e49dce.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 5: HTTP 403",
+    "updated_at": "2026-01-24T08:39:34.615Z"
+  },
+  {
+    "project_id": "22e47334-8d37-4e90-ae58-aa7ce3065a04",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/94d3eb7d50a045f1800b38652f4bc205/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b3e3621b-d60e-496b-a4f5-c0cdee0cfb23-u1_8a479683-2201-4734-b2bf-021f563d711d.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/fb5f24e79bf6454bb828a50e574751a6/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/a4964529-00c0-4ac1-b5b8-4ab29829a90c-u1_8c2a15bc-b721-41e2-8cb9-bea85c8be48e.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_22e47334-8d37-4e90-ae58-aa7ce3065a04_1_1772305267248.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/b3e3621b-d60e-496b-a4f5-c0cdee0cfb23-u1_8a479683-2201-4734-b2bf-021f563d711d.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_22e47334-8d37-4e90-ae58-aa7ce3065a04_3_1772305268530.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/a4964529-00c0-4ac1-b5b8-4ab29829a90c-u1_8c2a15bc-b721-41e2-8cb9-bea85c8be48e.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 4: HTTP 403",
+    "updated_at": "2026-01-24T05:32:25.673Z"
+  },
+  {
+    "project_id": "6d6aa406-f720-45e4-80ac-ed323e7c4b00",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/0986b23645ea4d5c8d6158b7941ddff6/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/811128e1-16e1-44f2-bd42-733e2ac1cbb6-u2_6eb16221-05a3-4b83-811a-860b013746ca.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9de770707cea44f6b03319b2ecc314d8/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/337a0fec-f718-40e4-802f-a06bb5bdba9f-u1_fcdfe81f-bd52-4fb2-a15f-040463ca8a04.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_6d6aa406-f720-45e4-80ac-ed323e7c4b00_1_1772305269955.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_6d6aa406-f720-45e4-80ac-ed323e7c4b00_2_1772305270756.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_6d6aa406-f720-45e4-80ac-ed323e7c4b00_3_1772305271557.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_6d6aa406-f720-45e4-80ac-ed323e7c4b00_4_1772305272228.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-24T05:26:06.309Z"
+  },
+  {
+    "project_id": "f2ecafa4-e44a-4b41-aa53-54e72da1a2c7",
+    "title": "Rhythm of the Samurai-Drone",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cad74b69fc634b1b920f8598c8ca1e1b/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/942437fc-38ce-4bd7-810c-4c0052e47e27-u2_99ead4bb-3a61-4486-91b0-7c47fb6dcbec.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/9f1c2cd5-ee7a-4be2-9974-9949a67c0bed-u1_5c42bfc9-2bfb-47b1-bc56-c17d8dc50b0f.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_f2ecafa4-e44a-4b41-aa53-54e72da1a2c7_1_1772305273076.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_f2ecafa4-e44a-4b41-aa53-54e72da1a2c7_2_1772305273928.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_f2ecafa4-e44a-4b41-aa53-54e72da1a2c7_3_1772305274311.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-24T04:05:20.722Z"
+  },
+  {
+    "project_id": "7667a93d-b78c-4e92-a247-4eaaebfda7e6",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/d7d91bfa86e24d8d966b15de392726c9/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/122f60d3-5a8f-440e-9fc5-5f09578cdbaf-u1_ffb95a6f-c38f-46a4-abea-07e1a64c850a.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e5c250f8-fd66-48f6-9f80-40f4e4312934-u2_cfc3c119-b43c-4560-96fc-1c8dc8545eee.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_7667a93d-b78c-4e92-a247-4eaaebfda7e6_1_1772305275177.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/122f60d3-5a8f-440e-9fc5-5f09578cdbaf-u1_ffb95a6f-c38f-46a4-abea-07e1a64c850a.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e5c250f8-fd66-48f6-9f80-40f4e4312934-u2_cfc3c119-b43c-4560-96fc-1c8dc8545eee.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 3: HTTP 403",
+    "updated_at": "2026-01-24T02:28:34.360Z"
+  },
+  {
+    "project_id": "0824599c-5a6c-4d63-9ae0-b734838aed41",
+    "title": "Whispers of the Mistral",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/44dbbef2dbe3402395a3e5918e5b1144/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e5c53bc5-7544-439a-96ed-6f7a8280a81b-u2_28c6ee67-a237-42a2-a8c3-28cd0ec36c9b.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/4adc9e65-5798-469d-8155-76424528360b-u1_3276f1f6-2049-4156-a0ba-01454980a5ef.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_0824599c-5a6c-4d63-9ae0-b734838aed41_1_1772305276658.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_0824599c-5a6c-4d63-9ae0-b734838aed41_2_1772305277492.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_0824599c-5a6c-4d63-9ae0-b734838aed41_3_1772305277963.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-24T01:12:29.497Z"
+  },
+  {
+    "project_id": "0914ed27-ec8f-4c35-a3e6-c8b3dc60caa1",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/a3dc2cd76dbe49b3a135bbbafcba894e/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/226f86b9-b045-40da-b578-b676ca4c66f2-u1_25e14012-2959-48bf-bdbf-828b3cd25584.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/dcd9d800bee7475b87ef163c5fed972b/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/1a64771b-60cc-4594-9d02-17523d468b51-u1_a7f9f586-9f87-4b44-95e0-14165a47c11b.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_0914ed27-ec8f-4c35-a3e6-c8b3dc60caa1_1_1772305278825.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_0914ed27-ec8f-4c35-a3e6-c8b3dc60caa1_2_1772305280856.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_0914ed27-ec8f-4c35-a3e6-c8b3dc60caa1_3_1772305281680.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_0914ed27-ec8f-4c35-a3e6-c8b3dc60caa1_4_1772305282486.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-23T12:16:36.469Z"
+  },
+  {
+    "project_id": "d06c6f7a-1112-4b21-9aae-4d44ade4b5c8",
+    "title": "Celestial Glider",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/e752d954fb954d5bb6ce67af9e1d0b67/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/05c6118c-cbe7-42ad-8a64-f71ca5fe54e2-u1_105d0d81-244a-40e8-92fd-5141cee91010.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/959b10fdff6547e0bc7061fb8ac56b2c/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/103cd1f2-6103-4673-baae-0a5dc2712ee7-u2_8b0e21bf-87c5-4025-995c-44d262bbec95.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/eaa9fce235364b8f98d34770336d391b/1.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d06c6f7a-1112-4b21-9aae-4d44ade4b5c8_1_1772305283354.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/05c6118c-cbe7-42ad-8a64-f71ca5fe54e2-u1_105d0d81-244a-40e8-92fd-5141cee91010.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d06c6f7a-1112-4b21-9aae-4d44ade4b5c8_3_1772305284582.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/103cd1f2-6103-4673-baae-0a5dc2712ee7-u2_8b0e21bf-87c5-4025-995c-44d262bbec95.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_d06c6f7a-1112-4b21-9aae-4d44ade4b5c8_5_1772305285834.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 4: HTTP 403",
+    "updated_at": "2026-01-23T11:56:34.853Z"
+  },
+  {
+    "project_id": "28b64375-3e6b-498b-99ab-92fc81c9a9d9",
+    "title": "Zephyr's Time Dance",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/2d1fae1628104abfab8fb95f8a0cebb7/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/82459b4c-a6c4-467b-8b23-b0f413f93a3f-u2_5c28b556-0d2d-4c77-a5bd-4790df7ac1e6.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/31588ff7af8646ce8ff687a49ed06da4/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/858c7d40-f5a2-4dc4-967b-695f1e869dfa-u2_2212cae3-0317-4ff5-bf8a-eface2320016.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/8fb23e46eb914080b976c9b85a3be2f9/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/18eabfee-f6c1-4840-9c74-286fc214b012-u1_2adef181-af9c-48a5-8a2a-1a8cb6687de7.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/fbe9c0b70009401b8a747e77c328b627/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/c8d443f0-c6b2-48f1-957e-07213b1c1fcd-u2_c4511392-5fbe-4f19-8b48-7a2483e48f9b.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/65daa919-ee2d-46b3-a9b9-aa5c21a157a1-u1_50bfb9f3-a24f-4cb2-955f-7d2ac9d100ec.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_28b64375-3e6b-498b-99ab-92fc81c9a9d9_1_1772305287262.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/82459b4c-a6c4-467b-8b23-b0f413f93a3f-u2_5c28b556-0d2d-4c77-a5bd-4790df7ac1e6.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_28b64375-3e6b-498b-99ab-92fc81c9a9d9_3_1772305288566.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/858c7d40-f5a2-4dc4-967b-695f1e869dfa-u2_2212cae3-0317-4ff5-bf8a-eface2320016.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_28b64375-3e6b-498b-99ab-92fc81c9a9d9_5_1772305289857.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/18eabfee-f6c1-4840-9c74-286fc214b012-u1_2adef181-af9c-48a5-8a2a-1a8cb6687de7.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_28b64375-3e6b-498b-99ab-92fc81c9a9d9_7_1772305291124.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/c8d443f0-c6b2-48f1-957e-07213b1c1fcd-u2_c4511392-5fbe-4f19-8b48-7a2483e48f9b.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/65daa919-ee2d-46b3-a9b9-aa5c21a157a1-u1_50bfb9f3-a24f-4cb2-955f-7d2ac9d100ec.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 9: HTTP 403",
+    "updated_at": "2026-01-23T10:18:53.476Z"
+  },
+  {
+    "project_id": "1e456b18-65eb-40a9-ac92-5a95b9eedc04",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/30d66a71a2734f1f8b37e8700c74c58b/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/c9c28ad3-acbe-41bd-a56d-e25c248d1e9d-u1_56311da1-c295-4661-8bf1-c5023e13d761.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/aef3336f-ac42-4aa3-a091-1ec4b7ce1ce1-u2_57e25cb9-d6aa-4ea9-80e9-746c826d38d8.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_1e456b18-65eb-40a9-ac92-5a95b9eedc04_1_1772305292629.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/c9c28ad3-acbe-41bd-a56d-e25c248d1e9d-u1_56311da1-c295-4661-8bf1-c5023e13d761.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/aef3336f-ac42-4aa3-a091-1ec4b7ce1ce1-u2_57e25cb9-d6aa-4ea9-80e9-746c826d38d8.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 3: HTTP 403",
+    "updated_at": "2026-01-23T10:02:22.877Z"
+  },
+  {
+    "project_id": "97953f7d-692f-4f32-88af-abf840b3a340",
+    "title": "Clockwork Carousel",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/66a37f8c39714a1aa8243be139089078/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/7491f1cb-40f9-4a1c-8c32-f4b3e9fe46f5-u1_f092e8ce-2573-4585-b56d-3d03dca0d227.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/3272e6f3fcd7478dbfde2b1b474498e6/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/53960d3d-86a3-4bbe-ad3d-2940da1402ac-u2_e23a11e2-9778-4ec2-804e-eb20a189407e.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_97953f7d-692f-4f32-88af-abf840b3a340_1_1772305294294.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_97953f7d-692f-4f32-88af-abf840b3a340_2_1772305295082.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_97953f7d-692f-4f32-88af-abf840b3a340_3_1772305295925.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_97953f7d-692f-4f32-88af-abf840b3a340_4_1772305296779.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-23T09:55:33.876Z"
+  },
+  {
+    "project_id": "170595fe-a43d-4e91-b4fb-558d7ff1cb99",
+    "title": "Resurgence of the Ember",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/f18a23a9d404496683557a366919b847/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/35678953-f9af-4aa6-8999-193bc60836aa-u2_c4dcec8a-1dce-48f8-9b27-ffbcb6c463b7.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/2f8a3420e92c40af8b040ab50d642b3e/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/887651c4-407d-4960-9baa-47a347c40061-u2_306bb3b3-a376-439f-bc3a-cf3a4bd85c87.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/027e1fb0c15140d19badf0f438172a69/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/9ec16a52-14c2-465b-937a-0ea7d28c94b7-u2_0d276960-71dc-4139-bdc3-f3060c23a295.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/2081daa3-360a-4bd4-b93b-cbbcfaa427b9-u2_84a8fc3a-0046-4f79-80f7-e7c2d1885ee7.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_170595fe-a43d-4e91-b4fb-558d7ff1cb99_1_1772305297702.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/35678953-f9af-4aa6-8999-193bc60836aa-u2_c4dcec8a-1dce-48f8-9b27-ffbcb6c463b7.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_170595fe-a43d-4e91-b4fb-558d7ff1cb99_3_1772305298977.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/887651c4-407d-4960-9baa-47a347c40061-u2_306bb3b3-a376-439f-bc3a-cf3a4bd85c87.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_170595fe-a43d-4e91-b4fb-558d7ff1cb99_5_1772305300303.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/9ec16a52-14c2-465b-937a-0ea7d28c94b7-u2_0d276960-71dc-4139-bdc3-f3060c23a295.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/2081daa3-360a-4bd4-b93b-cbbcfaa427b9-u2_84a8fc3a-0046-4f79-80f7-e7c2d1885ee7.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 7: HTTP 403",
+    "updated_at": "2026-01-23T09:13:50.676Z"
+  },
+  {
+    "project_id": "59e5e396-a372-4941-99ea-246978a60abe",
+    "title": "Celestial Rave",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/81885c162f164db69e3ab019e0d5a3f6/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/cbdbe3db-0703-4c5e-808d-359f934f5257-u2_e75f88f9-df35-431e-bdf4-9924eddf2faf.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/b7777bc53a644407a86964dc2d0cbe7c/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/64cdfb0d-228e-4354-bc67-05054b59482e-u1_65c70c79-c6b0-4f83-9887-9ade74e120b1.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/40172bd63b29460a94665e5ae9282ed8/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/4329730b-5071-4a2f-b7ea-34ad47a0137d-u1_cf27325b-9f9b-4252-a005-b27d41b4f7ec.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_59e5e396-a372-4941-99ea-246978a60abe_1_1772305301992.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/cbdbe3db-0703-4c5e-808d-359f934f5257-u2_e75f88f9-df35-431e-bdf4-9924eddf2faf.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_59e5e396-a372-4941-99ea-246978a60abe_3_1772305303559.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/64cdfb0d-228e-4354-bc67-05054b59482e-u1_65c70c79-c6b0-4f83-9887-9ade74e120b1.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_59e5e396-a372-4941-99ea-246978a60abe_5_1772305305116.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/4329730b-5071-4a2f-b7ea-34ad47a0137d-u1_cf27325b-9f9b-4252-a005-b27d41b4f7ec.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 6: HTTP 403",
+    "updated_at": "2026-01-23T08:32:06.976Z"
+  },
+  {
+    "project_id": "917a6d77-c56f-4420-acbd-058e846c129f",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9da8a4a648c54a729a632ed21987ad31/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/4299eaaa-9f33-4474-bf5e-77821e1a57f2-u2_55c6593c-b3be-4a99-9c2a-03066f77ce66.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/2be3ae76-2c1e-470f-acfc-a846676cd0bc-u1_a8cb1f8a-f3b8-4d71-a10e-ea282b1f44f5.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_917a6d77-c56f-4420-acbd-058e846c129f_1_1772305306565.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/4299eaaa-9f33-4474-bf5e-77821e1a57f2-u2_55c6593c-b3be-4a99-9c2a-03066f77ce66.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/2be3ae76-2c1e-470f-acfc-a846676cd0bc-u1_a8cb1f8a-f3b8-4d71-a10e-ea282b1f44f5.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 3: HTTP 403",
+    "updated_at": "2026-01-22T14:44:57.202Z"
+  },
+  {
+    "project_id": "a5651c41-d74f-4dd4-8193-c2c0f947b38d",
+    "title": "Hamster Cowboy Adventures",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/2a7e3dbff1154d4b943598bbbdc53455/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/e6d87f30-3830-42cd-ab83-9ccc86062bac-u2_a3d54f8b-2f50-4b07-a912-7913fc05b8cb.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/f386564ddd374fbe82ba486741891839/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fe30b2cd-e1da-423f-8cef-4e0a5bc958c6-u1_0660a93d-d73b-45bc-80ae-3bef046a807d.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/f4a03611ddd443358c92424b9051fd85/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/868d6734-5528-4591-ae48-d04688a72ca0-u2_f4af6dd6-9a5a-4d03-8596-408309f5d041.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/398e39f6dfdc4a2e895ed008c84074de/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/3aa3847e-93e6-47a2-9487-9edb2eaba13c-u2_2ef36b12-ffe1-467d-acbf-345424ba06ef.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a5651c41-d74f-4dd4-8193-c2c0f947b38d_1_1772305308254.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a5651c41-d74f-4dd4-8193-c2c0f947b38d_2_1772305308972.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a5651c41-d74f-4dd4-8193-c2c0f947b38d_3_1772305309728.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a5651c41-d74f-4dd4-8193-c2c0f947b38d_4_1772305310555.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a5651c41-d74f-4dd4-8193-c2c0f947b38d_5_1772305311313.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a5651c41-d74f-4dd4-8193-c2c0f947b38d_6_1772305311973.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a5651c41-d74f-4dd4-8193-c2c0f947b38d_7_1772305312766.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_a5651c41-d74f-4dd4-8193-c2c0f947b38d_8_1772305313448.mp4"
+    ],
+    "status": "success",
+    "updated_at": "2026-01-22T09:53:13.378Z"
+  },
+  {
+    "project_id": "f240d265-beb4-4c82-bac7-38f548aed896",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/baedafa9b15841a780442ce84a687f46/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5e3c629a-f736-4e53-a553-67f8f81f8839-u2_414cf020-ef67-4c56-96a4-bb26782bf4b4.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/cda0a4c7-36f7-4ae2-8213-64e6b8a35975-u2_a8c1c3cc-9fb6-4da4-afa8-d896479feff1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/79e7139b-810d-4d09-b57a-79cb27640aaa-u2_768506c1-2bfd-4436-8315-16446147bdb5.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/370d07f6be174050b394f474ffe9db0e/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/692e7877-1773-4f8e-a3cb-009928299b4a-u2_050ab455-bb0e-4f59-8421-f58fe7fea747.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/3bd59396-b26e-4dca-b1be-13face52d814-u1_af5e8ae1-f21b-4c43-b078-90d726c4d479.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/966390e3-514f-4b80-a778-2f01ec1b2dd1-u2_8d6196f1-e91e-4d30-b90b-587144ed095c.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/b47bd9a6e7ae4342a68d159fd2f911ee/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ab6f0bbf-7d78-420b-b8b9-4538765574c3-u1_9d3dffd1-2580-4e6d-bf3a-4891574da087.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_f240d265-beb4-4c82-bac7-38f548aed896_1_1772305314389.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5e3c629a-f736-4e53-a553-67f8f81f8839-u2_414cf020-ef67-4c56-96a4-bb26782bf4b4.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_f240d265-beb4-4c82-bac7-38f548aed896_3_1772305315700.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/79e7139b-810d-4d09-b57a-79cb27640aaa-u2_768506c1-2bfd-4436-8315-16446147bdb5.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_f240d265-beb4-4c82-bac7-38f548aed896_5_1772305316893.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/692e7877-1773-4f8e-a3cb-009928299b4a-u2_050ab455-bb0e-4f59-8421-f58fe7fea747.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_f240d265-beb4-4c82-bac7-38f548aed896_7_1772305318913.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/966390e3-514f-4b80-a778-2f01ec1b2dd1-u2_8d6196f1-e91e-4d30-b90b-587144ed095c.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_f240d265-beb4-4c82-bac7-38f548aed896_9_1772305320085.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ab6f0bbf-7d78-420b-b8b9-4538765574c3-u1_9d3dffd1-2580-4e6d-bf3a-4891574da087.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 10: HTTP 403",
+    "updated_at": "2026-01-22T05:03:58.802Z"
+  },
+  {
+    "project_id": "123f8ae7-0801-4e7a-bd77-04df68e15941",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/e7904f15de0b4573bf00825189ebbc47/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5e3c629a-f736-4e53-a553-67f8f81f8839-u2_414cf020-ef67-4c56-96a4-bb26782bf4b4.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/9032a99623bd433c9ebd4d5128260538/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/79e7139b-810d-4d09-b57a-79cb27640aaa-u2_768506c1-2bfd-4436-8315-16446147bdb5.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/370d07f6be174050b394f474ffe9db0e/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/692e7877-1773-4f8e-a3cb-009928299b4a-u2_050ab455-bb0e-4f59-8421-f58fe7fea747.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/3bd59396-b26e-4dca-b1be-13face52d814-u1_af5e8ae1-f21b-4c43-b078-90d726c4d479.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/966390e3-514f-4b80-a778-2f01ec1b2dd1-u2_8d6196f1-e91e-4d30-b90b-587144ed095c.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/b47bd9a6e7ae4342a68d159fd2f911ee/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ab6f0bbf-7d78-420b-b8b9-4538765574c3-u1_9d3dffd1-2580-4e6d-bf3a-4891574da087.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_123f8ae7-0801-4e7a-bd77-04df68e15941_1_1772305322736.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5e3c629a-f736-4e53-a553-67f8f81f8839-u2_414cf020-ef67-4c56-96a4-bb26782bf4b4.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_123f8ae7-0801-4e7a-bd77-04df68e15941_3_1772305324734.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/79e7139b-810d-4d09-b57a-79cb27640aaa-u2_768506c1-2bfd-4436-8315-16446147bdb5.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_123f8ae7-0801-4e7a-bd77-04df68e15941_5_1772305325903.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/692e7877-1773-4f8e-a3cb-009928299b4a-u2_050ab455-bb0e-4f59-8421-f58fe7fea747.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_123f8ae7-0801-4e7a-bd77-04df68e15941_7_1772305327732.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/966390e3-514f-4b80-a778-2f01ec1b2dd1-u2_8d6196f1-e91e-4d30-b90b-587144ed095c.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_123f8ae7-0801-4e7a-bd77-04df68e15941_9_1772305328302.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ab6f0bbf-7d78-420b-b8b9-4538765574c3-u1_9d3dffd1-2580-4e6d-bf3a-4891574da087.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 10: HTTP 403",
+    "updated_at": "2026-01-22T04:44:43.444Z"
+  },
+  {
+    "project_id": "05eaf442-a5ba-4b08-b20e-a1c190fd0a3c",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/e7904f15de0b4573bf00825189ebbc47/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5e3c629a-f736-4e53-a553-67f8f81f8839-u2_414cf020-ef67-4c56-96a4-bb26782bf4b4.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/4d62bb2bb52b45c1ba0afe3ed57b571a/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/79e7139b-810d-4d09-b57a-79cb27640aaa-u2_768506c1-2bfd-4436-8315-16446147bdb5.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/370d07f6be174050b394f474ffe9db0e/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/692e7877-1773-4f8e-a3cb-009928299b4a-u2_050ab455-bb0e-4f59-8421-f58fe7fea747.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/2cfb38ba983d485197d821a3e687a89b/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/966390e3-514f-4b80-a778-2f01ec1b2dd1-u2_8d6196f1-e91e-4d30-b90b-587144ed095c.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/b47bd9a6e7ae4342a68d159fd2f911ee/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ab6f0bbf-7d78-420b-b8b9-4538765574c3-u1_9d3dffd1-2580-4e6d-bf3a-4891574da087.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_05eaf442-a5ba-4b08-b20e-a1c190fd0a3c_1_1772305329952.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5e3c629a-f736-4e53-a553-67f8f81f8839-u2_414cf020-ef67-4c56-96a4-bb26782bf4b4.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_05eaf442-a5ba-4b08-b20e-a1c190fd0a3c_3_1772305331289.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/79e7139b-810d-4d09-b57a-79cb27640aaa-u2_768506c1-2bfd-4436-8315-16446147bdb5.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_05eaf442-a5ba-4b08-b20e-a1c190fd0a3c_5_1772305331991.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/692e7877-1773-4f8e-a3cb-009928299b4a-u2_050ab455-bb0e-4f59-8421-f58fe7fea747.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_05eaf442-a5ba-4b08-b20e-a1c190fd0a3c_7_1772305334079.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/966390e3-514f-4b80-a778-2f01ec1b2dd1-u2_8d6196f1-e91e-4d30-b90b-587144ed095c.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_05eaf442-a5ba-4b08-b20e-a1c190fd0a3c_9_1772305334722.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ab6f0bbf-7d78-420b-b8b9-4538765574c3-u1_9d3dffd1-2580-4e6d-bf3a-4891574da087.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 10: HTTP 403",
+    "updated_at": "2026-01-22T04:35:58.720Z"
+  },
+  {
+    "project_id": "29e6461d-010f-4d8e-ab5e-b3632f58387d",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/e7904f15de0b4573bf00825189ebbc47/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5e3c629a-f736-4e53-a553-67f8f81f8839-u2_414cf020-ef67-4c56-96a4-bb26782bf4b4.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/4d62bb2bb52b45c1ba0afe3ed57b571a/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/79e7139b-810d-4d09-b57a-79cb27640aaa-u2_768506c1-2bfd-4436-8315-16446147bdb5.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/370d07f6be174050b394f474ffe9db0e/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/692e7877-1773-4f8e-a3cb-009928299b4a-u2_050ab455-bb0e-4f59-8421-f58fe7fea747.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/2cfb38ba983d485197d821a3e687a89b/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/966390e3-514f-4b80-a778-2f01ec1b2dd1-u2_8d6196f1-e91e-4d30-b90b-587144ed095c.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/b47bd9a6e7ae4342a68d159fd2f911ee/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ab6f0bbf-7d78-420b-b8b9-4538765574c3-u1_9d3dffd1-2580-4e6d-bf3a-4891574da087.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_29e6461d-010f-4d8e-ab5e-b3632f58387d_1_1772305336474.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5e3c629a-f736-4e53-a553-67f8f81f8839-u2_414cf020-ef67-4c56-96a4-bb26782bf4b4.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_29e6461d-010f-4d8e-ab5e-b3632f58387d_3_1772305337539.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/79e7139b-810d-4d09-b57a-79cb27640aaa-u2_768506c1-2bfd-4436-8315-16446147bdb5.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_29e6461d-010f-4d8e-ab5e-b3632f58387d_5_1772305339075.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/692e7877-1773-4f8e-a3cb-009928299b4a-u2_050ab455-bb0e-4f59-8421-f58fe7fea747.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_29e6461d-010f-4d8e-ab5e-b3632f58387d_7_1772305340507.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/966390e3-514f-4b80-a778-2f01ec1b2dd1-u2_8d6196f1-e91e-4d30-b90b-587144ed095c.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_29e6461d-010f-4d8e-ab5e-b3632f58387d_9_1772305341136.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ab6f0bbf-7d78-420b-b8b9-4538765574c3-u1_9d3dffd1-2580-4e6d-bf3a-4891574da087.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 10: HTTP 403",
+    "updated_at": "2026-01-22T04:35:12.409Z"
+  },
+  {
+    "project_id": "ceb01311-d554-41c3-9fb9-3f2e0f488724",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/e7904f15de0b4573bf00825189ebbc47/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5e3c629a-f736-4e53-a553-67f8f81f8839-u2_414cf020-ef67-4c56-96a4-bb26782bf4b4.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/2ac4755516084bbb99de5f879bb939e4/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/79e7139b-810d-4d09-b57a-79cb27640aaa-u2_768506c1-2bfd-4436-8315-16446147bdb5.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/370d07f6be174050b394f474ffe9db0e/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/692e7877-1773-4f8e-a3cb-009928299b4a-u2_050ab455-bb0e-4f59-8421-f58fe7fea747.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/2cfb38ba983d485197d821a3e687a89b/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/966390e3-514f-4b80-a778-2f01ec1b2dd1-u2_8d6196f1-e91e-4d30-b90b-587144ed095c.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/b47bd9a6e7ae4342a68d159fd2f911ee/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ab6f0bbf-7d78-420b-b8b9-4538765574c3-u1_9d3dffd1-2580-4e6d-bf3a-4891574da087.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_ceb01311-d554-41c3-9fb9-3f2e0f488724_1_1772305342513.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/5e3c629a-f736-4e53-a553-67f8f81f8839-u2_414cf020-ef67-4c56-96a4-bb26782bf4b4.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_ceb01311-d554-41c3-9fb9-3f2e0f488724_3_1772305344219.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/79e7139b-810d-4d09-b57a-79cb27640aaa-u2_768506c1-2bfd-4436-8315-16446147bdb5.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_ceb01311-d554-41c3-9fb9-3f2e0f488724_5_1772305345661.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/692e7877-1773-4f8e-a3cb-009928299b4a-u2_050ab455-bb0e-4f59-8421-f58fe7fea747.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_ceb01311-d554-41c3-9fb9-3f2e0f488724_7_1772305348682.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/966390e3-514f-4b80-a778-2f01ec1b2dd1-u2_8d6196f1-e91e-4d30-b90b-587144ed095c.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_ceb01311-d554-41c3-9fb9-3f2e0f488724_9_1772305349668.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/ab6f0bbf-7d78-420b-b8b9-4538765574c3-u1_9d3dffd1-2580-4e6d-bf3a-4891574da087.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 10: HTTP 403",
+    "updated_at": "2026-01-22T03:08:47.932Z"
+  },
+  {
+    "project_id": "abbb79c2-6a4f-455b-8990-0e7334e01161",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/84d56030a3f24d7f8191f8a2eb4c5872/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fd478e6c-fbef-49f9-b6ae-87b0812a6ef9-u1_10c8466e-8425-4d09-adbe-199ceb1d5443.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/b541ddd693a249d8b6f4bc052ebc3e45/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/6cc868e9-ba41-4b46-b275-3e08e91282a1-u2_dcc9878d-7363-4731-b8d7-d31d501b37d9.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/292a1db4fed94f0e8a203a68c3d36baf/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/3d56dae5-f60e-4fba-91b1-c43c611c2977-u1_5e1ed949-da3e-49cc-9f6d-5419b8adeee0.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/63db3f26fe844a48bf7b5da1ad3b33f5/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/81869b52-da1a-44a2-affd-50a955965e17-u1_88a84646-034c-4a8b-89a1-db8ba8f68490.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/cbcb86f8e03141879d61bb74538a49c4/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/4ebbb56f-78b3-4112-a8b8-2d37e360a12c-u2_741e5b83-824b-4554-8a8e-533368ce9abc.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_abbb79c2-6a4f-455b-8990-0e7334e01161_1_1772305351634.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/fd478e6c-fbef-49f9-b6ae-87b0812a6ef9-u1_10c8466e-8425-4d09-adbe-199ceb1d5443.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_abbb79c2-6a4f-455b-8990-0e7334e01161_3_1772305352904.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/6cc868e9-ba41-4b46-b275-3e08e91282a1-u2_dcc9878d-7363-4731-b8d7-d31d501b37d9.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_abbb79c2-6a4f-455b-8990-0e7334e01161_5_1772305354059.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/3d56dae5-f60e-4fba-91b1-c43c611c2977-u1_5e1ed949-da3e-49cc-9f6d-5419b8adeee0.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_abbb79c2-6a4f-455b-8990-0e7334e01161_7_1772305355324.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/81869b52-da1a-44a2-affd-50a955965e17-u1_88a84646-034c-4a8b-89a1-db8ba8f68490.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_abbb79c2-6a4f-455b-8990-0e7334e01161_9_1772305356717.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/4ebbb56f-78b3-4112-a8b8-2d37e360a12c-u2_741e5b83-824b-4554-8a8e-533368ce9abc.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 10: HTTP 403",
+    "updated_at": "2026-01-22T03:08:31.465Z"
+  },
+  {
+    "project_id": "876dbc56-64a0-40b5-b6f9-ee628145d61e",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/de23e30d079c439099ec5e0e6915f6b4/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/96bc0809-cee8-4387-9d3d-05dc168143c6-u1_de285a2f-a1ec-4c18-8545-203e9a05d893.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/b74e6636e8f94a8cb88aa32f11677f61/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f362a5cb-7f94-4086-b5ce-c0e1fa6942da-u1_dcae7298-969f-4415-ae45-e9b6919b2977.mp4",
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/f6c47ffc98ad4edfbebedc6119de7374/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/0fd415c0-849b-4140-82fa-90b637b8724b-u2_17bae961-5aa7-4669-a957-f6b47c64fb73.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_876dbc56-64a0-40b5-b6f9-ee628145d61e_1_1772305358177.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/96bc0809-cee8-4387-9d3d-05dc168143c6-u1_de285a2f-a1ec-4c18-8545-203e9a05d893.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_876dbc56-64a0-40b5-b6f9-ee628145d61e_3_1772305359598.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/f362a5cb-7f94-4086-b5ce-c0e1fa6942da-u1_dcae7298-969f-4415-ae45-e9b6919b2977.mp4",
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_876dbc56-64a0-40b5-b6f9-ee628145d61e_5_1772305361009.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/0fd415c0-849b-4140-82fa-90b637b8724b-u2_17bae961-5aa7-4669-a957-f6b47c64fb73.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 6: HTTP 403",
+    "updated_at": "2026-01-21T10:22:05.008Z"
+  },
+  {
+    "project_id": "61e405bf-a91e-45d4-8d14-7dfa652294e9",
+    "title": "NeonVideo Song",
+    "old_video_segments": [
+      "https://d1q70pf5vjeyhc.cloudfront.net/predictions/7448f20d79e747a6b6868861e8830702/1.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/469e5271-a7d9-40de-9b8d-d02dd49d0779-u2_b58f4252-198a-4b7e-9dfa-0c15777c02a6.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/561fae57-e5f4-4f4d-9e60-2e82b3fd62ef-u1_d3f9bb9c-204c-460f-be88-54851f76d595.mp4"
+    ],
+    "new_video_segments": [
+      "https://neonvideo.b-cdn.net/VideoScenes/scene_61e405bf-a91e-45d4-8d14-7dfa652294e9_1_1772305362503.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/469e5271-a7d9-40de-9b8d-d02dd49d0779-u2_b58f4252-198a-4b7e-9dfa-0c15777c02a6.mp4",
+      "https://d2p7pge43lyniu.cloudfront.net/output/561fae57-e5f4-4f4d-9e60-2e82b3fd62ef-u1_d3f9bb9c-204c-460f-be88-54851f76d595.mp4"
+    ],
+    "status": "partial",
+    "error": "Segment 3: HTTP 403",
+    "updated_at": "2026-01-19T07:45:45.366Z"
+  }
+]

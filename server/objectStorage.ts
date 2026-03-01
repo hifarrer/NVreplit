@@ -6,8 +6,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import { isImageKitConfigured, uploadAudioToImageKit, uploadVideoToImageKit } from "./services/imagekit";
-import { isBunnyConfigured, uploadToBunnyStorage, uploadSongAudio } from "./services/bunny";
+import { isImageKitConfigured, uploadVideoToImageKit } from "./services/imagekit";
+import { isBunnyConfigured, uploadToBunnyStorage, uploadSongAudio, uploadAudio } from "./services/bunny";
 import { storage } from "./storage";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -27,7 +27,7 @@ function getObjectStorageClient(): Storage {
   if (isImageKitConfigured()) {
     throw new Error("Google Cloud Storage client should not be used when ImageKit is configured");
   }
-  
+
   if (!_objectStorageClient) {
     // Configure Google Cloud Storage client based on environment
     // - Replit: Use sidecar endpoint for authentication
@@ -62,7 +62,7 @@ function getObjectStorageClient(): Storage {
         keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS || undefined,
         projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || "",
       };
-      
+
       // If no credentials are provided, Storage will try to use Application Default Credentials
       // which works if gcloud is configured locally
       if (!process.env.GOOGLE_APPLICATION_CREDENTIALS && !process.env.GOOGLE_CLOUD_PROJECT_ID) {
@@ -73,7 +73,7 @@ function getObjectStorageClient(): Storage {
 
     _objectStorageClient = new Storage(storageConfig);
   }
-  
+
   return _objectStorageClient;
 }
 
@@ -90,22 +90,22 @@ export const objectStorageClient = new Proxy({} as Storage, {
     if (isImageKitConfigured()) {
       throw new Error(`Google Cloud Storage client accessed (${String(prop)}) but ImageKit is configured. This should not happen.`);
     }
-    
+
     // Otherwise, get the actual client and return the property
     const client = getObjectStorageClient();
     const value = (client as any)[prop];
-    
+
     // If it's a function, bind it to the client
     if (typeof value === 'function') {
       return value.bind(client);
     }
-    
+
     return value;
   }
 });
 
 export class ObjectStorageService {
-  constructor() {}
+  constructor() { }
 
   getPrivateObjectDir(): string {
     const dir = process.env.PRIVATE_OBJECT_DIR || "/replit-objstore-2b41d446-a481-4048-b395-249a1b7496ae/.private";
@@ -130,7 +130,7 @@ export class ObjectStorageService {
     if (paths.length === 0) {
       throw new Error(
         "PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' " +
-          "tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths)."
+        "tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths)."
       );
     }
     return paths;
@@ -145,13 +145,13 @@ export class ObjectStorageService {
     }
 
     const searchPaths = this.getPublicObjectSearchPaths();
-    
+
     for (const searchPath of searchPaths) {
       const fullPath = `${searchPath}/${filePath}`;
 
       // Full path format: /<bucket_name>/<object_name>
       const { bucketName, objectName } = this.parseObjectPath(fullPath);
-      
+
       const bucket = objectStorageClient.bucket(bucketName);
       const file = bucket.file(objectName);
 
@@ -167,7 +167,7 @@ export class ObjectStorageService {
     try {
       const bucketName = "replit-objstore-2b41d446-a481-4048-b395-249a1b7496ae";
       const directObjectName = filePath; // e.g., "avatars/avatar1.png"
-      
+
       const bucket = objectStorageClient.bucket(bucketName);
       const file = bucket.file(directObjectName);
       const [exists] = await file.exists();
@@ -258,22 +258,22 @@ export class ObjectStorageService {
     try {
       // Get file metadata
       const [metadata] = await file.getMetadata();
-      
+
       // Check if this is an audio file
       const isAudio = metadata.contentType && metadata.contentType.startsWith('audio/');
-      
+
       // Set appropriate headers
       const headers: any = {
         "Content-Type": metadata.contentType || "application/octet-stream",
         "Content-Length": metadata.size,
         "Cache-Control": `public, max-age=${cacheTtlSec}`,
       };
-      
+
       // Add Accept-Ranges header for audio files to enable seeking
       if (isAudio) {
         headers["Accept-Ranges"] = "bytes";
       }
-      
+
       res.set(headers);
 
       // Stream the file to the response
@@ -307,27 +307,27 @@ export class ObjectStorageService {
         return result.url;
       }
 
-      // Fallback to ImageKit if Bunny is not configured
-      if (isImageKitConfigured()) {
-        console.log(`[ImageKit] Uploading audio to ImageKit: ${fileName}`);
-        const imagekitResult = await uploadAudioToImageKit(buffer, fileName, "/audio");
-        console.log(`[ImageKit] Audio uploaded successfully: ${imagekitResult.url}`);
-        return imagekitResult.url;
+      // Fallback to Bunny audios zone
+      if (isBunnyConfigured("audios")) {
+        console.log(`[Bunny Storage] Uploading audio to audios zone: ${fileName}`);
+        const result = await uploadAudio(fileName, buffer);
+        console.log(`[Bunny Storage] Audio uploaded successfully: ${result.url}`);
+        return result.url;
       }
-      
+
       // Fallback to Google Cloud Storage
       console.log("[Storage] Bunny and ImageKit not configured, falling back to Google Cloud Storage");
       const objectPath = `${this.getPrivateObjectDir()}/${path}`;
       const { bucketName, objectName } = this.parseObjectPath(objectPath);
       const bucket = objectStorageClient.bucket(bucketName);
       const file = bucket.file(objectName);
-      
+
       await file.save(buffer, {
         metadata: {
           contentType: 'audio/mpeg',
         },
       });
-      
+
       console.log("Audio uploaded to object storage:", objectPath);
       const permanentPath = `/objects/${path}`;
       console.log("Generated permanent audio path:", permanentPath);
@@ -390,11 +390,11 @@ export class ObjectStorageService {
   async uploadVideoFromUrl(videoUrl: string, filename?: string): Promise<{ url: string }> {
     try {
       console.log("Downloading video from URL:", videoUrl);
-      
+
       let response: any = null;
       let attempts = 0;
       const maxAttempts = 3;
-      
+
       while (attempts < maxAttempts) {
         try {
           response = await fetch(videoUrl);
@@ -412,18 +412,18 @@ export class ObjectStorageService {
             throw new Error(`Failed to download video after ${maxAttempts} attempts: ${(error as Error).message}`);
           }
         }
-        
+
         attempts++;
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
-      
+
       if (!response || !response.ok) {
         throw new Error("Failed to download video after all retry attempts");
       }
-      
+
       const buffer = await response.buffer();
       const videoFilename = filename || `video_${randomUUID()}.mp4`;
-      
+
       // Bunny Storage as primary storage for videos (direct MP4 URL)
       if (isBunnyConfigured("final")) {
         console.log(`[Bunny Storage] Uploading video: ${videoFilename}`);
@@ -438,7 +438,7 @@ export class ObjectStorageService {
           console.log(`[ImageKit] Uploading video to ImageKit: ${videoFilename}`);
           const imagekitResult = await uploadVideoToImageKit(buffer, videoFilename, "/videos");
           console.log(`[ImageKit] Video uploaded successfully: ${imagekitResult.url}`);
-          
+
           const permanentPath = `/objects/videos/${videoFilename}`;
           await storage.recordImagekitBackup({
             originalPath: permanentPath,
@@ -446,28 +446,28 @@ export class ObjectStorageService {
             imagekitFileId: imagekitResult.fileId,
             fileType: "video"
           });
-          
+
           return { url: imagekitResult.url };
         } catch (imagekitError) {
           console.error(`[ImageKit] Failed to upload video to ImageKit:`, imagekitError);
           throw new Error(`ImageKit upload failed: ${(imagekitError as Error).message}`);
         }
       }
-      
+
       // Fallback to Google Cloud Storage
       console.log("[Storage] ImageKit not configured, falling back to Google Cloud Storage");
       const objectPath = `${this.getPrivateObjectDir()}/videos/${videoFilename}`;
       const { bucketName, objectName } = this.parseObjectPath(objectPath);
-      
+
       const bucket = objectStorageClient.bucket(bucketName);
       const file = bucket.file(objectName);
-      
+
       await file.save(buffer, {
         metadata: {
           contentType: 'video/mp4',
         },
       });
-      
+
       console.log("Video uploaded to object storage:", objectPath);
       const permanentPath = `/objects/videos/${videoFilename}`;
       console.log("Generated permanent video path:", permanentPath);
@@ -510,10 +510,10 @@ export class ObjectStorageService {
       console.log(`[ObjectStorage] Path is already a full URL (likely ImageKit), returning as-is: ${objectPath}`);
       return objectPath;
     }
-    
+
     // Convert internal path like "/objects/videos/pip_segment_1.mp4" to signed URL
     console.log(`[ObjectStorage] getSignedUrlForPath called with: ${objectPath}`);
-    
+
     // If ImageKit is configured, we shouldn't need signed URLs (ImageKit URLs are public)
     if (isImageKitConfigured()) {
       console.warn(`[ObjectStorage] ImageKit is configured but getSignedUrlForPath was called. This might indicate the file wasn't uploaded to ImageKit.`);
@@ -525,33 +525,33 @@ export class ObjectStorageService {
       }
       throw new Error(`Cannot generate signed URL for ${objectPath} - ImageKit is configured but no backup found. File may need to be re-uploaded.`);
     }
-    
+
     if (!objectPath.startsWith("/objects/")) {
       const error = `Invalid object path for signed URL generation: ${objectPath} (must start with /objects/)`;
       console.error(`[ObjectStorage] ${error}`);
       throw new Error(error);
     }
-    
+
     try {
       // Extract the file path after /objects/
       const filePath = objectPath.substring("/objects/".length);
       const privateDir = this.getPrivateObjectDir();
       const fullObjectPath = `${privateDir}/${filePath}`;
-      
+
       console.log(`[ObjectStorage] Private dir: ${privateDir}`);
       console.log(`[ObjectStorage] Full object path: ${fullObjectPath}`);
-      
+
       const { bucketName, objectName } = this.parseObjectPath(fullObjectPath);
-      
+
       console.log(`[ObjectStorage] Bucket: ${bucketName}, Object: ${objectName}`);
-      
+
       const signedUrl = await this.signObjectURL({
         bucketName,
         objectName,
         method: "GET",
         ttlSec
       });
-      
+
       console.log(`[ObjectStorage] Successfully generated signed URL (${signedUrl.substring(0, 100)}...)`);
       return signedUrl;
     } catch (error) {
@@ -565,16 +565,16 @@ export class ObjectStorageService {
     if (!publicObjectPath.startsWith("/public-objects/")) {
       throw new Error("Invalid public object path for signed URL generation");
     }
-    
+
     // Extract the file path after /public-objects/
     const filePath = publicObjectPath.substring("/public-objects/".length);
-    
+
     // Find the object using the search method
     const file = await this.searchPublicObject(filePath);
     if (!file) {
       throw new Error(`Public object not found: ${publicObjectPath}`);
     }
-    
+
     // Generate signed URL directly from the file
     return this.signObjectURL({
       bucketName: file.bucket.name,
@@ -621,7 +621,7 @@ export class ObjectStorageService {
       if (!response.ok) {
         throw new Error(
           `Failed to sign object URL, errorcode: ${response.status}, ` +
-            `make sure you're running on Replit`
+          `make sure you're running on Replit`
         );
       }
 
@@ -632,13 +632,13 @@ export class ObjectStorageService {
       // Local development: Use Google Cloud Storage client's built-in signing
       const bucket = objectStorageClient.bucket(bucketName);
       const file = bucket.file(objectName);
-      
+
       const [signedUrl] = await file.getSignedUrl({
         version: 'v4',
         action: method.toLowerCase() as 'read' | 'write' | 'delete' | 'resumable',
         expires: Date.now() + (ttlSec * 1000),
       });
-      
+
       return signedUrl;
     }
   }

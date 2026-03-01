@@ -22,7 +22,7 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3)
 
 // Helper function to get watermark URL from public storage
 export async function getWatermarkUrl(): Promise<string | null> {
-  return "https://ik.imagekit.io/neonvideo/logos/neonlogo.png";
+  return "https://neonvideo.b-cdn.net/logos/neonlogo.png";
 }
 
 export async function getAudioDurationFromFile(filePath: string): Promise<number> {

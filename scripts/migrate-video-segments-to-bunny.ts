@@ -78,7 +78,8 @@ async function main() {
       SELECT id, title, video_segments, updated_at
       FROM projects
       WHERE video_segments IS NOT NULL
-        AND jsonb_array_length(video_segments) > 0
+        AND jsonb_typeof(video_segments) = 'array'
+        AND CASE WHEN jsonb_typeof(video_segments) = 'array' THEN jsonb_array_length(video_segments) ELSE 0 END > 0
       ORDER BY updated_at DESC NULLS LAST
       LIMIT ${LIMIT}
     `;

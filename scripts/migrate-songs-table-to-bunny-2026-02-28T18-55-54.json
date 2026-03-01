@@ -1,0 +1,902 @@
+[
+  {
+    "song_id": "4e74df48-dbe8-452b-a3b8-e4443fb24e9b",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "50400430-0b74-41ba-82fc-4b4e2de173b2",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/c7a2c95d-f6a4-4b5c-8af2-f3452ea9409d_doN3K149A.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_4e74df48-dbe8-452b-a3b8-e4443fb24e9b_1772304910342.mp3",
+    "status": "success",
+    "created_at": "2026-02-25T06:53:36.527Z"
+  },
+  {
+    "song_id": "25f628c0-187a-4ad6-903d-1237191572d0",
+    "title": "Trimmed Audio (45s - 102s)",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/36dd7db7-a68b-47f8-8acc-e4414463210b_pShtBjCvg.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_25f628c0-187a-4ad6-903d-1237191572d0_1772304911021.mp3",
+    "status": "success",
+    "created_at": "2026-02-24T07:56:28.365Z"
+  },
+  {
+    "song_id": "6e15f43a-1d68-4a6f-a622-74f45b551953",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "99cc4191-66a3-4ed9-a49c-81636d3f1045",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/0a2b04aa-aa0d-4b99-b09d-a537a4091321_9QUcJOjJr.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_6e15f43a-1d68-4a6f-a622-74f45b551953_1772304911316.mp3",
+    "status": "success",
+    "created_at": "2026-02-24T06:59:54.662Z"
+  },
+  {
+    "song_id": "9a725d33-7a2f-4d69-8b8f-b1f8bac0abb8",
+    "title": "Trimmed Audio (104s - 173s)",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/f7842dcf-3499-441d-8ed0-43ef417a4c26_o_Uc3EULK.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_9a725d33-7a2f-4d69-8b8f-b1f8bac0abb8_1772304911578.mp3",
+    "status": "success",
+    "created_at": "2026-02-24T04:35:32.659Z"
+  },
+  {
+    "song_id": "950a00a6-2acb-4653-99f7-36e69564be73",
+    "title": "Trimmed Audio (23s - 90s)",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/894b43ea-0f1c-4c2f-8fd0-999afc1fcc29_A8OzeN46L.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_950a00a6-2acb-4653-99f7-36e69564be73_1772304911900.mp3",
+    "status": "success",
+    "created_at": "2026-02-23T23:47:19.540Z"
+  },
+  {
+    "song_id": "3ea18930-9c93-451e-b034-ed975c8adafc",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "2c4166ea-2ab3-45b2-98e5-386a7ab61592",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/fec3b289-bc9e-4a6d-bda6-a4ec5e790f8d_SxEfsy_6b.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_3ea18930-9c93-451e-b034-ed975c8adafc_1772304912226.mp3",
+    "status": "success",
+    "created_at": "2026-02-23T21:55:37.176Z"
+  },
+  {
+    "song_id": "61001a0e-4ff7-41a1-bc5e-a17d6125f28b",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "2c4166ea-2ab3-45b2-98e5-386a7ab61592",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/01ef7928-547c-4a2e-b168-4a5b9463f30b_vOQmQc2UJ.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_61001a0e-4ff7-41a1-bc5e-a17d6125f28b_1772304912467.mp3",
+    "status": "success",
+    "created_at": "2026-02-23T20:59:06.505Z"
+  },
+  {
+    "song_id": "36c7f07d-0c63-4785-944a-69f77afa55b7",
+    "title": "Trimmed Audio (28s - 91s)",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/68d71d10-6ef7-4aec-82c9-909d52ae69fe_CjjmNtF1d.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_36c7f07d-0c63-4785-944a-69f77afa55b7_1772304913199.mp3",
+    "status": "success",
+    "created_at": "2026-02-23T02:43:50.511Z"
+  },
+  {
+    "song_id": "d19eaaa4-c524-4085-b361-f5f947e998a7",
+    "title": "Trimmed Audio (20s - 72s)",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/5905e01a-3d61-45fd-b00d-735d56c09d87_pEu0SmlHs.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_d19eaaa4-c524-4085-b361-f5f947e998a7_1772304913521.mp3",
+    "status": "success",
+    "created_at": "2026-02-23T01:37:49.860Z"
+  },
+  {
+    "song_id": "ca0805e4-cfd3-4565-b83a-ee8ed1372dde",
+    "title": "Trimmed Audio (93s - 171s)",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/ed6afab4-fae1-4bed-a90e-87d5fe39a204_yZIABfHQx.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_ca0805e4-cfd3-4565-b83a-ee8ed1372dde_1772304913818.mp3",
+    "status": "success",
+    "created_at": "2026-02-22T23:56:51.632Z"
+  },
+  {
+    "song_id": "e6c2101e-abfb-4dcc-9a45-7ffac76f4160",
+    "title": "Trimmed Audio (91s - 172s)",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/c0841a5d-a24e-4b53-b3df-b67fbcb6de45_0-fEiwEO_.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_e6c2101e-abfb-4dcc-9a45-7ffac76f4160_1772304914217.mp3",
+    "status": "success",
+    "created_at": "2026-02-22T22:39:56.063Z"
+  },
+  {
+    "song_id": "d36058e3-1622-4c24-b262-920f7e72e08c",
+    "title": "Trimmed Audio (39s - 128s)",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/bf55eabc-f2c3-444e-8389-e7f8ae8ef248_BeIe2ph5n.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_d36058e3-1622-4c24-b262-920f7e72e08c_1772304914557.mp3",
+    "status": "success",
+    "created_at": "2026-02-22T12:22:37.133Z"
+  },
+  {
+    "song_id": "3d18c386-1b49-4030-b199-88b07a8fb7a6",
+    "title": "Trimmed Audio (111s - 154s)",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/05898b86-2d00-4503-9e48-8a36da8139aa_-qvqgh63E.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_3d18c386-1b49-4030-b199-88b07a8fb7a6_1772304914889.mp3",
+    "status": "success",
+    "created_at": "2026-02-22T12:08:07.789Z"
+  },
+  {
+    "song_id": "14231366-1ff5-40c6-b8ba-4801b801ab30",
+    "title": "Trimmed Audio (81s - 127s)",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/81a09c50-f388-46e4-938c-ebb9f2f3ef5b_Gn6W1eSja.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_14231366-1ff5-40c6-b8ba-4801b801ab30_1772304915160.mp3",
+    "status": "success",
+    "created_at": "2026-02-22T11:13:48.375Z"
+  },
+  {
+    "song_id": "88aa9a55-aa60-4cdc-affc-c91c2b6fee34",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/4fd51c4f-1776-404a-9d27-5d19c204fb1c_LmqYusJSm.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_88aa9a55-aa60-4cdc-affc-c91c2b6fee34_1772304915425.mp3",
+    "status": "success",
+    "created_at": "2026-02-22T10:34:52.730Z"
+  },
+  {
+    "song_id": "c20aae9e-bf3e-419f-9441-53ef28d89287",
+    "title": "Trimmed Audio (0s - 14s)",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/c75263bb-2038-4d02-aac1-0ed6313dfe81_Fp22FlgA_.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_c20aae9e-bf3e-419f-9441-53ef28d89287_1772304915728.mp3",
+    "status": "success",
+    "created_at": "2026-02-22T05:37:42.178Z"
+  },
+  {
+    "song_id": "3331166f-0c36-4553-b0ce-ea1bec1be2ac",
+    "title": "Ninja Cat: Shadow of the Night",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/e69b99cb-0d99-4501-8cd7-ac19a4ee305c_K4e5MFuvE.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_3331166f-0c36-4553-b0ce-ea1bec1be2ac_1772304915962.mp3",
+    "status": "success",
+    "created_at": "2026-02-22T05:04:04.499Z"
+  },
+  {
+    "song_id": "05309ccf-1a2b-4fe2-9a79-42f36d58a475",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/099ca3ce-73b5-4839-b070-961ac20e3326_kPIRqkqO8.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_05309ccf-1a2b-4fe2-9a79-42f36d58a475_1772304916966.mp3",
+    "status": "success",
+    "created_at": "2026-02-22T05:03:28.602Z"
+  },
+  {
+    "song_id": "7760830d-650f-48a0-ba63-2762436f5cd4",
+    "title": "Chi-Town Feline Flow",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/4001b09c-5fde-47e1-8fb5-3ba4dc308485_tmc3QaUwC.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_7760830d-650f-48a0-ba63-2762436f5cd4_1772304917488.mp3",
+    "status": "success",
+    "created_at": "2026-02-21T04:50:04.539Z"
+  },
+  {
+    "song_id": "dd7b7eac-9b37-423d-96be-c049a6d94bbc",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/dd886a0f-c214-462f-93e4-693ad9414d43_2PE6C3i57.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_dd7b7eac-9b37-423d-96be-c049a6d94bbc_1772304917984.mp3",
+    "status": "success",
+    "created_at": "2026-02-21T04:48:29.361Z"
+  },
+  {
+    "song_id": "f7c6f99d-a79a-4459-8b3f-1eb95b012f39",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/dd886a0f-c214-462f-93e4-693ad9414d43_2PE6C3i57.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_f7c6f99d-a79a-4459-8b3f-1eb95b012f39_1772304918472.mp3",
+    "status": "success",
+    "created_at": "2026-02-21T04:48:27.136Z"
+  },
+  {
+    "song_id": "4d469cb9-c8bf-4bf0-89cc-ef7e53f8d933",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/dc38ab71-139b-4be2-9e5b-f56b1abbc5c3_d5v88iGd6.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_4d469cb9-c8bf-4bf0-89cc-ef7e53f8d933_1772304919124.mp3",
+    "status": "success",
+    "created_at": "2026-02-21T04:48:25.003Z"
+  },
+  {
+    "song_id": "2d47cbc6-b354-41ce-a4dc-5421c64529fe",
+    "title": "Tantrums and Trials",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/e4a23bb6-3d37-43d2-8ef9-737c2c7c3dc9_eKUVU1K5A.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_2d47cbc6-b354-41ce-a4dc-5421c64529fe_1772304919606.mp3",
+    "status": "success",
+    "created_at": "2026-02-21T04:18:02.974Z"
+  },
+  {
+    "song_id": "9a481eba-fa97-4380-bfc3-67b06cd7e673",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/0125af8a-6b1a-4916-8f78-f1ed38e6a22e_R6C5bIZNF.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_9a481eba-fa97-4380-bfc3-67b06cd7e673_1772304920215.mp3",
+    "status": "success",
+    "created_at": "2026-02-21T04:17:15.837Z"
+  },
+  {
+    "song_id": "5725d792-8671-42cf-abed-5fc836c045c8",
+    "title": "Ninja Cat's Night Quest",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/22237259-56b7-4ccb-8ae5-2ee30f52438d_qozC8ozSi.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_5725d792-8671-42cf-abed-5fc836c045c8_1772304920715.mp3",
+    "status": "success",
+    "created_at": "2026-02-21T03:10:09.763Z"
+  },
+  {
+    "song_id": "7da30466-0c9b-4184-a5d4-b14e81ddf63b",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/4c7c0bbf-8561-42f0-8f1e-d22993e3a4c0_KlEnUza1N.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_7da30466-0c9b-4184-a5d4-b14e81ddf63b_1772304921224.mp3",
+    "status": "success",
+    "created_at": "2026-02-21T03:09:54.996Z"
+  },
+  {
+    "song_id": "5ffd0811-f683-4793-8c85-9c11e83e94f5",
+    "title": "Trimmed Audio (0s - 24s)",
+    "user_id": "925f88b8-0c30-4009-91de-47c312c7ffac",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/72babb69-500d-431d-8893-0dc6abe87519_yyryxrbY5.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_5ffd0811-f683-4793-8c85-9c11e83e94f5_1772304921913.mp3",
+    "status": "success",
+    "created_at": "2026-02-21T02:28:08.067Z"
+  },
+  {
+    "song_id": "aea8658b-3ea2-4922-a2df-f1e498a296f9",
+    "title": "Neon Dreams",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/994cd2a7-49ea-4780-90ee-18c2009b0c4a_k6e9D2SSA.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_aea8658b-3ea2-4922-a2df-f1e498a296f9_1772304922136.mp3",
+    "status": "success",
+    "created_at": "2026-02-20T23:35:06.305Z"
+  },
+  {
+    "song_id": "64240870-786a-485b-b104-b291ceeeece9",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/9996bb1d-1ba6-49ea-9545-2b783831bd3b_wOiEMhl7B.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_64240870-786a-485b-b104-b291ceeeece9_1772304922840.mp3",
+    "status": "success",
+    "created_at": "2026-02-20T23:33:29.572Z"
+  },
+  {
+    "song_id": "119b79d2-5636-4338-a1cd-5522ad09d735",
+    "title": "Wheels of Brass and Steam",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/768d9aa5-ead5-489e-b582-a4f6454de797_Ss-IWOvq4.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_119b79d2-5636-4338-a1cd-5522ad09d735_1772304923491.mp3",
+    "status": "success",
+    "created_at": "2026-02-20T22:35:13.373Z"
+  },
+  {
+    "song_id": "272373bd-7376-47ec-b658-2ee72da66c0b",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/f2d8de97-d8b2-4d4c-aa4d-bd4a7e6de29b_zc90c57wQ.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_272373bd-7376-47ec-b658-2ee72da66c0b_1772304923999.mp3",
+    "status": "success",
+    "created_at": "2026-02-20T22:33:33.050Z"
+  },
+  {
+    "song_id": "652a4c59-552f-41c6-bd38-cc238302fc1d",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/4ddb4578-286f-4042-9f98-2c376148eb5c_6Z9HRqtu2.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_652a4c59-552f-41c6-bd38-cc238302fc1d_1772304924946.mp3",
+    "status": "success",
+    "created_at": "2026-02-20T22:33:30.312Z"
+  },
+  {
+    "song_id": "6a2018f1-dc3a-41fa-8a6e-3c3240c70e62",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/f2d8de97-d8b2-4d4c-aa4d-bd4a7e6de29b_zc90c57wQ.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_6a2018f1-dc3a-41fa-8a6e-3c3240c70e62_1772304925852.mp3",
+    "status": "success",
+    "created_at": "2026-02-20T22:33:29.449Z"
+  },
+  {
+    "song_id": "74446799-3bd0-40f7-9ebf-09daf522e15e",
+    "title": "Neon Dreams",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/5fe4307c-5568-4901-8956-63a8b19db80e_gL_2OgcdA.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_74446799-3bd0-40f7-9ebf-09daf522e15e_1772304926502.mp3",
+    "status": "success",
+    "created_at": "2026-02-20T10:34:53.275Z"
+  },
+  {
+    "song_id": "3a6e8a27-3d8e-46c6-befb-f1bae3f8c257",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/a77de4c3-3195-4895-adf3-18b6d1db7047_lhzucxo80.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_3a6e8a27-3d8e-46c6-befb-f1bae3f8c257_1772304927972.mp3",
+    "status": "success",
+    "created_at": "2026-02-20T10:33:48.006Z"
+  },
+  {
+    "song_id": "132d703e-773d-4408-8c83-a7b14e64b659",
+    "title": "Trimmed Audio (0s - 15s)",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/34fd4767-b8c6-48fe-880c-f653a594fbf3_-RiC0qRxS.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_132d703e-773d-4408-8c83-a7b14e64b659_1772304928660.mp3",
+    "status": "success",
+    "created_at": "2026-02-20T05:22:01.903Z"
+  },
+  {
+    "song_id": "01465b14-3423-4642-837d-ed2d2b290e3c",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "b509e564-cd22-4332-a98b-7e2f757a450e",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/16bea724-7d09-4933-ba16-d6ac34919be1_aM4OuqK86.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_01465b14-3423-4642-837d-ed2d2b290e3c_1772304928909.mp3",
+    "status": "success",
+    "created_at": "2026-02-20T01:56:09.882Z"
+  },
+  {
+    "song_id": "ba9650b9-296f-49b5-b6fe-9a91b5d8cca7",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "136c4d6e-a3be-4661-a8d5-fbdc243ab6b1",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/c10bd4db-33da-4c15-8dd2-109528e9b472_uQ1AbaGda.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_ba9650b9-296f-49b5-b6fe-9a91b5d8cca7_1772304929403.mp3",
+    "status": "success",
+    "created_at": "2026-02-20T00:23:59.657Z"
+  },
+  {
+    "song_id": "c0db6a08-c7e1-4d2a-a17c-3f6123e915a0",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "ed8c4154-b606-48ae-ade5-4e9a9c850950",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/6929b5a7-df4a-40a6-9b11-c560d8866294_t5fBQF6bG.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_c0db6a08-c7e1-4d2a-a17c-3f6123e915a0_1772304929672.mp3",
+    "status": "success",
+    "created_at": "2026-02-19T18:05:09.580Z"
+  },
+  {
+    "song_id": "93c97679-994b-4830-b479-6a008188c3e1",
+    "title": "Neon Whiskers",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/aa7551a0-3aea-412c-a56b-ffb75ade1b13_nmd7bpn4d.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_93c97679-994b-4830-b479-6a008188c3e1_1772304930575.mp3",
+    "status": "success",
+    "created_at": "2026-02-19T09:28:00.527Z"
+  },
+  {
+    "song_id": "cd7b16e4-1025-4ef7-bdda-09725670ad15",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/43961f5b-3dc7-4bee-b093-ae9c92eab6da_q6eYQA2Al.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_cd7b16e4-1025-4ef7-bdda-09725670ad15_1772304931543.mp3",
+    "status": "success",
+    "created_at": "2026-02-19T09:26:58.647Z"
+  },
+  {
+    "song_id": "82f4c182-ca72-46c4-a7ae-1bcd4e1a333b",
+    "title": "Trimmed Audio (0s - 29s)",
+    "user_id": "5a1920fd-8bf3-48d4-83fb-07e94d12fa3c",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/bc349baa-c06c-4e57-83dd-ac6fe0a254e4_Xbko3gRfS.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_82f4c182-ca72-46c4-a7ae-1bcd4e1a333b_1772304932182.mp3",
+    "status": "success",
+    "created_at": "2026-02-19T07:48:16.912Z"
+  },
+  {
+    "song_id": "1a29aa59-db49-4cc1-9828-54ec894f4358",
+    "title": "Trimmed Audio (0s - 29s)",
+    "user_id": "5a1920fd-8bf3-48d4-83fb-07e94d12fa3c",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/8d8498a5-82b8-4dff-9c0f-156066fca776_dVTrAvMyF.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_1a29aa59-db49-4cc1-9828-54ec894f4358_1772304932415.mp3",
+    "status": "success",
+    "created_at": "2026-02-19T07:40:31.199Z"
+  },
+  {
+    "song_id": "66bb43ee-69e3-4824-83e5-3f71018f38c2",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "5a1920fd-8bf3-48d4-83fb-07e94d12fa3c",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/34645858-8a47-4a8c-8309-c5e573cdef20_7ATPhwr1H.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_66bb43ee-69e3-4824-83e5-3f71018f38c2_1772304932660.mp3",
+    "status": "success",
+    "created_at": "2026-02-19T07:11:14.397Z"
+  },
+  {
+    "song_id": "824deb8e-3ed4-4bf6-80f4-5d9d29ccd11c",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "c62b6915-8359-43cc-94dd-3a449412d3bc",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/acc1a2d6-81c9-4f9c-a33e-bc085aeb216b_N6t3VHXnW.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_824deb8e-3ed4-4bf6-80f4-5d9d29ccd11c_1772304932900.mp3",
+    "status": "success",
+    "created_at": "2026-02-19T01:34:00.241Z"
+  },
+  {
+    "song_id": "efcff5db-1c33-4cc9-8d37-05ed08aa3c66",
+    "title": "Trimmed Audio (0s - 228s)",
+    "user_id": "18ba906d-9969-42d3-a653-1e3e857924e0",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/15e659f5-06d9-47b6-91c2-643425bdd023_1hlBqfNR6B.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_efcff5db-1c33-4cc9-8d37-05ed08aa3c66_1772304933214.mp3",
+    "status": "success",
+    "created_at": "2026-02-18T19:06:13.072Z"
+  },
+  {
+    "song_id": "5231aa9f-09c3-40ae-8a52-9770188059ba",
+    "title": "Trimmed Audio (0s - 194s)",
+    "user_id": "18ba906d-9969-42d3-a653-1e3e857924e0",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/2c5079fe-d54a-4b32-962c-96ba165ceee3_aFfOKpkxrl.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_5231aa9f-09c3-40ae-8a52-9770188059ba_1772304933846.mp3",
+    "status": "success",
+    "created_at": "2026-02-18T18:40:47.171Z"
+  },
+  {
+    "song_id": "fec62ead-fbd8-4f0a-b223-0479bb765101",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "baa442c4-48ca-4a71-be90-6b5fe6dfac4e",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/b468435f-4b93-469d-9b23-664be4018c5b_SglGM8WWd.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_fec62ead-fbd8-4f0a-b223-0479bb765101_1772304934363.mp3",
+    "status": "success",
+    "created_at": "2026-02-18T13:22:17.467Z"
+  },
+  {
+    "song_id": "45f6cb77-5785-4b80-81e6-743fa298bd33",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "cf462dec-d4f0-4505-b439-47aa6fcc9158",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/41a20ce7-2cf6-4d49-8b5f-5217eb4a6e9b_ymbDbLCTKD.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_45f6cb77-5785-4b80-81e6-743fa298bd33_1772304934657.mp3",
+    "status": "success",
+    "created_at": "2026-02-15T19:04:06.044Z"
+  },
+  {
+    "song_id": "ab6196cf-6e8b-46d9-857d-77c4fe3ae2b3",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "cf462dec-d4f0-4505-b439-47aa6fcc9158",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/dbbeecc4-ed49-42d5-8981-f6afa023a2bc_pjrjk0bJ7.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_ab6196cf-6e8b-46d9-857d-77c4fe3ae2b3_1772304934898.mp3",
+    "status": "success",
+    "created_at": "2026-02-15T18:38:17.857Z"
+  },
+  {
+    "song_id": "6d88b8b6-885e-4d5e-8c9e-e6f895a94bda",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "cf462dec-d4f0-4505-b439-47aa6fcc9158",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/678a5a1d-8f7c-4cda-a397-8411d6d65dcc_RKpKsewGU.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_6d88b8b6-885e-4d5e-8c9e-e6f895a94bda_1772304935216.mp3",
+    "status": "success",
+    "created_at": "2026-02-15T18:23:43.056Z"
+  },
+  {
+    "song_id": "e7b77374-c4e2-4ae0-b46f-8c5a5f3da1de",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/414e0fb2-4b65-40a0-9d7e-35cce590dc27_Dv6h1zlmI.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_e7b77374-c4e2-4ae0-b46f-8c5a5f3da1de_1772304935478.mp3",
+    "status": "success",
+    "created_at": "2026-02-15T07:01:21.158Z"
+  },
+  {
+    "song_id": "f70dd4fd-dc3c-4115-b3b5-9e7b3422f77f",
+    "title": "Neon Hearts in a Digital Storm",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/6892c02f-2585-4888-9e36-bb7f50c0f2dd_PuZTDbBMv.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_f70dd4fd-dc3c-4115-b3b5-9e7b3422f77f_1772304935753.mp3",
+    "status": "success",
+    "created_at": "2026-02-15T06:51:22.654Z"
+  },
+  {
+    "song_id": "7aad0fe4-c40d-42a3-a1a9-a382dd752377",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/9436103e-e27d-4094-a688-3b980710cbdb_psA2ldJJj.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_7aad0fe4-c40d-42a3-a1a9-a382dd752377_1772304936411.mp3",
+    "status": "success",
+    "created_at": "2026-02-15T06:50:14.829Z"
+  },
+  {
+    "song_id": "27a1a5bb-f1a8-4c1b-b009-195195e34301",
+    "title": "Clockwork Hearts",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/d142131f-12d6-4318-8192-51c0941dd172_Pw7rVE4Te.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_27a1a5bb-f1a8-4c1b-b009-195195e34301_1772304937043.mp3",
+    "status": "success",
+    "created_at": "2026-02-15T05:48:10.817Z"
+  },
+  {
+    "song_id": "6687fee8-ec0f-4be6-9e34-1ef9af51629d",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/96cf77d6-db66-47a8-ae43-62df1a5f4c82_2cbL-36ch.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_6687fee8-ec0f-4be6-9e34-1ef9af51629d_1772304937529.mp3",
+    "status": "success",
+    "created_at": "2026-02-15T05:47:46.729Z"
+  },
+  {
+    "song_id": "399aaf25-5989-4012-a78d-db66b89de2e0",
+    "title": "Wheels of Time and Rust",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/f758c5b6-3142-4e97-b5c3-673fd08212af_Tmjjj2QGV.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_399aaf25-5989-4012-a78d-db66b89de2e0_1772304938004.mp3",
+    "status": "success",
+    "created_at": "2026-02-15T04:32:17.200Z"
+  },
+  {
+    "song_id": "443ca6f9-af1c-4053-8a5e-f1239419bd04",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/dfb2156c-94a7-4184-93c9-0aae0a22154c_xwVwETEtE.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_443ca6f9-af1c-4053-8a5e-f1239419bd04_1772304938658.mp3",
+    "status": "success",
+    "created_at": "2026-02-15T04:32:01.405Z"
+  },
+  {
+    "song_id": "52cb019c-f02f-4277-a197-c62cdd68fbec",
+    "title": "Clockwork Dreams",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/42d3e33b-d84a-4ac2-b950-86e4b301fcbe_LBU_qQ2hw.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_52cb019c-f02f-4277-a197-c62cdd68fbec_1772304939104.mp3",
+    "status": "success",
+    "created_at": "2026-02-14T10:57:11.088Z"
+  },
+  {
+    "song_id": "4a09b8b2-7946-4f18-9f1b-270ff729e8d8",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/75d92836-d473-4ce8-9d61-128ae59de7fc_0C4BUD05P.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_4a09b8b2-7946-4f18-9f1b-270ff729e8d8_1772304939662.mp3",
+    "status": "success",
+    "created_at": "2026-02-14T10:57:00.105Z"
+  },
+  {
+    "song_id": "49375aba-ad88-43e6-8637-9b19aed10b81",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "5a1348c9-5f9d-4418-898d-939c9dd19c42",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/332eb774-e6db-4d4e-b34b-52b75b0e694b_ZrDx-M0JD.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_49375aba-ad88-43e6-8637-9b19aed10b81_1772304940270.mp3",
+    "status": "success",
+    "created_at": "2026-02-14T00:52:50.018Z"
+  },
+  {
+    "song_id": "ee9558ee-7bc6-4262-bdd0-1479dada3835",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "861ca3a0-653d-4751-b3c2-1acf925f3a90",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/8eee11c4-c69d-45fd-9caa-f1d732f82f13_b-Q-Lehds.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_ee9558ee-7bc6-4262-bdd0-1479dada3835_1772304941277.mp3",
+    "status": "success",
+    "created_at": "2026-02-12T19:10:06.424Z"
+  },
+  {
+    "song_id": "e5e8afc0-0c29-4977-a626-225abdfef0b0",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "e898b7cb-3d1f-4206-9351-a168bd00ecf4",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/76ca5365-4673-4bd5-80de-37183b547be5_8cyh-o3Ta.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_e5e8afc0-0c29-4977-a626-225abdfef0b0_1772304941558.mp3",
+    "status": "success",
+    "created_at": "2026-02-11T05:22:49.330Z"
+  },
+  {
+    "song_id": "382f794b-4b78-4740-a7db-6cafa9fcb60a",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "fb0b90dc-498b-4b34-9d3e-ce44483525b1",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/819c07e0-88e3-42b3-af61-3a31c2a9191e_o0fdhNqhnH.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_382f794b-4b78-4740-a7db-6cafa9fcb60a_1772304941830.mp3",
+    "status": "success",
+    "created_at": "2026-02-08T19:55:03.075Z"
+  },
+  {
+    "song_id": "a7326bd7-b570-4f07-8c36-55b06b50184e",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "25043031-4e54-4a72-8c26-2058d612ea85",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/287f228a-a4e2-4373-ba3a-b6c83c26a555_KCLqs72v0.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_a7326bd7-b570-4f07-8c36-55b06b50184e_1772304942067.mp3",
+    "status": "success",
+    "created_at": "2026-02-08T09:33:55.428Z"
+  },
+  {
+    "song_id": "2a94cdf2-8dd3-40c2-a631-37393ca0f1d7",
+    "title": "Frozen Stone",
+    "user_id": "25043031-4e54-4a72-8c26-2058d612ea85",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/1562231a-7131-409a-9afb-570f05c2cc08_TzhcXWqmx.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_2a94cdf2-8dd3-40c2-a631-37393ca0f1d7_1772304942312.mp3",
+    "status": "success",
+    "created_at": "2026-02-08T09:17:06.984Z"
+  },
+  {
+    "song_id": "f6021129-c211-463d-b4c7-43219ca256ee",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "25043031-4e54-4a72-8c26-2058d612ea85",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/94ecf588-059b-4934-93b3-ffe6ee702492_gt1m6hT_Q.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_f6021129-c211-463d-b4c7-43219ca256ee_1772304942721.mp3",
+    "status": "success",
+    "created_at": "2026-02-08T09:15:17.686Z"
+  },
+  {
+    "song_id": "f12db6dc-016a-4a77-bc0d-5ebdc42cdfcc",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "c4c097d4-4ca2-4ec4-84c0-1e8d38e53c83",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/816202f7-8f37-45a7-8e96-a527fe8b6248_asnpupZNf.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_f12db6dc-016a-4a77-bc0d-5ebdc42cdfcc_1772304943017.mp3",
+    "status": "success",
+    "created_at": "2026-02-07T14:21:01.698Z"
+  },
+  {
+    "song_id": "ea079c2a-5ec1-46d6-b982-43e37c48c52f",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "b954b0bb-3cd3-4dcd-b67a-d05644f95d78",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/4cbef727-87fe-416c-96e7-e0119e2cc130_tOGPOXZON.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_ea079c2a-5ec1-46d6-b982-43e37c48c52f_1772304943315.mp3",
+    "status": "success",
+    "created_at": "2026-02-07T06:23:49.192Z"
+  },
+  {
+    "song_id": "dd67fddc-0a34-46b1-93b9-95d5932924bf",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "b954b0bb-3cd3-4dcd-b67a-d05644f95d78",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/c1456180-e7cd-4f95-b8cf-2d63e157144b_A97AvGdh-V.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_dd67fddc-0a34-46b1-93b9-95d5932924bf_1772304943680.mp3",
+    "status": "success",
+    "created_at": "2026-02-07T06:21:53.054Z"
+  },
+  {
+    "song_id": "c4ae60bd-7044-45c7-a8a3-8f6c5270d39d",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "b954b0bb-3cd3-4dcd-b67a-d05644f95d78",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/2e04a2d2-fb51-4532-9dad-106b49f7f760_BjikWgYdr.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_c4ae60bd-7044-45c7-a8a3-8f6c5270d39d_1772304943965.mp3",
+    "status": "success",
+    "created_at": "2026-02-07T06:07:26.889Z"
+  },
+  {
+    "song_id": "b2ff5c39-4beb-4702-a820-f64000bb189a",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "b954b0bb-3cd3-4dcd-b67a-d05644f95d78",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/882d0519-c5f4-4728-acbd-d1d14f7e227b_4ZrjMkBeZ.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_b2ff5c39-4beb-4702-a820-f64000bb189a_1772304944234.mp3",
+    "status": "success",
+    "created_at": "2026-02-07T05:33:38.049Z"
+  },
+  {
+    "song_id": "9c311ebb-ab8e-4c53-9775-1d59500709c1",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "b954b0bb-3cd3-4dcd-b67a-d05644f95d78",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/498dfeaa-0651-44c2-afd3-b1c2a8df37de_GOVp_vH5j2.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_9c311ebb-ab8e-4c53-9775-1d59500709c1_1772304944497.mp3",
+    "status": "success",
+    "created_at": "2026-02-07T01:42:54.263Z"
+  },
+  {
+    "song_id": "72ed9a4f-c75b-4959-9b19-eecb3881867e",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "b954b0bb-3cd3-4dcd-b67a-d05644f95d78",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/a05a10c6-b2e5-4df8-9247-751daf0fddba_4JLtYbMbsl.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_72ed9a4f-c75b-4959-9b19-eecb3881867e_1772304944766.mp3",
+    "status": "success",
+    "created_at": "2026-02-07T01:25:50.550Z"
+  },
+  {
+    "song_id": "65cc3a80-d3aa-4bd2-9b42-8eb0963a6fb9",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/6ac6d48e-074e-4699-a5bf-7e362c6e4f25_uRNdA6sJj.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_65cc3a80-d3aa-4bd2-9b42-8eb0963a6fb9_1772304945097.mp3",
+    "status": "success",
+    "created_at": "2026-02-07T00:08:05.474Z"
+  },
+  {
+    "song_id": "3720f66e-d1a0-4022-aac6-b6410f7b809b",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/002761bf-e152-4e96-9e88-1e0467907d66_TjJ82ovY3n.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_3720f66e-d1a0-4022-aac6-b6410f7b809b_1772304945840.mp3",
+    "status": "success",
+    "created_at": "2026-02-07T00:08:02.493Z"
+  },
+  {
+    "song_id": "49b6a33e-24ad-45aa-9ba3-ce2af552c078",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "ee7b5b98-2de0-4ce0-9c1f-86967513a7e2",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/1fbf613d-36bc-4886-8359-32120e23d4f5_Ihgsf3Qmh.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_49b6a33e-24ad-45aa-9ba3-ce2af552c078_1772304946293.mp3",
+    "status": "success",
+    "created_at": "2026-02-06T19:22:24.829Z"
+  },
+  {
+    "song_id": "d22044ac-554f-4c21-97ff-3afe78bd214d",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "21ff71e7-7194-49ec-9c6b-90c0f9bb982e",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/64164aac-6c86-49f9-bc35-78aca5a3a778_gUNxHXfdU.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_d22044ac-554f-4c21-97ff-3afe78bd214d_1772304946540.mp3",
+    "status": "success",
+    "created_at": "2026-02-06T10:31:56.787Z"
+  },
+  {
+    "song_id": "8de2dff6-bbde-4e3a-9e4f-acf054cd7788",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "365c8b4b-38aa-46a7-a34f-8a8ab77f2ec8",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/3a44c13f-fad7-4808-96e6-0f87def3feb8_FVS7mlCy7.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_8de2dff6-bbde-4e3a-9e4f-acf054cd7788_1772304946811.mp3",
+    "status": "success",
+    "created_at": "2026-02-05T15:53:46.875Z"
+  },
+  {
+    "song_id": "b141a7bf-6fd6-4db5-8cc4-b6ee77f05bb2",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "ea18585a-e926-42cb-83b0-6b82e1549929",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/c0cde7fb-7877-4fd3-be2b-dc0a0191f136_hM3eOz0Ffg.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_b141a7bf-6fd6-4db5-8cc4-b6ee77f05bb2_1772304947047.mp3",
+    "status": "success",
+    "created_at": "2026-02-05T14:58:40.412Z"
+  },
+  {
+    "song_id": "5886d5f5-b56a-4e6d-900c-18e607d9db3f",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "ea18585a-e926-42cb-83b0-6b82e1549929",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/d386fbb3-e618-48c0-8d7c-65f4859c5ab3_ywyEioy_R.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_5886d5f5-b56a-4e6d-900c-18e607d9db3f_1772304947307.mp3",
+    "status": "success",
+    "created_at": "2026-02-05T14:55:10.759Z"
+  },
+  {
+    "song_id": "b4854699-6afd-40aa-93a3-e847c82fcab5",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "6e8a9f00-d7c8-4477-8a3f-e1bfb73e61b5",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/067fb2b6-dc60-46c4-997a-95456f894d6b_F4ViTZdvE.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_b4854699-6afd-40aa-93a3-e847c82fcab5_1772304947570.mp3",
+    "status": "success",
+    "created_at": "2026-02-05T08:30:14.099Z"
+  },
+  {
+    "song_id": "8d7b485e-951e-44f5-89a9-efff2a9b6ef3",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "6e8a9f00-d7c8-4477-8a3f-e1bfb73e61b5",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/60fb602e-2166-442c-ad22-84e0a9d22ff4_L8y3xLtN5.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_8d7b485e-951e-44f5-89a9-efff2a9b6ef3_1772304948033.mp3",
+    "status": "success",
+    "created_at": "2026-02-05T08:29:14.183Z"
+  },
+  {
+    "song_id": "b68d23f8-9dac-40ea-a324-773d25a2cd48",
+    "title": "Trimmed Audio (0s - 30s)",
+    "user_id": "4ddedd28-7436-4d35-8093-efaf72263414",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/d7e59d3c-53c1-4bff-9702-7e49b9294522_e2tdxMAa41.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_b68d23f8-9dac-40ea-a324-773d25a2cd48_1772304948520.mp3",
+    "status": "success",
+    "created_at": "2026-02-05T07:15:08.453Z"
+  },
+  {
+    "song_id": "b8300fae-c425-40b5-b9ae-dcdd8aa1cdaa",
+    "title": "Neon Heartbeat",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/314d105a-2a14-4709-b688-c7436a23f8d1_vXZsZFyOu.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_b8300fae-c425-40b5-b9ae-dcdd8aa1cdaa_1772304948844.mp3",
+    "status": "success",
+    "created_at": "2026-02-05T07:02:08.847Z"
+  },
+  {
+    "song_id": "c37598a6-4c88-43a5-84ac-05789dd7d365",
+    "title": "NeonVideo Song",
+    "user_id": "cd56d92c-a56f-462a-acaf-b072aeb24b72",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/0e1b2a30-6657-49f4-a517-254363d961b4_RKZnnzyGt.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_c37598a6-4c88-43a5-84ac-05789dd7d365_1772304949368.mp3",
+    "status": "success",
+    "created_at": "2026-02-05T07:01:45.271Z"
+  },
+  {
+    "song_id": "cc465920-b099-4145-888d-774d1cb3a1af",
+    "title": "Flying",
+    "user_id": "69c1d4e6-00d3-4068-999c-9fa6c34abfee",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/744179b8-1d42-4802-b494-fdeca94f5d02_UjGMLJ6-sr.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_cc465920-b099-4145-888d-774d1cb3a1af_1772304949947.mp3",
+    "status": "success",
+    "created_at": "2026-02-04T21:03:33.089Z"
+  },
+  {
+    "song_id": "e5c65525-b059-4d6e-a22f-349d194cb020",
+    "title": "Jenni who loves Sandy because he has AUDHD, She dreams of travel, love, taking care of her son, take care of her own audhd.",
+    "user_id": "7d9cafa0-6e14-423e-b25b-608fa71acc5d",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/fc9002b7-81ad-449c-9335-513aa26bdc2c_UDM99Xc8V.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_e5c65525-b059-4d6e-a22f-349d194cb020_1772304950277.mp3",
+    "status": "success",
+    "created_at": "2026-02-04T20:18:42.708Z"
+  },
+  {
+    "song_id": "5cc8ecab-a16c-4815-bdcd-b5047b5cecbe",
+    "title": "Late nights",
+    "user_id": "dacb273a-e320-47ed-82cf-6b2c0d43f5be",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/4749aaa9-aaef-495b-b55d-78d2a92a23f6_Ax7QRVnJM1.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_5cc8ecab-a16c-4815-bdcd-b5047b5cecbe_1772304950676.mp3",
+    "status": "success",
+    "created_at": "2026-02-04T18:54:43.021Z"
+  },
+  {
+    "song_id": "cad7f453-e4ee-4013-aea9-6751318e789e",
+    "title": "(soft piano + ambient pad intro)\nYeah…\nLate nights, phone light glowin’ on my face,\nDreams louder than the noise of this place.\n(beat drops – calm but confident)\nI don’t chase fame, I chase my way,\nBuilt from nothing, learned every day.\nThey laughed before, now they all stay quiet,\nI turned pressure into progress, never tried it—\nI lived it.\n(hook – catchy & repeatable)\nI’m growing slow but steady now,\nMoney follows mindset, wow.\nNo rush, no fear, I trust my pace,\nOne life, one shot, I know my place.\n(soft outro – replays well)\nIf you see me silent, I’m working inside,\nSame soul, new level—\nWatch me rise.",
+    "user_id": "dacb273a-e320-47ed-82cf-6b2c0d43f5be",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/4a9867ac-0153-4297-9187-ea975ff61c5e_eRpPorbmb.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_cad7f453-e4ee-4013-aea9-6751318e789e_1772304951150.mp3",
+    "status": "success",
+    "created_at": "2026-02-04T18:53:31.944Z"
+  },
+  {
+    "song_id": "496517bc-1fe5-48da-abea-644165cad6c6",
+    "title": "Create a calm, cinematic lifestyle video centered around nature, greenery, and earthy living. The visual world blends modern urban life with the natural ecosystem—indoor plants, balconies full of greens, gardens, sunlight, wooden furniture, and clay textures.\n\nShow real urban adults (men and women, ages 25–35) using Dhara earthen bottles in everyday routines: working at a desk near plants, refilling the bottle in a garden or terrace, practicing yoga outdoors, and keeping the bottle beside the bed or dining table.\n\nFocus on close-up shots of the earthen bottle: the natural clay texture, water being poured slowly, condensation forming on the surface, hands holding the bottle, and calm facial expressions while drinking water.\n\nInclude short, natural dialogues and testimonial-style moments spoken directly to camera in a relaxed, honest tone:\n– “I wanted to stop using plastic, but I needed something practical.”\n– “Dhara just fits into my routine.”\n– “The quality feels premium and solid.”\n– “You can actually feel the difference in the water.”\n– “It cools naturally, without a fridge.”\n– “I’ve been using it every day—and it’s become a habit now.”\n\nLet the dialogues clearly communicate why people choose Dhara: natural cooling, plastic-free living, high-quality craftsmanship, and calm daily rituals.\n\nMaintain a warm, earthy color palette—terracotta tones, greens, browns, soft neutral light. Use natural ambient sounds like birds, wind, and water pouring. Keep pacing slow, minimal, and soothing.\n\nEnd with a soft but confident call-to-action on screen and voice-over:\n“Choose water that respects nature.”\n“Bring Dhara into your daily ritual.”\n\nClose with the Dhara logo and final line:\n“One small switch. Quality you can feel. A habit you’ll keep.”\n\nOverall mood: grounded, conscious, trustworthy, premium, and reassuring. Avoid loud music, fast cuts, or aggressive selling.",
+    "user_id": "cac2b666-f7d8-454f-93ca-1699d7cdbdb1",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/f02f624f-5021-4c1f-ad60-3ab564984982_zA1O0vJhW.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_496517bc-1fe5-48da-abea-644165cad6c6_1772304951423.mp3",
+    "status": "success",
+    "created_at": "2026-02-04T15:17:15.076Z"
+  },
+  {
+    "song_id": "ce58c50c-434e-4178-b95c-5fede438b955",
+    "title": "Create a calm, cinematic lifestyle video centered around nature, greenery, and earthy living. The visual world blends modern urban life with the natural ecosystem—indoor plants, balconies full of greens, gardens, sunlight, wooden furniture, and clay textures.\n\nShow real urban adults (men and women, ages 25–35) using Dhara earthen bottles in everyday routines: working at a desk near plants, refilling the bottle in a garden or terrace, practicing yoga outdoors, and keeping the bottle beside the bed or dining table.\n\nFocus on close-up shots of the earthen bottle: the natural clay texture, water being poured slowly, condensation forming on the surface, hands holding the bottle, and calm facial expressions while drinking water.\n\nInclude short, natural dialogues and testimonial-style moments spoken directly to camera in a relaxed, honest tone:\n– “I wanted to stop using plastic, but I needed something practical.”\n– “Dhara just fits into my routine.”\n– “The quality feels premium and solid.”\n– “You can actually feel the difference in the water.”\n– “It cools naturally, without a fridge.”\n– “I’ve been using it every day—and it’s become a habit now.”\n\nLet the dialogues clearly communicate why people choose Dhara: natural cooling, plastic-free living, high-quality craftsmanship, and calm daily rituals.\n\nMaintain a warm, earthy color palette—terracotta tones, greens, browns, soft neutral light. Use natural ambient sounds like birds, wind, and water pouring. Keep pacing slow, minimal, and soothing.\n\nEnd with a soft but confident call-to-action on screen and voice-over:\n“Choose water that respects nature.”\n“Bring Dhara into your daily ritual.”\n\nClose with the Dhara logo and final line:\n“One small switch. Quality you can feel. A habit you’ll keep.”\n\nOverall mood: grounded, conscious, trustworthy, premium, and reassuring. Avoid loud music, fast cuts, or aggressive selling.",
+    "user_id": "cac2b666-f7d8-454f-93ca-1699d7cdbdb1",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/5f29e345-9313-4584-82d1-7c3f149164a1_orMvqZZCs.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_ce58c50c-434e-4178-b95c-5fede438b955_1772304951895.mp3",
+    "status": "success",
+    "created_at": "2026-02-04T15:13:28.328Z"
+  },
+  {
+    "song_id": "bb81f8b9-30c0-4c1f-aa86-8ea6885f2e23",
+    "title": "80's uptempo pop. Male english voice. Funny erotic parody song. Chorus: ''Open your mouth and taste your man, servide me the best you can''",
+    "user_id": "02ea8df2-09b5-4b00-9867-aebc66418b8a",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/c172c5b4-6106-4a1a-849d-bc08cccb353c_tYQrxb4Ay.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_bb81f8b9-30c0-4c1f-aa86-8ea6885f2e23_1772304952203.mp3",
+    "status": "success",
+    "created_at": "2026-02-04T07:17:23.808Z"
+  },
+  {
+    "song_id": "02d48e40-bb4f-4034-8fda-0d2a9ddb02f7",
+    "title": "80's uptempo pop. Male english voice. Funny erotic parody song. Chorus: ''Open your mouth and taste your man, servide me the best you can''",
+    "user_id": "02ea8df2-09b5-4b00-9867-aebc66418b8a",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/1c671598-424c-4385-8f56-579a95c47dd5_NXQeGy-Zx.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_02d48e40-bb4f-4034-8fda-0d2a9ddb02f7_1772304952664.mp3",
+    "status": "success",
+    "created_at": "2026-02-04T07:13:52.917Z"
+  },
+  {
+    "song_id": "2afa2dfd-7e8c-4e3c-a6ef-404e2c9b25a3",
+    "title": "phil is the man",
+    "user_id": "9080204f-bce6-404c-b6c7-89f005cc29b4",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/a97009e7-4f13-44af-91b7-6164e884a038_wnur3S8Zd.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_2afa2dfd-7e8c-4e3c-a6ef-404e2c9b25a3_1772304952956.mp3",
+    "status": "success",
+    "created_at": "2026-02-04T05:27:10.137Z"
+  },
+  {
+    "song_id": "a8ceb887-7b9c-44ee-b568-f0f7551ab09b",
+    "title": "phil is the man",
+    "user_id": "9080204f-bce6-404c-b6c7-89f005cc29b4",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/76167291-f0be-466f-ae89-1fa521e5a95c_8lrGzBaAe.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_a8ceb887-7b9c-44ee-b568-f0f7551ab09b_1772304953425.mp3",
+    "status": "success",
+    "created_at": "2026-02-04T05:25:02.433Z"
+  },
+  {
+    "song_id": "9a13d016-414c-47f3-a988-e7c4175f4cab",
+    "title": "phil is the man",
+    "user_id": "9080204f-bce6-404c-b6c7-89f005cc29b4",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/0dd54f0e-4588-42b7-b395-4e7a1e921995_8y6ttoR-l.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_9a13d016-414c-47f3-a988-e7c4175f4cab_1772304953940.mp3",
+    "status": "success",
+    "created_at": "2026-02-04T05:22:45.005Z"
+  },
+  {
+    "song_id": "e230a5b7-0775-4e80-8ea7-66ce32481042",
+    "title": "Lifes a bih",
+    "user_id": "b67ea04a-b226-410c-8772-c0629dc865e4",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/e06052a3-158e-4500-9152-a469bbe41d4a_eRZNXhOUN.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_e230a5b7-0775-4e80-8ea7-66ce32481042_1772304954259.mp3",
+    "status": "success",
+    "created_at": "2026-02-04T02:47:44.859Z"
+  },
+  {
+    "song_id": "aedbfd3b-a8c7-4271-89ec-13c22161b8a8",
+    "title": "Breaking in houses",
+    "user_id": "6061a8e5-ecf6-416e-868e-6150e3223c1b",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/548bacd4-1eca-43d1-93d1-4131d8fc87b8_TmjJO0oGk.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_aedbfd3b-a8c7-4271-89ec-13c22161b8a8_1772304954517.mp3",
+    "status": "success",
+    "created_at": "2026-02-04T02:18:41.698Z"
+  },
+  {
+    "song_id": "204f80f4-badd-4744-b11f-cca50ea1c518",
+    "title": "A song about formula one race driver who survives the crash and walks out of fire.\nStory: drivers waiting for the race to begin, tensions high this race is decisive, race begins, cars are moving fast, hero is overtaking others one by one, suddenly there is a big crash ahead, hero tries to avoid it, he is crashing, his car flips in the air multiplie times and catches fire, flames are huge, the croud is silent, hero rises from the fire and walsk away, hero miraculously survives the deadly crash.\n Lyrics to include: roar of engines fill the air, lights out and away we go, cars are flying side by side, we are now wheel-to-wheel, overtaking one by one, shunt ahead a rear lost, flames are rising to the sky, silence covering the stands, a man who walkes through fire blaze, beat the fire stay alive, I was born to drive",
+    "user_id": "62fffde4-fce3-4e5c-a3a9-9df0661a859e",
+    "old_url": "https://ik.imagekit.io/neonvideo/audio/fae86e94-c4f8-427b-893b-eee1e18ac69f_n5ryAGNEZ.mp3",
+    "new_url": "https://neonvideo.b-cdn.net/songs/migrated_song_204f80f4-badd-4744-b11f-cca50ea1c518_1772304954753.mp3",
+    "status": "success",
+    "created_at": "2026-02-04T02:14:51.293Z"
+  }
+]

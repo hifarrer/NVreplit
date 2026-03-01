@@ -10,7 +10,7 @@
  */
 import { Resend } from 'resend';
 
-const LOGO_URL = 'https://ik.imagekit.io/neonvideo/logos/neonlogo.png';
+const LOGO_URL = 'https://neonvideo.b-cdn.net/logos/neonlogo.png';
 
 class EmailService {
   private resend: Resend | null = null;

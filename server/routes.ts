@@ -3528,15 +3528,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add anonymous avatar (default for new users)
       avatarOptions.push({
         id: 0,
-        url: `https://ik.imagekit.io/neonvideo/avatars/anonymous.png`,
-        localUrl: `https://ik.imagekit.io/neonvideo/avatars/anonymous.png`
+        url: `https://neonvideo.b-cdn.net/avatars/anonymous.png`,
+        localUrl: `https://neonvideo.b-cdn.net/avatars/anonymous.png`
       });
 
       for (let i = 1; i <= 19; i++) {
         avatarOptions.push({
           id: i,
-          url: `https://ik.imagekit.io/neonvideo/avatars/${i}.png`,
-          localUrl: `https://ik.imagekit.io/neonvideo/avatars/${i}.png`
+          url: `https://neonvideo.b-cdn.net/avatars/${i}.png`,
+          localUrl: `https://neonvideo.b-cdn.net/avatars/${i}.png`
         });
       }
 
@@ -6211,7 +6211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const noStyleOption = {
         style_name: "No style",
         model: "alibaba/wan-2.5/text-to-image",
-        thumbnail_image: "https://ik.imagekit.io/neonvideo/characterthumbs/no_style.jpg",
+        thumbnail_image: "https://neonvideo.b-cdn.net/characterpublic/no_style.jpg",
         prompt_enhancer: null
       };
 
@@ -8717,8 +8717,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Outro URL by aspect ratio (passed as outro_url to neonvideo_merge_videos API, not in video_urls)
           const isPortrait = aspectRatio === "3:4" || aspectRatio === "9:16";
           const outroVideoUrl = isPortrait
-            ? "https://ik.imagekit.io/neonvideo/neonvideo_outros/neonvideo_vertical.mp4"
-            : "https://ik.imagekit.io/neonvideo/neonvideo_outros/neonvideo_horizontal.mp4";
+            ? "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4"
+            : "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_horizontal.mp4";
           console.log("Outro URL for merge:", outroVideoUrl, `(aspect ${aspectRatio}, ${isPortrait ? "portrait" : "landscape"})`);
 
           // Dimensions for merge API (width x height from aspect ratio)
