@@ -10775,13 +10775,15 @@ Format your response as JSON:
       console.log(`[AUTO-GENERATE] Generated lyrics (${lyrics.length} chars) and title: ${aiGeneratedTitle}`);
 
       // Step 4: Generate song with Minimax Music 02 (single song, then trim to 30 seconds)
+      // Use song_description for the music prompt (genre, mood, instruments), not video_description
       console.log(`[AUTO-GENERATE] Step 4: Generating song with Minimax Music 02...`);
+      const songDescriptionForMusic = parsed.song_description || parsed.video_description || generatedPrompt;
       const songTags = parsed.song_title
-        ? `${parsed.song_title}. ${parsed.video_description}`
-        : parsed.video_description || generatedPrompt;
+        ? `${parsed.song_title}. ${songDescriptionForMusic}`
+        : songDescriptionForMusic;
 
-      // Generate a single song (no longer generating 2 and picking the best)
-      const songResult = await generateSingleSong(songTags, lyrics, targetDuration, parsed.video_description, 1);
+      // Generate a single song (no longer generating 2 and picking the best). Pass "" for description to avoid duplicating song_description in the prompt.
+      const songResult = await generateSingleSong(songTags, lyrics, targetDuration, "", 1);
       const originalSongDuration = songResult.duration;
       console.log(`[AUTO-GENERATE] Song generated: ${originalSongDuration}s`);
 
@@ -10883,7 +10885,8 @@ Format your response as JSON:
       let videoError: string | null = null;
 
       try {
-        const baseUrl = getBaseUrl(req);
+        // Background job has no req; use env BASE_URL/API_URL or localhost
+        const baseUrl = getBaseUrl();
         const videoGenResponse = await fetch(`${baseUrl}/api/projects/${projectId}/generate-video`, {
           method: "POST",
           headers: { "Content-Type": "application/json" }
@@ -11074,7 +11077,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
           }
         ],
         temperature: 1.2, // High temperature for more creativity/randomness
-        max_tokens: 200
+        max_tokens: 350
       });
 
       const generatedPrompt = promptResponse.choices[0].message.content || "";
@@ -11115,14 +11118,16 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
             - character: A detailed description of the main character (appearance, style, personality) - REQUIRED
             - video_description: What the music video should be about (scenes, mood, story) - REQUIRED
             - song_title: The title or theme of the song - OPTIONAL (can be null if not specified)
+            - song_description: A short description for MUSIC generation only (genre, mood, tempo, instruments, vocal style). 1-2 sentences on how the music should SOUND, not the video visuals. E.g. "Epic orchestral with brass and strings, grand crescendo, cinematic." Derive from the theme/mood if not explicit. - REQUIRED (infer if missing)
             
             Only mark character and video_description as missing if they are truly unclear or absent.
-            Song title is optional and should not be marked as missing.
+            Song title is optional. song_description must always be provided (infer from mood/theme if needed).
             Respond ONLY with valid JSON in this format:
             {
               "character": "description or null",
               "song_title": "title or null", 
               "video_description": "description or null",
+              "song_description": "1-2 sentences for music generation API (genre, mood, instruments)",
               "missing": ["list of REQUIRED missing elements only"],
               "suggestion": "helpful suggestion if anything is missing"
             }`
@@ -11136,6 +11141,10 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       });
 
       const parsed = JSON.parse(parseResponse.choices[0].message.content || "{}");
+      // Fallback: if parser didn't return song_description, use video_description so Minimax still gets something
+      if (!parsed.song_description || !parsed.song_description.trim()) {
+        parsed.song_description = parsed.video_description || "";
+      }
       console.log(`[AUTO-GENERATE] Parsed prompt:`, parsed);
 
       // Step 2: Create a new project
@@ -11177,6 +11186,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
         details: {
           character: parsed.character,
           video_description: parsed.video_description,
+          song_description: parsed.song_description || null,
           style: style,
           quality: videoQuality
         }
@@ -11261,14 +11271,16 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
             - character: A detailed description of the main character (appearance, style, personality) - REQUIRED
             - video_description: What the music video should be about (scenes, mood, story) - REQUIRED
             - song_title: The title or theme of the song - OPTIONAL (can be null if not specified)
+            - song_description: A short description for MUSIC generation only (genre, mood, tempo, instruments, vocal style). 1-2 sentences on how the music should SOUND, not the video visuals. E.g. "Epic orchestral with brass and strings, grand crescendo, cinematic." Derive from the theme/mood if not explicit. - REQUIRED (infer if missing)
             
             Only mark character and video_description as missing if they are truly unclear or absent.
-            Song title is optional and should not be marked as missing.
+            Song title is optional. song_description must always be provided (infer from mood/theme if needed).
             Respond ONLY with valid JSON in this format:
             {
               "character": "description or null",
               "song_title": "title or null", 
               "video_description": "description or null",
+              "song_description": "1-2 sentences for music generation API (genre, mood, instruments)",
               "missing": ["list of REQUIRED missing elements only"],
               "suggestion": "helpful suggestion if anything is missing"
             }`
@@ -11282,6 +11294,9 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       });
 
       const parsed = JSON.parse(parseResponse.choices[0].message.content || "{}");
+      if (!parsed.song_description || !parsed.song_description.trim()) {
+        parsed.song_description = parsed.video_description || "";
+      }
       console.log(`[NEON-SINGLE-PROMPT-GET] Parsed prompt:`, parsed);
 
       const requiredMissing = parsed.missing?.filter((item: string) => item !== 'song_title') || [];
@@ -11322,15 +11337,17 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       console.log(`[NEON-SINGLE-PROMPT-GET] Generated lyrics (${lyrics.length} chars) and title: ${aiGeneratedTitle}`);
 
       // Step 4: Generate song with Minimax Music 02 (single song, then trim to 30 seconds)
+      // Use song_description for the music prompt (genre, mood, instruments), not video_description
       console.log(`[NEON-SINGLE-PROMPT-GET] Step 4: Generating song with Minimax Music 02...`);
+      const songDescriptionForMusic = parsed.song_description || parsed.video_description;
       const songTags = parsed.song_title
-        ? `${parsed.song_title}. ${parsed.video_description}`
-        : parsed.video_description;
+        ? `${parsed.song_title}. ${songDescriptionForMusic}`
+        : songDescriptionForMusic;
 
       const requestedDuration = 30;
 
-      // Generate a single song (no retries unless it fails)
-      const songResult = await generateSingleSong(songTags, lyrics, requestedDuration, parsed.video_description, 1);
+      // Generate a single song (no retries unless it fails). Pass "" for description to avoid duplicating song_description in the prompt.
+      const songResult = await generateSingleSong(songTags, lyrics, requestedDuration, "", 1);
       console.log(`[NEON-SINGLE-PROMPT-GET] Song generated: ${songResult.duration}s`);
 
       // Step 4.5: Trim the generated song to exactly 30 seconds (0ms to 30000ms)
@@ -11555,14 +11572,16 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
             - character: A detailed description of the main character (appearance, style, personality) - REQUIRED
             - video_description: What the music video should be about (scenes, mood, story) - REQUIRED
             - song_title: The title or theme of the song - OPTIONAL (can be null if not specified)
+            - song_description: A short description for MUSIC generation only (genre, mood, tempo, instruments, vocal style). 1-2 sentences on how the music should SOUND, not the video visuals. E.g. "Epic orchestral with brass and strings, grand crescendo, cinematic." Derive from the theme/mood if not explicit. - REQUIRED (infer if missing)
             
             Only mark character and video_description as missing if they are truly unclear or absent.
-            Song title is optional and should not be marked as missing.
+            Song title is optional. song_description must always be provided (infer from mood/theme if needed).
             Respond ONLY with valid JSON in this format:
             {
               "character": "description or null",
               "song_title": "title or null", 
               "video_description": "description or null",
+              "song_description": "1-2 sentences for music generation API (genre, mood, instruments)",
               "missing": ["list of REQUIRED missing elements only"],
               "suggestion": "helpful suggestion if anything is missing"
             }`
@@ -11576,6 +11595,9 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       });
 
       const parsed = JSON.parse(parseResponse.choices[0].message.content || "{}");
+      if (!parsed.song_description || !parsed.song_description.trim()) {
+        parsed.song_description = parsed.video_description || "";
+      }
       console.log(`[NEON-SINGLE-PROMPT] Parsed prompt:`, parsed);
 
       // Filter out song_title from missing elements since it's optional
@@ -11618,15 +11640,18 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       console.log(`[NEON-SINGLE-PROMPT] Generated lyrics (${lyrics.length} chars) and title: ${aiGeneratedTitle}`);
 
       // Step 4: Generate song with Minimax Music 02
+      // Use song_description for the music prompt (genre, mood, instruments), not video_description
       // Generate 2 songs in parallel and select the one closest to the requested duration
       console.log(`[NEON-SINGLE-PROMPT] Step 4: Generating ~30-second song with Minimax Music 02 (2 candidates for best match)...`);
+      const songDescriptionForMusic = parsed.song_description || parsed.video_description;
       const songTags = parsed.song_title
-        ? `${parsed.song_title}. ${parsed.video_description}`
-        : parsed.video_description;
+        ? `${parsed.song_title}. ${songDescriptionForMusic}`
+        : songDescriptionForMusic;
 
       const requestedDuration = 30;
 
-      const songResult = await generateSongWithMinimax(songTags, lyrics, requestedDuration, parsed.video_description);
+      // Pass "" for description to avoid duplicating song_description in the Minimax prompt.
+      const songResult = await generateSongWithMinimax(songTags, lyrics, requestedDuration, "");
       const actualSongDuration = songResult.duration;
       console.log(`[NEON-SINGLE-PROMPT] Song generated: ${actualSongDuration}s (requested: ${requestedDuration}s)`);
 
@@ -11930,11 +11955,13 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Dynamically calculated ${numberOfScenes} scenes for ${duration}s video (segments: ${segmentDurations.join(', ')}s)`);
 
       // Step 4: Launch parallel generation - Song, Character Image, and Scene Prompts
+      // Use song_description for the music prompt (genre, mood, instruments), not video_description
       console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Step 4: Launching parallel generation (song, character, scene prompts)...`);
 
+      const songDescriptionForMusic = parsed.song_description || parsed.video_description;
       const songTags = parsed.song_title
-        ? `${parsed.song_title}. ${parsed.video_description}`
-        : parsed.video_description;
+        ? `${parsed.song_title}. ${songDescriptionForMusic}`
+        : songDescriptionForMusic;
       const songGenerationDuration = Math.max(duration + 30, 60); // Generate at least 30 seconds more than requested, minimum 60 seconds
 
       // Start song generation
@@ -11971,7 +11998,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
         (async () => {
           try {
             console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Generating ~${songGenerationDuration}-second song...`);
-            const result = await generateSingleSong(songTags, lyrics, songGenerationDuration, parsed.video_description, 1);
+            const result = await generateSingleSong(songTags, lyrics, songGenerationDuration, "", 1);
             console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Song generated: ${result.duration}s (requested: ${songGenerationDuration}s)`);
             await storage.addGenerationLog({
               projectId: project.id,
