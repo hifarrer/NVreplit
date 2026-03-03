@@ -18,7 +18,7 @@ import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, ge
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
 import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText } from "./services/fal";
-import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment } from "./services/wavespeed";
+import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateImageFromText, generateVideoFromImage } from "./services/wavespeed";
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
@@ -12532,6 +12532,341 @@ Do not add markdown. Return JSON only.`,
       console.error("[SIMPLE-MODE] Error:", error);
       res.status(500).json({
         error: error instanceof Error ? error.message : "Failed to generate simple mode video",
+      });
+    }
+  });
+
+  // ─── VIDEO SHORTS ─────────────────────────────────────────────────────
+  app.options("/api/video-shorts", (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.sendStatus(204);
+  });
+
+  app.post("/api/video-shorts", extractTokenFromUrl, authenticateToken, async (req, res) => {
+    console.log("[VIDEO-SHORTS] Route handler invoked");
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    try {
+      const {
+        prompt,
+        aspectRatio: requestedAspectRatio,
+        audioUrl: providedAudioUrl,
+        addSubtitles: requestedAddSubtitles,
+        subtitleStyle: requestedSubtitleStyle,
+        textPosition: requestedTextPosition,
+        fontFamily: requestedFontFamily,
+      } = req.body;
+      const userId = req.user!.userId;
+
+      if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
+        return res.status(400).json({
+          error: "Please provide a prompt describing your video short",
+        });
+      }
+
+      const hasUploadedSong =
+        typeof providedAudioUrl === "string" && providedAudioUrl.trim().length > 0;
+      if (!hasUploadedSong) {
+        return res.status(400).json({
+          error: "A song is required. Please upload and attach a song, then select 12 seconds.",
+        });
+      }
+
+      const validAspectRatios = ["16:9", "9:16"];
+      const aspectRatio = validAspectRatios.includes(requestedAspectRatio)
+        ? requestedAspectRatio
+        : "9:16";
+      const addSubtitles = requestedAddSubtitles === true || requestedAddSubtitles === "true";
+      const subtitleStyle = isSubtitleStyle(requestedSubtitleStyle) ? requestedSubtitleStyle : defaultSubtitleStyle;
+      const fontFamily = isGoogleFont(requestedFontFamily) ? requestedFontFamily : defaultGoogleFont;
+      const validTextPositions = ["top", "center", "bottom"];
+      const captionPosition = validTextPositions.includes(requestedTextPosition) ? requestedTextPosition : "bottom";
+
+      const SHORTS_CREDITS = 1000;
+      const canAfford = await storage.canUserAffordCredits(userId, SHORTS_CREDITS);
+      if (!canAfford) {
+        const remaining = await storage.getUserCreditsRemaining(userId);
+        return res.status(402).json({
+          error: "Insufficient credits for Video Shorts generation",
+          creditsRequired: SHORTS_CREDITS,
+          creditsRemaining: remaining,
+        });
+      }
+
+      const project = await storage.createProject({
+        userId,
+        title: prompt.substring(0, 60),
+        description: prompt,
+        aspectRatio,
+        currentStep: 1,
+        addSubtitles,
+        subtitleStyle,
+        fontFamily,
+        captionPosition: addSubtitles ? captionPosition : undefined,
+        isInstrumental: true,
+      } as any);
+
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "project_creation",
+        message: "Setting up your Video Short...",
+        status: "completed",
+        metadata: {},
+      });
+
+      res.json({
+        success: true,
+        projectId: project.id,
+        message: "Video Shorts generation started!",
+      });
+
+      // Background pipeline
+      (async () => {
+        console.log(`[VIDEO-SHORTS] Background pipeline started for project ${project.id}`);
+        try {
+          // Step 1: Text-to-Image
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "image_generation",
+            message: "Generating image from prompt...",
+            status: "progress",
+            metadata: {},
+          });
+
+          const imageUrl = await generateImageFromText(prompt.trim(), aspectRatio);
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "image_generation",
+            message: "Image generated successfully",
+            status: "completed",
+            metadata: { imageUrl },
+          });
+
+          await storage.updateProject(project.id, {
+            characterImageUrl: imageUrl,
+            currentStep: 2,
+          } as any);
+
+          // Step 2: Image-to-Video
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: "Creating 12-second video...",
+            status: "progress",
+            metadata: {},
+          });
+
+          const videoUrl = await generateVideoFromImage(imageUrl, prompt.trim(), aspectRatio, 12);
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: "Video created successfully",
+            status: "completed",
+            metadata: { videoUrl },
+          });
+
+          await storage.updateProject(project.id, { currentStep: 3 } as any);
+
+          // Persist WaveSpeed video to Bunny so merge step has a stable, downloadable URL
+          let videoUrlForMerge = videoUrl;
+          if (isBunnyConfigured("scenes") && !isBunnyUrl(videoUrl)) {
+            console.log("[VIDEO-SHORTS] Persisting WaveSpeed video to Bunny before merge...");
+            try {
+              const videoResp = await fetch(videoUrl);
+              if (!videoResp.ok) throw new Error(`Failed to fetch WaveSpeed video: ${videoResp.status}`);
+              const videoBuffer = Buffer.from(await videoResp.arrayBuffer());
+              const { url: bunnyVideoUrl } = await uploadToBunnyStorage(
+                "scenes",
+                `short_${project.id}_${Date.now()}.mp4`,
+                videoBuffer,
+              );
+              videoUrlForMerge = bunnyVideoUrl;
+              console.log("[VIDEO-SHORTS] Video persisted to Bunny:", bunnyVideoUrl.substring(0, 60) + "...");
+            } catch (persistErr) {
+              console.error("[VIDEO-SHORTS] Failed to persist video to Bunny, using WaveSpeed URL:", persistErr);
+            }
+          }
+
+          // Step 3: Merge audio (if provided) and upload
+          let savedFinalVideoUrl: string;
+          const objectStorageService = new ObjectStorageService();
+
+          if (hasUploadedSong) {
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "audio_merge",
+              message: "Merging audio with video...",
+              status: "progress",
+              metadata: {},
+            });
+
+            const dimensions =
+              aspectRatio === "9:16"
+                ? "1080x1920"
+                : aspectRatio === "3:4"
+                  ? "1080x1440"
+                  : "1920x1080";
+
+            // Use remote Neonvideo merge API (same as main pipeline) so merge is reliable
+            const isPortrait = aspectRatio === "3:4" || aspectRatio === "9:16";
+            const outroVideoUrl = isPortrait
+              ? "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4"
+              : "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_horizontal.mp4";
+
+            console.log("[VIDEO-SHORTS] Calling merge API with 1 video + audio + outro");
+            const finalVideo = await mergeVideos(
+              [videoUrlForMerge],
+              providedAudioUrl.trim(),
+              undefined,
+              undefined,
+              outroVideoUrl,
+              dimensions,
+            );
+
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "audio_merge",
+              message: "Audio merged successfully",
+              status: "completed",
+              metadata: {},
+            });
+
+            // Upload merged video to Bunny (merge API returns a download URL)
+            if (finalVideo.download_url.includes("/api/ffmpeg-local/download/")) {
+              const { OUTPUT_FOLDER } = await import("./services/ffmpegLocal.js");
+              const localFilePath = path.join(OUTPUT_FOLDER, finalVideo.filename);
+              const videoBuffer = fs.readFileSync(localFilePath);
+              const uploadResult = await objectStorageService.uploadVideoBuffer(
+                videoBuffer,
+                `neonvideo_short_${Date.now()}.mp4`,
+              );
+              savedFinalVideoUrl = uploadResult.url;
+            } else {
+              const uploadResult = await objectStorageService.uploadVideoFromUrl(
+                finalVideo.download_url,
+                `neonvideo_short_${Date.now()}.mp4`,
+              );
+              savedFinalVideoUrl = uploadResult.url;
+            }
+          } else {
+            // No audio — persist the raw video to Bunny
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "upload",
+              message: "Saving video...",
+              status: "progress",
+              metadata: {},
+            });
+
+            const uploadResult = await objectStorageService.uploadVideoFromUrl(
+              videoUrl,
+              `neonvideo_short_${Date.now()}.mp4`,
+            );
+            savedFinalVideoUrl = uploadResult.url;
+          }
+
+          // Add TikTok-style captions if user enabled captions
+          if (addSubtitles && savedFinalVideoUrl) {
+            try {
+              await storage.addGenerationLog({
+                projectId: project.id,
+                step: "video_generation",
+                message: `Adding TikTok-style captions (${subtitleStyle})`,
+                status: "progress",
+                metadata: { captionStyle: subtitleStyle },
+              });
+              const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
+              const captionResult = await addTikTokCaptions({
+                videoUrl: savedFinalVideoUrl,
+                subtitleStyle,
+                aspectRatio,
+                position: captionPosition,
+              });
+              const captionedUploadResult = await objectStorageService.uploadVideoFromUrl(
+                captionResult.download_url,
+                `neonvideo_short_${Date.now()}_captioned.mp4`,
+              );
+              savedFinalVideoUrl = captionedUploadResult.url;
+              console.log("[VIDEO-SHORTS] Captioned video saved to storage:", savedFinalVideoUrl);
+            } catch (captionError) {
+              console.warn("[VIDEO-SHORTS] ffmpegapi caption rendering failed, proceeding without captions:", captionError);
+              await storage.addGenerationLog({
+                projectId: project.id,
+                step: "video_generation",
+                message: `Caption rendering failed, using uncaptioned video: ${(captionError as Error).message}`,
+                status: "warning",
+                metadata: { error: (captionError as Error).message },
+              });
+            }
+          }
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "upload",
+            message: "Video saved successfully",
+            status: "completed",
+            metadata: { finalVideoUrl: savedFinalVideoUrl },
+          });
+
+          await storage.updateProject(project.id, {
+            finalVideoUrl: savedFinalVideoUrl,
+            isCompleted: true,
+            currentStep: 4,
+            audioDuration: 12,
+            generationStatus: "completed" as any,
+          });
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: "Video Short completed!",
+            status: "completed",
+            metadata: { finalVideoUrl: savedFinalVideoUrl },
+          });
+
+          // Deduct credits
+          const creditDeducted = await storage.deductUserCredits(userId, SHORTS_CREDITS);
+          if (!creditDeducted) {
+            console.error("[VIDEO-SHORTS] Failed to deduct credits, but video was generated");
+          } else {
+            console.log(`[VIDEO-SHORTS] Deducted ${SHORTS_CREDITS} credits from user ${userId}`);
+          }
+
+          // Create Mux asset (non-blocking)
+          try {
+            await createMuxAssetForVideo(project.id, savedFinalVideoUrl);
+          } catch (muxError) {
+            console.error("[VIDEO-SHORTS] Failed to create Mux asset:", muxError);
+          }
+        } catch (error) {
+          const errMsg = (error as Error).message;
+          console.error("[VIDEO-SHORTS] Error:", error);
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "audio_merge",
+            message: `Merge failed: ${errMsg}`,
+            status: "error",
+            metadata: { error: errMsg },
+          });
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: `Generation failed: ${errMsg}`,
+            status: "error",
+            metadata: { error: errMsg },
+          });
+        }
+      })();
+    } catch (error) {
+      console.error("[VIDEO-SHORTS] Error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to generate video short",
       });
     }
   });

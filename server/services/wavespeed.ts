@@ -831,3 +831,176 @@ export async function enhanceImageHyperReal(
 
   throw new Error("Hyper real enhancement timed out");
 }
+
+// Text-to-Image via nano-banana-2 (used by Video Shorts)
+export async function generateImageFromText(
+  prompt: string,
+  aspectRatio: string = "9:16",
+): Promise<string> {
+  console.log("=== GENERATING IMAGE FROM TEXT (nano-banana-2) ===");
+  console.log("Prompt:", prompt);
+  console.log("Aspect Ratio:", aspectRatio);
+
+  const response = await fetch(
+    "https://api.wavespeed.ai/api/v3/google/nano-banana-2/text-to-image",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+      },
+      body: JSON.stringify({
+        aspect_ratio: aspectRatio,
+        enable_base64_output: false,
+        enable_sync_mode: false,
+        output_format: "jpeg",
+        prompt,
+        resolution: "1k",
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Wavespeed text-to-image API error: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  const requestId = result.data?.id || result.id;
+
+  if (!requestId) {
+    console.error("Wavespeed response:", JSON.stringify(result, null, 2));
+    throw new Error("No request ID received from Wavespeed text-to-image API");
+  }
+
+  console.log(`Text-to-image submitted, request ID: ${requestId}`);
+
+  let attempts = 0;
+  const maxAttempts = 60;
+
+  while (attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    const statusResponse = await fetch(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      { headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` } },
+    );
+
+    if (!statusResponse.ok) {
+      throw new Error(`Text-to-image status check failed: ${statusResponse.status}`);
+    }
+
+    const statusResult = await statusResponse.json();
+    console.log(`Text-to-image poll attempt ${attempts + 1}: status = ${statusResult.data?.status}`);
+
+    if (statusResult.data?.status === "completed") {
+      let imageUrl: string | undefined;
+      if (statusResult.data.outputs && statusResult.data.outputs.length > 0) {
+        imageUrl = statusResult.data.outputs[0];
+      } else if (statusResult.data.output) {
+        imageUrl = Array.isArray(statusResult.data.output)
+          ? statusResult.data.output[0]
+          : statusResult.data.output;
+      } else if (statusResult.data.image) {
+        imageUrl = statusResult.data.image;
+      }
+
+      if (imageUrl) {
+        console.log("Text-to-image completed:", imageUrl);
+        return imageUrl;
+      }
+    } else if (statusResult.data?.status === "failed" || statusResult.status === "failed") {
+      const errorDetails = statusResult.data?.error || statusResult.error || "Unknown error";
+      throw new Error(`Text-to-image generation failed: ${typeof errorDetails === "string" ? errorDetails : JSON.stringify(errorDetails)}`);
+    }
+
+    attempts++;
+  }
+
+  throw new Error("Text-to-image generation timed out");
+}
+
+// Image-to-Video via seedance-v1.5-pro (used by Video Shorts)
+export async function generateVideoFromImage(
+  imageUrl: string,
+  prompt: string,
+  aspectRatio: string = "9:16",
+  duration: number = 12,
+): Promise<string> {
+  console.log("=== GENERATING VIDEO FROM IMAGE (seedance-v1.5-pro) ===");
+  console.log("Image URL:", imageUrl);
+  console.log("Prompt:", prompt);
+  console.log("Aspect Ratio:", aspectRatio);
+  console.log("Duration:", duration);
+
+  const response = await fetch(
+    "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1.5-pro/image-to-video-fast",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+      },
+      body: JSON.stringify({
+        aspect_ratio: aspectRatio,
+        camera_fixed: false,
+        duration,
+        generate_audio: false,
+        image: imageUrl,
+        prompt,
+        resolution: "720p",
+        seed: -1,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Wavespeed image-to-video API error: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  const requestId = result.data?.id || result.id;
+
+  if (!requestId) {
+    console.error("Wavespeed response:", JSON.stringify(result, null, 2));
+    throw new Error("No request ID received from Wavespeed image-to-video API");
+  }
+
+  console.log(`Image-to-video submitted, request ID: ${requestId}`);
+
+  let attempts = 0;
+  const maxAttempts = 60;
+
+  while (attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+
+    const statusResponse = await fetch(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      { headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` } },
+    );
+
+    if (!statusResponse.ok) {
+      throw new Error(`Image-to-video status check failed: ${statusResponse.status}`);
+    }
+
+    const statusResult = await statusResponse.json();
+    console.log(`Image-to-video poll attempt ${attempts + 1}: status = ${statusResult.data?.status}`);
+
+    if (
+      statusResult.data?.status === "completed" &&
+      statusResult.data.outputs &&
+      statusResult.data.outputs.length > 0
+    ) {
+      console.log("Image-to-video completed:", statusResult.data.outputs[0]);
+      return statusResult.data.outputs[0];
+    } else if (statusResult.data?.status === "failed" || statusResult.status === "failed") {
+      const errorDetails = statusResult.data?.error || statusResult.error || "Unknown error";
+      throw new Error(`Image-to-video generation failed: ${typeof errorDetails === "string" ? errorDetails : JSON.stringify(errorDetails)}`);
+    }
+
+    attempts++;
+  }
+
+  throw new Error("Image-to-video generation timed out");
+}

@@ -12,6 +12,7 @@ interface AudioTrimInterfaceProps {
   onCancel: () => void;
   isTrimming?: boolean;
   isPaidUser?: boolean; // Whether user has a paid plan
+  fixedDuration?: number; // When set, locks the trim window to exactly this many seconds
 }
 
 export function AudioTrimInterface({ 
@@ -20,7 +21,8 @@ export function AudioTrimInterface({
   onTrim, 
   onCancel,
   isTrimming = false,
-  isPaidUser = true
+  isPaidUser = true,
+  fixedDuration,
 }: AudioTrimInterfaceProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -36,11 +38,12 @@ export function AudioTrimInterface({
   // Free users are limited to 30 seconds, paid users to 4 minutes (240 seconds)
   const maxAllowedDuration = isPaidUser ? Math.min(240, audioDuration) : 30;
 
-  // Initialize default to first 30 seconds when audio duration is first available
+  // Initialize default trim window when audio duration is first available
   useEffect(() => {
     if (audioDuration > 0 && !hasInitialized.current) {
-      // Set default to first 30 seconds (or full duration if less than 30 seconds)
-      const defaultEnd = Math.min(30, audioDuration);
+      const defaultEnd = fixedDuration
+        ? Math.min(fixedDuration, audioDuration)
+        : Math.min(30, audioDuration);
       setStartTime(0);
       setEndTime(defaultEnd);
       hasInitialized.current = true;
@@ -48,7 +51,7 @@ export function AudioTrimInterface({
         audioRef.current.currentTime = 0;
       }
     }
-  }, [audioDuration]);
+  }, [audioDuration, fixedDuration]);
 
   // Ensure endTime doesn't exceed audio duration or user plan limits
   useEffect(() => {
@@ -159,21 +162,34 @@ export function AudioTrimInterface({
     const percentage = Math.max(0, Math.min(1, x / rect.width));
     const newTime = percentage * audioDuration;
 
-    if (draggingHandle === 'start') {
+    if (fixedDuration && (draggingHandle === 'start' || draggingHandle === 'end')) {
+      // Fixed-duration mode: slide the window as a unit
+      let newStart: number;
+      if (draggingHandle === 'start') {
+        newStart = Math.max(0, Math.min(audioDuration - fixedDuration, newTime));
+      } else {
+        newStart = Math.max(0, Math.min(audioDuration - fixedDuration, newTime - fixedDuration));
+      }
+      const newEnd = newStart + fixedDuration;
+      setStartTime(newStart);
+      setEndTime(newEnd);
+      if (audioRef.current) {
+        if (audioRef.current.currentTime < newStart) audioRef.current.currentTime = newStart;
+        if (audioRef.current.currentTime > newEnd) audioRef.current.currentTime = newEnd;
+      }
+    } else if (draggingHandle === 'start') {
       const constrainedTime = Math.max(0, Math.min(endTime - 1, newTime));
       setStartTime(constrainedTime);
       if (audioRef.current && audioRef.current.currentTime < constrainedTime) {
         audioRef.current.currentTime = constrainedTime;
       }
     } else if (draggingHandle === 'end') {
-      // Check if free user is trying to expand beyond 30 seconds
       if (!isPaidUser && newTime > 30) {
         setShowUpgradeModal(true);
         setIsDragging(false);
         setDraggingHandle(null);
         return;
       }
-      // Check if paid user is trying to expand beyond 4 minutes (240 seconds)
       if (isPaidUser && newTime > 240) {
         setIsDragging(false);
         setDraggingHandle(null);
@@ -231,9 +247,7 @@ export function AudioTrimInterface({
     onTrim(startTime * 1000, endTime * 1000);
   };
 
-  // Calculate credit cost: 1000 credits for every 15 seconds
   const selectedDuration = Math.round(endTime - startTime);
-  const creditCost = Math.ceil(selectedDuration / 15) * 1000;
 
   // Format duration for display (xxs format)
   const formatDurationForButton = (seconds: number) => {
@@ -251,9 +265,13 @@ export function AudioTrimInterface({
   return (
     <div className="bg-muted/30 rounded-lg p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Select duration</h3>
+        <h3 className="text-lg font-semibold">
+          {fixedDuration ? `Select ${fixedDuration} seconds` : "Select duration"}
+        </h3>
         <p className="text-sm text-muted-foreground">
-          Select a portion of your audio
+          {fixedDuration
+            ? `Slide to pick any ${fixedDuration}-second section`
+            : "Select a portion of your audio"}
         </p>
       </div>
 
@@ -389,7 +407,10 @@ export function AudioTrimInterface({
       </div>
 
 
-      {/* Action buttons */}
+      {/* Credits legend and action buttons */}
+      <p className="text-xs text-muted-foreground">
+        Each 15 seconds = 1,000 credits to generate a video.
+      </p>
       <div className="flex gap-3">
         <Button
           onClick={onCancel}
@@ -406,7 +427,7 @@ export function AudioTrimInterface({
         >
           {isTrimming 
             ? "Trimming..." 
-            : `Trim to ${formatDurationForButton(selectedDuration)} (${creditCost.toLocaleString()} credits)`
+            : `Trim to ${formatDurationForButton(selectedDuration)}`
           }
         </Button>
       </div>

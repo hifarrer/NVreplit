@@ -53,6 +53,15 @@ export default function CreateSelect() {
       route: "/create/lyric",
       available: true,
     },
+    {
+      id: "video-shorts",
+      title: "Create stunning 12 second video shorts",
+      description: "Create stunning 12 second video shorts",
+      explanation: "Create stunning 12-second video shorts from a single prompt",
+      imageUrl: "https://neonvideo.b-cdn.net/custom/electricgoat.jpg",
+      route: "/create/video-shorts",
+      available: true,
+    },
   ];
 
   const handleModeClick = (mode: typeof videoModes[0]) => {

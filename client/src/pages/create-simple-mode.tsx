@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Music, Video, Monitor, Smartphone, ArrowLeft, Clock, CheckCircle2, Edit, Image as ImageIcon, Upload, X } from "lucide-react";
+import { Loader2, Music, Video, Monitor, Smartphone, ArrowLeft, Clock, CheckCircle2, Edit, Image as ImageIcon, Upload, X, ChevronDown, ArrowUp, AlignVerticalSpaceAround, ArrowDown } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { downloadFileFromUrl } from "@/lib/utils";
 import { NavigationHeader } from "@/components/navigation-header";
@@ -21,9 +21,11 @@ import { AudioTrimInterface } from "@/components/ui/audio-trim-interface";
 import {
   defaultSubtitleStyle,
   isSubtitleStyle,
+  subtitleStyleOptions,
   type SubtitleStyle,
 } from "@shared/subtitleStyles";
 import {
+  popularGoogleFonts,
   defaultGoogleFont,
   isGoogleFont,
   type GoogleFont,
@@ -38,9 +40,10 @@ export default function CreateSimpleMode() {
   const [aspectRatio, setAspectRatio] = useState<"16:9" | "9:16">("9:16");
   const [duration, setDuration] = useState<number[]>([30]);
   const [addSubtitles, setAddSubtitles] = useState<boolean>(false);
-  const [subtitleStyle] = useState<SubtitleStyle>(defaultSubtitleStyle);
-  const [textPosition] = useState<"top" | "center" | "bottom">("bottom");
-  const [fontFamily] = useState<GoogleFont>(defaultGoogleFont);
+  const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(defaultSubtitleStyle);
+  const [textPosition, setTextPosition] = useState<"top" | "center" | "bottom">("bottom");
+  const [fontFamily, setFontFamily] = useState<GoogleFont>(defaultGoogleFont);
+  const [showCaptionStyles, setShowCaptionStyles] = useState(false);
 
   const [generatedProjectId, setGeneratedProjectId] = useState<string | null>(null);
 
@@ -420,8 +423,15 @@ export default function CreateSimpleMode() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-3">
-                <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
+                <Textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Describe the character, mood, song vibe, and scene direction..."
+                  className="min-h-[80px] bg-background border-border text-foreground placeholder:text-muted-foreground"
+                  data-testid="input-prompt"
+                />
+                <div className="flex flex-col gap-2 sm:justify-start">
                   <input
                     ref={songInputRef}
                     type="file"
@@ -442,37 +452,28 @@ export default function CreateSimpleMode() {
                       if (file) handleImageSelect(file);
                     }}
                   />
-
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full justify-start"
+                    size="icon"
                     onClick={() => songInputRef.current?.click()}
                     data-testid="button-attach-song"
+                    title="Attach Song"
                   >
-                    <Music className="mr-2 h-4 w-4" />
-                    Attach Song
+                    <Music className="h-4 w-4" />
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full justify-start"
+                    size="icon"
                     onClick={() => imageInputRef.current?.click()}
                     disabled={isUploadingImage}
                     data-testid="button-attach-image"
+                    title="Attach Image"
                   >
-                    {isUploadingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
-                    Attach Image
+                    {isUploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
                   </Button>
                 </div>
-
-                <Textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Describe the character, mood, song vibe, and scene direction..."
-                  className="min-h-[120px] bg-background border-border text-foreground placeholder:text-muted-foreground"
-                  data-testid="input-prompt"
-                />
               </div>
 
               {showTrimInterface && previewAudioUrl && previewAudioDuration > 0 && (
@@ -513,10 +514,18 @@ export default function CreateSimpleMode() {
                     </div>
                   )}
                   {referenceImageUrl && (
-                    <div className="inline-flex items-center gap-2 bg-muted px-3 py-1 rounded-full text-sm">
-                      <ImageIcon className="h-3 w-3" />
-                      Image attached
-                      <button type="button" onClick={() => setReferenceImageUrl(null)}>
+                    <div className="relative inline-flex items-center gap-2">
+                      <img
+                        src={referenceImageUrl}
+                        alt="Attached reference"
+                        className="h-12 w-12 rounded-lg object-cover border border-border"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setReferenceImageUrl(null)}
+                        className="absolute -top-1 -right-1 rounded-full bg-muted hover:bg-muted/80 p-0.5"
+                        aria-label="Remove image"
+                      >
                         <X className="h-3 w-3" />
                       </button>
                     </div>
@@ -567,16 +576,137 @@ export default function CreateSimpleMode() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="add-subtitles"
-                  checked={addSubtitles}
-                  onCheckedChange={setAddSubtitles}
-                  data-testid="subtitles-toggle"
-                />
-                <Label htmlFor="add-subtitles" className="text-sm font-medium cursor-pointer">
-                  Captions
-                </Label>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Switch
+                    id="add-subtitles"
+                    checked={addSubtitles}
+                    onCheckedChange={setAddSubtitles}
+                    data-testid="subtitles-toggle"
+                  />
+                  <Label htmlFor="add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => setAddSubtitles(!addSubtitles)}>
+                    Captions
+                  </Label>
+                  {addSubtitles && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowCaptionStyles(!showCaptionStyles)}
+                      className={`h-8 px-2 text-xs ml-2 transition-all ${
+                        addSubtitles && !showCaptionStyles
+                          ? "shadow-[0_0_10px_rgba(236,72,153,0.5),0_0_20px_rgba(236,72,153,0.3),0_0_30px_rgba(236,72,153,0.2)] border-pink-500/50"
+                          : ""
+                      }`}
+                      data-testid="caption-styles-button"
+                    >
+                      Styles
+                      <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showCaptionStyles ? "rotate-180" : ""}`} />
+                    </Button>
+                  )}
+                </div>
+                {addSubtitles && showCaptionStyles && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={textPosition === "top" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setTextPosition("top")}
+                        className={`h-8 w-8 p-0 ${textPosition === "top" ? "bg-primary" : ""}`}
+                        title="Top"
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={textPosition === "center" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setTextPosition("center")}
+                        className={`h-8 w-8 p-0 ${textPosition === "center" ? "bg-primary" : ""}`}
+                        title="Center"
+                      >
+                        <AlignVerticalSpaceAround className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={textPosition === "bottom" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setTextPosition("bottom")}
+                        className={`h-8 w-8 p-0 ${textPosition === "bottom" ? "bg-primary" : ""}`}
+                        title="Bottom"
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Select value={fontFamily} onValueChange={(value) => isGoogleFont(value) && setFontFamily(value)}>
+                      <SelectTrigger className="bg-background border-border text-foreground h-8 w-[180px] text-xs">
+                        <SelectValue placeholder="Select font" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border max-h-[300px]">
+                        {popularGoogleFonts.map((font) => (
+                          <SelectItem
+                            key={font.value}
+                            value={font.value}
+                            className="text-foreground"
+                            style={{ fontFamily: font.value }}
+                          >
+                            {font.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {addSubtitles && showCaptionStyles && (
+                  <div className="bg-muted/30 border border-border rounded-lg p-4">
+                    <Label className="text-sm font-semibold mb-3 block">Caption Style</Label>
+                    <div className="grid grid-cols-5 gap-2">
+                      {subtitleStyleOptions.map((option) => {
+                        const getPreviewStyle = () => {
+                          switch (option.value) {
+                            case "plain-white":
+                              return {
+                                color: "#ffffff",
+                                background: "transparent",
+                                textShadow: "0 2px 8px rgba(0, 0, 0, 0.9)",
+                              };
+                            case "yellow-bg":
+                              return { color: "#ffffff", background: "#facc15" };
+                            case "pink-bg":
+                              return { color: "#ffffff", background: "#ec4899" };
+                            case "blue-bg":
+                              return { color: "#ffffff", background: "#3b82f6" };
+                            case "red-bg":
+                              return { color: "#ffffff", background: "#ef4444" };
+                            default:
+                              return { color: "#ffffff", background: "transparent" };
+                          }
+                        };
+                        return (
+                          <button
+                            type="button"
+                            key={option.value}
+                            onClick={() => setSubtitleStyle(option.value)}
+                            className={`text-center p-2 rounded-md border transition-colors ${
+                              subtitleStyle === option.value ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"
+                            }`}
+                            data-testid={`caption-style-${option.value}`}
+                          >
+                            <div className={option.value === "plain-white" ? "bg-gray-800 rounded-md p-1 inline-block" : ""}>
+                              <div
+                                className="text-xs font-bold text-center py-1 px-2 rounded-md inline-block"
+                                style={{ ...getPreviewStyle(), fontFamily }}
+                              >
+                                Hello
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Button
