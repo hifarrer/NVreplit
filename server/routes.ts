@@ -172,6 +172,38 @@ const sceneImageUpload = multer({
   }
 });
 
+// Configure multer for video uploads (Video Tools - Add Captions); optional file, 150MB
+const videoToolUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 150 * 1024 * 1024, // 150MB limit
+  },
+  fileFilter: (req: any, file: any, cb: any) => {
+    const allowedTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
+    if (allowedTypes.includes(file.mimetype) || file.originalname?.match(/\.(mp4|mov|avi|webm)$/i)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only MP4, MOV, AVI, and WebM videos are allowed.'));
+    }
+  }
+});
+
+// Configure multer for audio uploads (Video Tools - Trim Audio); optional file, 50MB
+const audioToolUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit
+  },
+  fileFilter: (req: any, file: any, cb: any) => {
+    const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/mp3', 'audio/m4a'];
+    if (allowedTypes.includes(file.mimetype) || file.originalname?.match(/\.(mp3|wav|aac|m4a)$/i)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only MP3, WAV, AAC, and M4A audio files are allowed.'));
+    }
+  }
+});
+
 // Initialize ObjectStorageService
 const objectStorage = new ObjectStorageService();
 
@@ -4633,6 +4665,583 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Add captions error:", error);
       res.status(500).json({
         error: "Failed to add captions",
+        details: (error as Error).message,
+      });
+    }
+  });
+
+  // Video Tools: Add captions from URL or uploaded video (upload goes to Bunny VideoScenes)
+  app.post("/api/tools/add-captions", authenticateToken, videoToolUpload.single("video"), async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const subtitleStyleInput = req.body.subtitleStyle;
+      const position = req.body.position;
+      const subtitleStyle = isSubtitleStyle(subtitleStyleInput) ? subtitleStyleInput : defaultSubtitleStyle;
+      const validPositions = ["top", "center", "bottom"];
+      const captionPosition = typeof position === "string" && validPositions.includes(position) ? position : "bottom";
+
+      let videoUrl: string;
+
+      if (req.file && req.file.buffer) {
+        const fileName = `add-captions_${Date.now()}_${req.file.originalname || "video.mp4"}`.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const { uploadToBunnyStorage } = await import("./services/bunny");
+        const result = await uploadToBunnyStorage("scenes", fileName, req.file.buffer);
+        videoUrl = result.url;
+        console.log(`[ADD-CAPTIONS-TOOL] Uploaded video to Bunny VideoScenes: ${videoUrl}`);
+      } else if (typeof req.body.videoUrl === "string" && req.body.videoUrl.trim()) {
+        videoUrl = req.body.videoUrl.trim();
+      } else {
+        return res.status(400).json({ error: "Provide a video URL or upload a video file." });
+      }
+
+      const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
+      const captionResult = await addTikTokCaptions({
+        videoUrl,
+        subtitleStyle,
+        position: captionPosition,
+        aspectRatio: "9:16",
+      });
+
+      const ObjectStorageService = (await import("./objectStorage")).ObjectStorageService;
+      const objectStorageService = new ObjectStorageService();
+      const captionedResult = await objectStorageService.uploadVideoFromUrl(
+        captionResult.download_url,
+        `neonvideo_${Date.now()}_captioned.mp4`,
+      );
+
+      const newProject = await storage.createProject({
+        userId,
+        title: `Add Captions ${new Date().toISOString().slice(0, 10)}`,
+        finalVideoUrl: captionedResult.url,
+        isCompleted: true,
+        currentStep: 6,
+        aspectRatio: "9:16",
+        isPublic: false,
+      });
+
+      res.json({
+        success: true,
+        videoId: newProject.id,
+        title: newProject.title,
+      });
+    } catch (error) {
+      console.error("Add captions tool error:", error);
+      res.status(500).json({
+        error: "Failed to add captions",
+        details: (error as Error).message,
+      });
+    }
+  });
+
+  // Video Tools: Trim video from URL or uploaded video (upload goes to Bunny VideoScenes); returns ffmpegapi result, no save to storage
+  app.post("/api/tools/trim-video", authenticateToken, videoToolUpload.single("video"), async (req, res) => {
+    try {
+      const startTime = Math.max(0, Number(req.body.start_time));
+      const endTime = Number(req.body.end_time);
+      if (Number.isNaN(startTime) || Number.isNaN(endTime) || endTime <= startTime) {
+        return res.status(400).json({ error: "Invalid start_time or end_time (end must be greater than start)." });
+      }
+
+      let videoUrl: string;
+
+      if (req.file && req.file.buffer) {
+        const fileName = `trim-video_${Date.now()}_${req.file.originalname || "video.mp4"}`.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const { uploadToBunnyStorage } = await import("./services/bunny");
+        const result = await uploadToBunnyStorage("scenes", fileName, req.file.buffer);
+        videoUrl = result.url;
+        console.log(`[TRIM-VIDEO-TOOL] Uploaded video to Bunny VideoScenes: ${videoUrl}`);
+      } else if (typeof req.body.videoUrl === "string" && req.body.videoUrl.trim()) {
+        videoUrl = req.body.videoUrl.trim();
+      } else {
+        return res.status(400).json({ error: "Provide a video URL or upload a video file." });
+      }
+
+      const { trimVideo } = await import("./services/ffmpeg");
+      const trimResult = await trimVideo(videoUrl, startTime, endTime);
+
+      res.json({
+        success: true,
+        download_url: trimResult.download_url,
+      });
+    } catch (error) {
+      console.error("Trim video tool error:", error);
+      res.status(500).json({
+        error: "Failed to trim video",
+        details: (error as Error).message,
+      });
+    }
+  });
+
+  // Video Tools: Trim audio from URL or uploaded file (upload goes to Bunny audios folder)
+  // Supports either: (1) desired_length in seconds — trim from start with fade, or (2) startTime + endTime in ms — trim to selected range
+  app.post("/api/tools/trim-audio", authenticateToken, audioToolUpload.single("audio"), async (req, res) => {
+    try {
+      const startTimeMs = req.body.startTime != null ? Number(req.body.startTime) : null;
+      const endTimeMs = req.body.endTime != null ? Number(req.body.endTime) : null;
+      const useRange = startTimeMs != null && endTimeMs != null && !Number.isNaN(startTimeMs) && !Number.isNaN(endTimeMs) && startTimeMs < endTimeMs;
+
+      let audioUrl: string;
+
+      if (req.file && req.file.buffer) {
+        const fileName = `trim-audio_${Date.now()}_${req.file.originalname || "audio.mp3"}`.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const { uploadAudio } = await import("./services/bunny");
+        const result = await uploadAudio(fileName, req.file.buffer);
+        audioUrl = result.url;
+        console.log(`[TRIM-AUDIO-TOOL] Uploaded audio to Bunny audios: ${audioUrl}`);
+      } else if (typeof req.body.audioUrl === "string" && req.body.audioUrl.trim()) {
+        audioUrl = req.body.audioUrl.trim();
+      } else {
+        return res.status(400).json({ error: "Provide an audio URL or upload an audio file." });
+      }
+
+      if (useRange) {
+        const { splitAudioByTime } = await import("./services/ffmpeg");
+        const trimResult = await splitAudioByTime(audioUrl, startTimeMs, endTimeMs);
+        res.json({
+          success: true,
+          download_url: trimResult.download_url,
+          filename: trimResult.filename,
+        });
+      } else {
+        const desiredLength = Number(req.body.desired_length);
+        if (Number.isNaN(desiredLength) || desiredLength <= 0) {
+          return res.status(400).json({ error: "Invalid desired_length (must be a positive number of seconds), or provide startTime and endTime in milliseconds." });
+        }
+        const { trimAudio } = await import("./services/ffmpeg");
+        const trimResult = await trimAudio(audioUrl, desiredLength);
+        res.json({
+          success: true,
+          download_url: trimResult.download_url,
+          trimmed_length: trimResult.trimmed_length,
+        });
+      }
+    } catch (error) {
+      console.error("Trim audio tool error:", error);
+      res.status(500).json({
+        error: "Failed to trim audio",
+        details: (error as Error).message,
+      });
+    }
+  });
+
+  // Video Tools: Video Upscaler (Wavespeed) - charges credits and returns upscaled video URL
+  app.post("/api/tools/video-upscaler", authenticateToken, videoToolUpload.single("video"), async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const targetResolutionRaw = (req.body.target_resolution || req.body.targetResolution || "1080p") as string;
+      const targetResolution = String(targetResolutionRaw).toLowerCase();
+
+      const validResolutions = ["1080p", "2k", "4k"];
+      const normalizedResolution =
+        targetResolution === "1080p"
+          ? "1080p"
+          : targetResolution === "2k"
+            ? "2k"
+            : targetResolution === "4k"
+              ? "4k"
+              : "1080p";
+
+      if (!validResolutions.includes(normalizedResolution)) {
+        return res.status(400).json({ error: "Invalid target_resolution. Must be one of: 1080p, 2k, 4k." });
+      }
+
+      const durationSecondsRaw = Number(req.body.duration_seconds || req.body.durationSeconds || 0);
+      const durationSeconds = Number.isFinite(durationSecondsRaw) && durationSecondsRaw > 0 ? durationSecondsRaw : 15;
+
+      // Credits: per 15 seconds, rounded up
+      const units = Math.max(1, Math.ceil(durationSeconds / 15));
+      const ratePerUnit =
+        normalizedResolution === "1080p"
+          ? 250
+          : normalizedResolution === "2k"
+            ? 500
+            : 1000; // 4k
+      const creditsRequired = units * ratePerUnit;
+
+      // Ensure user can afford
+      const canAfford = await storage.canUserAffordCredits(userId, creditsRequired);
+      if (!canAfford) {
+        const creditsRemaining = await storage.getUserCreditsRemaining(userId);
+        return res.status(402).json({
+          error: "Insufficient credits for Video Upscaler",
+          creditsRequired,
+          creditsRemaining,
+        });
+      }
+
+      let videoUrl: string;
+
+      if (req.file && req.file.buffer) {
+        const fileName = `video-upscaler_${Date.now()}_${req.file.originalname || "video.mp4"}`.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const { uploadToBunnyStorage } = await import("./services/bunny");
+        const result = await uploadToBunnyStorage("scenes", fileName, req.file.buffer);
+        videoUrl = result.url;
+        console.log(`[VIDEO-UPSCALER-TOOL] Uploaded video to Bunny VideoScenes: ${videoUrl}`);
+      } else if (typeof req.body.videoUrl === "string" && req.body.videoUrl.trim()) {
+        videoUrl = req.body.videoUrl.trim();
+      } else {
+        return res.status(400).json({ error: "Provide a video URL or upload a video file." });
+      }
+
+      const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY || "";
+      if (!WAVESPEED_API_KEY) {
+        return res.status(500).json({ error: "WaveSpeed API key not configured" });
+      }
+
+      // Submit upscaling job
+      const submitResponse = await fetch("https://api.wavespeed.ai/api/v3/wavespeed-ai/video-upscaler", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+        body: JSON.stringify({
+          target_resolution: normalizedResolution,
+          video: videoUrl,
+        }),
+      });
+
+      if (!submitResponse.ok) {
+        const errorText = await submitResponse.text();
+        console.error("[VIDEO-UPSCALER-TOOL] Submit error:", errorText);
+        return res.status(500).json({ error: `Video upscaler submit failed: ${submitResponse.status}` });
+      }
+
+      const submitJson: any = await submitResponse.json();
+      const requestId = submitJson?.data?.id;
+      if (!requestId) {
+        console.error("[VIDEO-UPSCALER-TOOL] Unexpected submit response:", submitJson);
+        return res.status(500).json({ error: "Video upscaler did not return a request ID" });
+      }
+
+      console.log(`[VIDEO-UPSCALER-TOOL] Submitted job. Request ID: ${requestId}`);
+
+      // Poll for result
+      let attempts = 0;
+      const maxAttempts = 60; // ~10 minutes with 10s interval
+      let finalUrl: string | null = null;
+      let lastStatus: any = null;
+
+      while (attempts < maxAttempts) {
+        attempts++;
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+
+        const statusResponse = await fetch(`https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`, {
+          headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` },
+        });
+
+        if (!statusResponse.ok) {
+          const errorText = await statusResponse.text();
+          console.error("[VIDEO-UPSCALER-TOOL] Status error:", errorText);
+          return res.status(500).json({ error: `Video upscaler status failed: ${statusResponse.status}` });
+        }
+
+        const statusJson: any = await statusResponse.json();
+        lastStatus = statusJson;
+        const status = statusJson?.data?.status || statusJson?.data?.statusText;
+
+        if (status === "completed") {
+          const outputs = statusJson?.data?.outputs;
+          if (Array.isArray(outputs) && outputs.length > 0) {
+            finalUrl = outputs[0];
+            break;
+          }
+        } else if (status === "failed") {
+          const errorMessage = statusJson?.data?.error || statusJson?.message || "Video upscaler job failed";
+          console.error("[VIDEO-UPSCALER-TOOL] Job failed:", errorMessage);
+          return res.status(500).json({ error: errorMessage });
+        }
+      }
+
+      if (!finalUrl) {
+        console.error("[VIDEO-UPSCALER-TOOL] Timed out waiting for result. Last status:", lastStatus);
+        return res.status(504).json({ error: "Timed out waiting for video upscaler result" });
+      }
+
+      // Deduct credits after successful upscaling
+      const creditDeducted = await storage.deductUserCredits(userId, creditsRequired);
+      if (!creditDeducted) {
+        console.error("[VIDEO-UPSCALER-TOOL] Failed to deduct credits, but video was upscaled");
+      } else {
+        console.log(`[VIDEO-UPSCALER-TOOL] Deducted ${creditsRequired} credits (${units} x 15s @ ${normalizedResolution}) from user ${userId}`);
+      }
+
+      res.json({
+        success: true,
+        download_url: finalUrl,
+        creditsRequired,
+        units,
+        target_resolution: normalizedResolution,
+      });
+    } catch (error) {
+      console.error("Video upscaler tool error:", error);
+      res.status(500).json({
+        error: "Failed to upscale video",
+        details: (error as Error).message,
+      });
+    }
+  });
+
+  // Video Tools: AI Video Edition (Wavespeed ltx-2-retake) - targeted retakes, 500 credits per 15s
+  app.post("/api/tools/ai-video-edition", authenticateToken, videoToolUpload.single("video"), async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const prompt = typeof req.body.prompt === "string" ? req.body.prompt.trim() : "";
+      if (!prompt) {
+        return res.status(400).json({ error: "Prompt is required." });
+      }
+      const mode = typeof req.body.mode === "string" && req.body.mode.trim() ? req.body.mode.trim() : "replace_video";
+
+      const durationSecondsRaw = Number(req.body.duration_seconds || req.body.durationSeconds || 0);
+      const durationSeconds = Number.isFinite(durationSecondsRaw) && durationSecondsRaw > 0 ? durationSecondsRaw : 15;
+
+      const CREDITS_PER_15S = 500;
+      const units = Math.max(1, Math.ceil(durationSeconds / 15));
+      const creditsRequired = units * CREDITS_PER_15S;
+
+      const canAfford = await storage.canUserAffordCredits(userId, creditsRequired);
+      if (!canAfford) {
+        const creditsRemaining = await storage.getUserCreditsRemaining(userId);
+        return res.status(402).json({
+          error: "Insufficient credits for AI Video Edition",
+          creditsRequired,
+          creditsRemaining,
+        });
+      }
+
+      let videoUrl: string;
+
+      if (req.file && req.file.buffer) {
+        const fileName = `ai-video-edition_${Date.now()}_${req.file.originalname || "video.mp4"}`.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const { uploadToBunnyStorage } = await import("./services/bunny");
+        const result = await uploadToBunnyStorage("scenes", fileName, req.file.buffer);
+        videoUrl = result.url;
+        console.log(`[AI-VIDEO-EDITION-TOOL] Uploaded video to Bunny VideoScenes: ${videoUrl}`);
+      } else if (typeof req.body.videoUrl === "string" && req.body.videoUrl.trim()) {
+        videoUrl = req.body.videoUrl.trim();
+      } else {
+        return res.status(400).json({ error: "Provide a video URL or upload a video file." });
+      }
+
+      const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY || "";
+      if (!WAVESPEED_API_KEY) {
+        return res.status(500).json({ error: "WaveSpeed API key not configured" });
+      }
+
+      const submitResponse = await fetch("https://api.wavespeed.ai/api/v3/lightricks/ltx-2-retake", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+        body: JSON.stringify({
+          mode,
+          prompt,
+          video: videoUrl,
+        }),
+      });
+
+      if (!submitResponse.ok) {
+        const errorText = await submitResponse.text();
+        console.error("[AI-VIDEO-EDITION-TOOL] Submit error:", errorText);
+        return res.status(500).json({ error: `AI Video Edition submit failed: ${submitResponse.status}` });
+      }
+
+      const submitJson: any = await submitResponse.json();
+      const requestId = submitJson?.data?.id;
+      if (!requestId) {
+        console.error("[AI-VIDEO-EDITION-TOOL] Unexpected submit response:", submitJson);
+        return res.status(500).json({ error: "AI Video Edition did not return a request ID" });
+      }
+
+      console.log(`[AI-VIDEO-EDITION-TOOL] Submitted job. Request ID: ${requestId}`);
+
+      let attempts = 0;
+      const maxAttempts = 60;
+      let finalUrl: string | null = null;
+      let lastStatus: any = null;
+
+      while (attempts < maxAttempts) {
+        attempts++;
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+
+        const statusResponse = await fetch(`https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`, {
+          headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` },
+        });
+
+        if (!statusResponse.ok) {
+          const errorText = await statusResponse.text();
+          console.error("[AI-VIDEO-EDITION-TOOL] Status error:", errorText);
+          return res.status(500).json({ error: `AI Video Edition status failed: ${statusResponse.status}` });
+        }
+
+        const statusJson: any = await statusResponse.json();
+        lastStatus = statusJson;
+        const status = statusJson?.data?.status || statusJson?.data?.statusText;
+
+        if (status === "completed") {
+          const outputs = statusJson?.data?.outputs;
+          if (Array.isArray(outputs) && outputs.length > 0) {
+            finalUrl = outputs[0];
+            break;
+          }
+        } else if (status === "failed") {
+          const errorMessage = statusJson?.data?.error || statusJson?.message || "AI Video Edition job failed";
+          console.error("[AI-VIDEO-EDITION-TOOL] Job failed:", errorMessage);
+          return res.status(500).json({ error: errorMessage });
+        }
+      }
+
+      if (!finalUrl) {
+        console.error("[AI-VIDEO-EDITION-TOOL] Timed out. Last status:", lastStatus);
+        return res.status(504).json({ error: "Timed out waiting for AI Video Edition result" });
+      }
+
+      const creditDeducted = await storage.deductUserCredits(userId, creditsRequired);
+      if (!creditDeducted) {
+        console.error("[AI-VIDEO-EDITION-TOOL] Failed to deduct credits, but video was generated");
+      } else {
+        console.log(`[AI-VIDEO-EDITION-TOOL] Deducted ${creditsRequired} credits (${units} x 15s) from user ${userId}`);
+      }
+
+      res.json({
+        success: true,
+        download_url: finalUrl,
+        creditsRequired,
+        units,
+      });
+    } catch (error) {
+      console.error("AI Video Edition tool error:", error);
+      res.status(500).json({
+        error: "Failed to run AI Video Edition",
+        details: (error as Error).message,
+      });
+    }
+  });
+
+  // Video Tools: Video Background Remover (Wavespeed) - 250 credits per 15s
+  app.post("/api/tools/video-background-remover", authenticateToken, videoToolUpload.single("video"), async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+
+      const durationSecondsRaw = Number(req.body.duration_seconds || req.body.durationSeconds || 0);
+      const durationSeconds = Number.isFinite(durationSecondsRaw) && durationSecondsRaw > 0 ? durationSecondsRaw : 15;
+
+      const CREDITS_PER_15S = 250;
+      const units = Math.max(1, Math.ceil(durationSeconds / 15));
+      const creditsRequired = units * CREDITS_PER_15S;
+
+      const canAfford = await storage.canUserAffordCredits(userId, creditsRequired);
+      if (!canAfford) {
+        const creditsRemaining = await storage.getUserCreditsRemaining(userId);
+        return res.status(402).json({
+          error: "Insufficient credits for Video Background Remover",
+          creditsRequired,
+          creditsRemaining,
+        });
+      }
+
+      let videoUrl: string;
+
+      if (req.file && req.file.buffer) {
+        const fileName = `video-bg-remover_${Date.now()}_${req.file.originalname || "video.mp4"}`.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const { uploadToBunnyStorage } = await import("./services/bunny");
+        const result = await uploadToBunnyStorage("scenes", fileName, req.file.buffer);
+        videoUrl = result.url;
+        console.log(`[VIDEO-BG-REMOVER-TOOL] Uploaded video to Bunny VideoScenes: ${videoUrl}`);
+      } else if (typeof req.body.videoUrl === "string" && req.body.videoUrl.trim()) {
+        videoUrl = req.body.videoUrl.trim();
+      } else {
+        return res.status(400).json({ error: "Provide a video URL or upload a video file." });
+      }
+
+      const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY || "";
+      if (!WAVESPEED_API_KEY) {
+        return res.status(500).json({ error: "WaveSpeed API key not configured" });
+      }
+
+      const submitResponse = await fetch("https://api.wavespeed.ai/api/v3/wavespeed-ai/video-background-remover", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+        body: JSON.stringify({ video: videoUrl }),
+      });
+
+      if (!submitResponse.ok) {
+        const errorText = await submitResponse.text();
+        console.error("[VIDEO-BG-REMOVER-TOOL] Submit error:", errorText);
+        return res.status(500).json({ error: `Video background remover submit failed: ${submitResponse.status}` });
+      }
+
+      const submitJson: any = await submitResponse.json();
+      const requestId = submitJson?.data?.id;
+      if (!requestId) {
+        console.error("[VIDEO-BG-REMOVER-TOOL] Unexpected submit response:", submitJson);
+        return res.status(500).json({ error: "Video background remover did not return a request ID" });
+      }
+
+      console.log(`[VIDEO-BG-REMOVER-TOOL] Submitted job. Request ID: ${requestId}`);
+
+      let attempts = 0;
+      const maxAttempts = 60;
+      let finalUrl: string | null = null;
+      let lastStatus: any = null;
+
+      while (attempts < maxAttempts) {
+        attempts++;
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+
+        const statusResponse = await fetch(`https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`, {
+          headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` },
+        });
+
+        if (!statusResponse.ok) {
+          const errorText = await statusResponse.text();
+          console.error("[VIDEO-BG-REMOVER-TOOL] Status error:", errorText);
+          return res.status(500).json({ error: `Video background remover status failed: ${statusResponse.status}` });
+        }
+
+        const statusJson: any = await statusResponse.json();
+        lastStatus = statusJson;
+        const status = statusJson?.data?.status || statusJson?.data?.statusText;
+
+        if (status === "completed") {
+          const outputs = statusJson?.data?.outputs;
+          if (Array.isArray(outputs) && outputs.length > 0) {
+            finalUrl = outputs[0];
+            break;
+          }
+        } else if (status === "failed") {
+          const errorMessage = statusJson?.data?.error || statusJson?.message || "Video background remover job failed";
+          console.error("[VIDEO-BG-REMOVER-TOOL] Job failed:", errorMessage);
+          return res.status(500).json({ error: errorMessage });
+        }
+      }
+
+      if (!finalUrl) {
+        console.error("[VIDEO-BG-REMOVER-TOOL] Timed out. Last status:", lastStatus);
+        return res.status(504).json({ error: "Timed out waiting for Video Background Remover result" });
+      }
+
+      const creditDeducted = await storage.deductUserCredits(userId, creditsRequired);
+      if (!creditDeducted) {
+        console.error("[VIDEO-BG-REMOVER-TOOL] Failed to deduct credits, but video was processed");
+      } else {
+        console.log(`[VIDEO-BG-REMOVER-TOOL] Deducted ${creditsRequired} credits (${units} x 15s) from user ${userId}`);
+      }
+
+      res.json({
+        success: true,
+        download_url: finalUrl,
+        creditsRequired,
+        units,
+      });
+    } catch (error) {
+      console.error("Video background remover tool error:", error);
+      res.status(500).json({
+        error: "Failed to remove video background",
         details: (error as Error).message,
       });
     }

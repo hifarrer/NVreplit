@@ -42,6 +42,48 @@ export async function getAudioDurationFromFile(filePath: string): Promise<number
   }
 }
 
+const FFMPEG_TRIM_VIDEO_URL = process.env.FFMPEG_TRIM_VIDEO_URL || "https://ffmpegapi-production.up.railway.app/api/trim_video";
+
+export interface TrimVideoResult {
+  success: boolean;
+  download_url: string;
+  message?: string;
+}
+
+export async function trimVideo(videoUrl: string, startTime: number, endTime: number): Promise<TrimVideoResult> {
+  try {
+    console.log(`[FFMPEG] Trimming video: ${startTime}s - ${endTime}s`);
+
+    const response = await fetchWithRetry(FFMPEG_TRIM_VIDEO_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": FFMPEG_API_KEY,
+      },
+      body: JSON.stringify({
+        video_url: videoUrl,
+        start_time: startTime,
+        end_time: endTime,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`FFMPEG trim video error: ${response.status} - ${errorText}`);
+    }
+
+    const result = (await response.json()) as TrimVideoResult;
+    if (!result.success) {
+      throw new Error(result.message || "Video trim failed");
+    }
+    console.log(`[FFMPEG] Video trimmed successfully: ${result.download_url}`);
+    return result;
+  } catch (error) {
+    console.error("Trim video error:", error);
+    throw new Error("Failed to trim video: " + (error as Error).message);
+  }
+}
+
 export async function trimAudio(audioUrl: string, desiredLength: number): Promise<{ download_url: string; filename: string; trimmed_length: number }> {
   try {
     console.log(`Trimming audio to ${desiredLength} seconds`);

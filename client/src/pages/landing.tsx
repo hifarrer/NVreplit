@@ -275,6 +275,71 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Why choose NeonVideo */}
+      <section className="container mx-auto px-4">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold mb-3">Why choose NeonVideo</h2>
+          <p className="text-muted-foreground">
+            See how we compare to the competition
+          </p>
+        </div>
+        <div className="max-w-4xl mx-auto overflow-hidden rounded-lg border border-border bg-card/50 backdrop-blur-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-border bg-muted/30">
+                  <th className="px-4 py-3 font-semibold text-muted-foreground w-[40%]">Feature</th>
+                  <th className="px-4 py-3 font-semibold text-primary">NeonVideo.AI</th>
+                  <th className="px-4 py-3 font-semibold text-muted-foreground">The Competition</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                <tr className="border-b border-border/50 hover:bg-muted/20">
+                  <td className="px-4 py-3 font-medium">Video Quality</td>
+                  <td className="px-4 py-3">HD</td>
+                  <td className="px-4 py-3 text-muted-foreground">SD</td>
+                </tr>
+                <tr className="border-b border-border/50 hover:bg-muted/20">
+                  <td className="px-4 py-3 font-medium">Free plan available</td>
+                  <td className="px-4 py-3">Yes</td>
+                  <td className="px-4 py-3 text-muted-foreground">No (free trial only)</td>
+                </tr>
+                <tr className="border-b border-border/50 hover:bg-muted/20">
+                  <td className="px-4 py-3 font-medium">Video Length Limit</td>
+                  <td className="px-4 py-3">4 minutes</td>
+                  <td className="px-4 py-3 text-muted-foreground">15 seconds</td>
+                </tr>
+                <tr className="border-b border-border/50 hover:bg-muted/20">
+                  <td className="px-4 py-3 font-medium">Commercial Use</td>
+                  <td className="px-4 py-3">Yes</td>
+                  <td className="px-4 py-3 text-muted-foreground">Yes</td>
+                </tr>
+                <tr className="border-b border-border/50 hover:bg-muted/20">
+                  <td className="px-4 py-3 font-medium">Number of AI songs available to generate</td>
+                  <td className="px-4 py-3">Unlimited</td>
+                  <td className="px-4 py-3 text-muted-foreground">10</td>
+                </tr>
+                <tr className="border-b border-border/50 hover:bg-muted/20">
+                  <td className="px-4 py-3 font-medium">AI Models Quality</td>
+                  <td className="px-4 py-3">Premium Models included in all plans</td>
+                  <td className="px-4 py-3 text-muted-foreground">Basic/cheap models or pay for extra for Premium models</td>
+                </tr>
+                <tr className="border-b border-border/50 hover:bg-muted/20">
+                  <td className="px-4 py-3 font-medium">Edit Videos</td>
+                  <td className="px-4 py-3">Yes (Unlimited)</td>
+                  <td className="px-4 py-3 text-muted-foreground">No</td>
+                </tr>
+                <tr className="hover:bg-muted/20">
+                  <td className="px-4 py-3 font-medium">Basic Plan cost</td>
+                  <td className="px-4 py-3">$15</td>
+                  <td className="px-4 py-3 text-muted-foreground">$39</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       {/* TikTok Videos Section */}
       <section className="container mx-auto px-4 py-12">
         <div className="text-center mb-8">
