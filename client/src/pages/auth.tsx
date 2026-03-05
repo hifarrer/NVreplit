@@ -20,6 +20,7 @@ export default function AuthPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [email, setEmail] = useState('');
   const [isGmailEmail, setIsGmailEmail] = useState(false);
+  const [emailWarning, setEmailWarning] = useState('');
   const [referralCode, setReferralCode] = useState('');
 
   const handleGoogleLogin = () => {
@@ -152,17 +153,52 @@ export default function AuthPage() {
     }
   };
 
-  // Check if email is Gmail
-  const checkGmailEmail = (email: string) => {
-    const gmailDomains = ['gmail.com', 'googlemail.com'];
-    const domain = email.toLowerCase().split('@')[1];
+  const gmailDomains = ['gmail.com', 'googlemail.com'];
+
+  const knownPublicDomains = new Set([
+    ...gmailDomains,
+    'hotmail.com', 'outlook.com', 'outlook.co.uk', 'live.com', 'live.co.uk', 'msn.com',
+    'yahoo.com', 'yahoo.co.uk', 'yahoo.co.in', 'ymail.com', 'rocketmail.com',
+    'aol.com',
+    'icloud.com', 'me.com', 'mac.com',
+    'protonmail.com', 'proton.me', 'pm.me',
+    'zoho.com', 'zohomail.com',
+    'mail.com', 'email.com',
+    'gmx.com', 'gmx.net',
+    'yandex.com', 'yandex.ru',
+    'tutanota.com', 'tuta.com',
+    'fastmail.com',
+    'hey.com',
+    'comcast.net', 'verizon.net', 'att.net', 'sbcglobal.net', 'bellsouth.net',
+    'cox.net', 'charter.net', 'earthlink.net', 'juno.com', 'netzero.com',
+  ]);
+
+  const checkGmailEmail = (emailValue: string) => {
+    const domain = emailValue.toLowerCase().split('@')[1];
     return gmailDomains.includes(domain);
+  };
+
+  const checkSubdomainEmail = (emailValue: string) => {
+    const domain = emailValue.toLowerCase().split('@')[1];
+    if (!domain) return false;
+    if (knownPublicDomains.has(domain)) return false;
+    return domain.split('.').length > 2;
   };
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const emailValue = e.target.value;
     setEmail(emailValue);
     setIsGmailEmail(checkGmailEmail(emailValue));
+
+    if (emailValue.includes('@')) {
+      if (checkSubdomainEmail(emailValue)) {
+        setEmailWarning('Please use your main email address (e.g., user@domain.com). Subdomain emails are not allowed.');
+      } else {
+        setEmailWarning('');
+      }
+    } else {
+      setEmailWarning('');
+    }
   };
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -179,6 +215,13 @@ export default function AuthPage() {
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
+      setIsLoading(false);
+      return;
+    }
+
+    // Block subdomain emails
+    if (checkSubdomainEmail(email)) {
+      setError('Please use your main email address (e.g., user@domain.com). Subdomain emails are not allowed.');
       setIsLoading(false);
       return;
     }
@@ -387,6 +430,15 @@ export default function AuthPage() {
                       />
                     </div>
                     
+                    {emailWarning && !isGmailEmail && (
+                      <Alert variant="destructive" className="bg-orange-50 border-orange-200">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription className="text-orange-800">
+                          {emailWarning}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
                     {isGmailEmail && email && (
                       <Alert variant="destructive" className="bg-yellow-50 border-yellow-200">
                         <AlertTriangle className="h-4 w-4" />
@@ -399,7 +451,7 @@ export default function AuthPage() {
                     <Button
                       type="submit"
                       className="w-full bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600"
-                      disabled={isLoading || (isGmailEmail && email.trim() !== "")}
+                      disabled={isLoading || (isGmailEmail && email.trim() !== "") || !!emailWarning}
                       data-testid="button-register"
                     >
                       {isLoading ? (

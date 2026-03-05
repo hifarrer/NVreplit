@@ -1137,6 +1137,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Reject subdomain emails (e.g., user@sub.domain.com)
+      const knownMultiPartDomains = new Set([
+        'outlook.co.uk', 'live.co.uk', 'yahoo.co.uk', 'yahoo.co.in',
+      ]);
+      const domainParts = emailDomain.split('.');
+      if (domainParts.length > 2 && !knownMultiPartDomains.has(emailDomain)) {
+        return res.status(400).json({
+          error: "Please use your main email address (e.g., user@domain.com). Subdomain emails are not allowed."
+        });
+      }
+
+      // Known legitimate public email domains — skip disposable check for these
+      const knownPublicDomains = new Set([
+        'hotmail.com', 'outlook.com', 'outlook.co.uk', 'live.com', 'live.co.uk', 'msn.com',
+        'yahoo.com', 'yahoo.co.uk', 'yahoo.co.in', 'ymail.com', 'rocketmail.com',
+        'aol.com',
+        'icloud.com', 'me.com', 'mac.com',
+        'protonmail.com', 'proton.me', 'pm.me',
+        'zoho.com', 'zohomail.com',
+        'mail.com', 'email.com',
+        'gmx.com', 'gmx.net',
+        'yandex.com', 'yandex.ru',
+        'tutanota.com', 'tuta.com',
+        'fastmail.com',
+        'hey.com',
+        'comcast.net', 'verizon.net', 'att.net', 'sbcglobal.net', 'bellsouth.net',
+        'cox.net', 'charter.net', 'earthlink.net', 'juno.com', 'netzero.com',
+      ]);
+
+      if (!knownPublicDomains.has(emailDomain)) {
+        // Unknown domain — verify with UserCheck API for disposable emails
+        try {
+          const usercheckResponse = await fetch(
+            `https://api.usercheck.com/email/${encodeURIComponent(email)}`,
+            { headers: { "Authorization": `Bearer ${process.env.USERCHECK_API_KEY}` } }
+          );
+          if (usercheckResponse.ok) {
+            const usercheckData = await usercheckResponse.json();
+            if (usercheckData.disposable) {
+              return res.status(400).json({
+                error: "To prevent abuse of the platform, disposable emails are not allowed, please use a valid email."
+              });
+            }
+          }
+        } catch (usercheckError) {
+          console.error("UserCheck API error (proceeding with registration):", usercheckError);
+        }
+      }
+
       // Check if user already exists
       const existingUserByUsername = await storage.getUserByUsername(username);
       if (existingUserByUsername) {
@@ -12940,6 +12989,7 @@ Do not add markdown. Return JSON only.`,
         subtitleStyle,
         fontFamily,
         captionPosition: addSubtitles ? captionPosition : undefined,
+        includeWatermark: false, // Public API: watermark off by default
       } as any);
 
       await storage.addGenerationLog({

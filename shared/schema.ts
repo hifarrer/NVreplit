@@ -63,7 +63,7 @@ export const projects = pgTable("projects", {
   subtitleStyle: text("subtitle_style").default("classic"), // 'classic' | TikTok-style presets
   fontFamily: text("font_family"), // Google Font name for subtitles/captions
   captionPosition: text("caption_position"), // Caption position: "top" | "center" | "bottom"
-  includeWatermark: boolean("include_watermark").default(true), // Whether to include watermark (Premium users can disable)
+  includeWatermark: boolean("include_watermark").default(false), // Whether to include watermark (Premium users can enable; off by default for API)
   isPublic: boolean("is_public").default(true), // Whether video is public (Premium users can make private)
   subtitleFileUrl: text("subtitle_file_url"), // URL to .ass subtitle file
   kieTaskId: text("kie_task_id"), // KIE.ai task ID for getting timestamped lyrics
