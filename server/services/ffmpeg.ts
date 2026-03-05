@@ -236,7 +236,7 @@ export async function splitAudioByParts(audioUrl: string, parts: number, totalDu
 export async function splitAudio(audioUrl: string, parts: number = 4, totalDurationSeconds?: number): Promise<AudioSegment[]> {
   try {
     // Split audio into fixed 6-second segments for consistent video generation
-    // This ensures both lipsync (ltx-2-19b/lipsync) and non-lipsync (bytedance/seedance) models
+    // This ensures both lipsync (wavespeed-ai/infinitetalk-fast) and non-lipsync (bytedance/seedance) models
     // work with 6-second segments
     const segmentDuration = 6; // 6 seconds per segment
 

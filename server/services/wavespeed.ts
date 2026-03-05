@@ -71,60 +71,14 @@ async function generateVideoSegmentInternal(
   let requestBody: any;
 
   if (model === "infinitetalk") {
-    // LTX-2-19B Lipsync model - uses audio + image + prompt
-    // Single endpoint for all quality tiers, differentiated by resolution
-    switch (videoQuality) {
-      case "premium":
-        // Premium quality: ltx-2-19b lipsync with 720p resolution
-        endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/ltx-2-19b/lipsync";
-        requestBody = {
-          audio: audioUrl,
-          image: imageUrl,
-          prompt: prompt,
-          resolution: "720p",
-          seed: -1,
-        };
-        break;
-      case "medium":
-        // Medium quality: ltx-2-19b lipsync with 480p resolution
-        endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/ltx-2-19b/lipsync";
-        requestBody = {
-          audio: audioUrl,
-          image: imageUrl,
-          prompt: prompt,
-          resolution: "480p",
-          seed: -1,
-        };
-        break;
-      case "quick":
-      default:
-        // Quick quality: ltx-2-19b lipsync with 720p resolution
-        endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/ltx-2-19b/lipsync";
-        requestBody = {
-          audio: audioUrl,
-          image: imageUrl,
-          prompt: prompt,
-          resolution: "720p",
-          seed: -1,
-        };
-        break;
-    }
-    // BACKUP: Old infinitetalk endpoints (uncomment to rollback)
-    // switch (videoQuality) {
-    //   case "premium":
-    //     endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk";
-    //     requestBody = { audio: audioUrl, image: imageUrl, resolution: "720p", seed: -1 };
-    //     break;
-    //   case "medium":
-    //     endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk";
-    //     requestBody = { audio: audioUrl, image: imageUrl, resolution: "480p", seed: -1 };
-    //     break;
-    //   case "quick":
-    //   default:
-    //     endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk-fast";
-    //     requestBody = { audio: audioUrl, image: imageUrl, prompt: prompt, seed: -1 };
-    //     break;
-    // }
+    // Lipsync model: wavespeed-ai/infinitetalk-fast (audio + image + prompt + seed)
+    endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk-fast";
+    requestBody = {
+      audio: audioUrl,
+      image: imageUrl,
+      prompt: prompt,
+      seed: -1,
+    };
   } else {
     // Non-lipsync models (seedance for quick, Alibaba Wan 2.5 for medium/premium)
     // Seedance v1.5 Pro requires minimum 4 seconds, Wan 2.5 requires minimum 2 seconds
@@ -386,7 +340,7 @@ export async function generateAllVideoSegmentsDynamic(
   // CRITICAL: For instrumental videos, never use infinitetalk
   const isInstrumental = config.isInstrumental === true;
   if (isInstrumental) {
-    console.log(`⚠️ INSTRUMENTAL VIDEO DETECTED - Forcing seedance only (no ltx-lipsync)`);
+    console.log(`⚠️ INSTRUMENTAL VIDEO DETECTED - Forcing seedance only (no infinitetalk lipsync)`);
     config.makeCharacterSing = false;
     config.numberOfVideosLipsync = 0;
   }
@@ -397,7 +351,7 @@ export async function generateAllVideoSegmentsDynamic(
   console.log(
     `- Regular videos (seedance): ${config.numberOfVideosRegularApi}`,
   );
-  console.log(`- Lipsync videos (ltx-lipsync): ${config.numberOfVideosLipsync}`);
+  console.log(`- Lipsync videos (infinitetalk-fast): ${config.numberOfVideosLipsync}`);
   console.log(`- Make character sing: ${config.makeCharacterSing}`);
   console.log(`- Is instrumental: ${isInstrumental}`);
   console.log(`- Video quality: ${videoQuality}`);
@@ -471,7 +425,7 @@ export async function generateAllVideoSegmentsDynamic(
       };
     }
 
-    // IMPORTANT: If last segment is less than 4 seconds, do NOT use lipsync (ltx-lipsync)
+    // IMPORTANT: If last segment is less than 4 seconds, do NOT use lipsync (infinitetalk-fast)
     // Very short audio segments can cause errors with lipsync models
     if (isLastSegment && segDuration < 4) {
       console.log(`⚠️ Last segment duration (${segDuration}s) is too short for lipsync - forcing REGULAR (seedance)`);
@@ -605,14 +559,14 @@ export async function generateAllVideoSegmentsDynamic(
     }
 
     console.log(
-      `Separating videos for PiP: ${lipsyncVideos.length} ltx-lipsync, ${seedanceVideos.length} seedance`,
+      `Separating videos for PiP: ${lipsyncVideos.length} infinitetalk, ${seedanceVideos.length} seedance`,
     );
 
     // Create pairs: lipsync as main video (a), seedance as overlay (b)
     const pairCount = Math.min(lipsyncVideos.length, seedanceVideos.length);
     for (let i = 0; i < pairCount; i++) {
       segmentPairs.push({
-        a: lipsyncVideos[i], // Main video (ltx-lipsync)
+        a: lipsyncVideos[i], // Main video (infinitetalk)
         b: seedanceVideos[i], // Overlay video (seedance)
       });
     }

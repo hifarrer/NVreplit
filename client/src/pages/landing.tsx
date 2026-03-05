@@ -329,6 +329,11 @@ export default function LandingPage() {
                   <td className="px-4 py-3">Yes (Unlimited)</td>
                   <td className="px-4 py-3 text-muted-foreground">No</td>
                 </tr>
+                <tr className="border-b border-border/50 hover:bg-muted/20">
+                  <td className="px-4 py-3 font-medium">API use</td>
+                  <td className="px-4 py-3">Yes</td>
+                  <td className="px-4 py-3 text-muted-foreground">No</td>
+                </tr>
                 <tr className="hover:bg-muted/20">
                   <td className="px-4 py-3 font-medium">Basic Plan cost</td>
                   <td className="px-4 py-3">$15</td>

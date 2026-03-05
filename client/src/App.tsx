@@ -41,6 +41,7 @@ import Version241Release from "@/pages/blog-post-version-2-4-1";
 import Version260Release from "@/pages/blog-post-version-2-6-0";
 import Version251Release from "@/pages/blog-post-version-2-5-1";
 import Version271Release from "@/pages/blog-post-version-2-7-1";
+import Version280Release from "@/pages/blog-post-version-2-8";
 import ChristmasPostcardBlogPost from "@/pages/blog-post-christmas-postcard";
 import NeonVideoVsVidMuseVsAivideo from "@/pages/blog-post-neonvideo-vs-vidmuse-vs-aivideo";
 import BestAIToolsIndependentMusicians from "@/pages/blog-post-best-ai-tools-independent-musicians";
@@ -50,6 +51,7 @@ import GiftPage from "@/pages/gift";
 import GiftSuccessPage from "@/pages/gift-success";
 import RedeemGiftPage from "@/pages/redeem-gift";
 import GreetingCardPage from "@/pages/greeting-card-page";
+import ApiDocsPage from "@/pages/api-docs";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 import { WelcomePromoBanner } from "@/components/welcome-promo-banner";
@@ -106,6 +108,7 @@ function AppRouter() {
         <Route path="/profile" component={() => <ProtectedRoute component={ProfilePage} />} />
         <Route path="/referrals" component={() => <ProtectedRoute component={ReferralsPage} />} />
         <Route path="/affiliates" component={() => <ProtectedRoute component={AffiliatesPage} />} />
+        <Route path="/api-docs" component={() => <ProtectedRoute component={ApiDocsPage} />} />
         <Route path="/u/:username" component={PublicProfilePage} />
         <Route path="/v/:videoId" component={VideoPage} />
         <Route path="/community" component={CommunityPage} />
@@ -124,6 +127,7 @@ function AppRouter() {
         <Route path="/version-2-6-0-release" component={Version260Release} />
         <Route path="/version-2-5-1-release" component={Version251Release} />
         <Route path="/version-2-7-1-release" component={Version271Release} />
+        <Route path="/version-2-8-release" component={Version280Release} />
         <Route path="/christmas-postcard-video" component={ChristmasPostcardBlogPost} />
         <Route path="/neonvideo-vs-vidmuse-vs-aivideo" component={NeonVideoVsVidMuseVsAivideo} />
         <Route path="/best-ai-tools-independent-musicians" component={BestAIToolsIndependentMusicians} />

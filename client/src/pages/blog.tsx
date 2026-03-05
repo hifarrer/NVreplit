@@ -17,6 +17,14 @@ interface BlogPost {
 
 const blogPosts: BlogPost[] = [
   {
+    title: "Version 2.8 Released: New Video Tools, API & Five Video Styles",
+    slug: "/version-2-8-release",
+    excerpt: "NeonVideo.ai version 2.8 brings new video tools, API endpoint availability, five video styles (Pro Mode, Simple Mode, Single Prompt, Instrumental, Lyric), plus multiple enhancements and bug fixes.",
+    date: "March 4, 2026",
+    category: "Product Update",
+    readTime: "6 min read"
+  },
+  {
     title: "Best AI Music Generator",
     slug: "/best-ai-music-generator",
     excerpt: "NeonVideo.AI offers unlimited song generation on paid plans—while Suno and others limit you to just 10 songs per month. Create more music, no monthly cap.",

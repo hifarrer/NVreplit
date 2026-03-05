@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Home as HomeIcon, Music, Video, User, LogOut, Menu, ChevronDown, HelpCircle, Gift, Users } from "lucide-react";
+import { Home as HomeIcon, Music, Video, User, LogOut, Menu, ChevronDown, HelpCircle, Gift, Users, Code } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 import { convertAvatarUrlToImageKit } from "@/lib/utils";
@@ -109,6 +109,12 @@ export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
                         Support
                       </DropdownMenuItem>
                     </Link>
+                    <Link href="/api-docs">
+                      <DropdownMenuItem className="cursor-pointer" data-testid="link-api-docs">
+                        <Code className="h-4 w-4 mr-2" />
+                        API Docs
+                      </DropdownMenuItem>
+                    </Link>
                     <DropdownMenuItem 
                       onClick={logout}
                       className="cursor-pointer text-red-500 focus:text-red-500"
@@ -197,6 +203,15 @@ export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
                       >
                         <HelpCircle className="h-4 w-4 mr-3" />
                         Support
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="justify-start w-full"
+                        onClick={() => handleNavClick("/api-docs")}
+                        data-testid="link-api-docs-mobile"
+                      >
+                        <Code className="h-4 w-4 mr-3" />
+                        API Docs
                       </Button>
                       <Button
                         variant="ghost"

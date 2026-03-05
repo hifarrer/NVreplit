@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, ArrowLeft, Save, Key, ExternalLink, AlertTriangle, CheckCircle, XCircle, Trash2, Coins, Gift, Copy, Check, Clock, Mail, CreditCard } from "lucide-react";
+import { User, ArrowLeft, Save, Key, ExternalLink, AlertTriangle, CheckCircle, XCircle, Trash2, Coins, Gift, Copy, Check, Clock, Mail, CreditCard, Code, Eye, EyeOff } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -66,6 +66,41 @@ export default function ProfilePage() {
     queryKey: ["/api/gifts/sent"],
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
+
+  const [apiToken, setApiToken] = useState<string | null>(null);
+  const [showApiToken, setShowApiToken] = useState(false);
+  const [copiedApiToken, setCopiedApiToken] = useState(false);
+
+  const generateApiTokenMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/v1/auth/token", {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setApiToken(data.token);
+      setShowApiToken(true);
+      toast({
+        title: "API Token Generated",
+        description: "Your new API token has been created. Copy it now — it won't be shown again.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate API token",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCopyApiToken = () => {
+    if (apiToken) {
+      navigator.clipboard.writeText(apiToken);
+      setCopiedApiToken(true);
+      toast({ title: "Copied!", description: "API token copied to clipboard" });
+      setTimeout(() => setCopiedApiToken(false), 2000);
+    }
+  };
 
   const [copiedGiftCode, setCopiedGiftCode] = useState<string | null>(null);
 
@@ -832,6 +867,74 @@ export default function ProfilePage() {
                       <p className="text-xs text-center text-muted-foreground">
                         Credits are added instantly to your account after payment
                       </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* API Access - Paid Users Only */}
+                <Separator />
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Code className="h-5 w-5" />
+                      API Access
+                    </CardTitle>
+                    <CardDescription>
+                      Generate an API token to create videos programmatically
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {apiToken ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <code className="flex-1 bg-muted px-3 py-2 rounded text-sm font-mono break-all">
+                              {showApiToken ? apiToken : '•'.repeat(40)}
+                            </code>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setShowApiToken(!showApiToken)}
+                              title={showApiToken ? "Hide token" : "Show token"}
+                            >
+                              {showApiToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleCopyApiToken}
+                            >
+                              {copiedApiToken ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                          <Alert>
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertDescription>
+                              Copy this token now. It will not be shown again after you leave this page.
+                              Keep it secret — anyone with this token can use your account's credits.
+                            </AlertDescription>
+                          </Alert>
+                        </div>
+                      ) : (
+                        <Button
+                          onClick={() => generateApiTokenMutation.mutate()}
+                          disabled={generateApiTokenMutation.isPending}
+                          className="w-full"
+                          variant="outline"
+                        >
+                          <Key className="h-4 w-4 mr-2" />
+                          {generateApiTokenMutation.isPending ? "Generating..." : "Generate API Token"}
+                        </Button>
+                      )}
+
+                      <div className="pt-2 border-t">
+                        <Link href="/api-docs">
+                          <Button variant="link" className="px-0 text-sm">
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            View API Documentation
+                          </Button>
+                        </Link>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

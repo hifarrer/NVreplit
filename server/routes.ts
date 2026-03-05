@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
+import { registerApiV1Routes } from "./api-v1";
 import { spawn } from "child_process";
 import multer from "multer";
 import path from "path";
@@ -14164,6 +14165,9 @@ Do not add markdown. Return JSON only.`,
       });
     }
   });
+
+  // Register public API v1 routes
+  registerApiV1Routes(app);
 
   const httpServer = createServer(app);
   return httpServer;
