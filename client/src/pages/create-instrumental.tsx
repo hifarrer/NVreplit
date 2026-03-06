@@ -73,6 +73,7 @@ export default function CreateInstrumental() {
   
   // Check if user is paid (has a plan with monthly price > 0)
   const isPaidUser = user?.plan && user.plan.monthlyPrice > 0;
+  const isPremiumUser = user?.plan?.name === "Premium";
 
   // Fetch project details if we have a generated project
   const { data: project } = useQuery<Project>({
@@ -403,7 +404,7 @@ export default function CreateInstrumental() {
         audioUrl,
         startTime,
         endTime,
-        addSubtitles: addSubtitles,
+        addSubtitles: isPremiumUser && addSubtitles,
         subtitleStyle,
         lyrics: null,
         sourceSubtitleFileUrl: null,
@@ -587,7 +588,7 @@ export default function CreateInstrumental() {
         description: description,
         aspectRatio: aspectRatio,
         currentStep: 1,
-        addSubtitles: addSubtitles,
+        addSubtitles: isPremiumUser && addSubtitles,
         subtitleStyle: subtitleStyle,
         fontFamily: fontFamily,
         isInstrumental: true
@@ -603,7 +604,7 @@ export default function CreateInstrumental() {
         duration: trimmedDuration,
         textOverlay: textOverlay || undefined,
         textPosition: textPosition || "bottom",
-        addSubtitles: addSubtitles,
+        addSubtitles: isPremiumUser && addSubtitles,
         subtitleStyle: subtitleStyle,
         fontFamily: fontFamily,
         audioUrl: uploadedAudioUrl, // Pass the uploaded audio URL
@@ -650,7 +651,7 @@ export default function CreateInstrumental() {
         subtitleStyle,
         textPosition,
         fontFamily,
-        addSubtitles,
+        addSubtitles: isPremiumUser && addSubtitles,
       });
       return response.json();
     },
@@ -751,6 +752,7 @@ export default function CreateInstrumental() {
                         onCancel={handleCancelTrim}
                         isTrimming={isTrimming}
                         isPaidUser={isPaidUser}
+                        fixedDuration={!isPaidUser ? 30 : undefined}
                       />
                     ) : (
                       <div 
@@ -930,8 +932,9 @@ export default function CreateInstrumental() {
                           checked={addSubtitles}
                           onCheckedChange={setAddSubtitles}
                           data-testid="subtitles-toggle"
+                          disabled={!isPremiumUser}
                         />
-                        <Label htmlFor="add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => setAddSubtitles(!addSubtitles)}>
+                        <Label htmlFor="add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => isPremiumUser && setAddSubtitles(!addSubtitles)}>
                           Captions
                         </Label>
                       {addSubtitles && (
@@ -1006,6 +1009,11 @@ export default function CreateInstrumental() {
                       </div>
                     )}
                   </div>
+                  {!isPremiumUser && (
+                    <p className="text-sm text-pink-500">
+                      Captions are only available for paid users.
+                    </p>
+                  )}
                   
                   {addSubtitles && showCaptionStyles && (
                     <div className="bg-muted/30 border border-border rounded-lg p-4">

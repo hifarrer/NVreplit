@@ -6621,40 +6621,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate song
   app.post("/api/projects/:id/generate-song", async (req, res) => {
     try {
-      const { description, tags, lyrics, songTitle, duration = 120, addSubtitles = false, subtitleStyle: subtitleStyleInput, includeWatermark = true, isPublic = true, aspectRatio = "16:9" } = req.body; // Duration in seconds
+      const { description, tags, lyrics, songTitle, addSubtitles = false, subtitleStyle: subtitleStyleInput, includeWatermark = true, isPublic = true, aspectRatio = "16:9" } = req.body;
       const subtitleStyle = isSubtitleStyle(subtitleStyleInput) ? subtitleStyleInput : defaultSubtitleStyle;
-
-      // Validate lyrics length vs duration to prevent abuse
-      // Only validate user-provided lyrics (not AI-generated)
-      if (lyrics && lyrics.trim().length > 0) {
-        const { validateLyricsDuration } = await import("@shared/lyricsValidation");
-        const validation = validateLyricsDuration(lyrics, duration);
-
-        if (!validation.isValid) {
-          console.log(`Lyrics duration validation failed: ${validation.wordCount} words for ${duration}s duration`);
-
-          await storage.addGenerationLog({
-            projectId: req.params.id,
-            step: "song_generation",
-            message: `Song generation blocked: lyrics too long for specified duration`,
-            status: "error",
-            metadata: {
-              wordCount: validation.wordCount,
-              maxWordsAllowed: validation.maxWordsAllowed,
-              estimatedMinDuration: validation.estimatedMinDuration,
-              requestedDuration: duration
-            }
-          });
-
-          return res.status(400).json({
-            error: "Lyrics Too Long",
-            details: validation.message,
-            wordCount: validation.wordCount,
-            maxWordsAllowed: validation.maxWordsAllowed,
-            estimatedMinDuration: validation.estimatedMinDuration
-          });
-        }
-      }
 
       // Check for profanity in user-provided lyrics
       if (lyrics) {
@@ -6687,20 +6655,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Project not found" });
       }
 
-      // Get user with plan to validate duration limit
       const userWithPlan = await storage.getUserWithPlan(project.userId);
       const isPaidUser = userWithPlan?.plan && userWithPlan.plan.monthlyPrice > 0;
       const isPremiumUser = userWithPlan?.plan?.name === "Premium";
-
-      // Validate duration based on user plan: Free users max 30s, Paid users max 240s (4 min)
-      const maxDuration = isPaidUser ? 240 : 30;
-      if (duration > maxDuration) {
-        return res.status(400).json({
-          error: `Duration exceeds maximum allowed for your plan. ${isPaidUser ? 'Paid users' : 'Free users'} can generate songs up to ${maxDuration} seconds${isPaidUser ? ` (${maxDuration / 60} minutes)` : ''}.`,
-          maxDuration,
-          isPaidUser
-        });
-      }
 
       // Only Premium users can disable watermark - enforce server-side
       const finalIncludeWatermark = isPremiumUser ? includeWatermark : true;
@@ -6737,7 +6694,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Generate 4 songs in parallel; return first 2 that complete - user selects one, then trims
       const { generateMultipleSongsForSelection } = await import("./services/minimax");
-      const minimaxSongs = await generateMultipleSongsForSelection(tags, lyrics, duration, description);
+      const minimaxSongs = await generateMultipleSongsForSelection(tags, lyrics, description);
 
       if (minimaxSongs.length === 0) {
         throw new Error("Failed to generate any songs");
@@ -6752,7 +6709,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: `Generated ${minimaxSongs.length} song(s) for user selection`,
         status: "completed",
         metadata: {
-          requestedDuration: duration,
           songsGenerated: minimaxSongs.length,
           songDurations: minimaxSongs.map(s => s.duration)
         }
@@ -11442,7 +11398,7 @@ Format your response as JSON:
         : songDescriptionForMusic;
 
       // Generate a single song (no longer generating 2 and picking the best). Pass "" for description to avoid duplicating song_description in the prompt.
-      const songResult = await generateSingleSong(songTags, lyrics, targetDuration, "", 1);
+      const songResult = await generateSingleSong(songTags, lyrics, "", 1);
       const originalSongDuration = songResult.duration;
       console.log(`[AUTO-GENERATE] Song generated: ${originalSongDuration}s`);
 
@@ -12003,10 +11959,8 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
         ? `${parsed.song_title}. ${songDescriptionForMusic}`
         : songDescriptionForMusic;
 
-      const requestedDuration = 30;
-
       // Generate a single song (no retries unless it fails). Pass "" for description to avoid duplicating song_description in the prompt.
-      const songResult = await generateSingleSong(songTags, lyrics, requestedDuration, "", 1);
+      const songResult = await generateSingleSong(songTags, lyrics, "", 1);
       console.log(`[NEON-SINGLE-PROMPT-GET] Song generated: ${songResult.duration}s`);
 
       // Step 4.5: Trim the generated song to exactly 30 seconds (0ms to 30000ms)
@@ -12307,12 +12261,9 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
         ? `${parsed.song_title}. ${songDescriptionForMusic}`
         : songDescriptionForMusic;
 
-      const requestedDuration = 30;
-
-      // Pass "" for description to avoid duplicating song_description in the Minimax prompt.
-      const songResult = await generateSongWithMinimax(songTags, lyrics, requestedDuration, "");
+      const songResult = await generateSongWithMinimax(songTags, lyrics, "");
       const actualSongDuration = songResult.duration;
-      console.log(`[NEON-SINGLE-PROMPT] Song generated: ${actualSongDuration}s (requested: ${requestedDuration}s)`);
+      console.log(`[NEON-SINGLE-PROMPT] Song generated: ${actualSongDuration}s`);
 
       await storage.updateProject(project.id, {
         audioUrl: songResult.audioUrl,
@@ -12621,7 +12572,6 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
       const songTags = parsed.song_title
         ? `${parsed.song_title}. ${songDescriptionForMusic}`
         : songDescriptionForMusic;
-      const songGenerationDuration = Math.max(duration + 30, 60); // Generate at least 30 seconds more than requested, minimum 60 seconds
 
       // Start song generation
       await storage.addGenerationLog({
@@ -12656,9 +12606,9 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
         // Song generation
         (async () => {
           try {
-            console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Generating ~${songGenerationDuration}-second song...`);
-            const result = await generateSingleSong(songTags, lyrics, songGenerationDuration, "", 1);
-            console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Song generated: ${result.duration}s (requested: ${songGenerationDuration}s)`);
+            console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Generating song...`);
+            const result = await generateSingleSong(songTags, lyrics, "", 1);
+            console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Song generated: ${result.duration}s`);
             await storage.addGenerationLog({
               projectId: project.id,
               step: "song_generation",
@@ -13065,8 +13015,7 @@ Do not add markdown. Return JSON only.`,
             });
 
             const songTags = songTitle ? `${songTitle}. ${videoDescription}` : videoDescription;
-            const songGenerationDuration = Math.max(duration + 30, 60);
-            const songResult = await generateSingleSong(songTags, lyrics, songGenerationDuration, videoDescription, 1);
+            const songResult = await generateSingleSong(songTags, lyrics, videoDescription, 1);
 
             await storage.addGenerationLog({
               projectId: project.id,

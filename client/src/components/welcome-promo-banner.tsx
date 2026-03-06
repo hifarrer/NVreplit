@@ -43,10 +43,10 @@ export function WelcomePromoBanner({ userCreatedAt, userId }: WelcomePromoBanner
   }, [userCreatedAt, userId]);
 
   const handleDismiss = () => {
+    setIsDismissed(true);
+    setIsVisible(false);
     if (userId) {
       localStorage.setItem(BANNER_DISMISSED_KEY, userId);
-      setIsDismissed(true);
-      setIsVisible(false);
     }
   };
 

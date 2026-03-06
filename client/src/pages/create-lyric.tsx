@@ -214,7 +214,6 @@ export default function CreateLyric() {
       const projectId = await ensureSongProject();
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-lyrics`, {
         description,
-        duration: 120,
       });
       return response.json();
     },
@@ -253,7 +252,6 @@ export default function CreateLyric() {
         tags,
         lyrics,
         songTitle,
-        duration: 120,
         addSubtitles,
         subtitleStyle,
         includeWatermark,
@@ -396,7 +394,7 @@ export default function CreateLyric() {
         audioLyrics: trimData.lyrics || selectedGeneratedSongForTrim?.audioLyrics || lyrics || null,
         subtitleFileUrl: trimData.subtitleFileUrl || null,
         aspectRatio: isVertical ? "3:4" : "16:9",
-        addSubtitles: addSubtitles ? "true" : "false",
+        addSubtitles: isPremiumUser && addSubtitles ? "true" : "false",
         subtitleStyle,
         includeWatermark: includeWatermark ? "true" : "false",
         isPublic: isPublic ? "true" : "false",
@@ -464,14 +462,14 @@ export default function CreateLyric() {
         tags: tags || "lyric",
         aspectRatio: isVertical ? "3:4" : "16:9",
         duration: trimmedDuration,
-        textOverlay: addSubtitles && !trimmedSubtitleFileUrl && captionText.length > 0 ? captionText : undefined,
+        textOverlay: isPremiumUser && addSubtitles && !trimmedSubtitleFileUrl && captionText.length > 0 ? captionText : undefined,
         textPosition,
-        addSubtitles,
+        addSubtitles: isPremiumUser && addSubtitles,
         subtitleStyle,
         fontFamily,
         audioUrl: trimmedAudioUrl,
         projectId,
-        subtitleFileUrl: addSubtitles ? trimmedSubtitleFileUrl || undefined : undefined,
+        subtitleFileUrl: isPremiumUser && addSubtitles ? trimmedSubtitleFileUrl || undefined : undefined,
         isLyricVideo: true, // Flag to indicate this is a lyric video (not instrumental)
       });
       return response.json();
@@ -630,7 +628,7 @@ export default function CreateLyric() {
         endTime,
         title: songTitle.trim() || undefined,
         description: description.trim() || undefined,
-        addSubtitles,
+        addSubtitles: isPremiumUser && addSubtitles,
         subtitleStyle,
         lyrics: uploadData.lyrics || null,
         sourceSubtitleFileUrl: null,
@@ -646,7 +644,7 @@ export default function CreateLyric() {
         audioLyrics: trimData.lyrics || lyrics || null,
         subtitleFileUrl: trimData.subtitleFileUrl || null,
         aspectRatio: isVertical ? "3:4" : "16:9",
-        addSubtitles: addSubtitles ? "true" : "false",
+        addSubtitles: isPremiumUser && addSubtitles ? "true" : "false",
         subtitleStyle,
         includeWatermark: includeWatermark ? "true" : "false",
         isPublic: isPublic ? "true" : "false",
@@ -835,6 +833,7 @@ export default function CreateLyric() {
                       onCancel={handleCancelUploadTrim}
                       isTrimming={isTrimming}
                       isPaidUser={isPaidUser}
+                      fixedDuration={!isPaidUser ? 30 : undefined}
                     />
                     {(isTrimming || isUploading || uploadProgress > 0) && (
                       <div className="bg-muted/30 rounded-lg p-4">
@@ -870,6 +869,7 @@ export default function CreateLyric() {
                       }}
                       isTrimming={isTrimming}
                       isPaidUser={isPaidUser}
+                      fixedDuration={!isPaidUser ? 30 : undefined}
                     />
                     {(isTrimming || uploadProgress > 0) && (
                       <div className="bg-muted/30 rounded-lg p-4">
@@ -989,12 +989,17 @@ export default function CreateLyric() {
                         </Label>
                       </div>
                     </div>
+                    {!isPremiumUser && (
+                      <p className="text-sm text-pink-500 mt-2">
+                        Watermark removal and private options are only available in paid plans.
+                      </p>
+                    )}
 
                     <div className="mt-4 space-y-3">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <Switch id="add-subtitles" checked={addSubtitles} onCheckedChange={setAddSubtitles} data-testid="subtitles-toggle" />
-                          <Label htmlFor="add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => setAddSubtitles(!addSubtitles)}>
+                          <Switch id="add-subtitles" checked={isPremiumUser ? addSubtitles : false} onCheckedChange={setAddSubtitles} data-testid="subtitles-toggle" disabled={!isPremiumUser} />
+                          <Label htmlFor="add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => isPremiumUser && setAddSubtitles(!addSubtitles)}>
                             Captions
                           </Label>
                           {addSubtitles && (
@@ -1011,6 +1016,11 @@ export default function CreateLyric() {
                             </Button>
                           )}
                         </div>
+                        {!isPremiumUser && (
+                          <p className="text-sm text-pink-500">
+                            Captions are only available for paid users.
+                          </p>
+                        )}
                         {addSubtitles && showCaptionStyles && (
                           <div className="flex items-center gap-2 flex-wrap">
                             <div className="flex gap-2 flex-shrink-0">

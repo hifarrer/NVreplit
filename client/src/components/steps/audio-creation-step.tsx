@@ -72,24 +72,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   // Check if user is Premium (can disable watermark)
   const isPremiumUser = user?.plan?.name === "Premium";
   
-  // Duration options based on user plan
-  const durationOptions = isPaidUser 
-    ? [30, 60, 90, 120, 150, 180, 210, 240]
-    : [30]; // Free users can only make 30 second videos
   
-  const maxDuration = isPaidUser ? 240 : 30; // Paid users: 4 minutes, Free users: 30 seconds
-  
-  const getDurationLabel = (value: number) => {
-    if (value === 30) return "30 sec";
-    if (value === 60) return "1 min";
-    if (value === 90) return "1.5 min";
-    if (value === 120) return "2 min";
-    if (value === 150) return "2.5 min";
-    if (value === 180) return "3 min";
-    if (value === 210) return "3.5 min";
-    if (value === 240) return "4 min";
-    return `${value} sec`;
-  };
   const [currentAudioUrl, setCurrentAudioUrl] = useState(audioUrl);
   const [activeTab, setActiveTab] = useState("generate");
   
@@ -341,7 +324,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
           audioLyrics: data.lyrics || null, // Use trimmed lyrics from trim-audio response
           subtitleFileUrl: data.subtitleFileUrl || null,
           aspectRatio: isVertical ? "3:4" : "16:9",
-          addSubtitles: isGeneratedSong ? (addSubtitles ? 'true' : 'false') : (isLibrarySong ? (addSubtitles ? 'true' : 'false') : (uploadAddSubtitles ? 'true' : 'false')),
+          addSubtitles: isGeneratedSong ? (isPremiumUser && addSubtitles ? 'true' : 'false') : (isLibrarySong ? (isPremiumUser && addSubtitles ? 'true' : 'false') : (isPremiumUser && uploadAddSubtitles ? 'true' : 'false')),
           subtitleStyle,
           textPosition: isGeneratedSong ? textPosition : (isLibrarySong ? textPosition : textPosition), // Send caption position for all tabs
           fontFamily: isGeneratedSong ? fontFamily : (isLibrarySong ? fontFamily : fontFamily), // Send font family for all tabs
@@ -451,7 +434,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         if (uploadSongDescription.trim()) {
           formData.append('description', uploadSongDescription.trim());
         }
-        formData.append('addSubtitles', uploadAddSubtitles ? 'true' : 'false');
+        formData.append('addSubtitles', isPremiumUser && uploadAddSubtitles ? 'true' : 'false');
         formData.append('subtitleStyle', subtitleStyle);
         formData.append('aspectRatio', isVertical ? "3:4" : "16:9");
         formData.append('includeWatermark', includeWatermark ? 'true' : 'false');
@@ -566,10 +549,8 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   // Generate mutations
   const generateLyricsMutation = useMutation({
     mutationFn: async () => {
-      // Use a default duration of 120 seconds for lyrics generation (user will trim later)
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-lyrics`, {
         description,
-        duration: 120
       });
       return response.json();
     },
@@ -614,13 +595,11 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         });
       }, 2000);
 
-      // Generate songs with a default duration of 120 seconds (user will trim after selection)
       const response = await apiRequest("POST", `/api/projects/${projectId}/generate-song`, {
         description,
         tags,
         lyrics,
-        duration: 120, // Default duration - user will trim after selection
-        addSubtitles,
+        addSubtitles: isPremiumUser && addSubtitles,
         subtitleStyle,
         includeWatermark,
         isPublic,
@@ -775,7 +754,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         kieTaskId: song.kieTaskId,
         kieAudioId: song.kieAudioId,
         aspectRatio: isVertical ? "3:4" : "16:9",
-        addSubtitles,
+        addSubtitles: isPremiumUser && addSubtitles,
         includeWatermark,
         isPublic
       };
@@ -907,7 +886,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
               audioUrl: uploadData.audioUrl,
               startTime,
               endTime,
-              addSubtitles: uploadAddSubtitles,
+              addSubtitles: isPremiumUser && uploadAddSubtitles,
               subtitleStyle,
               lyrics: uploadData.lyrics || null,
               sourceSubtitleFileUrl: uploadData.subtitleFileUrl || null,
@@ -989,7 +968,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
         endTime,
         title: songTitle.trim() || selectedGeneratedSongForTrim.title || undefined,
         description: description.trim() || undefined,
-        addSubtitles,
+        addSubtitles: isPremiumUser && addSubtitles,
         subtitleStyle,
         lyrics: selectedGeneratedSongForTrim.audioLyrics || lyrics || null,
         sourceSubtitleFileUrl: selectedGeneratedSongForTrim.subtitleFileUrl || null,
@@ -1213,7 +1192,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
     try {
       // If the library song has subtitles, always enable subtitles for trimming
       // This ensures existing subtitles are trimmed to match the trimmed audio
-      const shouldAddSubtitles = addSubtitles || !!selectedLibrarySongForTrim.subtitleFileUrl;
+      const shouldAddSubtitles = (isPremiumUser && addSubtitles) || !!selectedLibrarySongForTrim.subtitleFileUrl;
       
       // Trim the library song - the trim-audio endpoint will save it as a new song
       trimAudioMutation.mutate({
@@ -1313,6 +1292,7 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                   onCancel={handleCancelTrimGenerated}
                   isTrimming={isTrimming}
                   isPaidUser={isPaidUser}
+                  fixedDuration={!isPaidUser ? 30 : undefined}
                 />
               </>
             )}
@@ -1421,6 +1401,11 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
               </div>
 
             </div>
+            {!isPremiumUser && (
+              <p className="text-sm text-pink-500 mt-2">
+                Watermark removal and private options are only available in paid plans.
+              </p>
+            )}
 
             {/* Captions Section - Separate like instrumental page */}
             <div className="mt-4 space-y-3">
@@ -1431,8 +1416,9 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                     checked={addSubtitles}
                     onCheckedChange={setAddSubtitles}
                     data-testid="subtitles-toggle"
+                    disabled={!isPremiumUser}
                   />
-                  <Label htmlFor="add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => setAddSubtitles(!addSubtitles)}>
+                  <Label htmlFor="add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => isPremiumUser && setAddSubtitles(!addSubtitles)}>
                     Captions
                   </Label>
                   {addSubtitles && (
@@ -1507,6 +1493,11 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                   </div>
                 )}
               </div>
+              {!isPremiumUser && (
+                <p className="text-sm text-pink-500">
+                  Captions are only available for paid users.
+                </p>
+              )}
               
               {addSubtitles && showCaptionStyles && (
                 <div className="bg-muted/30 border border-border rounded-lg p-4">
@@ -1958,6 +1949,11 @@ Chasing after dreams as big as the sea."
               </div>
 
             </div>
+            {!isPremiumUser && (
+              <p className="text-sm text-pink-500 mt-2">
+                Watermark removal and private options are only available in paid plans.
+              </p>
+            )}
 
             {/* Captions Section - Separate like instrumental page */}
             <div className="mt-4 space-y-3">
@@ -1968,8 +1964,9 @@ Chasing after dreams as big as the sea."
                     checked={uploadAddSubtitles}
                     onCheckedChange={setUploadAddSubtitles}
                     data-testid="upload-subtitles-toggle"
+                    disabled={!isPremiumUser}
                   />
-                  <Label htmlFor="upload-add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => setUploadAddSubtitles(!uploadAddSubtitles)}>
+                  <Label htmlFor="upload-add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => isPremiumUser && setUploadAddSubtitles(!uploadAddSubtitles)}>
                     Captions
                   </Label>
                   {uploadAddSubtitles && (
@@ -2044,6 +2041,11 @@ Chasing after dreams as big as the sea."
                   </div>
                 )}
               </div>
+              {!isPremiumUser && (
+                <p className="text-sm text-pink-500">
+                  Captions are only available for paid users.
+                </p>
+              )}
               
               {uploadAddSubtitles && showUploadCaptionStyles && (
                 <div className="bg-muted/30 border border-border rounded-lg p-4">
@@ -2245,6 +2247,7 @@ Chasing after dreams as big as the sea."
                       onCancel={handleCancelTrimLibrary}
                       isTrimming={isTrimming}
                       isPaidUser={isPaidUser}
+                      fixedDuration={!isPaidUser ? 30 : undefined}
                     />
                   </div>
                 )}
@@ -2370,6 +2373,11 @@ Chasing after dreams as big as the sea."
                   </div>
 
                 </div>
+                {!isPremiumUser && (
+                  <p className="text-sm text-pink-500 mt-2">
+                    Watermark removal and private options are only available in paid plans.
+                  </p>
+                )}
 
                 {/* Captions Section - Separate like instrumental page */}
                 <div className="mt-4 space-y-3">
@@ -2380,8 +2388,9 @@ Chasing after dreams as big as the sea."
                         checked={addSubtitles}
                         onCheckedChange={setAddSubtitles}
                         data-testid="library-subtitles-toggle"
+                        disabled={!isPremiumUser}
                       />
-                      <Label htmlFor="library-add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => setAddSubtitles(!addSubtitles)}>
+                      <Label htmlFor="library-add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => isPremiumUser && setAddSubtitles(!addSubtitles)}>
                         Captions
                       </Label>
                       {addSubtitles && (
@@ -2456,6 +2465,11 @@ Chasing after dreams as big as the sea."
                       </div>
                     )}
                   </div>
+                  {!isPremiumUser && (
+                    <p className="text-sm text-pink-500">
+                      Captions are only available for paid users.
+                    </p>
+                  )}
                   
                   {addSubtitles && showLibraryCaptionStyles && (
                     <div className="bg-muted/30 border border-border rounded-lg p-4">

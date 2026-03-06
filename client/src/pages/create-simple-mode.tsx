@@ -489,6 +489,7 @@ export default function CreateSimpleMode() {
                   }}
                   isTrimming={isTrimmingSong}
                   isPaidUser={isPaidUser}
+                  fixedDuration={!isPaidUser ? 30 : undefined}
                 />
               )}
 

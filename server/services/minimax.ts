@@ -28,22 +28,16 @@ const MAX_SONG_DURATION = 240; // 4 minutes maximum
 export async function generateSongWithMinimax(
   tags: string,
   lyrics?: string,
-  durationSeconds: number = 60,
   description?: string
 ): Promise<MinimaxSongResult> {
   if (!WAVESPEED_API_KEY) {
     throw new Error("WAVESPEED_API_KEY is not configured");
   }
 
-  const effectiveRequestDuration = Math.min(durationSeconds, MAX_SONG_DURATION);
-  const maxAcceptableDuration = Math.min(effectiveRequestDuration * 2, MAX_SONG_DURATION);
   const maxRetries = 2;
   
-  console.log("=== GENERATING SONG WITH MINIMAX MUSIC 02 (ROBUST MODE) ===");
-  console.log("Requested duration:", durationSeconds, "seconds");
-  console.log("Effective request duration (capped at 4 min):", effectiveRequestDuration, "seconds");
-  console.log("Max acceptable duration (100% tolerance, capped at 4 min):", maxAcceptableDuration, "seconds");
-  console.log("Will generate 2 parallel songs");
+  console.log("=== GENERATING SONG WITH MINIMAX MUSIC 02 ===");
+  console.log("Will generate 2 parallel songs, return first successful");
 
   for (let retryAttempt = 0; retryAttempt <= maxRetries; retryAttempt++) {
     if (retryAttempt > 0) {
@@ -54,7 +48,6 @@ export async function generateSongWithMinimax(
       const songs = await generateMultipleSongsInParallel(
         tags,
         lyrics,
-        effectiveRequestDuration,
         description,
         2
       );
@@ -63,31 +56,10 @@ export async function generateSongWithMinimax(
         throw new Error("No songs were generated successfully");
       }
 
-      console.log(`\n=== SELECTING BEST SONG ===`);
-      console.log(`Songs available: ${songs.length}`);
-      songs.forEach((song, i) => {
-        console.log(`  Song ${i + 1}: duration=${song.duration}s, url=${song.audioUrl.substring(0, 50)}...`);
-      });
-      
-      const selectedSong = selectBestSong(songs, effectiveRequestDuration, maxAcceptableDuration);
-
-      if (selectedSong) {
-        if (selectedSong.duration > MAX_SONG_DURATION) {
-          console.log(`Selected song exceeds absolute max of ${MAX_SONG_DURATION}s, will retry`);
-          continue; // Explicitly continue to next retry
-        }
-        console.log(`\n=== SONG SELECTION COMPLETE ===`);
-        console.log(`Selected song duration: ${selectedSong.duration}s (requested: ${effectiveRequestDuration}s)`);
-        console.log(`Duration difference: ${Math.abs(selectedSong.duration - effectiveRequestDuration)}s`);
-        return selectedSong;
-      }
-
-      console.log(`\n=== NO SUITABLE SONG FOUND ===`);
-      console.log(`All ${songs.length} generated songs exceeded max acceptable duration of ${maxAcceptableDuration}s`);
-      
-      if (retryAttempt < maxRetries) {
-        console.log("Will retry with 2 more generations...");
-      }
+      const selectedSong = songs[0];
+      console.log(`\n=== SONG GENERATION COMPLETE ===`);
+      console.log(`Selected song duration: ${selectedSong.duration}s`);
+      return selectedSong;
     } catch (error) {
       console.error(`Generation attempt ${retryAttempt + 1} failed:`, error);
       if (retryAttempt >= maxRetries) {
@@ -97,8 +69,7 @@ export async function generateSongWithMinimax(
   }
 
   throw new Error(
-    `Failed to generate a song within acceptable duration after ${maxRetries + 1} attempts. ` +
-    `Requested ${durationSeconds}s, max acceptable was ${maxAcceptableDuration}s.`
+    `Failed to generate a song after ${maxRetries + 1} attempts.`
   );
 }
 
@@ -131,7 +102,6 @@ function withTimeout<T>(
 async function generateMultipleSongsInParallel(
   tags: string,
   lyrics: string | undefined,
-  durationSeconds: number,
   description: string | undefined,
   count: number
 ): Promise<MinimaxSongResult[]> {
@@ -140,7 +110,7 @@ async function generateMultipleSongsInParallel(
 
   const generationPromises = Array.from({ length: count }, (_, i) =>
     withTimeout(
-      generateSingleSong(tags, lyrics, durationSeconds, description, i + 1),
+      generateSingleSong(tags, lyrics, description, i + 1),
       SONG_GENERATION_TIMEOUT_MS,
       i + 1
     )
@@ -190,18 +160,15 @@ const SONGS_IN_PARALLEL = 4;
 const SONGS_TO_SHOW = 2;
 
 // Generate 4 songs in parallel; return the first 2 that finish (faster UX). Used for user selection on story-mode, lyric, and song-generator.
+// Duration is not passed to the AI model — the user trims the generated song afterward.
 export async function generateMultipleSongsForSelection(
   tags: string,
   lyrics: string | undefined,
-  durationSeconds: number,
   description: string | undefined
 ): Promise<MinimaxSongResult[]> {
-  const effectiveRequestDuration = Math.min(durationSeconds, MAX_SONG_DURATION);
-  const maxRetries = 2; // Retry up to 2 times if we get 0 songs
+  const maxRetries = 2;
 
   console.log(`=== GENERATING ${SONGS_IN_PARALLEL} SONGS IN PARALLEL (SHOW FIRST ${SONGS_TO_SHOW} TO FINISH) ===`);
-  console.log("Requested duration:", durationSeconds, "seconds");
-  console.log("Effective request duration (capped at 4 min):", effectiveRequestDuration, "seconds");
   console.log("Per-song timeout: 200 seconds");
 
   for (let retryAttempt = 0; retryAttempt <= maxRetries; retryAttempt++) {
@@ -211,7 +178,7 @@ export async function generateMultipleSongsForSelection(
 
     const generationPromises = Array.from({ length: SONGS_IN_PARALLEL }, (_, i) =>
       withTimeout(
-        generateSingleSong(tags, lyrics, effectiveRequestDuration, description, i + 1),
+        generateSingleSong(tags, lyrics, description, i + 1),
         SONG_GENERATION_TIMEOUT_MS,
         i + 1
       )
@@ -235,49 +202,9 @@ export async function generateMultipleSongsForSelection(
   throw new Error("Failed to generate any songs after retries. No songs completed in time.");
 }
 
-function selectBestSong(
-  songs: MinimaxSongResult[],
-  requestedDuration: number,
-  maxAcceptableDuration: number
-): MinimaxSongResult | null {
-  console.log("\n=== SONG SELECTION ANALYSIS ===");
-  console.log(`  Input songs: ${songs.length}`);
-  console.log(`  Requested duration: ${requestedDuration}s`);
-  console.log(`  Max acceptable duration: ${maxAcceptableDuration}s`);
-  console.log(`  Absolute max duration: ${MAX_SONG_DURATION}s`);
-  
-  const sortedSongs = songs
-    .filter((song) => song.duration <= MAX_SONG_DURATION)
-    .map((song) => ({
-      song,
-      difference: Math.abs(song.duration - requestedDuration),
-      withinLimit: song.duration <= maxAcceptableDuration,
-    }))
-    .sort((a, b) => a.difference - b.difference);
-
-  console.log(`  Filtered ${songs.length - sortedSongs.length} songs exceeding ${MAX_SONG_DURATION}s absolute max`);
-  console.log(`  Remaining songs after filter: ${sortedSongs.length}`);
-  
-  sortedSongs.forEach(({ song, difference, withinLimit }, i) => {
-    console.log(
-      `  ${i + 1}. Duration: ${song.duration}s, Diff: ${difference}s, Within limit (${song.duration} <= ${maxAcceptableDuration}): ${withinLimit}`
-    );
-  });
-
-  const bestWithinLimit = sortedSongs.find((s) => s.withinLimit);
-  if (bestWithinLimit) {
-    console.log(`  Selected: ${bestWithinLimit.song.duration}s song (difference: ${bestWithinLimit.difference}s)`);
-    return bestWithinLimit.song;
-  }
-
-  console.log(`  No song found within acceptable limit of ${maxAcceptableDuration}s`);
-  return null;
-}
-
 export async function generateSingleSong(
   tags: string,
   lyrics: string | undefined,
-  durationSeconds: number,
   description: string | undefined,
   songIndex: number = 1
 ): Promise<MinimaxSongResult> {

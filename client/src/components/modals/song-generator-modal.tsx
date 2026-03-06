@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,14 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Subtitles, Tags, AlertTriangle } from "lucide-react";
-import { validateLyricsDuration } from "@shared/lyricsValidation";
+import { Subtitles, Tags } from "lucide-react";
 
 interface SongGeneratorModalProps {
   isOpen: boolean;
@@ -46,8 +44,7 @@ export function SongGeneratorModal({
   const [tags, setTags] = useState("");
   const [lyrics, setLyrics] = useState("");
   const [songTitle, setSongTitle] = useState("");
-  const [duration, setDuration] = useState([60]); // Default 1 minute (60 seconds)
-  const [addSubtitles, setAddSubtitles] = useState(false); // Disabled by default
+  const [addSubtitles, setAddSubtitles] = useState(false);
   const [includeWatermark, setIncludeWatermark] = useState(true);
   const [progress, setProgress] = useState(0);
   const [generatedSubtitles, setGeneratedSubtitles] = useState<string | null>(
@@ -62,40 +59,7 @@ export function SongGeneratorModal({
   // Check if user is Premium (can disable watermark)
   const isPremiumUser = user?.plan?.name === "Premium";
 
-  // Validate lyrics length against duration
-  const lyricsValidation = useMemo(() => {
-    if (!lyrics || lyrics.trim().length === 0) {
-      return { isValid: true, wordCount: 0, maxWordsAllowed: 0, message: undefined };
-    }
-    return validateLyricsDuration(lyrics, duration[0]);
-  }, [lyrics, duration]);
-
-  // Duration options based on user plan
-  const durationOptions = isPaidUser
-    ? [30, 60, 90, 120, 150, 180]
-    : [30, 60, 90, 120];
-
-  const maxDuration = isPaidUser ? 180 : 120;
-
-  // Reset duration to 60 seconds when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setDuration([60]);
-    }
-  }, [isOpen]);
-
-  const getDurationLabel = (value: number) => {
-    // Song generation is free, video generation is 1000 credits per 30 seconds
-    const videoCredits = Math.ceil(value / 30) * 1000;
-
-    if (value === 30) return `30 sec (${videoCredits} credits for video)`;
-    if (value === 60) return `1 min (${videoCredits} credits for video)`;
-    if (value === 90) return `1.5 min (${videoCredits} credits for video)`;
-    if (value === 120) return `2 min (${videoCredits} credits for video)`;
-    if (value === 150) return `2.5 min (${videoCredits} credits for video)`;
-    if (value === 180) return `3 min (${videoCredits} credits for video)`;
-    return `${value} sec (${videoCredits} credits for video)`;
-  };
+  
 
   const generateLyricsMutation = useMutation({
     mutationFn: async () => {
@@ -104,7 +68,6 @@ export function SongGeneratorModal({
         `/api/projects/${projectId}/generate-lyrics`,
         {
           description,
-          duration: duration[0],
         },
       );
       return response.json();
@@ -147,8 +110,7 @@ export function SongGeneratorModal({
           tags,
           lyrics,
           songTitle,
-          duration: duration[0],
-          addSubtitles: addSubtitles,
+          addSubtitles: isPremiumUser && addSubtitles,
           includeWatermark: includeWatermark,
         },
       );
@@ -187,7 +149,6 @@ export function SongGeneratorModal({
     setTags("");
     setLyrics("");
     setSongTitle("");
-    setDuration([60]);
     setAddSubtitles(false);
     setIncludeWatermark(true);
     setProgress(0);
@@ -205,7 +166,7 @@ export function SongGeneratorModal({
     }
   };
 
-  const canGenerate = description.trim().length >= 5 && tags.trim().length > 0 && lyricsValidation.isValid;
+  const canGenerate = description.trim().length >= 5 && tags.trim().length > 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -246,49 +207,6 @@ export function SongGeneratorModal({
                 "Describe the theme, mood, or story of your song"
               )}
             </p>
-          </div>
-
-          {/* Song Duration */}
-          <div>
-            <Label className="flex items-center text-sm font-semibold mb-2">
-              <i className="fas fa-clock text-accent mr-2"></i>
-              Song Duration
-            </Label>
-            <div className="space-y-3">
-              <div className="px-3">
-                <Slider
-                  value={duration}
-                  onValueChange={setDuration}
-                  max={maxDuration}
-                  min={30}
-                  step={30}
-                  defaultValue={[60]}
-                  className="w-full"
-                  data-testid="duration-slider"
-                  key={`duration-slider-${isOpen}`}
-                />
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground px-1 flex-wrap gap-1">
-                {durationOptions.map((option) => (
-                  <span
-                    key={option}
-                    className={
-                      duration[0] === option ? "text-primary font-medium" : ""
-                    }
-                  >
-                    {getDurationLabel(option)}
-                  </span>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Current: {getDurationLabel(duration[0])}
-                {!isPaidUser && (
-                  <span className="ml-2 text-orange-500">
-                    • Upgrade to paid plan for up to 3 min songs
-                  </span>
-                )}
-              </p>
-            </div>
           </div>
 
           {/* Tags */}
@@ -375,34 +293,9 @@ export function SongGeneratorModal({
                 onChange={(e) => setLyrics(e.target.value)}
                 placeholder="Enter your lyrics here or click 'Generate Lyrics' to create them automatically..."
                 rows={6}
-                className={`resize-none ${!lyricsValidation.isValid ? "border-red-500" : ""}`}
+                className="resize-none"
                 data-testid="lyrics-textarea"
               />
-              {/* Lyrics word count and validation feedback */}
-              {lyrics.trim().length > 0 && (
-                <div className={`mt-2 text-xs ${lyricsValidation.isValid ? "text-muted-foreground" : "text-red-500"}`}>
-                  {lyricsValidation.wordCount} words 
-                  {!lyricsValidation.isValid && (
-                    <span> (max {lyricsValidation.maxWordsAllowed} for this duration)</span>
-                  )}
-                </div>
-              )}
-              {/* Lyrics too long warning */}
-              {!lyricsValidation.isValid && (
-                <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-md">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm text-red-600 dark:text-red-400 font-medium">
-                        Lyrics too long for selected duration
-                      </p>
-                      <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-1">
-                        {lyricsValidation.message}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
               {songTitle && (
                 <div className="mt-3 p-3 bg-primary/10 rounded-md">
                   <div className="flex items-center gap-2">
@@ -446,11 +339,19 @@ export function SongGeneratorModal({
                 checked={addSubtitles}
                 onCheckedChange={setAddSubtitles}
                 data-testid="subtitles-toggle"
+                disabled={!isPremiumUser}
               />
               <Label className="text-sm text-muted-foreground">
-                Generate timed lyrics for your music video using ElevenLabs
+                {isPremiumUser
+                  ? "Generate timed lyrics for your music video using ElevenLabs"
+                  : "Captions are only available for paid users"}
               </Label>
             </div>
+            {!isPremiumUser && (
+              <p className="text-sm text-pink-500 mt-1">
+                Captions are only available for paid users.
+              </p>
+            )}
           </div>
 
           {/* Watermark Toggle */}
@@ -540,9 +441,6 @@ export function SongGeneratorModal({
                   )}
                   {tags.trim().length === 0 && (
                     <span className="block">• At least one tag</span>
-                  )}
-                  {!lyricsValidation.isValid && (
-                    <span className="block">• Shorten lyrics or increase duration</span>
                   )}
                 </span>
               </p>
