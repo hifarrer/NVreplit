@@ -13,7 +13,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { downloadFileFromUrl } from "@/lib/utils";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Project, GenerationLog } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Progress } from "@/components/ui/progress";
@@ -768,6 +768,15 @@ export default function CreateSimpleMode() {
                   </>
                 )}
               </Button>
+
+              {hasPrompt && hasSong && hasImage && !isAuthLoading && !hasEnoughCredits && (
+                <p className="text-center text-sm text-muted-foreground mt-3">
+                  You don&apos;t have enough credits for this video (need {creditCost.toLocaleString()}, you have {userCreditsRemaining.toLocaleString()}).{" "}
+                  <Link href="/plans" className="text-primary font-medium hover:underline">
+                    Subscribe to get more credits
+                  </Link>
+                </p>
+              )}
             </CardContent>
           </Card>
 
