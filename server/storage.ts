@@ -1821,7 +1821,11 @@ export class DbStorage implements IStorage {
         // 7. Delete user's songs
         await tx.delete(songs).where(eq(songs.userId, id));
         
-        // 8. Finally, delete the user
+        // 8. Delete affiliate records that reference this user (signup_user_id)
+        await tx.delete(affiliateEarnings).where(eq(affiliateEarnings.signupUserId, id));
+        await tx.delete(affiliateSignups).where(eq(affiliateSignups.signupUserId, id));
+        
+        // 9. Finally, delete the user
         const result = await tx.delete(users).where(eq(users.id, id)).returning({ id: users.id });
         return result.length > 0;
       });
