@@ -33,7 +33,7 @@ import {
 
 export default function CreateSimpleMode() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [, navigate] = useLocation();
 
   const [prompt, setPrompt] = useState("");
@@ -142,8 +142,18 @@ export default function CreateSimpleMode() {
 
   const effectiveDuration = trimmedDuration ?? duration[0];
   const creditCost = getVideoCreditCost(effectiveDuration);
-  const userCreditsRemaining = user?.creditsRemaining || 0;
+  const userCreditsRemaining = user?.creditsRemaining ?? 0;
   const hasEnoughCredits = userCreditsRemaining >= creditCost;
+
+  const hasPrompt = !!prompt.trim();
+  const hasSong = !!uploadedAudioUrl;
+  const hasImage = !!referenceImageUrl;
+  const canGenerate =
+    hasPrompt &&
+    hasSong &&
+    hasImage &&
+    !generateMutation.isPending &&
+    (isAuthLoading || hasEnoughCredits);
 
   const sortedLogs = generationLogs?.sort((a, b) =>
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
@@ -190,6 +200,22 @@ export default function CreateSimpleMode() {
       toast({
         title: "Empty Prompt",
         description: "Please enter a prompt describing your music video",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!uploadedAudioUrl) {
+      toast({
+        title: "Song Required",
+        description: "Please attach a song before generating.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!referenceImageUrl) {
+      toast({
+        title: "Image Required",
+        description: "Please attach a reference image before generating.",
         variant: "destructive",
       });
       return;
@@ -459,6 +485,7 @@ export default function CreateSimpleMode() {
                     onClick={() => songInputRef.current?.click()}
                     data-testid="button-attach-song"
                     title="Attach Song"
+                    className={!uploadedAudioUrl ? "shadow-[0_0_10px_rgba(236,72,153,0.6),0_0_20px_rgba(236,72,153,0.4),0_0_30px_rgba(236,72,153,0.25)] border-pink-500/60" : ""}
                   >
                     <Music className="h-4 w-4" />
                   </Button>
@@ -470,6 +497,7 @@ export default function CreateSimpleMode() {
                     disabled={isUploadingImage}
                     data-testid="button-attach-image"
                     title="Attach Image"
+                    className={!referenceImageUrl ? "shadow-[0_0_10px_rgba(236,72,153,0.6),0_0_20px_rgba(236,72,153,0.4),0_0_30px_rgba(236,72,153,0.25)] border-pink-500/60" : ""}
                   >
                     {isUploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
                   </Button>
@@ -712,10 +740,18 @@ export default function CreateSimpleMode() {
 
               <Button
                 onClick={handleGenerate}
-                disabled={generateMutation.isPending || !hasEnoughCredits}
+                disabled={!canGenerate}
                 className="w-full mt-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
                 data-testid="button-generate"
-                title={!hasEnoughCredits ? `Not enough credits. Required: ${creditCost.toLocaleString()}, You have: ${userCreditsRemaining.toLocaleString()}` : undefined}
+                title={
+                  !hasPrompt || !hasSong || !hasImage
+                    ? "Add a prompt, song, and image to enable"
+                    : isAuthLoading
+                      ? "Loading..."
+                      : !hasEnoughCredits
+                        ? `Not enough credits. Required: ${creditCost.toLocaleString()}, You have: ${userCreditsRemaining.toLocaleString()}`
+                        : undefined
+                }
               >
                 {generateMutation.isPending ? (
                   <>
