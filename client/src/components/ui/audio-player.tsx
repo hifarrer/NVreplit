@@ -18,6 +18,7 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
   const [duration, setDuration] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [showDownloadRestriction, setShowDownloadRestriction] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
 
@@ -111,6 +112,39 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
     }
   }, [isDragging, duration]);
 
+  const handleDownload = async () => {
+    if (isFreeUser) {
+      setShowDownloadRestriction(true);
+      return;
+    }
+
+    setIsDownloading(true);
+    try {
+      const res = await fetch(audioUrl, { mode: "cors" });
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${(title || "audio").replace(/[^\w\s.-]/g, "_").trim() || "song"}.mp3`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch {
+      const link = document.createElement("a");
+      link.href = audioUrl;
+      link.download = `${(title || "audio").replace(/[^\w\s.-]/g, "_").trim() || "song"}.mp3`;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
     <div className={cn("p-4 sm:p-6 media-player rounded-lg", className)} data-testid="audio-player">
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
@@ -121,27 +155,24 @@ export function AudioPlayer({ audioUrl, title = "Audio Track", className }: Audi
           <span className="truncate">{title}</span>
         </h4>
         <Button
-          onClick={() => {
-            // Check if user is on free plan
-            if (isFreeUser) {
-              setShowDownloadRestriction(true);
-              return;
-            }
-
-            const link = document.createElement('a');
-            link.href = audioUrl;
-            link.download = `${title}.mp3`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }}
+          onClick={handleDownload}
+          disabled={isDownloading}
           variant="outline"
           size="sm"
           className="flex items-center space-x-2 w-full sm:w-auto justify-center"
           data-testid="audio-download-button"
         >
-          <Download className="w-4 h-4" />
-          <span>Download</span>
+          {isDownloading ? (
+            <>
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              <span>Downloading...</span>
+            </>
+          ) : (
+            <>
+              <Download className="w-4 h-4" />
+              <span>Download</span>
+            </>
+          )}
         </Button>
       </div>
       

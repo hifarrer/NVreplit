@@ -32,6 +32,8 @@ interface GeneratedSong {
   audioUrl: string;
   audioTags: string | null;
   audioLyrics: string | null;
+  duration?: number | null;
+  thumbnailUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,10 +50,11 @@ export function SongLibraryModal({ isOpen, onClose, onSelectSong }: SongLibraryM
   const [expandedLyricsId, setExpandedLyricsId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const { data: songs = [], isLoading } = useQuery<GeneratedSong[]>({
+  const { data: songsResponse, isLoading } = useQuery<{ songs: GeneratedSong[]; songLimit?: number; atLimit?: boolean }>({
     queryKey: ["/api/my-songs"],
     enabled: isOpen,
   });
+  const songs = songsResponse?.songs ?? [];
 
   // Debug: log songs data to see what we're getting
   console.log("Songs data in modal:", songs);
@@ -86,7 +89,7 @@ export function SongLibraryModal({ isOpen, onClose, onSelectSong }: SongLibraryM
   // Delete mutation
   const deleteSongMutation = useMutation({
     mutationFn: async (songId: string) => {
-      const response = await apiRequest("DELETE", `/api/projects/${songId}`);
+      const response = await apiRequest("DELETE", `/api/my-songs/${songId}`);
       return response.json();
     },
     onSuccess: () => {
@@ -143,13 +146,24 @@ export function SongLibraryModal({ isOpen, onClose, onSelectSong }: SongLibraryM
                   data-testid={`song-option-${song.id}`}
                 >
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
+                        {song.thumbnailUrl ? (
+                          <img
+                            src={song.thumbnailUrl}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Music className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
                           {selectedSongId === song.id && (
-                            <Check className="h-4 w-4 text-primary" />
+                            <Check className="h-4 w-4 text-primary flex-shrink-0" />
                           )}
-                          <h3 className="font-semibold">{song.title}</h3>
+                          <h3 className="font-semibold truncate">{song.title}</h3>
                         </div>
                         {song.audioTags && (
                           <div className="flex items-center gap-2 mb-2">
@@ -162,7 +176,7 @@ export function SongLibraryModal({ isOpen, onClose, onSelectSong }: SongLibraryM
                           {format(new Date(song.createdAt), "MMM d, yyyy")}
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-shrink-0">
                         <Button
                           size="sm"
                           variant="outline"

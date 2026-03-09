@@ -30,6 +30,7 @@ interface GeneratedSong {
   audioTags: string | null;
   audioLyrics: string | null;
   duration: number | null;
+  thumbnailUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -43,10 +44,13 @@ export default function MySongsPage() {
   // Check if user is on free plan
   const isFreeUser = !user?.plan || user.plan.name.toLowerCase() === 'free';
 
-  const { data: rawSongs = [], isLoading } = useQuery<GeneratedSong[]>({
+  const { data: songsResponse, isLoading } = useQuery<{ songs: GeneratedSong[]; songLimit?: number; atLimit?: boolean }>({
     queryKey: ["/api/my-songs"],
   });
 
+  const rawSongs = songsResponse?.songs ?? [];
+  const songLimit = songsResponse?.songLimit;
+  const atLimit = songsResponse?.atLimit ?? false;
   // Ensure songs are sorted by creation date (newest first)
   const songs = rawSongs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
@@ -137,13 +141,20 @@ export default function MySongsPage() {
               My Songs
               {songs.length > 0 && (
                 <span className="text-sm font-normal text-muted-foreground">
-                  ({songs.length})
+                  {songLimit != null ? `${songs.length} / ${songLimit}` : `(${songs.length})`}
                 </span>
               )}
             </CardTitle>
             <CardDescription>
-              Your AI-generated songs library
+              {songLimit != null
+                ? `Free plan: up to ${songLimit} songs. Subscribe for unlimited songs.`
+                : "Your AI-generated songs library"}
             </CardDescription>
+            {atLimit && songLimit != null && (
+              <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
+                You&apos;ve reached the free plan limit ({songLimit} songs). Delete a song to add more, or subscribe for unlimited songs.
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -172,8 +183,19 @@ export default function MySongsPage() {
                     data-testid={`song-card-${song.id}`}
                   >
                     <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="w-14 h-14 rounded-lg overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
+                          {song.thumbnailUrl ? (
+                            <img
+                              src={song.thumbnailUrl}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Music className="h-7 w-7 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
                           <h3 className="font-semibold mb-2">{song.title}</h3>
                           {song.audioTags && (
                             <div className="flex items-center gap-2 mb-2">
@@ -202,7 +224,7 @@ export default function MySongsPage() {
                             </details>
                           )}
                         </div>
-                        <div className="flex gap-2 ml-4">
+                        <div className="flex gap-2 flex-shrink-0">
                           <Button
                             size="sm"
                             variant="outline"

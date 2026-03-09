@@ -12,19 +12,19 @@ import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, inser
 import { defaultSubtitleStyle, isSubtitleStyle } from "@shared/subtitleStyles";
 import { defaultGoogleFont, isGoogleFont } from "@shared/googleFonts";
 import { z } from "zod";
-import { generateLyrics, generateLyricsWithTitle, generateScenePrompts, generateInstrumentalScenePrompts, generateLyricVideoScenePrompts, splitLyricsIntoSections, openai } from "./services/openai";
+import { generateLyrics, generateLyricsWithTitle, generateSongTitle, generateScenePrompts, generateInstrumentalScenePrompts, generateLyricVideoScenePrompts, splitLyricsIntoSections, openai } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
 import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, generateInstrumentalSong } from "./services/minimax";
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
-import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText } from "./services/fal";
+import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAlbumCoverSeedreamV5Lite } from "./services/fal";
 import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateImageFromText, generateVideoFromImage } from "./services/wavespeed";
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback, uploadImageToImageKit, isImageKitConfigured } from "./services/imagekit";
-import { isBunnyConfigured, uploadToBunnyStorage, uploadCharacterImage, uploadSceneImage, isBunnyUrl } from "./services/bunny";
+import { isBunnyConfigured, uploadToBunnyStorage, uploadCharacterImage, uploadSceneImage, uploadSongAudio, uploadSongCover, isBunnyUrl } from "./services/bunny";
 import { emailService } from "./services/email";
 import { createMuxAssetForVideo } from "./services/muxJobs";
 import bcrypt from "bcryptjs";
@@ -37,6 +37,9 @@ import { getJWKS, initializeOAuthKeys } from "./services/oauth";
 
 // Content moderation API for user-uploaded images
 const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+
+/** Free users can have at most this many songs in their library; paid users have no limit. */
+const FREE_USER_SONG_LIBRARY_LIMIT = 10;
 
 interface ContentModerationResult {
   harassment: boolean;
@@ -5711,6 +5714,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Raw songs from database:", songs.length);
       console.log("Songs data:", JSON.stringify(songs, null, 2));
 
+      const userWithPlan = await storage.getUserWithPlan(userId);
+      const isPaidUser = userWithPlan?.plan && (userWithPlan.plan as any).monthlyPrice > 0;
+      const songLimit = isPaidUser ? null : FREE_USER_SONG_LIBRARY_LIMIT;
+      const atLimit = songLimit !== null && songs.length >= songLimit;
+
       // Sort by newest first and format for frontend with ImageKit URL resolution
       const sortedSongs = songs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
@@ -5722,6 +5730,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           audioTags: song.tags,
           audioLyrics: song.lyrics,
           duration: song.duration,
+          thumbnailUrl: (song as any).thumbnailUrl
+            ? await resolveUrlWithImageKitFallback((song as any).thumbnailUrl, storage)
+            : null,
           subtitleStyle: (song as any).subtitleStyle || defaultSubtitleStyle,
           subtitleFileUrl: song.subtitleFileUrl,
           kieTaskId: song.kieTaskId,
@@ -5732,7 +5743,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       console.log("Formatted songs to return:", formattedSongs.length);
-      res.json(formattedSongs);
+      res.json({
+        songs: formattedSongs,
+        songLimit: songLimit ?? undefined,
+        atLimit: songLimit !== null ? atLimit : undefined,
+      });
     } catch (error) {
       console.error("Get my songs error:", error);
       res.status(500).json({ error: "Failed to get songs" });
@@ -5764,6 +5779,168 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Delete song error:", error);
       res.status(500).json({ error: "Failed to delete song" });
+    }
+  });
+
+  // Music Tools: generate lyrics with OpenAI (no project required)
+  app.post("/api/music-tools/generate-lyrics", authenticateToken, async (req, res) => {
+    try {
+      const { description, duration = 120 } = req.body || {};
+      if (description) {
+        const profanityCheck = checkProfanity(description);
+        if (!profanityCheck.isClean) {
+          return res.status(400).json({
+            error: "Content Policy Violation",
+            details: getCategoryMessage(profanityCheck.category || "unknown"),
+            category: profanityCheck.category,
+          });
+        }
+      }
+      let lyrics: string;
+      let title: string;
+      try {
+        const { generateLyricsWithTitle } = await import("./services/openai");
+        const openaiResult = await generateLyricsWithTitle(description || "a song", duration);
+        lyrics = openaiResult.lyrics;
+        title = openaiResult.title;
+      } catch (openaiError) {
+        try {
+          const { generateLyricsWithKieAndTitle } = await import("./services/kie");
+          const kieResult = await generateLyricsWithKieAndTitle(description || "a song", duration);
+          lyrics = kieResult.lyrics;
+          title = kieResult.title;
+        } catch (kieError) {
+          console.error("Music Tools generate-lyrics: OpenAI and KIE failed", openaiError, kieError);
+          return res.status(500).json({
+            error: "Lyrics generation failed, please try again.",
+            details: "Both OpenAI and KIE.AI generation methods failed",
+          });
+        }
+      }
+      const profanityCheck = checkProfanity(lyrics);
+      if (!profanityCheck.isClean) {
+        return res.status(400).json({
+          error: "Generated lyrics contain inappropriate content",
+          details: getCategoryMessage(profanityCheck.category || "unknown"),
+          category: profanityCheck.category,
+        });
+      }
+      res.json({ lyrics, title });
+    } catch (error) {
+      console.error("Music Tools generate-lyrics error:", error);
+      res.status(500).json({ error: "Failed to generate lyrics" });
+    }
+  });
+
+  // Music Tools: generate song options (4 parallel, first 2 + album covers). Image generation runs in parallel with music so covers are usually ready before songs.
+  // Title is generated from description/tags via OpenAI so songs don't all show "NeonVideo Song".
+  app.post("/api/music-tools/generate-song", authenticateToken, async (req, res) => {
+    try {
+      const { description, tags, lyrics } = req.body || {};
+      const { generateMultipleSongsForSelection } = await import("./services/minimax");
+      const coverPrompt = [description, tags].filter(Boolean).join(", ") || "music";
+      // Start album cover generation and AI title generation in parallel with music
+      const thumbnailPromises = Array.from({ length: 4 }, () =>
+        generateAlbumCoverSeedreamV5Lite(coverPrompt).catch((err) => {
+          console.error("[Music Tools] Album cover failed:", err);
+          return null;
+        })
+      );
+      const [minimaxSongs, thumbnailUrls, generatedTitle] = await Promise.all([
+        generateMultipleSongsForSelection(
+          tags || "",
+          lyrics || undefined,
+          description || undefined
+        ),
+        Promise.all(thumbnailPromises),
+        generateSongTitle(description, tags),
+      ]);
+      if (minimaxSongs.length === 0) {
+        return res.status(500).json({ error: "Failed to generate any songs" });
+      }
+      const title = (generatedTitle && generatedTitle.trim()) || "NeonVideo Song";
+      const songs = minimaxSongs.map((song, index) => ({
+        id: `generated-${index}`,
+        title,
+        audioUrl: song.audioUrl,
+        audioTags: tags || null,
+        audioLyrics: lyrics || null,
+        duration: song.duration,
+        thumbnailUrl: thumbnailUrls[index] ?? null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }));
+      res.json({ songs });
+    } catch (error) {
+      console.error("Music Tools generate-song error:", error);
+      res.status(500).json({ error: "Failed to generate songs" });
+    }
+  });
+
+  // Music Tools: save chosen song to library (upload audio + thumbnail to Bunny)
+  app.post("/api/music-tools/save-song", authenticateToken, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const { audioUrl, thumbnailUrl, title, tags, lyrics, duration, description } = req.body || {};
+      if (!audioUrl || !title || duration == null) {
+        return res.status(400).json({ error: "Missing required fields: audioUrl, title, duration" });
+      }
+      const userWithPlan = await storage.getUserWithPlan(userId);
+      const isPaidUser = userWithPlan?.plan && (userWithPlan.plan as any).monthlyPrice > 0;
+      if (!isPaidUser) {
+        const existingSongs = await storage.getSongs(userId);
+        if (existingSongs.length >= FREE_USER_SONG_LIBRARY_LIMIT) {
+          return res.status(403).json({
+            error: "Song library limit reached",
+            message: `Free users can have up to ${FREE_USER_SONG_LIBRARY_LIMIT} songs in their library. Subscribe to add more.`,
+            limit: FREE_USER_SONG_LIBRARY_LIMIT,
+          });
+        }
+      }
+      const fetch = (await import("node-fetch")).default;
+      const audioRes = await fetch(audioUrl);
+      if (!audioRes.ok) {
+        return res.status(502).json({ error: "Failed to download audio" });
+      }
+      const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
+      const audioFileName = `song_${userId}_${Date.now()}.mp3`;
+      const { url: persistentAudioUrl } = await uploadSongAudio(audioFileName, audioBuffer);
+
+      let persistentThumbnailUrl: string | null = null;
+      if (thumbnailUrl && thumbnailUrl.trim()) {
+        try {
+          const imgRes = await fetch(thumbnailUrl);
+          if (imgRes.ok) {
+            const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
+            const imgExt = ".jpg";
+            const imgFileName = `cover_${userId}_${Date.now()}${imgExt}`;
+            const { url } = await uploadSongCover(imgFileName, imgBuffer);
+            persistentThumbnailUrl = url;
+          }
+        } catch (imgErr) {
+          console.error("[Music Tools] Thumbnail upload failed:", imgErr);
+        }
+      }
+
+      const songData = {
+        userId,
+        title: String(title).trim(),
+        url: persistentAudioUrl,
+        duration: Number(duration),
+        tags: tags ?? null,
+        lyrics: lyrics ?? null,
+        prompt: description ?? null,
+        thumbnailUrl: persistentThumbnailUrl,
+        subtitleStyle: defaultSubtitleStyle,
+        subtitleFileUrl: null,
+        kieTaskId: null,
+        kieAudioId: null,
+      };
+      const savedSong = await storage.addSong(songData as any);
+      res.json({ song: savedSong });
+    } catch (error) {
+      console.error("Music Tools save-song error:", error);
+      res.status(500).json({ error: "Failed to save song" });
     }
   });
 
@@ -6320,31 +6497,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Save trimmed audio to user's library
+      // Save trimmed audio to user's library (skip if free user at song limit)
       let savedSong = null;
       try {
-        const songTitle = title || `Trimmed Audio (${Math.floor(startTime / 1000)}s - ${Math.floor(endTime / 1000)}s)`;
-        const songData = {
-          userId: project.userId,
-          title: songTitle,
-          url: publicAudioUrl,
-          duration: trimmedDuration,
-          tags: null,
-          lyrics: lyricsForTrimmedSong,
-          prompt: description || null,
-          subtitleStyle,
-          subtitleFileUrl,
-          kieTaskId: null,
-          kieAudioId: null
-        };
+        const userWithPlan = await storage.getUserWithPlan(project.userId);
+        const isPaidUser = userWithPlan?.plan && (userWithPlan.plan as any).monthlyPrice > 0;
+        const atSongLimit = !isPaidUser && (await storage.getSongs(project.userId)).length >= FREE_USER_SONG_LIBRARY_LIMIT;
+        if (!atSongLimit) {
+          const songTitle = title || `Trimmed Audio (${Math.floor(startTime / 1000)}s - ${Math.floor(endTime / 1000)}s)`;
+          const songData = {
+            userId: project.userId,
+            title: songTitle,
+            url: publicAudioUrl,
+            duration: trimmedDuration,
+            tags: null,
+            lyrics: lyricsForTrimmedSong,
+            prompt: description || null,
+            subtitleStyle,
+            subtitleFileUrl,
+            kieTaskId: null,
+            kieAudioId: null
+          };
 
-        console.log("=== SAVING TRIMMED AUDIO TO USER LIBRARY ===");
-        console.log("Song data:", JSON.stringify(songData, null, 2));
+          console.log("=== SAVING TRIMMED AUDIO TO USER LIBRARY ===");
+          console.log("Song data:", JSON.stringify(songData, null, 2));
 
-        savedSong = await storage.addSong(songData);
-        console.log("✅ Trimmed audio successfully saved to user library!");
-        console.log("Saved song ID:", savedSong.id);
-        console.log("Saved song URL:", savedSong.url);
+          savedSong = await storage.addSong(songData);
+          console.log("✅ Trimmed audio successfully saved to user library!");
+          console.log("Saved song ID:", savedSong.id);
+          console.log("Saved song URL:", savedSong.url);
+        } else {
+          console.log("=== SKIPPING SAVE TO LIBRARY (free user at song limit) ===");
+        }
       } catch (libraryError) {
         console.error("❌ FAILED to save trimmed audio to library:", libraryError);
         // Continue even if saving to library fails - the trim was successful
@@ -7094,18 +7278,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Project not found" });
       }
 
-      // Save full version of generated song to user's library (only when explicitly requested)
+      // Save full version of generated song to user's library (only when explicitly requested; skip if free user at limit)
       let savedFullSong = null;
       if (saveToLibrary && audioType === "generated" && audioUrl) {
+        const userWithPlan = await storage.getUserWithPlan(project.userId);
+        const isPaidUser = userWithPlan?.plan && (userWithPlan.plan as any).monthlyPrice > 0;
+        const atSongLimit = !isPaidUser && (await storage.getSongs(project.userId)).length >= FREE_USER_SONG_LIBRARY_LIMIT;
+        if (!atSongLimit) {
         try {
+          let urlToSave = audioUrl;
+          // Persist to Bunny if URL is temporary (e.g. WaveSpeed expires after 7 days)
+          if (!isBunnyUrl(audioUrl)) {
+            try {
+              const fetch = (await import("node-fetch")).default;
+              const audioRes = await fetch(audioUrl);
+              if (audioRes.ok) {
+                const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
+                const audioFileName = `song_${project.userId}_${Date.now()}.mp3`;
+                const { url } = await uploadSongAudio(audioFileName, audioBuffer);
+                urlToSave = url;
+                console.log("✅ Generated song audio uploaded to Bunny for library");
+              }
+            } catch (uploadErr) {
+              console.error("❌ Failed to upload generated song to Bunny, saving original URL:", uploadErr);
+            }
+          }
           const songData = {
             userId: project.userId,
             title: title || audioTags || "Generated Song",
-            url: audioUrl,
+            url: urlToSave,
             duration: duration || null,
             tags: audioTags || null,
             lyrics: audioLyrics || null,
-            prompt: null, // Will be set from project if needed
+            prompt: null,
+            thumbnailUrl: null, // Story-mode saves don't have album cover; library shows default icon
             subtitleStyle: subtitleStyle || null,
             subtitleFileUrl: subtitleFileUrl || null,
             kieTaskId: kieTaskId || null,
@@ -7115,12 +7321,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("=== SAVING FULL GENERATED SONG TO USER LIBRARY ===");
           console.log("Song data:", JSON.stringify(songData, null, 2));
 
-          savedFullSong = await storage.addSong(songData);
+          savedFullSong = await storage.addSong(songData as any);
           console.log("✅ Full generated song successfully saved to user library!");
           console.log("Saved song ID:", savedFullSong.id);
         } catch (libraryError) {
           console.error("❌ FAILED to save full generated song to library:", libraryError);
           // Continue even if saving to library fails - the selection was successful
+        }
+        } else {
+          console.log("=== SKIPPING SAVE TO LIBRARY (free user at song limit) ===");
         }
       }
 

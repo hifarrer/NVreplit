@@ -3,6 +3,14 @@
 // Safe for production: dotenv only loads .env files if they exist and won't override existing env vars
 import 'dotenv/config';
 
+// Register unhandledRejection early so DB connection timeouts etc. don't crash the process before
+// the async startup IIFE registers its handlers (which run after registerRoutes loads).
+process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  console.error('💥 UNHANDLED REJECTION (early):', err.message || err);
+  if (reason instanceof Error && reason.stack) console.error(reason.stack);
+});
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";

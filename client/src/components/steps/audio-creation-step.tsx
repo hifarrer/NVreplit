@@ -269,10 +269,11 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
   };
 
   // Fetch user's songs for library tab
-  const { data: songs = [], isLoading: songsLoading } = useQuery<GeneratedSong[]>({
+  const { data: songsResponse, isLoading: songsLoading } = useQuery<{ songs: GeneratedSong[]; songLimit?: number; atLimit?: boolean }>({
     queryKey: ["/api/my-songs"],
     enabled: activeTab === "library",
   });
+  const songs = songsResponse?.songs ?? [];
 
   // Trim audio mutation
   const trimAudioMutation = useMutation({

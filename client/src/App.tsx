@@ -32,6 +32,7 @@ import CreateSimpleMode from "@/pages/create-simple-mode";
 import CreateInstrumental from "@/pages/create-instrumental";
 import CreateLyric from "@/pages/create-lyric";
 import CreateVideoShorts from "@/pages/create-video-shorts";
+import CreateSongPage from "@/pages/create-song";
 import BlogPage from "@/pages/blog";
 import BestAIMusicGenerator2025 from "@/pages/blog-post-best-ai-music-generator";
 import Version201Release from "@/pages/blog-post-version-2-0-1";
@@ -101,6 +102,7 @@ function AppRouter() {
         <Route path="/create/instrumental" component={() => <ProtectedRoute component={CreateInstrumental} />} />
         <Route path="/create/lyric" component={() => <ProtectedRoute component={CreateLyric} />} />
         <Route path="/create/video-shorts" component={() => <ProtectedRoute component={CreateVideoShorts} />} />
+        <Route path="/create/create-song" component={() => <ProtectedRoute component={CreateSongPage} />} />
         <Route path="/create" component={() => <ProtectedRoute component={CreateSelect} />} />
         <Route path="/my-songs" component={() => <ProtectedRoute component={MySongsPage} />} />
         <Route path="/my-videos" component={() => <ProtectedRoute component={MyVideosPage} />} />

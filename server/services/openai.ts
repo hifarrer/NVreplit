@@ -164,6 +164,37 @@ IMPORTANT: Return ONLY a valid JSON object with exactly these two fields:
   }
 }
 
+/** Generate a short song title from description and optional tags (e.g. for music-tools generate-song). */
+export async function generateSongTitle(
+  description?: string,
+  tags?: string
+): Promise<string> {
+  const input = [description, tags].filter(Boolean).join(". ").trim() || "a song";
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a songwriter. Reply with ONLY a short, catchy song title (a few words, no quotes, no period). No other text.",
+        },
+        {
+          role: "user",
+          content: `Suggest a song title for a song about: ${input}`,
+        },
+      ],
+      max_completion_tokens: 50,
+    });
+    const title = response.choices[0]?.message?.content?.trim();
+    if (title && title.length > 0 && title.length <= 200) {
+      return title;
+    }
+  } catch (error) {
+    console.error("OpenAI song title generation error:", error);
+  }
+  return (description || tags || "NeonVideo Song").trim().substring(0, 80) || "NeonVideo Song";
+}
 
 // Helper function to split lyrics into sections dynamically
 export function splitLyricsIntoSections(

@@ -701,6 +701,7 @@ export class MemStorage implements IStorage {
       prompt: insertSong.prompt || null,
       tags: insertSong.tags || null,
       lyrics: insertSong.lyrics || null,
+      thumbnailUrl: (insertSong as any).thumbnailUrl ?? null,
       subtitleFileUrl: insertSong.subtitleFileUrl || null,
       subtitleStyle: insertSong.subtitleStyle || "classic",
       kieTaskId: insertSong.kieTaskId || null,
@@ -3616,8 +3617,13 @@ let storage: IStorage;
 
 // Initialize storage synchronously first, then async initialize configs
 try {
-  // Use database storage if PostgreSQL environment variables are available
-  if (process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD && process.env.PGDATABASE) {
+  // Force memory storage for local dev when DB is unreachable (e.g. USE_MEMORY_STORAGE=true in .env)
+  const useMemoryStorage =
+    process.env.USE_MEMORY_STORAGE === "true" || process.env.USE_MEMORY_STORAGE === "1";
+  const hasPgEnv =
+    process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD && process.env.PGDATABASE;
+
+  if (!useMemoryStorage && hasPgEnv) {
     storage = new DbStorage();
     console.log("Using database storage");
     // Initialize video generation configs asynchronously
@@ -3625,8 +3631,12 @@ try {
       console.warn("Failed to initialize video generation configs:", error);
     });
   } else {
+    if (useMemoryStorage) {
+      console.log("Using memory storage (USE_MEMORY_STORAGE is set)");
+    } else {
+      console.log("Using memory storage");
+    }
     storage = new MemStorage();
-    console.log("Using memory storage");
   }
 } catch (error) {
   console.warn("Database connection failed, using memory storage:", error);

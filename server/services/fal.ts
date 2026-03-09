@@ -660,6 +660,142 @@ export async function generateCharacterImageWavespeed(
   }
 }
 
+// Safe fallback when album cover is flagged as potentially sensitive
+const ALBUM_COVER_SAFE_FALLBACK_PROMPT = "music album cover";
+
+/** Sanitize user input for album cover prompt to reduce risk of content-flagging. */
+function sanitizeAlbumCoverPrompt(description: string): string {
+  if (!description || typeof description !== "string") return "music";
+  // Keep only letters, digits, spaces, commas; collapse spaces; truncate
+  const cleaned = description
+    .replace(/[^\w\s,]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 60);
+  return cleaned.length > 0 ? cleaned : "music";
+}
+
+function isAlbumCoverSensitiveError(error: Error): boolean {
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes("potentially sensitive") ||
+    msg.includes("content flagged") ||
+    msg.includes("sensitive") && msg.includes("prompt")
+  );
+}
+
+/**
+ * Generate an album cover image using WaveSpeed seedream-v5.0-lite.
+ * Used for Music Tools Create Song and song library thumbnails.
+ * Sanitizes the prompt to avoid sensitive content; on "potentially sensitive" error, retries with a simple prompt.
+ */
+export async function generateAlbumCoverSeedreamV5Lite(
+  songDescription: string,
+): Promise<string> {
+  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
+
+  const sanitized = sanitizeAlbumCoverPrompt(songDescription);
+  const promptFirst = `Generate a music album cover for this song ${sanitized}`.trim();
+
+  async function runOneAttempt(prompt: string): Promise<string> {
+    console.log("[Album cover] Starting seedream-v5.0-lite with prompt:", prompt.substring(0, 80) + (prompt.length > 80 ? "..." : ""));
+
+    const response = await fetch(
+      "https://api.wavespeed.ai/api/v3/bytedance/seedream-v5.0-lite",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+        body: JSON.stringify({
+          enable_base64_output: false,
+          enable_sync_mode: false,
+          prompt,
+          size: "2048*2048",
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[Album cover] Submission failed:", errorText);
+      throw new Error(`Wavespeed seedream-v5.0-lite error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    if (result.code !== 200) {
+      throw new Error(
+        `Wavespeed API error: ${result.message || "Unknown error"}`,
+      );
+    }
+
+    const requestId = result.data?.id;
+    if (!requestId) {
+      console.error("[Album cover] No request ID in response:", result);
+      throw new Error("No request ID received from Wavespeed.ai");
+    }
+
+    let attempts = 0;
+    const maxAttempts = 180;
+
+    while (attempts < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+
+      const statusResponse = await fetch(
+        `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+        {
+          headers: {
+            Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+          },
+        },
+      );
+
+      if (!statusResponse.ok) {
+        const errorText = await statusResponse.text();
+        throw new Error(`Album cover status check failed: ${statusResponse.status} - ${errorText}`);
+      }
+
+      const statusResult = await statusResponse.json();
+
+      if (
+        statusResult.code === 200 &&
+        statusResult.data?.status === "completed"
+      ) {
+        const outputs = statusResult.data?.outputs;
+        if (outputs && Array.isArray(outputs) && outputs.length > 0) {
+          const imageUrl = outputs[0];
+          console.log("[Album cover] Generated:", imageUrl?.substring(0, 50) + "...");
+          return imageUrl;
+        }
+        throw new Error("No images in album cover results");
+      } else if (statusResult.data?.status === "failed") {
+        const errMsg = statusResult.data?.error || "Unknown error";
+        throw new Error(`Album cover generation failed: ${errMsg}`);
+      }
+
+      attempts++;
+    }
+
+    throw new Error("Album cover generation timed out");
+  }
+
+  try {
+    return await runOneAttempt(promptFirst);
+  } catch (error) {
+    const err = error as Error;
+    if (isAlbumCoverSensitiveError(err)) {
+      console.warn("[Album cover] Content flagged as potentially sensitive. Retrying with simpler prompt:", ALBUM_COVER_SAFE_FALLBACK_PROMPT);
+      return runOneAttempt(ALBUM_COVER_SAFE_FALLBACK_PROMPT);
+    }
+    console.error("[Album cover] Error:", err);
+    throw err;
+  }
+}
+
 // Realistic character generation using text-to-image-2512-lora model
 export async function generateCharacterImageRealistic(
   prompt: string,

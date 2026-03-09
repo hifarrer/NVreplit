@@ -1,7 +1,7 @@
 import fetch from "node-fetch";
 import crypto from "crypto";
 
-type BunnyStorageZone = "final" | "scenes" | "characters" | "imageScenes" | "songs" | "audios";
+type BunnyStorageZone = "final" | "scenes" | "characters" | "imageScenes" | "songs" | "audios" | "songCovers";
 
 interface BunnyStorageConfig {
   storageZoneName: string;
@@ -65,6 +65,15 @@ function getStorageConfig(zone: BunnyStorageZone): BunnyStorageConfig {
       storageHostname,
       cdnHostname,
       folderPath: process.env.BUNNY_STORAGE_AUDIOS_PATH || "audios",
+    };
+  }
+  if (zone === "songCovers") {
+    return {
+      storageZoneName: zoneName,
+      storagePassword: password,
+      storageHostname,
+      cdnHostname,
+      folderPath: process.env.BUNNY_STORAGE_SONG_COVERS_PATH || "SongCovers",
     };
   }
   return {
@@ -233,6 +242,16 @@ export async function uploadAudio(
   buffer: Buffer,
 ): Promise<{ url: string; storagePath: string }> {
   return uploadToBunnyStorage("audios", fileName, buffer);
+}
+
+/**
+ * Upload a song album cover image to Bunny Storage (songCovers folder).
+ */
+export async function uploadSongCover(
+  fileName: string,
+  buffer: Buffer,
+): Promise<{ url: string; storagePath: string }> {
+  return uploadToBunnyStorage("songCovers", fileName, buffer);
 }
 
 // ─── URL helpers ────────────────────────────────────────────────

@@ -22,9 +22,9 @@ export function DownloadRestrictionModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Download Not Available</DialogTitle>
+          <DialogTitle>Subscribe to Download Songs</DialogTitle>
           <DialogDescription className="pt-2">
-            Download songs is not supported on a Free Plan, please consider subscribing to one of our plans.
+            Downloading songs is not available on the Free plan. Subscribe to one of our plans to download your songs.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-col sm:flex-row gap-2">

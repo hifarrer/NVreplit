@@ -157,6 +157,7 @@ export const songs = pgTable("songs", {
   tags: text("tags"),
   lyrics: text("lyrics"),
   prompt: text("prompt"),
+  thumbnailUrl: text("thumbnail_url"), // Album cover image URL (Bunny CDN)
   subtitleStyle: text("subtitle_style").default("classic"), // Preferred caption style for this song
   subtitleFileUrl: text("subtitle_file_url"), // URL to .ass subtitle file
   kieTaskId: text("kie_task_id"), // KIE.ai task ID for getting timestamped lyrics
