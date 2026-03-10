@@ -4,6 +4,7 @@ import { registerApiV1Routes } from "./api-v1";
 import { spawn } from "child_process";
 import multer from "multer";
 import path from "path";
+import os from "os";
 import fs from "fs";
 import { Readable } from "stream";
 import sharp from "sharp";
@@ -12,7 +13,7 @@ import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, inser
 import { defaultSubtitleStyle, isSubtitleStyle } from "@shared/subtitleStyles";
 import { defaultGoogleFont, isGoogleFont } from "@shared/googleFonts";
 import { z } from "zod";
-import { generateLyrics, generateLyricsWithTitle, generateSongTitle, generateScenePrompts, generateInstrumentalScenePrompts, generateLyricVideoScenePrompts, splitLyricsIntoSections, openai } from "./services/openai";
+import { generateLyrics, generateLyricsWithTitle, generateSongTitle, generateScenePrompts, generateInstrumentalScenePrompts, generateLyricVideoScenePrompts, splitLyricsIntoSections, openai, transcribeAudio } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
 import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, generateInstrumentalSong } from "./services/minimax";
@@ -5874,6 +5875,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Music Tools generate-song error:", error);
       res.status(500).json({ error: "Failed to generate songs" });
+    }
+  });
+
+  // Music Tools: transcribe lyrics from audio (OpenAI Whisper) — URL or uploaded file
+  app.post("/api/music-tools/transcribe-lyrics", authenticateToken, audioToolUpload.single("audio"), async (req, res) => {
+    let tempPath: string | null = null;
+    try {
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ error: "OpenAI API key not configured" });
+      }
+
+      let buffer: Buffer;
+      let ext = ".mp3";
+
+      if (req.file && req.file.buffer) {
+        buffer = req.file.buffer;
+        const base = (req.file.originalname || "audio").replace(/[^a-zA-Z0-9._-]/g, "_");
+        const match = base.match(/\.[a-zA-Z0-9]+$/);
+        if (match) ext = match[0].toLowerCase();
+      } else if (typeof req.body.audioUrl === "string" && req.body.audioUrl.trim()) {
+        const audioUrl = req.body.audioUrl.trim();
+        const fetchRes = await fetch(audioUrl);
+        if (!fetchRes.ok) {
+          return res.status(400).json({ error: "Failed to fetch audio from URL", details: `${fetchRes.status}` });
+        }
+        const ab = await fetchRes.arrayBuffer();
+        buffer = Buffer.from(ab);
+        try {
+          const urlPath = new URL(audioUrl).pathname;
+          const urlMatch = urlPath.match(/\.[a-zA-Z0-9]+$/);
+          if (urlMatch) ext = urlMatch[0].toLowerCase();
+        } catch {
+          // keep .mp3 default
+        }
+      } else if (typeof req.body.audio === "string" && req.body.audio.trim()) {
+        const audioUrl = req.body.audio.trim();
+        const fetchRes = await fetch(audioUrl);
+        if (!fetchRes.ok) {
+          return res.status(400).json({ error: "Failed to fetch audio from URL", details: `${fetchRes.status}` });
+        }
+        const ab = await fetchRes.arrayBuffer();
+        buffer = Buffer.from(ab);
+        try {
+          const urlPath = new URL(audioUrl).pathname;
+          const urlMatch = urlPath.match(/\.[a-zA-Z0-9]+$/);
+          if (urlMatch) ext = urlMatch[0].toLowerCase();
+        } catch {
+          // keep .mp3 default
+        }
+      } else {
+        return res.status(400).json({ error: "Provide an audio URL or upload an audio file." });
+      }
+
+      const baseName = `transcribe-lyrics_${Date.now()}${ext}`;
+      tempPath = path.join(os.tmpdir(), baseName);
+      fs.writeFileSync(tempPath, buffer);
+
+      const lyrics = await transcribeAudio(tempPath);
+      return res.json({ lyrics: (lyrics || "").trim() || "(No lyrics extracted)" });
+    } catch (error) {
+      console.error("[AUDIO-TO-LYRICS] Error:", error);
+      res.status(500).json({
+        error: "Failed to transcribe lyrics",
+        details: (error as Error).message,
+      });
+    } finally {
+      if (tempPath) {
+        try {
+          fs.unlinkSync(tempPath);
+        } catch {
+          // ignore cleanup errors
+        }
+      }
     }
   });
 

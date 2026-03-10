@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AddCaptionsToolModal } from "@/components/modals/add-captions-tool-modal";
 import { TrimVideoToolModal } from "@/components/modals/trim-video-tool-modal";
 import { TrimAudioToolModal } from "@/components/modals/trim-audio-tool-modal";
+import { AudioToLyricsToolModal } from "@/components/modals/audio-to-lyrics-tool-modal";
 import { VideoUpscalerToolModal } from "@/components/modals/video-upscaler-tool-modal";
 import { AIVideoEditionToolModal } from "@/components/modals/ai-video-edition-tool-modal";
 import { VideoBackgroundRemoverToolModal } from "@/components/modals/video-background-remover-tool-modal";
@@ -19,6 +20,7 @@ export default function CreateSelect() {
   const [videoUpscalerOpen, setVideoUpscalerOpen] = useState(false);
   const [aiVideoEditionOpen, setAIVideoEditionOpen] = useState(false);
   const [videoBgRemoverOpen, setVideoBgRemoverOpen] = useState(false);
+  const [audioToLyricsOpen, setAudioToLyricsOpen] = useState(false);
   const videoModes = [
     {
       id: "story-mode",
@@ -92,7 +94,7 @@ export default function CreateSelect() {
             Music Video Style
           </h1>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 sm:gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
             {videoModes.map((mode) => (
               <Card
                 key={mode.id}
@@ -134,7 +136,7 @@ export default function CreateSelect() {
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-16 mb-6">
             Music Tools
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 sm:gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
             <Card
               className="overflow-hidden border border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer transition-all"
               onClick={() => navigate("/create/create-song")}
@@ -157,12 +159,34 @@ export default function CreateSelect() {
                 </p>
               </CardContent>
             </Card>
+            <Card
+              className="overflow-hidden border border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer transition-all"
+              onClick={() => setAudioToLyricsOpen(true)}
+            >
+              <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                <img
+                  src="https://neonvideo.b-cdn.net/logos/lyricstile.jpg"
+                  alt="Audio to Lyrics"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="px-4 sm:px-6 pt-3 pb-2">
+                <p className="text-center text-pink-500 text-xs sm:text-sm">
+                  Extract lyrics from audio URL or file
+                </p>
+              </div>
+              <CardContent className="p-4 sm:p-6 pt-2">
+                <p className="text-center text-foreground text-sm sm:text-base font-medium">
+                  Audio to Lyrics
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-16 mb-6">
             Video Tools
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 sm:gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
             <Card
               className="overflow-hidden border border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer transition-all"
               onClick={() => setAddCaptionsOpen(true)}
@@ -287,6 +311,10 @@ export default function CreateSelect() {
       <TrimAudioToolModal
         isOpen={trimAudioOpen}
         onClose={() => setTrimAudioOpen(false)}
+      />
+      <AudioToLyricsToolModal
+        isOpen={audioToLyricsOpen}
+        onClose={() => setAudioToLyricsOpen(false)}
       />
       <VideoUpscalerToolModal
         isOpen={videoUpscalerOpen}

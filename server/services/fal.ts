@@ -685,9 +685,105 @@ function isAlbumCoverSensitiveError(error: Error): boolean {
 }
 
 /**
+ * Generate an album cover image using WaveSpeed google/nano-banana-2/text-to-image.
+ * Used as fallback when seedream-v5.0-lite fails.
+ */
+async function generateAlbumCoverNanoBanana2(prompt: string): Promise<string> {
+  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
+
+  console.log("[Album cover] Fallback: nano-banana-2 with prompt:", prompt.substring(0, 80) + (prompt.length > 80 ? "..." : ""));
+
+  const response = await fetch(
+    "https://api.wavespeed.ai/api/v3/google/nano-banana-2/text-to-image",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+      },
+      body: JSON.stringify({
+        aspect_ratio: "1:1",
+        enable_base64_output: false,
+        enable_sync_mode: false,
+        enable_web_search: false,
+        output_format: "jpeg",
+        prompt,
+        resolution: "1k",
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("[Album cover] nano-banana-2 submission failed:", errorText);
+    throw new Error(`Wavespeed nano-banana-2 error: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  if (result.code !== 200) {
+    throw new Error(
+      `Wavespeed API error: ${result.message || "Unknown error"}`,
+    );
+  }
+
+  const requestId = result.data?.id;
+  if (!requestId) {
+    console.error("[Album cover] No request ID in nano-banana-2 response:", result);
+    throw new Error("No request ID received from Wavespeed.ai");
+  }
+
+  let attempts = 0;
+  const maxAttempts = 180;
+
+  while (attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    const statusResponse = await fetch(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      {
+        headers: {
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+      },
+    );
+
+    if (!statusResponse.ok) {
+      const errorText = await statusResponse.text();
+      throw new Error(`Album cover (nano-banana-2) status check failed: ${statusResponse.status} - ${errorText}`);
+    }
+
+    const statusResult = await statusResponse.json();
+
+    if (
+      statusResult.code === 200 &&
+      statusResult.data?.status === "completed"
+    ) {
+      const outputs = statusResult.data?.outputs;
+      if (outputs && Array.isArray(outputs) && outputs.length > 0) {
+        const imageUrl = outputs[0];
+        console.log("[Album cover] Fallback nano-banana-2 generated:", imageUrl?.substring(0, 50) + "...");
+        return imageUrl;
+      }
+      throw new Error("No images in album cover results (nano-banana-2)");
+    } else if (statusResult.data?.status === "failed") {
+      const errMsg = statusResult.data?.error || "Unknown error";
+      throw new Error(`Album cover generation failed (nano-banana-2): ${errMsg}`);
+    }
+
+    attempts++;
+  }
+
+  throw new Error("Album cover generation timed out (nano-banana-2)");
+}
+
+/**
  * Generate an album cover image using WaveSpeed seedream-v5.0-lite.
  * Used for Music Tools Create Song and song library thumbnails.
  * Sanitizes the prompt to avoid sensitive content; on "potentially sensitive" error, retries with a simple prompt.
+ * On any other failure, falls back to google/nano-banana-2/text-to-image.
  */
 export async function generateAlbumCoverSeedreamV5Lite(
   songDescription: string,
@@ -788,11 +884,16 @@ export async function generateAlbumCoverSeedreamV5Lite(
   } catch (error) {
     const err = error as Error;
     if (isAlbumCoverSensitiveError(err)) {
-      console.warn("[Album cover] Content flagged as potentially sensitive. Retrying with simpler prompt:", ALBUM_COVER_SAFE_FALLBACK_PROMPT);
-      return runOneAttempt(ALBUM_COVER_SAFE_FALLBACK_PROMPT);
+      try {
+        console.warn("[Album cover] Content flagged as potentially sensitive. Retrying with simpler prompt:", ALBUM_COVER_SAFE_FALLBACK_PROMPT);
+        return await runOneAttempt(ALBUM_COVER_SAFE_FALLBACK_PROMPT);
+      } catch (retryErr) {
+        console.warn("[Album cover] seedream-v5.0-lite retry failed, using nano-banana-2 fallback:", (retryErr as Error).message);
+        return generateAlbumCoverNanoBanana2(ALBUM_COVER_SAFE_FALLBACK_PROMPT);
+      }
     }
-    console.error("[Album cover] Error:", err);
-    throw err;
+    console.warn("[Album cover] seedream-v5.0-lite failed, using nano-banana-2 fallback:", err.message);
+    return generateAlbumCoverNanoBanana2(promptFirst);
   }
 }
 

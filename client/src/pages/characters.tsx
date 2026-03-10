@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import { Search, Trash2, Users, Loader2, Plus, Edit3, AlertTriangle, Crown } from "lucide-react";
+import { Search, Trash2, Users, Loader2, Plus, Edit3, AlertTriangle, Crown, ChevronLeft, ChevronRight } from "lucide-react";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { StandaloneCharacterCreator } from "@/components/standalone-character-creator";
@@ -29,8 +29,11 @@ interface CharacterLimitInfo {
   canCreate: boolean;
 }
 
+const PAGE_SIZE = 20;
+
 export default function CharactersPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
   const [showCharacterModal, setShowCharacterModal] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -134,6 +137,23 @@ export default function CharactersPage() {
     character.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     character.prompt.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const totalPages = Math.max(1, Math.ceil(filteredCharacters.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedCharacters = filteredCharacters.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  // Reset to page 1 when search changes; clamp page when list shrinks
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm]);
+  useEffect(() => {
+    if (totalPages > 0 && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [totalPages, page]);
 
   const handleCharacterGenerated = (result: { imageUrl: string; prompt: string }) => {
     // Invalidate the characters query to refetch the updated list
@@ -246,8 +266,9 @@ export default function CharactersPage() {
             )}
           </div>
         ) : (
+          <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredCharacters.map((character) => (
+            {paginatedCharacters.map((character) => (
               <Card key={character.id} className="group hover:shadow-lg transition-shadow" data-testid={`character-card-${character.id}`}>
                 <CardContent className="p-4">
                   <div className="relative mb-4">
@@ -334,6 +355,39 @@ export default function CharactersPage() {
               </Card>
             ))}
           </div>
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-border/50">
+              <p className="text-sm text-muted-foreground order-2 sm:order-1">
+                Page {currentPage} of {totalPages}
+                <span className="ml-2 text-muted-foreground/80">
+                  ({(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredCharacters.length)} of {filteredCharacters.length})
+                </span>
+              </p>
+              <div className="flex items-center gap-2 order-1 sm:order-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                  className="gap-1"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="gap-1"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+          </>
         )}
 
         {/* Stats */}
