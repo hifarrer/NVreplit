@@ -61,29 +61,45 @@ async function ensurePublicImageUrl(characterImageUrl: string, ttlSec: number = 
 }
 
 /**
- * Helper function to convert aspect ratio to Qwen model size parameter
- * Qwen uses "width*height" format
+ * Central mapping: aspect ratio -> size (width*height) for all image generation APIs.
+ * Used wherever an API expects a size parameter instead of aspect ratio.
  */
+const ASPECT_RATIO_TO_SIZE: Record<string, string> = {
+  "1:1": "1024*1024",
+  "16:9": "1280*720",
+  "9:16": "720*1280",
+  "9:15": "720*1280",
+  "4:3": "1152*864",
+  "3:4": "864*1152",
+};
+
 function aspectRatioToSize(aspectRatio: string = "16:9"): string {
-  // Qwen model size format: "width*height"
-  if (aspectRatio === "3:4") {
-    return "768*1024"; // Vertical (portrait) - 3:4 aspect ratio
-  } else if (aspectRatio === "9:16") {
-    return "612*1024"; // Vertical (portrait) - for TikTok/Reels/Shorts
-  } else {
-    return "1024*612"; // Horizontal (landscape) - default 16:9
-  }
+  return ASPECT_RATIO_TO_SIZE[aspectRatio] ?? ASPECT_RATIO_TO_SIZE["16:9"];
 }
 
 /**
  * Size for bytedance/seedream-v4.5/edit (Regenerate Image button only).
- * 3:4 and 9:16 -> 1728*2304; 16:9 -> 2560*1440.
+ * Uses same aspect ratio -> size mapping as character generation.
  */
 function seedreamV45EditSizeForAspectRatio(aspectRatio: string = "16:9"): string {
-  if (aspectRatio === "3:4" || aspectRatio === "9:16") {
-    return "1728*2304";
-  }
-  return "2560*1440";
+  return aspectRatioToSize(aspectRatio);
+}
+
+/**
+ * Size for seedream-v4.5/edit when used for Upload tab image-to-image (character style change).
+ * This model uses different dimensions than the general character generation.
+ */
+const SEEDREAM_IMAGE_TO_IMAGE_SIZE: Record<string, string> = {
+  "1:1": "2048*2048",
+  "16:9": "2560*1440",
+  "9:16": "1440*2560",
+  "9:15": "1440*2560",
+  "4:3": "2304*1728",
+  "3:4": "1728*2304",
+};
+
+function seedreamImageToImageSizeForAspectRatio(aspectRatio: string = "1:1"): string {
+  return SEEDREAM_IMAGE_TO_IMAGE_SIZE[aspectRatio] ?? SEEDREAM_IMAGE_TO_IMAGE_SIZE["1:1"];
 }
 
 /**
@@ -438,7 +454,7 @@ async function generateSceneWithFallback(
 
 /**
  * Submit and poll bytedance/seedream-v4.5/edit for Regenerate Image button only.
- * Uses size 1728*2304 for 3:4 (and 9:16), 2560*1440 for 16:9.
+ * Size is determined by aspectRatioToSize (see ASPECT_RATIO_TO_SIZE mapping).
  */
 async function submitAndPollSeedreamV45EditForRegenerate(
   characterImageUrl: string,
@@ -532,10 +548,7 @@ export async function generateCharacterImageWavespeed(
   const styleDescription = styleDescriptions[style] || "3D animation style";
   const enhancedPrompt = `front shot of a ${prompt}, ${styleDescription}`;
 
-  // Determine image size based on aspect ratio
-  // 16:9 (horizontal) = 1280x720, 3:4 (vertical) = 720x960
-  const imageSize = aspectRatio === "3:4" ? "720*960" : "1280*720";
-  
+  const imageSize = aspectRatioToSize(aspectRatio);
   console.log(
     "Starting Wavespeed.ai character generation with prompt:",
     enhancedPrompt,
@@ -910,9 +923,7 @@ export async function generateCharacterImageRealistic(
   // Enhanced prompt for realistic character with photorealistic style
   const enhancedPrompt = `front shot of a ${prompt}, photorealistic style`;
 
-  // Determine image size based on aspect ratio
-  const imageSize = aspectRatio === "3:4" ? "720*960" : "1024*1024";
-
+  const imageSize = aspectRatioToSize(aspectRatio);
   console.log(
     "Starting Wavespeed.ai REALISTIC character generation with prompt:",
     enhancedPrompt,
@@ -1054,9 +1065,7 @@ export async function generateCharacterImageRadiant(
   // Enhanced prompt for radiant character
   const enhancedPrompt = `front shot of a ${prompt}, radiant style`;
 
-  // Determine image size based on aspect ratio
-  const imageSize = aspectRatio === "3:4" ? "720*960" : "1024*1024";
-
+  const imageSize = aspectRatioToSize(aspectRatio);
   console.log(
     "Starting Wavespeed.ai RADIANT character generation with prompt:",
     enhancedPrompt,
@@ -1196,9 +1205,7 @@ export async function generateCharacterImageArtistic(
   // Enhanced prompt for artistic character
   const enhancedPrompt = `front shot of a ${prompt}, artistic style`;
 
-  // Determine image size based on aspect ratio
-  const imageSize = aspectRatio === "3:4" ? "720*960" : "1024*1024";
-
+  const imageSize = aspectRatioToSize(aspectRatio);
   console.log(
     "Starting Wavespeed.ai ARTISTIC character generation with prompt:",
     enhancedPrompt,
@@ -1345,9 +1352,7 @@ async function generateCharacterImageWithModel(
     enhancedPrompt += `, ${promptEnhancer}`;
   }
 
-  // Determine image size based on aspect ratio
-  const imageSize = aspectRatio === "3:4" ? "720*960" : "1024*1024";
-
+  const imageSize = aspectRatioToSize(aspectRatio);
   console.log(`Starting character generation with model: ${model}`);
   console.log(`Enhanced prompt: ${enhancedPrompt}`);
   console.log(`Using aspect ratio: ${aspectRatio}, image size: ${imageSize}`);
@@ -1492,6 +1497,7 @@ export async function generateCharacterImageToImage(
   imageUrl: string,
   prompt: string,
   promptEnhancer: string | null,
+  aspectRatio: string = "1:1",
 ): Promise<string> {
   const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
   if (!WAVESPEED_API_KEY) {
@@ -1508,9 +1514,11 @@ export async function generateCharacterImageToImage(
     enhancedPrompt += `, ${promptEnhancer}`;
   }
 
+  const size = seedreamImageToImageSizeForAspectRatio(aspectRatio);
   console.log(`Starting image-to-image generation with seedream-v4.5/edit`);
   console.log(`Image URL: ${publicImageUrl}`);
   console.log(`Enhanced prompt: ${enhancedPrompt}`);
+  console.log(`Aspect ratio: ${aspectRatio}, size: ${size}`);
 
   const endpoint = "https://api.wavespeed.ai/api/v3/bytedance/seedream-v4.5/edit";
 
@@ -1526,7 +1534,7 @@ export async function generateCharacterImageToImage(
         enable_sync_mode: false,
         images: [publicImageUrl],
         prompt: enhancedPrompt,
-        size: "2048*2048",
+        size,
       }),
     });
 
@@ -1837,10 +1845,7 @@ async function generateSingleSceneImageFromText(
   console.log(`[TEXT-TO-IMAGE] Prompt: ${prompt}`);
   console.log(`[TEXT-TO-IMAGE] Aspect ratio: ${aspectRatio}`);
 
-  // Determine size parameter based on aspect ratio
-  // Vertical (9:16): 1728*2304 (width*height)
-  // Horizontal (16:9): 2560*1440 (width*height)
-  const size = (aspectRatio === "9:16" || aspectRatio === "3:4") ? "1728*2304" : "2560*1440";
+  const size = aspectRatioToSize(aspectRatio);
   console.log(`[TEXT-TO-IMAGE] Using size: ${size} for aspect ratio: ${aspectRatio}`);
 
   // Submit generation request to Wavespeed.ai using seedream-v4 model
@@ -2019,11 +2024,7 @@ async function generateSceneImagesSequential(
   const publicCharacterImageUrl = await ensurePublicImageUrl(characterImageUrl, 86400);
   console.log(`✓ Using validated character image URL for sequential generation`);
 
-  // Determine size parameter based on aspect ratio
-  // The sequential model only accepts these fixed sizes:
-  // Vertical (9:16 or 3:4): 1728*2304
-  // Horizontal (16:9): 2560*1440
-  const size = (aspectRatio === "9:16" || aspectRatio === "3:4") ? "1728*2304" : "2560*1440";
+  const size = aspectRatioToSize(aspectRatio);
   console.log(`[SEQUENTIAL-GEN] Using size: ${size} for aspect ratio: ${aspectRatio}`);
 
   // Format the prompts directly into the sequential format matching user's example
@@ -2346,10 +2347,7 @@ export async function generateSceneImagesFromText(
     throw new Error("WAVESPEED_API_KEY environment variable is required");
   }
 
-  // Determine size parameter based on aspect ratio
-  // Vertical (9:16): 1728*2304 (width*height)
-  // Horizontal (16:9): 2560*1440 (width*height)
-  const size = (aspectRatio === "9:16" || aspectRatio === "3:4") ? "1728*2304" : "2560*1440";
+  const size = aspectRatioToSize(aspectRatio);
   console.log(`[TEXT-TO-IMAGE] Using size: ${size} for aspect ratio: ${aspectRatio}`);
 
   // Format the prompts into sequential format

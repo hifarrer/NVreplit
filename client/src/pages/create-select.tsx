@@ -10,7 +10,6 @@ import { AudioToLyricsToolModal } from "@/components/modals/audio-to-lyrics-tool
 import { VideoUpscalerToolModal } from "@/components/modals/video-upscaler-tool-modal";
 import { AIVideoEditionToolModal } from "@/components/modals/ai-video-edition-tool-modal";
 import { VideoBackgroundRemoverToolModal } from "@/components/modals/video-background-remover-tool-modal";
-import { Subtitles, Scissors, Music, ArrowUpRight, Wand2, Eraser } from "lucide-react";
 
 export default function CreateSelect() {
   const [, navigate] = useLocation();
@@ -184,6 +183,34 @@ export default function CreateSelect() {
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-16 mb-6">
+            Visual Tools
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
+            <Card
+              className="overflow-hidden border border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer transition-all"
+              onClick={() => navigate("/create/character-creator")}
+            >
+              <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                <img
+                  src="https://res.cloudinary.com/dqemas8ht/image/upload/v1767383314/characters_bsaw13.png"
+                  alt="Character Creator"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="px-4 sm:px-6 pt-3 pb-2">
+                <p className="text-center text-pink-500 text-xs sm:text-sm">
+                  Create a unique character for your videos
+                </p>
+              </div>
+              <CardContent className="p-4 sm:p-6 pt-2">
+                <p className="text-center text-foreground text-sm sm:text-base font-medium">
+                  Character Creator
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-16 mb-6">
             Video Tools
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
@@ -191,8 +218,12 @@ export default function CreateSelect() {
               className="overflow-hidden border border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer transition-all"
               onClick={() => setAddCaptionsOpen(true)}
             >
-              <div className="relative aspect-[4/3] overflow-hidden bg-muted flex items-center justify-center">
-                <Subtitles className="h-16 w-16 text-muted-foreground/60" />
+              <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                <img
+                  src="https://neonvideo.b-cdn.net/logos/styletiktok2.jpg"
+                  alt="Add Captions"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="px-4 sm:px-6 pt-3 pb-2">
                 <p className="text-center text-pink-500 text-xs sm:text-sm">
@@ -209,8 +240,12 @@ export default function CreateSelect() {
               className="overflow-hidden border border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer transition-all"
               onClick={() => setTrimVideoOpen(true)}
             >
-              <div className="relative aspect-[4/3] overflow-hidden bg-muted flex items-center justify-center">
-                <Scissors className="h-16 w-16 text-muted-foreground/60" />
+              <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                <img
+                  src="https://neonvideo.b-cdn.net/logos/StyleVideoTrim.jpg"
+                  alt="Trim Video"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="px-4 sm:px-6 pt-3 pb-2">
                 <p className="text-center text-pink-500 text-xs sm:text-sm">
@@ -227,8 +262,12 @@ export default function CreateSelect() {
               className="overflow-hidden border border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer transition-all"
               onClick={() => setTrimAudioOpen(true)}
             >
-              <div className="relative aspect-[4/3] overflow-hidden bg-muted flex items-center justify-center">
-                <Music className="h-16 w-16 text-muted-foreground/60" />
+              <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                <img
+                  src="https://neonvideo.b-cdn.net/logos/Style_audioTrim.jpg"
+                  alt="Trim Audio"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="px-4 sm:px-6 pt-3 pb-2">
                 <p className="text-center text-pink-500 text-xs sm:text-sm">
@@ -245,8 +284,12 @@ export default function CreateSelect() {
               className="overflow-hidden border border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer transition-all"
               onClick={() => setVideoUpscalerOpen(true)}
             >
-              <div className="relative aspect-[4/3] overflow-hidden bg-muted flex items-center justify-center">
-                <ArrowUpRight className="h-16 w-16 text-muted-foreground/60" />
+              <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                <img
+                  src="https://neonvideo.b-cdn.net/logos/styleUpscale.jpg"
+                  alt="Video Upscaler"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="px-4 sm:px-6 pt-3 pb-2">
                 <p className="text-center text-pink-500 text-xs sm:text-sm">
@@ -263,8 +306,12 @@ export default function CreateSelect() {
               className="overflow-hidden border border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer transition-all"
               onClick={() => setAIVideoEditionOpen(true)}
             >
-              <div className="relative aspect-[4/3] overflow-hidden bg-muted flex items-center justify-center">
-                <Wand2 className="h-16 w-16 text-muted-foreground/60" />
+              <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                <img
+                  src="https://neonvideo.b-cdn.net/logos/styleAIedit.jpg"
+                  alt="AI Video Edition"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="px-4 sm:px-6 pt-3 pb-2">
                 <p className="text-center text-pink-500 text-xs sm:text-sm">
@@ -281,8 +328,12 @@ export default function CreateSelect() {
               className="overflow-hidden border border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer transition-all"
               onClick={() => setVideoBgRemoverOpen(true)}
             >
-              <div className="relative aspect-[4/3] overflow-hidden bg-muted flex items-center justify-center">
-                <Eraser className="h-16 w-16 text-muted-foreground/60" />
+              <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                <img
+                  src="https://neonvideo.b-cdn.net/logos/styleBGremover.jpg"
+                  alt="Video Background Remover"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="px-4 sm:px-6 pt-3 pb-2">
                 <p className="text-center text-pink-500 text-xs sm:text-sm">

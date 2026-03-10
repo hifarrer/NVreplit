@@ -3,22 +3,25 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CharacterLibraryModal } from "@/components/modals/character-library-modal";
 import { SaveCharacterModal } from "@/components/modals/save-character-modal";
+import { CharacterCameraAngleModal } from "@/components/modals/character-camera-angle-modal";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Images, User, Upload, Sparkles, Bookmark, Loader2, Check, AlertTriangle, Crown, X } from "lucide-react";
+import { User, Upload, Sparkles, Loader2, Check, AlertTriangle, Crown, Maximize2, X, Download, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface StandaloneCharacterCreatorProps {
   isOpen: boolean;
   onClose: () => void;
   onCharacterGenerated: (result: { imageUrl: string; prompt: string }) => void;
+  /** When true, render as full page content instead of a modal (no Dialog wrapper) */
+  asPage?: boolean;
 }
 
 interface CharacterStyle {
@@ -36,9 +39,9 @@ interface CharacterLimitInfo {
   canCreate: boolean;
 }
 
-export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerated }: StandaloneCharacterCreatorProps) {
-  const [showLibraryModal, setShowLibraryModal] = useState(false);
+export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerated, asPage = false }: StandaloneCharacterCreatorProps) {
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [activeTab, setActiveTab] = useState("generate");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -53,6 +56,7 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
   const [progress, setProgress] = useState(0);
   const [currentCharacterUrl, setCurrentCharacterUrl] = useState<string | null>(null);
   const [currentCharacterPrompt, setCurrentCharacterPrompt] = useState("");
+  const [cameraAngleImageUrl, setCameraAngleImageUrl] = useState<string | null>(null);
 
   // Upload tab state
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
@@ -60,6 +64,9 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
   const [selectedUploadStyle, setSelectedUploadStyle] = useState<CharacterStyle | null>(null);
   const [generatedUploadImageUrl, setGeneratedUploadImageUrl] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  // Aspect ratio (only used when asPage - character creator page)
+  const [aspectRatio, setAspectRatio] = useState<"1:1" | "16:9" | "9:16" | "4:3" | "3:4">("1:1");
 
   // Fetch character styles
   const { data: styles = [] } = useQuery<CharacterStyle[]>({
@@ -109,7 +116,7 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
 
       const response = await apiRequest("POST", `/api/characters/generate-options`, {
         prompt: prompt,
-        aspectRatio: "16:9",
+        aspectRatio: asPage ? aspectRatio : "16:9",
         style: selectedStyle.style_name,
         model: selectedStyle.model,
         promptEnhancer: selectedStyle.prompt_enhancer
@@ -164,7 +171,8 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
       const response = await apiRequest("POST", `/api/characters/generate-image-to-image`, {
         imageUrl: uploadedImageUrl,
         prompt: uploadedImagePrompt || "character",
-        promptEnhancer: selectedUploadStyle.prompt_enhancer
+        promptEnhancer: selectedUploadStyle.prompt_enhancer,
+        aspectRatio: asPage ? aspectRatio : "1:1",
       }, { timeout: 900000 });
 
       clearInterval(progressInterval);
@@ -350,40 +358,49 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
     }
   };
 
-  const handleSavedCharacterSelected = async (character: { imageUrl: string; prompt: string }) => {
-    try {
-      setCurrentCharacterUrl(character.imageUrl);
-      setCurrentCharacterPrompt(character.prompt);
-      onCharacterGenerated(character);
-      toast({
-        title: "Character loaded",
-        description: "Your saved character has been loaded successfully!",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load the selected character. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleSelectGeneratedImage = (imageUrl: string) => {
     setCurrentCharacterUrl(imageUrl);
     saveCharacterMutation.mutate(imageUrl);
   };
 
+  const handleCameraAngleSuccess = (_oldUrl: string, newUrl: string) => {
+    setGeneratedImageUrls((prev) => [...prev, newUrl]);
+    setCameraAngleImageUrl(null);
+    toast({
+      title: "Success",
+      description: "Camera angle applied. New image added.",
+    });
+  };
+
+  const handleDownloadImage = async (imageUrl: string, defaultName = "character") => {
+    try {
+      const response = await fetch(imageUrl, { mode: "cors" });
+      if (!response.ok) throw new Error("Failed to fetch image");
+      const blob = await response.blob();
+      const ext = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${defaultName}-${Date.now()}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Download started", description: "Your image is being saved." });
+    } catch {
+      toast({
+        title: "Download failed",
+        description: "Could not download the image. Try opening it in a new tab and saving manually.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const canGenerate = prompt.trim().length > 10 && selectedStyle !== null;
   const isSaveDisabled = limitInfo?.isAtLimit && limitInfo?.isFreePlan;
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="gradient-text">Create Character</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-6">
+  const mainContent = (
+    <div className="space-y-6">
           {limitInfo?.isAtLimit && (
             <Alert className="border-amber-500/50 bg-amber-500/10">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -405,18 +422,12 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
           )}
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-transparent border-b border-border rounded-none h-auto p-0 mb-6">
+            <TabsList className="grid w-full grid-cols-2 bg-transparent border-b border-border rounded-none h-auto p-0 mb-6">
               <TabsTrigger 
                 value="generate" 
                 className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-3 text-base font-medium transition-colors"
               >
                 Generate
-              </TabsTrigger>
-              <TabsTrigger 
-                value="library" 
-                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-3 text-base font-medium transition-colors"
-              >
-                Library
               </TabsTrigger>
               <TabsTrigger 
                 value="upload" 
@@ -473,6 +484,24 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                     <p className="text-xs text-muted-foreground mt-1">Be detailed about appearance, style, clothing, and mood</p>
                   </div>
 
+                  {asPage && (
+                    <div className="flex flex-wrap items-center gap-4">
+                      <Label className="text-sm font-semibold">Aspect ratio</Label>
+                      <Select value={aspectRatio} onValueChange={(v: "1:1" | "16:9" | "9:16" | "4:3" | "3:4") => setAspectRatio(v)}>
+                        <SelectTrigger className="w-[180px] bg-background border-border">
+                          <SelectValue placeholder="Aspect ratio" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1:1">1:1 (Square)</SelectItem>
+                          <SelectItem value="16:9">16:9 (Landscape)</SelectItem>
+                          <SelectItem value="9:16">9:16 (Portrait)</SelectItem>
+                          <SelectItem value="4:3">4:3 (Landscape)</SelectItem>
+                          <SelectItem value="3:4">3:4 (Portrait)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   <Button
                     onClick={() => generateCharacterMutation.mutate()}
                     disabled={!canGenerate || generateCharacterMutation.isPending}
@@ -505,14 +534,14 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                   {generatedImageUrls.length > 0 && (
                     <div ref={generatedImageRef} className="space-y-4">
                       <Label className="text-sm font-semibold block">Generated Characters</Label>
-                      <div className="grid grid-cols-1 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {generatedImageUrls.map((imageUrl, index) => (
-                          <div key={index} className="relative group border-2 rounded-lg overflow-hidden" data-testid={`generated-character-${index}`}>
+                          <div key={imageUrl} className="relative group border-2 rounded-lg overflow-hidden max-h-[280px] w-full" data-testid={`generated-character-${index}`}>
                             <img
                               src={imageUrl}
                               alt={`Generated character ${index + 1}`}
                               className={cn(
-                                "w-full rounded-lg object-cover transition-all",
+                                "w-full h-full max-h-[260px] rounded-lg object-contain transition-all",
                                 currentCharacterUrl === imageUrl ? "ring-2 ring-primary" : ""
                               )}
                             />
@@ -521,8 +550,30 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                                 <Check className="w-4 h-4" />
                               </div>
                             )}
+                            <div className="absolute top-2 left-2 flex gap-1 z-10">
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="icon"
+                                className="h-8 w-8 rounded-full bg-background/90 hover:bg-background shadow-md opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                                onClick={() => setExpandedImageUrl(imageUrl)}
+                                aria-label="View full size"
+                              >
+                                <Maximize2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="icon"
+                                className="h-8 w-8 rounded-full bg-background/90 hover:bg-background shadow-md opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleDownloadImage(imageUrl)}
+                                aria-label="Download image"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </div>
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors"></div>
-                            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex flex-wrap gap-2 justify-center opacity-0 group-hover:opacity-100 transition-opacity w-full px-2">
                               <Button
                                 onClick={() => handleSelectGeneratedImage(imageUrl)}
                                 className="bg-green-600 hover:bg-green-700 text-white"
@@ -531,6 +582,15 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                               >
                                 <Check className="w-4 h-4 mr-1" />
                                 Save to Library
+                              </Button>
+                              <Button
+                                onClick={() => setCameraAngleImageUrl(imageUrl)}
+                                size="sm"
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                                data-testid={`camera-angle-${index}`}
+                              >
+                                <Camera className="w-4 h-4 mr-1" />
+                                Camera angle
                               </Button>
                             </div>
                           </div>
@@ -584,6 +644,24 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                   <p className="text-xs text-muted-foreground mt-1">Be detailed about appearance, style, clothing, and mood</p>
                 </div>
 
+                {asPage && (
+                  <div className="flex flex-wrap items-center gap-4">
+                    <Label className="text-sm font-semibold">Aspect ratio</Label>
+                    <Select value={aspectRatio} onValueChange={(v: "1:1" | "16:9" | "9:16" | "4:3" | "3:4") => setAspectRatio(v)}>
+                      <SelectTrigger className="w-[180px] bg-background border-border">
+                        <SelectValue placeholder="Aspect ratio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1:1">1:1 (Square)</SelectItem>
+                        <SelectItem value="16:9">16:9 (Landscape)</SelectItem>
+                        <SelectItem value="9:16">9:16 (Portrait)</SelectItem>
+                        <SelectItem value="4:3">4:3 (Landscape)</SelectItem>
+                        <SelectItem value="3:4">3:4 (Portrait)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <Button
                   onClick={() => generateCharacterMutation.mutate()}
                   disabled={!canGenerate || generateCharacterMutation.isPending}
@@ -616,14 +694,14 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                 {generatedImageUrls.length > 0 && (
                   <div ref={generatedImageRef} className="space-y-4">
                     <Label className="text-sm font-semibold block">Generated Characters</Label>
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {generatedImageUrls.map((imageUrl, index) => (
-                        <div key={index} className="relative group border-2 rounded-lg overflow-hidden" data-testid={`generated-character-${index}`}>
+                        <div key={imageUrl} className="relative group border-2 rounded-lg overflow-hidden max-h-[280px] w-full" data-testid={`generated-character-${index}`}>
                           <img
                             src={imageUrl}
                             alt={`Generated character ${index + 1}`}
                             className={cn(
-                              "w-full rounded-lg object-cover transition-all",
+                              "w-full h-full max-h-[260px] rounded-lg object-contain transition-all",
                               currentCharacterUrl === imageUrl ? "ring-2 ring-primary" : ""
                             )}
                           />
@@ -632,16 +710,47 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                               <Check className="w-4 h-4" />
                             </div>
                           )}
+                          <div className="absolute top-2 left-2 flex gap-1 z-10">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="icon"
+                              className="h-8 w-8 rounded-full bg-background/90 hover:bg-background shadow-md opacity-90"
+                              onClick={() => setExpandedImageUrl(imageUrl)}
+                              aria-label="View full size"
+                            >
+                              <Maximize2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="icon"
+                              className="h-8 w-8 rounded-full bg-background/90 hover:bg-background shadow-md opacity-90"
+                              onClick={() => handleDownloadImage(imageUrl)}
+                              aria-label="Download image"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </div>
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors"></div>
-                          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity w-full px-2">
+                          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex flex-wrap gap-2 justify-center opacity-0 group-hover:opacity-100 transition-opacity w-full px-2">
                             <Button
                               onClick={() => handleSelectGeneratedImage(imageUrl)}
-                              className="bg-green-600 hover:bg-green-700 text-white w-full"
+                              className="bg-green-600 hover:bg-green-700 text-white"
                               size="sm"
                               data-testid={`save-character-${index}`}
                             >
                               <Check className="w-4 h-4 mr-1" />
                               Save to Library
+                            </Button>
+                            <Button
+                              onClick={() => setCameraAngleImageUrl(imageUrl)}
+                              size="sm"
+                              className="bg-blue-600 hover:bg-blue-700 text-white"
+                              data-testid={`camera-angle-${index}`}
+                            >
+                              <Camera className="w-4 h-4 mr-1" />
+                              Camera angle
                             </Button>
                           </div>
                         </div>
@@ -649,26 +758,6 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                     </div>
                   </div>
                 )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="library" className="mt-0">
-              <div className="text-center py-8">
-                <img 
-                  src="https://res.cloudinary.com/dqemas8ht/image/upload/v1767383314/characters_bsaw13.png" 
-                  alt="Character Library" 
-                  className="w-48 sm:w-96 h-auto mx-auto mb-4 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                  onClick={() => setShowLibraryModal(true)}
-                />
-                <h4 className="text-lg font-semibold mb-2">Character Library</h4>
-                <p className="text-muted-foreground mb-6 text-sm">Choose from public or your saved characters</p>
-                <Button 
-                  onClick={() => setShowLibraryModal(true)}
-                  className="floating-button px-8"
-                >
-                  <Images className="w-4 h-4 mr-2" />
-                  Open Library
-                </Button>
               </div>
             </TabsContent>
 
@@ -749,15 +838,54 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                       </>
                     ) : (
                       <>
+                        {asPage && (
+                          <div className="flex flex-wrap items-center gap-4">
+                            <Label className="text-sm font-semibold">Aspect ratio</Label>
+                            <Select value={aspectRatio} onValueChange={(v: "1:1" | "16:9" | "9:16" | "4:3" | "3:4") => setAspectRatio(v)}>
+                              <SelectTrigger className="w-[180px] bg-background border-border">
+                                <SelectValue placeholder="Aspect ratio" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="1:1">1:1 (Square)</SelectItem>
+                                <SelectItem value="16:9">16:9 (Landscape)</SelectItem>
+                                <SelectItem value="9:16">9:16 (Portrait)</SelectItem>
+                                <SelectItem value="4:3">4:3 (Landscape)</SelectItem>
+                                <SelectItem value="3:4">3:4 (Portrait)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <Label className="text-sm font-semibold mb-2 block">Original Image</Label>
-                            <div className="relative group">
+                            <div className="relative group max-h-[260px] rounded-lg overflow-hidden border-2 border-border">
                               <img
                                 src={uploadedImageUrl}
                                 alt="Original character"
-                                className="w-full rounded-lg object-cover border-2 border-border"
+                                className="w-full h-full max-h-[240px] rounded-lg object-contain"
                               />
+                              <div className="absolute top-2 left-2 flex gap-1 z-10">
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-full bg-background/90 hover:bg-background shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => setExpandedImageUrl(uploadedImageUrl!)}
+                                  aria-label="View full size"
+                                >
+                                  <Maximize2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-full bg-background/90 hover:bg-background shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => handleDownloadImage(uploadedImageUrl!, "character-original")}
+                                  aria-label="Download image"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </div>
                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors"></div>
                               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Button
@@ -784,13 +912,37 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                           <div>
                             <Label className="text-sm font-semibold mb-2 block">Generated Image</Label>
                             {generatedUploadImageUrl ? (
-                              <img
-                                src={generatedUploadImageUrl}
-                                alt="Generated character"
-                                className="w-full rounded-lg object-cover border-2 border-primary"
-                              />
+                              <div className="relative group max-h-[260px] rounded-lg overflow-hidden border-2 border-primary">
+                                <img
+                                  src={generatedUploadImageUrl}
+                                  alt="Generated character"
+                                  className="w-full h-full max-h-[240px] rounded-lg object-contain"
+                                />
+                                <div className="absolute top-2 left-2 flex gap-1 z-10">
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-full bg-background/90 hover:bg-background shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={() => setExpandedImageUrl(generatedUploadImageUrl)}
+                                    aria-label="View full size"
+                                  >
+                                    <Maximize2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-full bg-background/90 hover:bg-background shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={() => handleDownloadImage(generatedUploadImageUrl, "character-generated")}
+                                    aria-label="Download image"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
                             ) : (
-                              <div className="w-full aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center bg-muted/20">
+                              <div className="w-full aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center bg-muted/20 max-h-[260px]">
                                 <p className="text-sm text-muted-foreground text-center">Click "Change style" to generate</p>
                               </div>
                             )}
@@ -932,15 +1084,54 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                     </>
                   ) : (
                     <>
+                      {asPage && (
+                        <div className="flex flex-wrap items-center gap-4">
+                          <Label className="text-sm font-semibold">Aspect ratio</Label>
+                          <Select value={aspectRatio} onValueChange={(v: "1:1" | "16:9" | "9:16" | "4:3" | "3:4") => setAspectRatio(v)}>
+                            <SelectTrigger className="w-[180px] bg-background border-border">
+                              <SelectValue placeholder="Aspect ratio" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1:1">1:1 (Square)</SelectItem>
+                              <SelectItem value="16:9">16:9 (Landscape)</SelectItem>
+                              <SelectItem value="9:16">9:16 (Portrait)</SelectItem>
+                              <SelectItem value="4:3">4:3 (Landscape)</SelectItem>
+                              <SelectItem value="3:4">3:4 (Portrait)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                       <div className="space-y-4">
                         <div>
                           <Label className="text-sm font-semibold mb-2 block">Original Image</Label>
-                          <div className="relative group">
+                          <div className="relative group max-h-[260px] rounded-lg overflow-hidden border-2 border-border mx-auto max-w-sm">
                             <img
                               src={uploadedImageUrl}
                               alt="Original character"
-                              className="w-full rounded-lg object-cover border-2 border-border"
+                              className="w-full h-full max-h-[240px] rounded-lg object-contain"
                             />
+                            <div className="absolute top-2 left-2 flex gap-1 z-10">
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="icon"
+                                className="h-8 w-8 rounded-full bg-background/90 hover:bg-background shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => setExpandedImageUrl(uploadedImageUrl!)}
+                                aria-label="View full size"
+                              >
+                                <Maximize2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="icon"
+                                className="h-8 w-8 rounded-full bg-background/90 hover:bg-background shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleDownloadImage(uploadedImageUrl!, "character-original")}
+                                aria-label="Download image"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </div>
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors"></div>
                             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                               <Button
@@ -967,13 +1158,37 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                         <div>
                           <Label className="text-sm font-semibold mb-2 block">Generated Image</Label>
                           {generatedUploadImageUrl ? (
-                            <img
-                              src={generatedUploadImageUrl}
-                              alt="Generated character"
-                              className="w-full rounded-lg object-cover border-2 border-primary"
-                            />
+                            <div className="relative group max-h-[260px] rounded-lg overflow-hidden border-2 border-primary mx-auto max-w-sm">
+                              <img
+                                src={generatedUploadImageUrl}
+                                alt="Generated character"
+                                className="w-full h-full max-h-[240px] rounded-lg object-contain"
+                              />
+                              <div className="absolute top-2 left-2 flex gap-1 z-10">
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-full bg-background/90 hover:bg-background shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => setExpandedImageUrl(generatedUploadImageUrl)}
+                                  aria-label="View full size"
+                                >
+                                  <Maximize2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-full bg-background/90 hover:bg-background shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => handleDownloadImage(generatedUploadImageUrl, "character-generated")}
+                                  aria-label="Download image"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
                           ) : (
-                            <div className="w-full aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center bg-muted/20">
+                            <div className="w-full aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center bg-muted/20 max-h-[260px] mx-auto max-w-sm">
                               <p className="text-sm text-muted-foreground text-center">Click "Change style" to generate</p>
                             </div>
                           )}
@@ -1041,23 +1256,97 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
               </div>
             </TabsContent>
           </Tabs>
+    </div>
+  );
+
+  const expandedImageDialog = (
+    <Dialog open={!!expandedImageUrl} onOpenChange={(open) => !open && setExpandedImageUrl(null)}>
+      <DialogContent className="max-w-4xl max-h-[90vh] p-2 overflow-hidden flex flex-col">
+        <div className="flex justify-end gap-2">
+          {expandedImageUrl && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleDownloadImage(expandedImageUrl)}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Download
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" onClick={() => setExpandedImageUrl(null)} aria-label="Close">
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+        <div className="flex-1 min-h-0 flex items-center justify-center p-4">
+          {expandedImageUrl && (
+            <img
+              src={expandedImageUrl}
+              alt="Character full size"
+              className="max-w-full max-h-[85vh] w-auto h-auto object-contain rounded-lg"
+            />
+          )}
         </div>
       </DialogContent>
-
-      <CharacterLibraryModal
-        isOpen={showLibraryModal}
-        onClose={() => setShowLibraryModal(false)}
-        onSelect={handleSavedCharacterSelected}
-      />
-      
-      {currentCharacterUrl && currentCharacterPrompt && (
-        <SaveCharacterModal
-          isOpen={showSaveModal}
-          onClose={() => setShowSaveModal(false)}
-          imageUrl={currentCharacterUrl}
-          prompt={currentCharacterPrompt}
-        />
-      )}
     </Dialog>
+  );
+
+  if (asPage) {
+    return (
+      <>
+        <div className="max-w-6xl w-full mx-auto">
+          <h1 className="gradient-text text-2xl font-bold mb-6">Create Character</h1>
+          {mainContent}
+        </div>
+        {currentCharacterUrl && currentCharacterPrompt && (
+          <SaveCharacterModal
+            isOpen={showSaveModal}
+            onClose={() => setShowSaveModal(false)}
+            imageUrl={currentCharacterUrl}
+            prompt={currentCharacterPrompt}
+          />
+        )}
+        {cameraAngleImageUrl && (
+          <CharacterCameraAngleModal
+            isOpen={!!cameraAngleImageUrl}
+            onClose={() => setCameraAngleImageUrl(null)}
+            imageUrl={cameraAngleImageUrl}
+            onSuccess={(newUrl) => handleCameraAngleSuccess(cameraAngleImageUrl, newUrl)}
+          />
+        )}
+        {expandedImageDialog}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="gradient-text">Create Character</DialogTitle>
+          </DialogHeader>
+          {mainContent}
+        </DialogContent>
+
+        {currentCharacterUrl && currentCharacterPrompt && (
+          <SaveCharacterModal
+            isOpen={showSaveModal}
+            onClose={() => setShowSaveModal(false)}
+            imageUrl={currentCharacterUrl}
+            prompt={currentCharacterPrompt}
+          />
+        )}
+        {cameraAngleImageUrl && (
+          <CharacterCameraAngleModal
+            isOpen={!!cameraAngleImageUrl}
+            onClose={() => setCameraAngleImageUrl(null)}
+            imageUrl={cameraAngleImageUrl}
+            onSuccess={(newUrl) => handleCameraAngleSuccess(cameraAngleImageUrl, newUrl)}
+          />
+        )}
+      </Dialog>
+      {expandedImageDialog}
+    </>
   );
 }

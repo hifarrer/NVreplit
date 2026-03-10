@@ -9921,10 +9921,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/characters/generate-image-to-image", authenticateToken, async (req, res) => {
     try {
       console.log("Standalone character image-to-image generation route called with body:", req.body);
-      const { imageUrl, prompt, promptEnhancer } = req.body;
+      const { imageUrl, prompt, promptEnhancer, aspectRatio = "1:1" } = req.body;
       console.log("Image URL:", imageUrl);
       console.log("Prompt:", prompt);
       console.log("Prompt enhancer:", promptEnhancer);
+      console.log("Aspect ratio:", aspectRatio);
 
       if (!imageUrl || !prompt || !prompt.trim()) {
         throw new Error("Image URL and prompt are required");
@@ -9937,7 +9938,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const resultImageUrl = await generateCharacterImageToImage(
         imageUrl,
         prompt,
-        promptEnhancer || null
+        promptEnhancer || null,
+        aspectRatio
       );
       console.log("generateCharacterImageToImage returned:", resultImageUrl);
 
