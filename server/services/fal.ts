@@ -2024,7 +2024,8 @@ async function generateSceneImagesSequential(
   const publicCharacterImageUrl = await ensurePublicImageUrl(characterImageUrl, 86400);
   console.log(`✓ Using validated character image URL for sequential generation`);
 
-  const size = aspectRatioToSize(aspectRatio);
+  // edit-sequential requires at least 3686400 pixels; use seedream-v4.5 size mapping (1:1→2048*2048, 16:9→2560*1440, etc.)
+  const size = seedreamImageToImageSizeForAspectRatio(aspectRatio);
   console.log(`[SEQUENTIAL-GEN] Using size: ${size} for aspect ratio: ${aspectRatio}`);
 
   // Format the prompts directly into the sequential format matching user's example
