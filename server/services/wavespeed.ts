@@ -958,3 +958,110 @@ export async function generateVideoFromImage(
 
   throw new Error("Image-to-video generation timed out");
 }
+
+const SEEDANCE_I2V_ENDPOINT = "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1.5-pro/image-to-video";
+
+async function pollSeedanceResult(requestId: string, label: string, pollIntervalMs = 10000): Promise<string> {
+  let attempts = 0;
+  const maxAttempts = 60;
+  while (attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    const statusResponse = await fetch(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      { headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` } },
+    );
+    if (!statusResponse.ok) {
+      throw new Error(`${label} status check failed: ${statusResponse.status}`);
+    }
+    const statusResult = await statusResponse.json();
+    if (
+      statusResult.data?.status === "completed" &&
+      statusResult.data.outputs &&
+      statusResult.data.outputs.length > 0
+    ) {
+      return statusResult.data.outputs[0];
+    }
+    if (statusResult.data?.status === "failed" || statusResult.status === "failed") {
+      const errorDetails = statusResult.data?.error || statusResult.error || "Unknown error";
+      throw new Error(`${label} failed: ${typeof errorDetails === "string" ? errorDetails : JSON.stringify(errorDetails)}`);
+    }
+    attempts++;
+  }
+  throw new Error(`${label} timed out`);
+}
+
+/** Original 12s video for loop (single image, 480p, non-fast endpoint). */
+export async function generateVideoFromImageLoop(
+  imageUrl: string,
+  prompt: string,
+  aspectRatio: string = "3:4",
+  duration: number = 12,
+): Promise<string> {
+  console.log("=== GENERATING LOOP ORIGINAL VIDEO (seedance-v1.5-pro image-to-video) ===");
+  const response = await fetch(SEEDANCE_I2V_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+    },
+    body: JSON.stringify({
+      aspect_ratio: aspectRatio,
+      camera_fixed: false,
+      duration,
+      generate_audio: false,
+      image: imageUrl,
+      prompt,
+      resolution: "480p",
+      seed: -1,
+    }),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Wavespeed image-to-video (loop) API error: ${response.status} - ${errorText}`);
+  }
+  const result = await response.json();
+  const requestId = result.data?.id || result.id;
+  if (!requestId) {
+    throw new Error("No request ID received from Wavespeed image-to-video (loop)");
+  }
+  return pollSeedanceResult(requestId, "Loop original video");
+}
+
+/** Transition video from last frame to first frame (12s, 480p, non-fast endpoint with last_image). */
+export async function generateVideoFromImageTransition(
+  imageUrl: string,
+  lastImageUrl: string,
+  prompt: string,
+  aspectRatio: string = "3:4",
+  duration: number = 12,
+): Promise<string> {
+  console.log("=== GENERATING LOOP TRANSITION VIDEO (seedance-v1.5-pro image-to-video + last_image) ===");
+  const response = await fetch(SEEDANCE_I2V_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+    },
+    body: JSON.stringify({
+      aspect_ratio: aspectRatio,
+      camera_fixed: false,
+      duration,
+      generate_audio: false,
+      image: imageUrl,
+      last_image: lastImageUrl,
+      prompt,
+      resolution: "480p",
+      seed: -1,
+    }),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Wavespeed image-to-video (transition) API error: ${response.status} - ${errorText}`);
+  }
+  const result = await response.json();
+  const requestId = result.data?.id || result.id;
+  if (!requestId) {
+    throw new Error("No request ID received from Wavespeed image-to-video (transition)");
+  }
+  return pollSeedanceResult(requestId, "Loop transition video");
+}

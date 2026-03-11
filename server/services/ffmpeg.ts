@@ -359,7 +359,96 @@ export async function pictureInPicture(mainVideoUrl: string, pipVideoUrl: string
   }
 }
 
+// Base URL for frame extraction (get first/last frame). Override with FFMPEG_API_BASE if your deployment uses different hosts.
+const FFMPEG_API_BASE = process.env.FFMPEG_API_BASE || "https://ffmpegapi-production.up.railway.app";
+
+export interface FrameImageResult {
+  success: boolean;
+  image_url: string;
+  download_url?: string;
+  filename?: string;
+  message?: string;
+}
+
+export async function getLastFrameImage(videoUrl: string): Promise<FrameImageResult> {
+  const url = `${FFMPEG_API_BASE}/api/get_last_frame_image`;
+  const response = await fetchWithRetry(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": FFMPEG_API_KEY,
+    },
+    body: JSON.stringify({ video_url: videoUrl }),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`FFMPEG get last frame error: ${response.status} - ${errorText}`);
+  }
+  const result = (await response.json()) as FrameImageResult;
+  if (!result.success || !result.image_url) {
+    throw new Error(result.message || "Failed to extract last frame");
+  }
+  return result;
+}
+
+export async function getFirstFrameImage(videoUrl: string): Promise<FrameImageResult> {
+  const url = `${FFMPEG_API_BASE}/api/get_first_frame_image`;
+  const response = await fetchWithRetry(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": FFMPEG_API_KEY,
+    },
+    body: JSON.stringify({ video_url: videoUrl }),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`FFMPEG get first frame error: ${response.status} - ${errorText}`);
+  }
+  const result = (await response.json()) as FrameImageResult;
+  if (!result.success || !result.image_url) {
+    throw new Error(result.message || "Failed to extract first frame");
+  }
+  return result;
+}
+
+export interface VideoLoopResult {
+  success: boolean;
+  message?: string;
+  download_url: string;
+  filename: string;
+  loops?: number;
+  video_duration_seconds?: number;
+  audio_duration_seconds?: number;
+  estimated_total_duration_seconds?: number;
+}
+
+/** Loop a short video to match audio length (ffmpegapi video_loop). */
+export async function videoLoop(videoUrl: string, audioUrl: string): Promise<VideoLoopResult> {
+  const url = `${FFMPEG_API_BASE}/api/video_loop`;
+  const response = await fetchWithRetry(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": FFMPEG_API_KEY,
+    },
+    body: JSON.stringify({ video_url: videoUrl, audio_url: audioUrl }),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`FFMPEG video_loop error: ${response.status} - ${errorText}`);
+  }
+  const result = (await response.json()) as VideoLoopResult;
+  if (!result.success || !result.download_url) {
+    throw new Error(result.message || "Video loop failed");
+  }
+  return result;
+}
+
 const NEONVIDEO_MERGE_URL = process.env.FFMPEG_NEONVIDEO_MERGE_URL || "https://ffmpegapi-production.up.railway.app/api/neonvideo_merge_videos";
+
+// Generic merge_videos endpoint (no outro). Used for loop-video and any 2+ video merge without outro.
+const MERGE_VIDEOS_URL = process.env.FFMPEG_MERGE_VIDEOS_URL || `${FFMPEG_API_BASE}/api/merge_videos`;
 
 export async function mergeVideos(
   videoUrls: string[],
@@ -370,6 +459,7 @@ export async function mergeVideos(
   dimensions?: string,
 ): Promise<{ download_url: string; filename: string }> {
   const useNeonvideoApi = !!outroUrl;
+  const useRemoteMergeNoOutro = !outroUrl && videoUrls.length >= 2;
 
   if (useNeonvideoApi) {
     console.log("=== FFMPEG NEONVIDEO MERGE (remote API) ===");
@@ -419,6 +509,51 @@ export async function mergeVideos(
     } catch (error) {
       console.error("Neonvideo merge API error:", error);
       throw new Error("Failed to merge videos (neonvideo API): " + (error as Error).message);
+    }
+  }
+
+  if (useRemoteMergeNoOutro) {
+    console.log("=== FFMPEG REMOTE MERGE (merge_videos API, no outro) ===");
+    console.log("Endpoint:", MERGE_VIDEOS_URL);
+    console.log("Number of videos to merge:", videoUrls.length);
+    console.log("Audio URL:", audioUrl || "Not provided");
+    console.log("Dimensions:", dimensions || "Not provided");
+
+    try {
+      const body: Record<string, unknown> = {
+        video_urls: videoUrls,
+        audio_url: audioUrl ?? "",
+        dimensions: dimensions ?? undefined,
+        subtitle_url: subtitleUrl ?? undefined,
+        watermark_url: watermarkUrl ?? undefined,
+      };
+      const response = await fetchWithRetry(MERGE_VIDEOS_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": FFMPEG_API_KEY,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`FFMPEG merge_videos API error: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(`Merge failed: ${result.message || result.error || "Unknown error"}`);
+      }
+
+      const downloadUrl = result.download_url;
+      const filename = result.filename || "merged.mp4";
+      console.log("=== REMOTE MERGE COMPLETE ===");
+      console.log("Download URL:", downloadUrl);
+      return { download_url: downloadUrl, filename };
+    } catch (error) {
+      console.error("FFMPEG merge_videos API error:", error);
+      throw new Error("Failed to merge videos (remote API): " + (error as Error).message);
     }
   }
 

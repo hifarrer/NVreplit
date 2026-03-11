@@ -75,6 +75,15 @@ export default function CreateSelect() {
       route: "/create/video-shorts",
       available: true,
     },
+    {
+      id: "loop-video",
+      title: "Seamless Loop Video",
+      description: "Seamless Loop Video",
+      explanation: "Create a video loop for any song",
+      imageUrl: "https://neonvideo.b-cdn.net/logos/videoloop.jpeg",
+      route: "/create/loop-video",
+      available: true,
+    },
   ];
 
   const handleModeClick = (mode: typeof videoModes[0]) => {

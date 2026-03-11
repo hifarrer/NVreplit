@@ -20,8 +20,8 @@ import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, ge
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
 import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAlbumCoverSeedreamV5Lite } from "./services/fal";
-import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateImageFromText, generateVideoFromImage } from "./services/wavespeed";
-import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl } from "./services/ffmpeg";
+import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition } from "./services/wavespeed";
+import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback, uploadImageToImageKit, isImageKitConfigured } from "./services/imagekit";
@@ -13788,6 +13788,289 @@ Do not add markdown. Return JSON only.`,
       console.error("[VIDEO-SHORTS] Error:", error);
       res.status(500).json({
         error: error instanceof Error ? error.message : "Failed to generate video short",
+      });
+    }
+  });
+
+  // ─── LOOP VIDEO (Seamless Loop) ───────────────────────────────────────
+  app.options("/api/loop-video", (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.sendStatus(204);
+  });
+
+  app.post("/api/loop-video", extractTokenFromUrl, authenticateToken, async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    try {
+      const { prompt, audioUrl: providedAudioUrl, aspectRatio: requestedAspectRatio } = req.body;
+      const userId = req.user!.userId;
+
+      if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
+        return res.status(400).json({ error: "Please provide a prompt describing what your song is about." });
+      }
+
+      const hasAudio = typeof providedAudioUrl === "string" && providedAudioUrl.trim().length > 0;
+      if (!hasAudio) {
+        return res.status(400).json({ error: "Audio is required. Please provide an audio URL or upload audio." });
+      }
+
+      const validAspectRatios = ["3:4", "9:16", "16:9"];
+      const aspectRatio = validAspectRatios.includes(requestedAspectRatio) ? requestedAspectRatio : "3:4";
+
+      const LOOP_VIDEO_CREDITS = 2000;
+      const canAfford = await storage.canUserAffordCredits(userId, LOOP_VIDEO_CREDITS);
+      if (!canAfford) {
+        const remaining = await storage.getUserCreditsRemaining(userId);
+        return res.status(402).json({
+          error: "Insufficient credits for Loop Video generation",
+          creditsRequired: LOOP_VIDEO_CREDITS,
+          creditsRemaining: remaining,
+        });
+      }
+
+      const project = await storage.createProject({
+        userId,
+        title: `Loop: ${prompt.substring(0, 50)}`,
+        description: prompt,
+        aspectRatio,
+        currentStep: 1,
+        addSubtitles: false,
+        isInstrumental: true,
+      } as any);
+
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "project_creation",
+        message: "Setting up your Loop Video...",
+        status: "completed",
+        metadata: {},
+      });
+
+      res.json({
+        success: true,
+        projectId: project.id,
+        message: "Loop Video generation started!",
+      });
+
+      (async () => {
+        const objectStorageService = new ObjectStorageService();
+        try {
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "image_generation",
+            message: "Generating image from prompt...",
+            status: "progress",
+            metadata: {},
+          });
+
+          const imageUrl = await generateImageFromText(prompt.trim(), aspectRatio);
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "image_generation",
+            message: "Image generated successfully",
+            status: "completed",
+            metadata: { imageUrl },
+          });
+
+          await storage.updateProject(project.id, { characterImageUrl: imageUrl, currentStep: 2 } as any);
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "original_video",
+            message: "Creating original 12-second video...",
+            status: "progress",
+            metadata: {},
+          });
+
+          const originalVideoUrl = await generateVideoFromImageLoop(imageUrl, prompt.trim(), aspectRatio, 12);
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "original_video",
+            message: "Original video created",
+            status: "completed",
+            metadata: { videoUrl: originalVideoUrl },
+          });
+
+          let videoUrlForFrames = originalVideoUrl;
+          if (isBunnyConfigured("scenes") && !isBunnyUrl(originalVideoUrl)) {
+            try {
+              const videoResp = await fetch(originalVideoUrl);
+              if (!videoResp.ok) throw new Error(`Failed to fetch: ${videoResp.status}`);
+              const videoBuffer = Buffer.from(await videoResp.arrayBuffer());
+              const { url: bunnyUrl } = await uploadToBunnyStorage("scenes", `loop_orig_${project.id}_${Date.now()}.mp4`, videoBuffer);
+              videoUrlForFrames = bunnyUrl;
+            } catch (e) {
+              console.warn("[LOOP-VIDEO] Persist original to Bunny failed, using WaveSpeed URL:", e);
+            }
+          }
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "frame_extraction",
+            message: "Extracting first and last frames...",
+            status: "progress",
+            metadata: {},
+          });
+
+          const lastFrameResult = await getLastFrameImage(videoUrlForFrames);
+          const firstFrameResult = await getFirstFrameImage(videoUrlForFrames);
+          const lastFrameImageUrl = lastFrameResult.image_url || lastFrameResult.download_url!;
+          const firstFrameImageUrl = firstFrameResult.image_url || firstFrameResult.download_url!;
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "frame_extraction",
+            message: "Frames extracted",
+            status: "completed",
+            metadata: {},
+          });
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "transition_video",
+            message: "Creating transition video (last → first frame)...",
+            status: "progress",
+            metadata: {},
+          });
+
+          const secondVideoUrl = await generateVideoFromImageTransition(
+            lastFrameImageUrl,
+            firstFrameImageUrl,
+            "a slow smooth transition between images",
+            aspectRatio,
+            12,
+          );
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "transition_video",
+            message: "Transition video created",
+            status: "completed",
+            metadata: { videoUrl: secondVideoUrl },
+          });
+
+          let secondVideoUrlForMerge = secondVideoUrl;
+          if (isBunnyConfigured("scenes") && !isBunnyUrl(secondVideoUrl)) {
+            try {
+              const videoResp = await fetch(secondVideoUrl);
+              if (!videoResp.ok) throw new Error(`Failed to fetch: ${videoResp.status}`);
+              const videoBuffer = Buffer.from(await videoResp.arrayBuffer());
+              const { url: bunnyUrl } = await uploadToBunnyStorage("scenes", `loop_second_${project.id}_${Date.now()}.mp4`, videoBuffer);
+              secondVideoUrlForMerge = bunnyUrl;
+            } catch (e) {
+              console.warn("[LOOP-VIDEO] Persist second video to Bunny failed:", e);
+            }
+          }
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "merge",
+            message: "Merging original + transition clip...",
+            status: "progress",
+            metadata: {},
+          });
+
+          const dimensions = aspectRatio === "9:16" ? "1080x1920" : aspectRatio === "3:4" ? "1080x1440" : "1920x1080";
+          const mergedVideo = await mergeVideos(
+            [videoUrlForFrames, secondVideoUrlForMerge],
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            dimensions,
+          );
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "merge",
+            message: "Merge complete",
+            status: "completed",
+            metadata: {},
+          });
+
+          const mergedVideoUrl = mergedVideo.download_url;
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_loop",
+            message: "Looping video to match audio length...",
+            status: "progress",
+            metadata: {},
+          });
+
+          const loopResult = await videoLoop(mergedVideoUrl, providedAudioUrl.trim());
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_loop",
+            message: `Loop complete (${loopResult.loops ?? "?"} loops)`,
+            status: "completed",
+            metadata: { loops: loopResult.loops },
+          });
+
+          let savedFinalVideoUrl: string;
+          const finalDownloadUrl = loopResult.download_url;
+          if (finalDownloadUrl.includes("/api/ffmpeg-local/download/")) {
+            const { OUTPUT_FOLDER } = await import("./services/ffmpegLocal.js");
+            const localFilePath = path.join(OUTPUT_FOLDER, loopResult.filename);
+            const videoBuffer = fs.readFileSync(localFilePath);
+            const uploadResult = await objectStorageService.uploadVideoBuffer(
+              videoBuffer,
+              `loop_video_${Date.now()}.mp4`,
+            );
+            savedFinalVideoUrl = uploadResult.url;
+          } else {
+            const uploadResult = await objectStorageService.uploadVideoFromUrl(
+              finalDownloadUrl,
+              `loop_video_${Date.now()}.mp4`,
+            );
+            savedFinalVideoUrl = uploadResult.url;
+          }
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "upload",
+            message: "Video saved successfully",
+            status: "completed",
+            metadata: { finalVideoUrl: savedFinalVideoUrl },
+          });
+
+          await storage.updateProject(project.id, {
+            finalVideoUrl: savedFinalVideoUrl,
+            isCompleted: true,
+            currentStep: 5,
+            generationStatus: "completed" as any,
+          } as any);
+
+          await storage.deductUserCredits(userId, LOOP_VIDEO_CREDITS);
+
+          try {
+            await createMuxAssetForVideo(project.id, savedFinalVideoUrl);
+          } catch (muxError) {
+            console.error("[LOOP-VIDEO] Mux asset failed:", muxError);
+          }
+        } catch (error) {
+          const errMsg = (error as Error).message;
+          console.error("[LOOP-VIDEO] Error:", error);
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: `Generation failed: ${errMsg}`,
+            status: "error",
+            metadata: { error: errMsg },
+          });
+        }
+      })();
+    } catch (error) {
+      console.error("[LOOP-VIDEO] Route error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to start loop video generation",
       });
     }
   });
