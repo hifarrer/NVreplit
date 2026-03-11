@@ -424,15 +424,19 @@ export interface VideoLoopResult {
 }
 
 /** Loop a short video to match audio length (ffmpegapi video_loop). */
-export async function videoLoop(videoUrl: string, audioUrl: string): Promise<VideoLoopResult> {
+export async function videoLoop(videoUrl: string, audioUrl: string, watermarkUrl?: string | null): Promise<VideoLoopResult> {
   const url = `${FFMPEG_API_BASE}/api/video_loop`;
+  const body: Record<string, string> = { video_url: videoUrl, audio_url: audioUrl };
+  if (watermarkUrl) {
+    body.watermark_url = watermarkUrl;
+  }
   const response = await fetchWithRetry(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-API-Key": FFMPEG_API_KEY,
     },
-    body: JSON.stringify({ video_url: videoUrl, audio_url: audioUrl }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const errorText = await response.text();

@@ -14004,7 +14004,8 @@ Do not add markdown. Return JSON only.`,
             metadata: {},
           });
 
-          const loopResult = await videoLoop(mergedVideoUrl, providedAudioUrl.trim());
+          const watermarkUrl = await getWatermarkUrl();
+          const loopResult = await videoLoop(mergedVideoUrl, providedAudioUrl.trim(), watermarkUrl);
 
           await storage.addGenerationLog({
             projectId: project.id,
