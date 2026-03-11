@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { Search, Trash2, Users, Loader2, Plus, Edit3, AlertTriangle, Crown, ChevronLeft, ChevronRight } from "lucide-react";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
-import { StandaloneCharacterCreator } from "@/components/standalone-character-creator";
 
 interface SavedCharacter {
   id: string;
@@ -32,9 +31,9 @@ interface CharacterLimitInfo {
 const PAGE_SIZE = 20;
 
 export default function CharactersPage() {
+  const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
-  const [showCharacterModal, setShowCharacterModal] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const { user } = useAuth();
@@ -155,16 +154,6 @@ export default function CharactersPage() {
     }
   }, [totalPages, page]);
 
-  const handleCharacterGenerated = (result: { imageUrl: string; prompt: string }) => {
-    // Invalidate the characters query to refetch the updated list
-    queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
-    // Don't close the modal - let users save multiple characters
-    toast({
-      title: "Success",
-      description: "Your character has been saved to your library!",
-    });
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -197,7 +186,7 @@ export default function CharactersPage() {
             </p>
           </div>
           <Button
-            onClick={() => setShowCharacterModal(true)}
+            onClick={() => navigate("/create/character-creator")}
             className="floating-button"
             disabled={limitInfo?.isFreePlan && limitInfo?.isAtLimit}
             data-testid="create-character-button"
@@ -256,7 +245,7 @@ export default function CharactersPage() {
             </p>
             {!searchTerm && (
               <Button 
-                onClick={() => setShowCharacterModal(true)}
+                onClick={() => navigate("/create/character-creator")}
                 className="floating-button" 
                 data-testid="create-first-character"
               >
@@ -399,12 +388,6 @@ export default function CharactersPage() {
         </div>
       </div>
 
-      {/* Character Creator Modal */}
-      <StandaloneCharacterCreator
-        isOpen={showCharacterModal}
-        onClose={() => setShowCharacterModal(false)}
-        onCharacterGenerated={handleCharacterGenerated}
-      />
       <Footer />
     </div>
   );
