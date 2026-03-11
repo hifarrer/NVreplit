@@ -528,6 +528,19 @@ async function submitAndPollSeedreamV45EditForRegenerate(
   throw new Error("seedream-v4.5/edit generation timed out");
 }
 
+/**
+ * AI Image Edit: run bytedance/seedream-v4.5/edit for a user-provided image and prompt.
+ * Used by the standalone AI Image Edit tool (create page). Resolves internal URLs and returns the result image URL.
+ */
+export async function generateAiImageEdit(
+  imageUrl: string,
+  prompt: string,
+  aspectRatio: string = "16:9",
+): Promise<string> {
+  const publicImageUrl = await ensurePublicImageUrl(imageUrl, 86400);
+  return submitAndPollSeedreamV45EditForRegenerate(publicImageUrl, prompt, aspectRatio);
+}
+
 // New Wavespeed.ai character generation function (used for 3D and Cartoon styles)
 export async function generateCharacterImageWavespeed(
   prompt: string,

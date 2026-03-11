@@ -217,6 +217,24 @@ export default function CreateSelect() {
                 </p>
               </CardContent>
             </Card>
+            <Card
+              className="overflow-hidden border border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer transition-all"
+              onClick={() => navigate("/create/ai-image-edit")}
+            >
+              <div className="relative aspect-[4/3] overflow-hidden flex items-center justify-center bg-gradient-to-br from-pink-500/20 via-background to-purple-500/20">
+                <span className="text-5xl" aria-hidden>✨</span>
+              </div>
+              <div className="px-4 sm:px-6 pt-3 pb-2">
+                <p className="text-center text-pink-500 text-xs sm:text-sm">
+                  Edit any image with a prompt using AI
+                </p>
+              </div>
+              <CardContent className="p-4 sm:p-6 pt-2">
+                <p className="text-center text-foreground text-sm sm:text-base font-medium">
+                  AI Image Edit
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-16 mb-6">

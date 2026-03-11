@@ -19,7 +19,7 @@ import { generateSongWithElevenLabs } from "./services/elevenlabs";
 import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, generateInstrumentalSong } from "./services/minimax";
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
-import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAlbumCoverSeedreamV5Lite } from "./services/fal";
+import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAlbumCoverSeedreamV5Lite, generateAiImageEdit } from "./services/fal";
 import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition } from "./services/wavespeed";
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
@@ -8192,6 +8192,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Scene image upload error:", error);
       res.status(500).json({ error: "Failed to upload scene image" });
+    }
+  });
+
+  // AI Image Edit tool: upload image (no crop), returns imageUrl for use with POST /api/ai-image-edit
+  app.post("/api/ai-image-edit/upload", authenticateToken, upload.single("image"), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "Image file is required" });
+      }
+      const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+      if (!allowedTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({ error: "Invalid file type. Use JPEG, PNG, GIF, or WebP." });
+      }
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (req.file.size > maxSize) {
+        return res.status(400).json({ error: "Image must be under 10MB." });
+      }
+      let buffer = req.file.buffer;
+      if (req.file.mimetype !== "image/jpeg") {
+        buffer = await sharp(req.file.buffer).jpeg({ quality: 90 }).toBuffer();
+      }
+      const { randomUUID } = await import("crypto");
+      const filename = `ai-edit-${randomUUID()}.jpg`;
+      let imageUrl: string;
+      if (isBunnyConfigured("imageScenes")) {
+        const bunnyResult = await uploadSceneImage(filename, buffer);
+        imageUrl = bunnyResult.url;
+      } else if (isImageKitConfigured()) {
+        const result = await uploadImageToImageKit(buffer, filename, "/scenes");
+        imageUrl = result.url;
+      } else {
+        const imagePath = `scenes/${filename}`;
+        const objectStorageService = new ObjectStorageService();
+        const privateObjectDir = objectStorageService.getPrivateObjectDir();
+        const fullPath = `${privateObjectDir}/${imagePath}`;
+        const pathParts = fullPath.startsWith("/") ? fullPath.slice(1).split("/") : fullPath.split("/");
+        const bucketName = pathParts[0];
+        const objectName = pathParts.slice(1).join("/");
+        const bucket = objectStorageClient.bucket(bucketName);
+        const file = bucket.file(objectName);
+        await file.save(buffer, {
+          metadata: {
+            contentType: "image/jpeg",
+            metadata: { category: "scenes", uploadedAt: new Date().toISOString() },
+          },
+        });
+        imageUrl = `/objects/${imagePath}`;
+      }
+      res.json({ imageUrl });
+    } catch (error) {
+      console.error("AI image edit upload error:", error);
+      res.status(500).json({ error: "Failed to upload image" });
+    }
+  });
+
+  // AI Image Edit tool: run seedream-v4.5/edit on imageUrl with prompt and aspectRatio
+  app.post("/api/ai-image-edit", authenticateToken, async (req, res) => {
+    try {
+      const { imageUrl, prompt, aspectRatio } = req.body ?? {};
+      if (!imageUrl || typeof imageUrl !== "string" || !prompt || typeof prompt !== "string") {
+        return res.status(400).json({ error: "imageUrl and prompt are required" });
+      }
+      const ratio = typeof aspectRatio === "string" ? aspectRatio : "16:9";
+      const resultImageUrl = await generateAiImageEdit(imageUrl.trim(), prompt.trim(), ratio);
+      const stored = await downloadAndStoreImage(resultImageUrl, "scenes");
+      res.json({ imageUrl: stored.storedUrl });
+    } catch (error) {
+      console.error("AI image edit error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "AI image edit failed",
+      });
     }
   });
 
