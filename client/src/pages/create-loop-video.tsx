@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Music, Video, ArrowLeft, Upload, X, CheckCircle2, Link as LinkIcon, Sparkles } from "lucide-react";
+import { Loader2, Music, Video, ArrowLeft, Upload, X, CheckCircle2, Link as LinkIcon, Sparkles, Library } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { downloadFileFromUrl } from "@/lib/utils";
 import { NavigationHeader } from "@/components/navigation-header";
@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { SongLibraryModal } from "@/components/song-library-modal";
 
 const LOOP_VIDEO_IDEAS = [
   "A cyberpunk woman with short silver hair and a high-collared black coat walking slowly forward through a neon-lit Tokyo street at night. Rain-slicked pavement reflecting pink and blue signs, subtle steam rising. Cinematic, anamorphic look, minimal movement.",
@@ -57,7 +58,9 @@ export default function CreateLoopVideo() {
   const [uploadedAudioUrl, setUploadedAudioUrl] = useState<string | null>(null);
 
   const [showSongModal, setShowSongModal] = useState(false);
+  const [showLibraryModal, setShowLibraryModal] = useState(false);
   const [songUrlInput, setSongUrlInput] = useState("");
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const songInputRef = useRef<HTMLInputElement>(null);
 
@@ -201,7 +204,7 @@ export default function CreateLoopVideo() {
     setUploadStatus("");
   };
 
-  const handleSongSelect = (file: File) => {
+  const validateAndHandleAudioFile = (file: File) => {
     const allowedTypes = ["audio/mpeg", "audio/wav", "audio/aac", "audio/mp3"];
     const isValidType = allowedTypes.includes(file.type) || file.name.match(/\.(mp3|wav|aac)$/i);
     if (!isValidType) {
@@ -222,6 +225,30 @@ export default function CreateLoopVideo() {
     }
     setPendingFile(file);
     handleUploadAudio(file);
+  };
+
+  const handleSongSelect = (file: File) => {
+    validateAndHandleAudioFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    validateAndHandleAudioFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
   };
 
   const handleUploadAudio = async (file: File) => {
@@ -317,6 +344,13 @@ export default function CreateLoopVideo() {
     setShowSongModal(false);
     setSongUrlInput("");
     toast({ title: "Audio URL set", description: "Your audio URL is ready. Click Generate when ready." });
+  };
+
+  const handleSelectSongFromLibrary = (song: { audioUrl: string; title?: string }) => {
+    setUploadedAudioUrl(song.audioUrl);
+    setShowLibraryModal(false);
+    setShowSongModal(false);
+    toast({ title: "Song selected", description: song.title ? `"${song.title}" from your library. Click Generate when ready.` : "Song from library selected. Click Generate when ready." });
   };
 
   return (
@@ -604,24 +638,35 @@ export default function CreateLoopVideo() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full justify-start gap-2"
-              onClick={() => {
-                setShowSongModal(false);
-                setTimeout(() => songInputRef.current?.click(), 100);
-              }}
+            <div
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                isDragOver
+                  ? "border-primary bg-primary/10"
+                  : "border-border hover:border-muted-foreground/50"
+              }`}
             >
-              <Upload className="h-4 w-4" />
-              Upload audio
-            </Button>
+              <p className="text-sm text-muted-foreground mb-3">
+                {isDragOver ? "Drop your audio file here" : "Drag and drop an audio file here"}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-center gap-2"
+                onClick={() => songInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4" />
+                Or click to browse
+              </Button>
+            </div>
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs uppercase text-muted-foreground">
-                <span className="bg-card px-2">Or</span>
+                <span className="bg-card px-2">Or paste a URL</span>
               </div>
             </div>
             <div className="space-y-2">
@@ -648,9 +693,32 @@ export default function CreateLoopVideo() {
                 Use URL
               </Button>
             </div>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase text-muted-foreground">
+                <span className="bg-card px-2">Or select from library</span>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-center gap-2"
+              onClick={() => setShowLibraryModal(true)}
+            >
+              <Library className="h-4 w-4" />
+              Select from library
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      <SongLibraryModal
+        isOpen={showLibraryModal}
+        onClose={() => setShowLibraryModal(false)}
+        onSelectSong={handleSelectSongFromLibrary}
+      />
 
       <Footer />
     </div>
