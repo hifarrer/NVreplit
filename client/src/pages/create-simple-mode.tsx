@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Music, Video, Monitor, Smartphone, ArrowLeft, Clock, CheckCircle2, Edit, Image as ImageIcon, Upload, X, ChevronDown, ArrowUp, AlignVerticalSpaceAround, ArrowDown } from "lucide-react";
+import { Loader2, Music, Video, Monitor, Smartphone, ArrowLeft, Clock, CheckCircle2, Edit, Image as ImageIcon, Upload, X, ChevronDown, ArrowUp, AlignVerticalSpaceAround, ArrowDown, Sparkles } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { downloadFileFromUrl } from "@/lib/utils";
 import { NavigationHeader } from "@/components/navigation-header";
@@ -30,6 +30,29 @@ import {
   isGoogleFont,
   type GoogleFont,
 } from "@shared/googleFonts";
+
+const SIMPLE_MODE_IDEAS = [
+  "A cyberpunk woman in a lonely Tokyo city: she stands by a rain-streaked window in a tiny apartment, neon signs glowing below; the story of someone waiting for a message that never comes; subtle steam from a cup, her gaze fixed on the street.",
+  "A ninja cat warrior fighting for justice: perched on a rooftop at night in a feudal Japanese village, cape swaying gently in the breeze; the calm before a mission; only the slow turn of its head and the flick of an ear.",
+  "A cowboy hamster living the farm life: sitting on a wooden porch at sunset, rocking chair moving slowly, vast wheat fields and a red barn in the distance; a quiet retirement after many adventures; dust motes in the golden light.",
+  "A mermaid in a sunken cathedral: she floats in the middle of a ruined underwater church, rays of light from above, fish drifting past; a tale of lost faith and new beginnings; gentle sway of hair and tail, no rushing.",
+  "A robot in an overgrown garden: it sits on a stone bench surrounded by wildflowers and ivy, once-tidy paths now reclaimed by nature; the last keeper of a forgotten place; its head tilts slightly toward a butterfly.",
+  "A witch in a cottage kitchen: stirring a large pot by firelight, herbs hanging from the ceiling, a black cat dozing on the table; a cozy evening after a long day; she lifts the spoon slowly and tastes.",
+  "A lone astronaut on a Mars outpost: standing at a large window, red desert and two moons outside; the weight of being the only one left; he barely moves, just watches the horizon.",
+  "A samurai in a bamboo forest: kneeling by a still pond at dawn, mist between the trees; a moment of peace before a duel; his hand rests on his knee, breath visible in the cold air.",
+  "A fox in a snowy shrine: sitting at the gate of a small Shinto shrine, snow falling softly, red torii and stone lanterns; guarding something precious through the winter; ears twitch at a distant sound.",
+  "A detective in a 1940s diner: sitting in a booth with a cold coffee, night outside, neon reflected on the window; a case that won't close; she slowly flips through a small notebook.",
+  "A baker in a Parisian bakery at dawn: taking a tray of croissants from the oven, flour dust in the air, copper pans on the wall; the quiet pride of the first batch; she sets the tray down and wipes her hands.",
+  "A cosmic whale in the void: drifting through deep space with stars and nebulae around it; the last of its kind, carrying memories of a lost world; a slow, gentle pulse of light along its body.",
+  "A geisha by a night pond: kneeling on the wooden walkway, lanterns reflected in the water, cherry blossoms on the surface; a private moment between performances; she dips a finger in the water.",
+  "A knight at a crumbling castle window: standing in full armor, looking out over a misty valley at dusk; the war is over but peace is heavy; his hand rests on the stone sill.",
+  "A jellyfish in a dark ocean trench: floating in the abyss, bioluminescent glow, other deep-sea creatures passing slowly; a journey through the unknown; soft pulsing, no fast movement.",
+  "A librarian owl in an ancient library: perched on a ladder, one wing pulling a large book from a high shelf, candles and dust everywhere; guarding knowledge through the ages; it blinks and turns a page.",
+  "A surfer on a calm ocean at sunset: sitting on the board, orange and pink sky, gentle waves; waiting for the next wave or just the moment; they look at the horizon, board bobbing slightly.",
+  "A steampunk inventor at a workbench: bent over a delicate device, goggles pushed up, gears and pipes on the walls; solving the last piece of a long project; she adjusts a tiny screw with care.",
+  "A phoenix on a volcanic cliff: perched on black rock, lava flowing slowly below, smoke and embers in the air; rebirth and patience; wings shift slightly, feathers glowing.",
+  "A lone sailor on a foggy dock: sitting on a crate, rope and nets around, ship barely visible in the mist; the night before a long voyage; he stares at the water, pipe in hand.",
+];
 
 export default function CreateSimpleMode() {
   const { toast } = useToast();
@@ -449,6 +472,28 @@ export default function CreateSimpleMode() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-foreground font-semibold shrink-0">Describe your music video</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const idea = SIMPLE_MODE_IDEAS[Math.floor(Math.random() * SIMPLE_MODE_IDEAS.length)];
+                    setPrompt(idea);
+                    toast({
+                      title: "Idea loaded",
+                      description: "Music video idea filled. Edit if you like and continue.",
+                    });
+                  }}
+                  title="Load a random music video idea"
+                  data-testid="button-ideas"
+                  className="gap-1.5 shrink-0"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Ideas
+                </Button>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
                 <Textarea
                   value={prompt}

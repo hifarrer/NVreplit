@@ -79,10 +79,10 @@ function aspectRatioToSize(aspectRatio: string = "16:9"): string {
 
 /**
  * Size for bytedance/seedream-v4.5/edit (Regenerate Image button only).
- * Uses same aspect ratio -> size mapping as character generation.
+ * API requires at least 3686400 pixels; use high-res mapping (1:1→2048*2048, 16:9→2560*1440, etc.).
  */
 function seedreamV45EditSizeForAspectRatio(aspectRatio: string = "16:9"): string {
-  return aspectRatioToSize(aspectRatio);
+  return SEEDREAM_IMAGE_TO_IMAGE_SIZE[aspectRatio] ?? SEEDREAM_IMAGE_TO_IMAGE_SIZE["16:9"];
 }
 
 /**
