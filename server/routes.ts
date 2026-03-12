@@ -14229,7 +14229,7 @@ Do not add markdown. Return JSON only.`,
         message: "Auto-generated loop video is being processed. You will receive an email at " + notificationEmail + " when it's ready.",
         timestamp,
         statusUrl: `/api/neon-single-prompt/status/${project.id}`,
-        projectUrl: `${baseUrl}/projects/${project.id}`,
+        projectUrl: `${baseUrl}/v/${project.id}`,
       });
 
       (async () => {
@@ -14282,16 +14282,18 @@ Do not add markdown. Return JSON only.`,
           const audioUrl = songResult.audioUrl;
           console.log("[AUTO-GENERATE-LOOP] Song generated, duration:", songResult.duration);
 
-          // Step 4: Video prompt for 12s loop (OpenAI)
-          console.log("[AUTO-GENERATE-LOOP] Step 4: Generating 12s video prompt...");
+          // Step 4: Video prompt for 12s loop (OpenAI) — vary visual style: realistic, cartoon, or anime
+          const videoStyles = ["hyper realistic", "cartoon", "anime"] as const;
+          const videoStyle = videoStyles[Math.floor(Math.random() * videoStyles.length)];
+          console.log("[AUTO-GENERATE-LOOP] Step 4: Generating 12s video prompt (style:", videoStyle, ")...");
           const videoPromptResponse = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
               {
                 role: "system",
-                content: `You write a single, detailed prompt for a 12-second video. Theme must be cyberpunk, sci-fi, futuristic, or synthwave. Include: detailed character and place, subtle movement only (no jumping or running), slow or no camera movement. One paragraph. Style: realistic cyberpunk/sci-fi, rich colors. Do not mention "uploaded image" or audio—this is for text-to-image then image-to-video. Output only the prompt text, no JSON.`,
+                content: `You write a single, detailed prompt for a 12-second video. Theme must be cyberpunk, sci-fi, futuristic, or synthwave. Include: detailed character and place, subtle movement only (no jumping or running), slow or no camera movement. One paragraph. Visual style for this video must be: ${videoStyle}. Describe the scene so it will be rendered in that style (e.g. hyper realistic = photorealistic; cartoon = illustrated/cartoon look; anime = anime/cel-shaded). Rich colors. Do not mention "uploaded image" or audio—this is for text-to-image then image-to-video. Output only the prompt text, no JSON.`,
               },
-              { role: "user", content: `Write a 12-second video prompt for: ${videoDescription}. Cyberpunk/sci-fi/synthwave, detailed character and scene, subtle movement, slow or no camera.` },
+              { role: "user", content: `Write a 12-second video prompt for: ${videoDescription}. Cyberpunk/sci-fi/synthwave, detailed character and scene, subtle movement, slow or no camera. Visual style: ${videoStyle}.` },
             ],
             max_tokens: 300,
           });
@@ -14316,7 +14318,7 @@ Do not add markdown. Return JSON only.`,
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2>Auto-Generated Loop Video Ready</h2>
                   <p>The auto-generated loop video has been completed successfully.</p>
-                  <p><a href="${baseUrl}/projects/${projectId}">View project</a></p>
+                  <p><a href="${baseUrl}/v/${projectId}">View project</a></p>
                   <p style="color:#666; font-size: 12px;">Project ID: ${projectId}</p>
                 </div>
               `,
@@ -14331,7 +14333,7 @@ Do not add markdown. Return JSON only.`,
                   <h2>Auto-Generated Loop Video Failed</h2>
                   <p>Error: ${loopResult.error}</p>
                   <p>Project ID: ${projectId}</p>
-                  <p><a href="${baseUrl}/projects/${projectId}">View project</a></p>
+                  <p><a href="${baseUrl}/v/${projectId}">View project</a></p>
                 </div>
               `,
             });
@@ -14347,6 +14349,7 @@ Do not add markdown. Return JSON only.`,
                 <h2>Auto-Generated Loop Video Failed</h2>
                 <p>Error: ${errMsg}</p>
                 <p>Project ID: ${projectId}</p>
+                <p><a href="${baseUrl}/v/${projectId}">View project</a></p>
               </div>
             `,
           });
