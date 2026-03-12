@@ -42,6 +42,51 @@ const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
 /** Free users can have at most this many songs in their library; paid users have no limit. */
 const FREE_USER_SONG_LIBRARY_LIMIT = 10;
 
+function inferCharacterVocalGender(
+  character: string | null | undefined
+): "female" | "male" | null {
+  if (!character) return null;
+  const text = character.toLowerCase();
+
+  const femaleIndicators = [
+    "female",
+    "woman",
+    "girl",
+    "lady",
+    "queen",
+    "princess",
+    "goddess",
+    "she ",
+    " she,",
+    " she.",
+    " her ",
+    " her,",
+    " her.",
+  ];
+
+  const maleIndicators = [
+    "male",
+    "man",
+    "boy",
+    "king",
+    "prince",
+    "wizard",
+    "he ",
+    " he,",
+    " he.",
+    " him ",
+    " him,",
+    " him.",
+  ];
+
+  const hasFemale = femaleIndicators.some((w) => text.includes(w));
+  const hasMale = maleIndicators.some((w) => text.includes(w));
+
+  if (hasFemale && !hasMale) return "female";
+  if (hasMale && !hasFemale) return "male";
+  return null;
+}
+
 interface ContentModerationResult {
   harassment: boolean;
   hate: boolean;
@@ -11748,7 +11793,16 @@ Format your response as JSON:
       // Step 4: Generate song with Minimax Music 02 (single song, then trim to 30 seconds)
       // Use song_description for the music prompt (genre, mood, instruments), not video_description
       console.log(`[AUTO-GENERATE] Step 4: Generating song with Minimax Music 02...`);
-      const songDescriptionForMusic = parsed.song_description || parsed.video_description || generatedPrompt;
+      const vocalGender = inferCharacterVocalGender(parsed.character);
+
+      let songDescriptionForMusic = parsed.song_description || parsed.video_description || generatedPrompt;
+
+      if (vocalGender === "female" && !/female (singer|voice)/i.test(songDescriptionForMusic)) {
+        songDescriptionForMusic = `${songDescriptionForMusic} Featuring a female singer with a female voice.`;
+      } else if (vocalGender === "male" && !/male (singer|voice)/i.test(songDescriptionForMusic)) {
+        songDescriptionForMusic = `${songDescriptionForMusic} Featuring a male singer with a male voice.`;
+      }
+
       const songTags = parsed.song_title
         ? `${parsed.song_title}. ${songDescriptionForMusic}`
         : songDescriptionForMusic;
@@ -12089,7 +12143,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
             - character: A detailed description of the main character (appearance, style, personality) - REQUIRED
             - video_description: What the music video should be about (scenes, mood, story) - REQUIRED
             - song_title: The title or theme of the song - OPTIONAL (can be null if not specified)
-            - song_description: A short description for MUSIC generation only (genre, mood, tempo, instruments, vocal style). 1-2 sentences on how the music should SOUND, not the video visuals. E.g. "Epic orchestral with brass and strings, grand crescendo, cinematic." Derive from the theme/mood if not explicit. - REQUIRED (infer if missing)
+            - song_description: A short description for MUSIC generation only (genre, mood, tempo, instruments, vocal style). 1-2 sentences on how the music should SOUND, not the video visuals. E.g. "Epic orchestral with brass and strings, grand crescendo, cinematic." Derive from the theme/mood if not explicit. - REQUIRED (infer if missing). IMPORTANT: If the main character clearly appears female, explicitly mention a female singer or female voice in the song_description (e.g. "female singer", "female voice"). If the main character clearly appears male, explicitly mention a male singer or male voice (e.g. "male singer", "male voice"). If the character's gender is unclear or non-binary, keep the vocal description gender-neutral.
             
             Only mark character and video_description as missing if they are truly unclear or absent.
             Song title is optional. song_description must always be provided (infer from mood/theme if needed).
@@ -12098,7 +12152,7 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
               "character": "description or null",
               "song_title": "title or null", 
               "video_description": "description or null",
-              "song_description": "1-2 sentences for music generation API (genre, mood, instruments)",
+              "song_description": "1-2 sentences for music generation API (genre, mood, instruments, vocal style, and when clear the singer's gender so that it matches the main character)",
               "missing": ["list of REQUIRED missing elements only"],
               "suggestion": "helpful suggestion if anything is missing"
             }`
