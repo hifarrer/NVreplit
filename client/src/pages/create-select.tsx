@@ -40,6 +40,15 @@ export default function CreateSelect() {
       available: true,
     },
     {
+      id: "loop-video",
+      title: "Seamless Loop Video",
+      description: "Seamless Loop Video",
+      explanation: "Create a video loop for any song",
+      imageUrl: "https://neonvideo.b-cdn.net/logos/videoloop.jpeg",
+      route: "/create/loop-video",
+      available: true,
+    },
+    {
       id: "single-prompt",
       title: "Single Prompt",
       description: "Single Prompt",
@@ -73,15 +82,6 @@ export default function CreateSelect() {
       explanation: "Create stunning 12-second video shorts from a single prompt",
       imageUrl: "https://neonvideo.b-cdn.net/custom/electricgoat.jpg",
       route: "/create/video-shorts",
-      available: true,
-    },
-    {
-      id: "loop-video",
-      title: "Seamless Loop Video",
-      description: "Seamless Loop Video",
-      explanation: "Create a video loop for any song",
-      imageUrl: "https://neonvideo.b-cdn.net/logos/videoloop.jpeg",
-      route: "/create/loop-video",
       available: true,
     },
   ];

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Users, Activity, Settings, LogOut, Shield, Music, Video, CreditCard, MessageCircle, Play, DollarSign, Cpu, ImageIcon, Mic2, Film, Ticket } from "lucide-react";
+import { Users, Activity, Settings, LogOut, Shield, Music, Video, CreditCard, MessageCircle, Play, DollarSign, Cpu, ImageIcon, Mic2, Film, Ticket, Zap } from "lucide-react";
 import { UserManagement } from "../components/admin/user-management";
 import { SiteSettings } from "../components/admin/site-settings";
 import { UsageStatistics } from "../components/admin/usage-statistics";
@@ -26,6 +26,44 @@ interface StatsOverview {
   monthlyRevenue: number;
   totalSongs: number;
   completedProjects: number;
+}
+
+function PostToSocialsButton() {
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const handleClick = async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/cron/auto-post-to-social", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setMessage(data.message ?? "Request sent successfully.");
+      } else {
+        setMessage(data.error ?? data.message ?? `Error: ${res.status}`);
+      }
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Button
+        onClick={handleClick}
+        disabled={loading}
+        className="bg-purple-600 hover:bg-purple-700 text-white"
+      >
+        {loading ? "Posting…" : "Post to socials"}
+      </Button>
+      {message && (
+        <span className="text-sm text-gray-400">{message}</span>
+      )}
+    </div>
+  );
 }
 
 export default function AdminDashboard() {
@@ -216,7 +254,7 @@ export default function AdminDashboard() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-10 bg-black/30 border border-purple-500/20">
+          <TabsList className="grid w-full grid-cols-11 bg-black/30 border border-purple-500/20">
             <TabsTrigger value="users" className="data-[state=active]:bg-purple-600">
               <Users className="h-4 w-4 mr-2" />
               Users
@@ -248,6 +286,10 @@ export default function AdminDashboard() {
             <TabsTrigger value="plans" className="data-[state=active]:bg-purple-600">
               <CreditCard className="h-4 w-4 mr-2" />
               Plans
+            </TabsTrigger>
+            <TabsTrigger value="automation" className="data-[state=active]:bg-purple-600">
+              <Zap className="h-4 w-4 mr-2" />
+              Automation
             </TabsTrigger>
             <TabsTrigger value="statistics" className="data-[state=active]:bg-purple-600">
               <Activity className="h-4 w-4 mr-2" />
@@ -285,6 +327,47 @@ export default function AdminDashboard() {
 
           <TabsContent value="coupons" className="space-y-6">
             <CouponManagement />
+          </TabsContent>
+
+          <TabsContent value="automation" className="space-y-6">
+            <Card className="bg-black/30 border-purple-500/20">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-purple-400" />
+                  Manual automation triggers
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Trigger the same cron endpoints manually. Each button opens the API URL in a new tab.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-4">
+                <Button
+                  asChild
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  <a
+                    href="https://neonvideo.ai/api/auto-generate-loop-video?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjZDU2ZDkyYy1hNTZmLTQ2MmEtYWNhZi1iMDcyYWViMjRiNzIiLCJ1c2VybmFtZSI6ImN5Ym9yZzMzIiwiaWF0IjoxNzY5MTQ1NjczLCJleHAiOjIwODQ3MjE2NzN9.g-EWXfkesnZx5urr17c5VJS2iFHRVdEQoO0ngX51vUw"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Generate Video Loop
+                  </a>
+                </Button>
+                <Button
+                  asChild
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  <a
+                    href="https://www.neonvideo.ai/api/auto-generate-video?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjZDU2ZDkyYy1hNTZmLTQ2MmEtYWNhZi1iMDcyYWViMjRiNzIiLCJ1c2VybmFtZSI6ImN5Ym9yZzMzIiwiaWF0IjoxNzY5MTQ1NjczLCJleHAiOjIwODQ3MjE2NzN9.g-EWXfkesnZx5urr17c5VJS2iFHRVdEQoO0ngX51vUw"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Generate video
+                  </a>
+                </Button>
+                <PostToSocialsButton />
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="plans" className="space-y-6">
