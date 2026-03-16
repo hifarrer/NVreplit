@@ -5,6 +5,43 @@ const WAVESPEED_API_KEY =
   process.env.WAVESPEED_API_KEY_ENV_VAR ||
   "default_key";
 
+// Retryable network/processing errors (e.g. WaveSpeed unable to fetch from ffmpegapi)
+const RETRYABLE_NETWORK_CODES = new Set([
+  "EAI_AGAIN",
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_HEADERS_TIMEOUT",
+  "UND_ERR_BODY_TIMEOUT",
+]);
+
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3,
+): Promise<Response> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(url, { ...options, signal: options.signal });
+      return res;
+    } catch (err: unknown) {
+      const e = err as { cause?: { code?: string }; code?: string; message?: string };
+      const code = e?.cause?.code ?? e?.code;
+      const isRetryable =
+        RETRYABLE_NETWORK_CODES.has(code) ||
+        (e?.message && /fetch failed|failed to fetch|timeout|econnreset|socket hang up/i.test(e.message));
+      if (!isRetryable || attempt === maxRetries) throw err;
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+      console.warn(
+        `[Wavespeed] fetch attempt ${attempt}/${maxRetries} failed (${code ?? e?.message}), retrying in ${delay}ms...`,
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw new Error("fetchWithRetry: unreachable");
+}
+
 // Interface for timestamped words from subtitles
 interface TimestampedWord {
   start: number; // Start time in seconds
@@ -152,7 +189,7 @@ async function generateVideoSegmentInternal(
     JSON.stringify(requestBody, null, 2),
   );
 
-  const response = await fetch(endpoint, {
+  const response = await fetchWithRetry(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -185,7 +222,7 @@ async function generateVideoSegmentInternal(
   while (attempts < maxAttempts) {
     await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds
 
-    const statusResponse = await fetch(
+    const statusResponse = await fetchWithRetry(
       `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
       {
         headers: {
@@ -235,19 +272,26 @@ function isSensitiveContentError(error: Error): boolean {
 // Check if error is a transient/retryable network error or processing error
 function isTransientError(error: Error): boolean {
   const errorMessage = error.message.toLowerCase();
-  return errorMessage.includes('connection aborted') ||
-    errorMessage.includes('remotedisconnected') ||
-    errorMessage.includes('remote end closed connection') ||
-    errorMessage.includes('econnreset') ||
-    errorMessage.includes('socket hang up') ||
-    errorMessage.includes('network error') ||
-    errorMessage.includes('timeout') ||
-    errorMessage.includes('502') ||
-    errorMessage.includes('503') ||
-    errorMessage.includes('504') ||
-    errorMessage.includes('ffmpeg') || // FFmpeg processing errors are often transient
-    errorMessage.includes('error during processing') || // Processing errors can be retried
-    errorMessage.includes('video generation failed'); // Failed status from API can be retried
+  return (
+    errorMessage.includes("connection aborted") ||
+    errorMessage.includes("remotedisconnected") ||
+    errorMessage.includes("remote end closed connection") ||
+    errorMessage.includes("econnreset") ||
+    errorMessage.includes("socket hang up") ||
+    errorMessage.includes("network error") ||
+    errorMessage.includes("timeout") ||
+    errorMessage.includes("timed out") || // e.g. "Read timed out" from WaveSpeed/ffmpegapi
+    errorMessage.includes("502") ||
+    errorMessage.includes("503") ||
+    errorMessage.includes("504") ||
+    errorMessage.includes("ffmpeg") ||
+    errorMessage.includes("ffmpegapi") || // WaveSpeed failed to fetch from ffmpegapi.net
+    errorMessage.includes("httpsconnectionpool") || // e.g. HTTPSConnectionPool read timeout
+    errorMessage.includes("error during processing") ||
+    errorMessage.includes("video generation failed") ||
+    errorMessage.includes("fetch failed") ||
+    errorMessage.includes("failed to fetch")
+  );
 }
 
 // Maximum number of retries for transient errors
@@ -693,7 +737,7 @@ export async function enhanceImageHyperReal(
   console.log("Image URL:", imageUrl);
   console.log("Prompt:", prompt);
 
-  const response = await fetch(
+  const response = await fetchWithRetry(
     "https://api.wavespeed.ai/api/v3/wavespeed-ai/z-image-turbo/image-to-image",
     {
       method: "POST",
@@ -736,13 +780,13 @@ export async function enhanceImageHyperReal(
   while (attempts < maxAttempts) {
     await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
 
-    const statusResponse = await fetch(
+    const statusResponse = await fetchWithRetry(
       `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
       {
         headers: {
           Authorization: `Bearer ${WAVESPEED_API_KEY}`,
         },
-      }
+      },
     );
 
     if (!statusResponse.ok) {
@@ -795,7 +839,7 @@ export async function generateImageFromText(
   console.log("Prompt:", prompt);
   console.log("Aspect Ratio:", aspectRatio);
 
-  const response = await fetch(
+  const response = await fetchWithRetry(
     "https://api.wavespeed.ai/api/v3/google/nano-banana-2/text-to-image",
     {
       method: "POST",
@@ -835,7 +879,7 @@ export async function generateImageFromText(
   while (attempts < maxAttempts) {
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
-    const statusResponse = await fetch(
+    const statusResponse = await fetchWithRetry(
       `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
       { headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` } },
     );
@@ -887,7 +931,7 @@ export async function generateVideoFromImage(
   console.log("Aspect Ratio:", aspectRatio);
   console.log("Duration:", duration);
 
-  const response = await fetch(
+  const response = await fetchWithRetry(
     "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1.5-pro/image-to-video-fast",
     {
       method: "POST",
@@ -929,7 +973,7 @@ export async function generateVideoFromImage(
   while (attempts < maxAttempts) {
     await new Promise((resolve) => setTimeout(resolve, 10000));
 
-    const statusResponse = await fetch(
+    const statusResponse = await fetchWithRetry(
       `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
       { headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` } },
     );
@@ -966,7 +1010,7 @@ async function pollSeedanceResult(requestId: string, label: string, pollInterval
   const maxAttempts = 60;
   while (attempts < maxAttempts) {
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    const statusResponse = await fetch(
+    const statusResponse = await fetchWithRetry(
       `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
       { headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` } },
     );
@@ -998,7 +1042,7 @@ export async function generateVideoFromImageLoop(
   duration: number = 12,
 ): Promise<string> {
   console.log("=== GENERATING LOOP ORIGINAL VIDEO (seedance-v1.5-pro image-to-video) ===");
-  const response = await fetch(SEEDANCE_I2V_ENDPOINT, {
+  const response = await fetchWithRetry(SEEDANCE_I2V_ENDPOINT, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -1036,7 +1080,7 @@ export async function generateVideoFromImageTransition(
   duration: number = 12,
 ): Promise<string> {
   console.log("=== GENERATING LOOP TRANSITION VIDEO (seedance-v1.5-pro image-to-video + last_image) ===");
-  const response = await fetch(SEEDANCE_I2V_ENDPOINT, {
+  const response = await fetchWithRetry(SEEDANCE_I2V_ENDPOINT, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -35,6 +35,7 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { checkProfanity, getCategoryMessage, validateCharacterGenerationPrompt } from "./profanity-filter";
 import { getJWKS, initializeOAuthKeys } from "./services/oauth";
+import { resolveLoopVideoTheme } from "./services/loopVideoThemes";
 
 // Content moderation API for user-uploaded images
 const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
@@ -11790,7 +11791,7 @@ Format your response as JSON:
       });
       console.log(`[AUTO-GENERATE] Generated lyrics (${lyrics.length} chars) and title: ${aiGeneratedTitle}`);
 
-      // Step 4: Generate song with Minimax Music 02 (single song, then trim to 30 seconds)
+      // Step 4: Generate song with Minimax Music 02 (single song, then trim to target duration)
       // Use song_description for the music prompt (genre, mood, instruments), not video_description
       console.log(`[AUTO-GENERATE] Step 4: Generating song with Minimax Music 02...`);
       const vocalGender = inferCharacterVocalGender(parsed.character);
@@ -11812,13 +11813,12 @@ Format your response as JSON:
       const originalSongDuration = songResult.duration;
       console.log(`[AUTO-GENERATE] Song generated: ${originalSongDuration}s`);
 
-      // Step 4.5: Trim the generated song to exactly 30 seconds (0ms to 30000ms)
-      // Always trim to 30 seconds for auto-generate endpoint, regardless of requested duration
-      const trimDuration = 30; // Always 30 seconds for auto-generate
+      // Step 4.5: Trim the generated song to target duration (default 45 seconds for auto-generate)
+      const trimDuration = targetDuration;
       console.log(`[AUTO-GENERATE] Step 4.5: Trimming audio to exactly ${trimDuration} seconds (0ms to ${trimDuration * 1000}ms)...`);
 
       const startTime = 0; // Start at 0 seconds
-      const endTime = trimDuration * 1000; // End at 30 seconds (in milliseconds)
+      const endTime = trimDuration * 1000; // End at target duration (in milliseconds)
       const adjustedEndTime = Math.max(startTime + 10, endTime - 10); // Subtract 10ms to prevent exceeding duration
 
       const { splitAudioByTime } = await import("./services/ffmpeg");
@@ -11847,14 +11847,14 @@ Format your response as JSON:
 
       console.log(`[AUTO-GENERATE] Audio trimmed successfully: ${trimmedDuration}s`);
 
-      // Update project with trimmed audio (always 30 seconds for auto-generate)
+      // Update project with trimmed audio (target duration for auto-generate, default 45s)
       await storage.updateProject(projectId, {
         audioUrl: publicAudioUrl,
         audioDuration: trimmedDuration,
         currentStep: 2
       });
 
-      const actualSongDuration = trimmedDuration; // Use trimmed duration (30 seconds) for subsequent steps
+      const actualSongDuration = trimmedDuration; // Use trimmed duration for subsequent steps
 
       // Step 5: Generate character image
       const characterDescription = parsed.character || generatedPrompt;
@@ -12055,8 +12055,8 @@ Format your response as JSON:
       const videoQuality = validQualities.includes(requestedQuality) ? requestedQuality : "medium";
       console.log(`[AUTO-GENERATE] Video quality: ${videoQuality}`);
 
-      // Parse and validate duration (default 30 seconds, max 60 seconds for auto-generate)
-      let targetDuration = 30;
+      // Parse and validate duration (default 45 seconds, max 60 seconds for auto-generate)
+      let targetDuration = 45;
       if (requestedDurationParam) {
         const parsedDuration = parseInt(requestedDurationParam, 10);
         if (!isNaN(parsedDuration) && parsedDuration >= 15 && parsedDuration <= 60) {
@@ -14240,7 +14240,9 @@ Do not add markdown. Return JSON only.`,
 
     try {
       const userId = req.user!.userId;
-      const { aspectRatio: requestedAspectRatio, songDuration: requestedSongDuration } = req.query;
+      const { aspectRatio: requestedAspectRatio, songDuration: requestedSongDuration, style: requestedStyle } = req.query;
+
+      const selectedTheme = resolveLoopVideoTheme(requestedStyle as string | undefined);
 
       const validAspectRatios = ["3:4", "9:16", "16:9"];
       const aspectRatio = validAspectRatios.includes(requestedAspectRatio as string) ? (requestedAspectRatio as string) : "3:4";
@@ -14284,11 +14286,16 @@ Do not add markdown. Return JSON only.`,
         timestamp,
         statusUrl: `/api/neon-single-prompt/status/${project.id}`,
         projectUrl: `${baseUrl}/v/${project.id}`,
+        style: selectedTheme.id,
+        styleName: selectedTheme.name,
       });
 
       (async () => {
         let projectId = project.id;
+        const theme = selectedTheme;
         try {
+          console.log("[AUTO-GENERATE-LOOP] Theme:", theme.id);
+
           // Step 1: Song and video description (OpenAI)
           console.log("[AUTO-GENERATE-LOOP] Step 1: Generating song and video description...");
           const descResponse = await openai.chat.completions.create({
@@ -14296,9 +14303,9 @@ Do not add markdown. Return JSON only.`,
             messages: [
               {
                 role: "system",
-                content: `You are a creative assistant. Generate a short "what is your song about" song description and a matching short video description. Topics must be one of: cyberpunk, sci-fi, futuristic, synthwave, retrowave, robots, cyborgs, neon Tokyo. Keep each 1-2 sentences. Respond ONLY with valid JSON: { "song_description": "...", "video_description": "..." }`,
+                content: `You are a creative assistant. Generate a short "what is your song about" song description and a matching short video description. Topics must be one of: ${theme.topics}. Keep each 1-2 sentences. Respond ONLY with valid JSON: { "song_description": "...", "video_description": "..." }`,
               },
-              { role: "user", content: "Generate a song and video description (cyberpunk, sci-fi, futuristic, synthwave, or neon Tokyo theme)." },
+              { role: "user", content: `Generate a song and video description (${theme.name} theme).` },
             ],
             response_format: { type: "json_object" },
             max_tokens: 200,
@@ -14314,20 +14321,20 @@ Do not add markdown. Return JSON only.`,
           const { lyrics, title: lyricsTitle } = await generateLyricsWithTitle(songDescription, songDuration);
           console.log("[AUTO-GENERATE-LOOP] Lyrics generated, title:", lyricsTitle);
 
-          // Step 2b: Song prompt for Minimax (synthwave/retrowave/electronic)
+          // Step 2b: Song prompt for Minimax (theme-specific music style)
           console.log("[AUTO-GENERATE-LOOP] Step 2b: Generating song prompt for Minimax...");
           const songPromptResponse = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
               {
                 role: "system",
-                content: `You write short music prompts for an AI music API. The prompt must describe: style as synthwave, retrowave, and/or electronic; mood and topic (cyberpunk, sci-fi, futuristic, robots, cyborgs, neon Tokyo). One sentence only, no JSON. Example: "A melancholic synthwave song with soft male vocals, retro synths and pulsing bass, about a cyberpunk woman in neon Tokyo."`,
+                content: `You write short music prompts for an AI music API. The prompt must describe: ${theme.musicGuide} One sentence only, no JSON.`,
               },
-              { role: "user", content: `Write a single-sentence music prompt for a song about: ${songDescription}. Style must be synthwave, retrowave, and/or electronic.` },
+              { role: "user", content: `Write a single-sentence music prompt for a song about: ${songDescription}. Style/mood: ${theme.name}.` },
             ],
             max_tokens: 150,
           });
-          const songPrompt = (songPromptResponse.choices[0]?.message?.content || "Synthwave, retrowave, electronic, cyberpunk mood.").trim();
+          const songPrompt = (songPromptResponse.choices[0]?.message?.content || `${theme.name} mood.`).trim();
           console.log("[AUTO-GENERATE-LOOP] Song prompt:", songPrompt);
 
           // Step 3: Generate song (Minimax)
@@ -14345,9 +14352,9 @@ Do not add markdown. Return JSON only.`,
             messages: [
               {
                 role: "system",
-                content: `You write a single, detailed prompt for a 12-second video. Theme must be cyberpunk, sci-fi, futuristic, or synthwave. Include: detailed character and place, subtle movement only (no jumping or running), slow or no camera movement. One paragraph. Visual style for this video must be: ${videoStyle}. Describe the scene so it will be rendered in that style (e.g. hyper realistic = photorealistic; cartoon = illustrated/cartoon look; anime = anime/cel-shaded). Rich colors. Do not mention "uploaded image" or audio—this is for text-to-image then image-to-video. Output only the prompt text, no JSON.`,
+                content: `You write a single, detailed prompt for a 12-second video. Visual world and mood: ${theme.visualGuide}. Include: detailed character and place, subtle movement only (no jumping or running), slow or no camera movement. One paragraph. Visual style for this video must be: ${videoStyle}. Describe the scene so it will be rendered in that style (e.g. hyper realistic = photorealistic; cartoon = illustrated/cartoon look; anime = anime/cel-shaded). Rich colors. Do not mention "uploaded image" or audio—this is for text-to-image then image-to-video. Output only the prompt text, no JSON.`,
               },
-              { role: "user", content: `Write a 12-second video prompt for: ${videoDescription}. Cyberpunk/sci-fi/synthwave, detailed character and scene, subtle movement, slow or no camera. Visual style: ${videoStyle}.` },
+              { role: "user", content: `Write a 12-second video prompt for: ${videoDescription}. ${theme.name} aesthetic, detailed character and scene, subtle movement, slow or no camera. Visual style: ${videoStyle}.` },
             ],
             max_tokens: 300,
           });
