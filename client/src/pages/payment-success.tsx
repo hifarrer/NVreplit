@@ -16,6 +16,22 @@ export default function PaymentSuccessPage() {
   
   // Get session ID from URL
   const sessionId = new URLSearchParams(window.location.search).get('session_id');
+
+  // Google Ads: purchase conversion after successful subscription (deduped per checkout session)
+  useEffect(() => {
+    if (!sessionId) return;
+    const storageKey = `ads_purchase_conversion_${sessionId}`;
+    if (sessionStorage.getItem(storageKey)) return;
+    sessionStorage.setItem(storageKey, "1");
+
+    const gtag = (window as Window & { gtag?: (...args: unknown[]) => void }).gtag;
+    if (typeof gtag !== "function") return;
+
+    gtag("event", "conversion", {
+      send_to: "AW-473229217/wPHmCMapyOMCEKHP0-EB",
+      transaction_id: sessionId,
+    });
+  }, [sessionId]);
   
   // Process payment success and handle referrals
   useEffect(() => {
