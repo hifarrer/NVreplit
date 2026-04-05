@@ -142,6 +142,34 @@ export default function CreateSelect() {
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-16 mb-6">
+            Story Videos
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
+            <Card
+              className="overflow-hidden border border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer transition-all"
+              onClick={() => navigate("/create/story-video")}
+            >
+              <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                <img
+                  src="https://neonvideo.b-cdn.net/neonvideooutros/story.jpg"
+                  alt="Story Video"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="px-4 sm:px-6 pt-3 pb-2">
+                <p className="text-center text-pink-500 text-xs sm:text-sm">
+                  Create AI-generated story videos with characters and narration
+                </p>
+              </div>
+              <CardContent className="p-4 sm:p-6 pt-2">
+                <p className="text-center text-foreground text-sm sm:text-base font-medium">
+                  Story Video
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-16 mb-6">
             Music Tools
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8">

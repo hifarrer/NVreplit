@@ -9,6 +9,7 @@
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "db:push": "drizzle-kit push",
+    "db:add-story-columns": "tsx scripts/add-story-video-columns.ts",
     "migrate:imagekit-to-bunny": "tsx scripts/migrate-imagekit-to-bunny.ts",
     "migrate:video-segments-to-bunny": "tsx scripts/migrate-video-segments-to-bunny.ts"
   },

@@ -736,3 +736,81 @@ export async function generateSequentialScenePrompt(
     );
   }
 }
+
+export interface StorySceneOutput {
+  id: number;
+  character: string;
+  audio: string;
+  scene_description: string;
+}
+
+export async function generateStoryScript(
+  storyPrompt: string,
+  durationSeconds: number,
+  hasNarrator: boolean,
+  narratorVoice: string | null,
+  characters: { name: string; voiceId: string | null }[],
+): Promise<StorySceneOutput[]> {
+  try {
+    const sceneCount = Math.floor(durationSeconds / 5);
+    const characterNames = characters.map((c) => c.name);
+    const characterList = characterNames.length > 0 ? characterNames.join(", ") : "no named characters";
+
+    const narratorInstruction = hasNarrator
+      ? `Include a Narrator character who sets up scenes, provides transitions, and tells the story. The narrator voice ID is "${narratorVoice || "Alex"}".`
+      : "Do NOT include a narrator. All storytelling should happen through character dialogue and scene descriptions.";
+
+    const systemPrompt = `You are a professional story writer for short animated videos. Generate a story script as a JSON object.
+
+CRITICAL CONSTRAINTS:
+- The total video length is ${durationSeconds} seconds.
+- Each scene becomes exactly one 5-second video clip.
+- Therefore you MUST generate EXACTLY ${sceneCount} scenes (${durationSeconds}s ÷ 5s = ${sceneCount} clips).
+- Each scene's "audio" dialogue/narration must be timed to fit within 5 seconds of spoken audio. This is roughly 1-2 short sentences (about 12-18 words). Do NOT write more than ~20 words per audio line or it will be cut off. Do NOT write fewer than ~8 words or the AI voice model will fail.
+
+Rules:
+- Characters available: ${characterList}.
+${narratorInstruction}
+- Each scene must have: id (sequential number starting at 1), character (who is speaking — either "Narrator" or a character name), audio (the dialogue or narration text for that 5-second clip), and scene_description (visual description of what should be shown).
+- Distribute dialogue naturally among all characters. Each character should speak at least once.
+- Scene descriptions should be vivid and specific, describing camera angles, settings, and character actions.
+- The story should have a clear beginning, middle, and end within exactly ${sceneCount} scenes.
+- Output ONLY a JSON object with a single key "scenes" containing an array of exactly ${sceneCount} scene objects.`;
+
+    console.log(`[Story Script] Generating exactly ${sceneCount} scenes for "${storyPrompt}" (${durationSeconds}s = ${sceneCount} x 5s clips)`);
+    console.log(`[Story Script] Characters: ${characterList}, Narrator: ${hasNarrator}`);
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Generate a story script about: ${storyPrompt}` },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.8,
+      max_tokens: 4000,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("No content returned from OpenAI");
+    }
+
+    const parsed = JSON.parse(content);
+    const scenes: StorySceneOutput[] = parsed.scenes;
+
+    if (!Array.isArray(scenes) || scenes.length === 0) {
+      throw new Error("OpenAI returned empty or invalid scenes array");
+    }
+
+    scenes.forEach((scene, i) => {
+      scene.id = i + 1;
+    });
+
+    console.log(`[Story Script] Generated ${scenes.length} scenes successfully`);
+    return scenes;
+  } catch (error) {
+    console.error("[Story Script] Generation error:", error);
+    throw new Error("Failed to generate story script: " + (error as Error).message);
+  }
+}

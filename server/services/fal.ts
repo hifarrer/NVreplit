@@ -1,3 +1,5 @@
+import { withGenerationApiRetries } from "./generationRetry";
+
 const FAL_KEY = process.env.FAL_KEY;
 const KIE_API_TOKEN = process.env.KIE_API_TOKEN;
 
@@ -1971,6 +1973,7 @@ export async function generateSingleSceneImage(
   aspectRatio: string = "16:9",
   currentSceneImageUrl?: string,
 ): Promise<string> {
+  return withGenerationApiRetries("generateSingleSceneImage", async () => {
   console.log(`Starting single scene generation with prompt: ${prompt}`);
   console.log(`Aspect ratio: ${aspectRatio}`);
   
@@ -2006,6 +2009,7 @@ export async function generateSingleSceneImage(
   console.log(`Scene image stored permanently at: ${storedImage.storedUrl}`);
   
   return storedImage.storedUrl;
+  });
 }
 
 /**
@@ -2228,6 +2232,7 @@ export async function generateSceneImages(
   characterImageUrl: string,
   aspectRatio: string = "16:9",
 ): Promise<string[]> {
+  return withGenerationApiRetries("generateSceneImages", async () => {
   // Use sequential generation for initial scene generation
   // This generates all scenes in a single (or batched) API call using seedream-v4.5/edit-sequential
   console.log(`[generateSceneImages] Using sequential generation for ${prompts.length} scenes`);
@@ -2336,6 +2341,7 @@ export async function generateSceneImages(
     
     return storedSceneUrls;
   }
+  });
 }
 
 /**
@@ -2346,6 +2352,7 @@ export async function generateSceneImagesFromText(
   prompts: string[],
   aspectRatio: string = "16:9",
 ): Promise<string[]> {
+  return withGenerationApiRetries("generateSceneImagesFromText", async () => {
   const batchId = `TEXT-TO-IMAGE-${Date.now()}-${Math.random().toString(36).substring(7)}`;
   const batchStartTime = Date.now();
   
@@ -2548,4 +2555,5 @@ export async function generateSceneImagesFromText(
   console.log(`========================================\n`);
 
   return storedSceneUrls;
+  });
 }

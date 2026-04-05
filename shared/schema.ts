@@ -98,6 +98,17 @@ export const projects = pgTable("projects", {
   generationStatus: text("generation_status"), // 'idle' | 'generating' | 'completed' | 'failed'
   generationStartedAt: timestamp("generation_started_at"),
   generationTimeoutAt: timestamp("generation_timeout_at"), // 30 minutes from start
+  // Story video fields
+  projectType: text("project_type").default("music_video"), // 'music_video' | 'story_video'
+  storyPrompt: text("story_prompt"),
+  storyDuration: integer("story_duration"), // Duration in seconds (30-300)
+  storyNarrator: boolean("story_narrator").default(false),
+  storyNarratorVoice: text("story_narrator_voice"),
+  storyCharacters: jsonb("story_characters").$type<{ name: string; imageUrl: string; voiceId: string | null; prompt: string }[]>(),
+  storyScript: jsonb("story_script").$type<{ id: number; character: string; audio: string; scene_description: string }[]>(),
+  storyAudioUrls: jsonb("story_audio_urls").$type<string[]>(),
+  storySceneImages: jsonb("story_scene_images").$type<string[]>(),
+  storyScenePrompts: jsonb("story_scene_prompts").$type<string[]>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

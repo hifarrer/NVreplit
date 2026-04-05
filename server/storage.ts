@@ -479,6 +479,17 @@ export class MemStorage implements IStorage {
       generationStatus: insertProject.generationStatus || null,
       generationStartedAt: insertProject.generationStartedAt || null,
       generationTimeoutAt: insertProject.generationTimeoutAt || null,
+      // Story video fields
+      projectType: insertProject.projectType || "music_video",
+      storyPrompt: insertProject.storyPrompt || null,
+      storyDuration: insertProject.storyDuration || null,
+      storyNarrator: insertProject.storyNarrator || false,
+      storyNarratorVoice: insertProject.storyNarratorVoice || null,
+      storyCharacters: insertProject.storyCharacters || null,
+      storyScript: insertProject.storyScript || null,
+      storyAudioUrls: insertProject.storyAudioUrls || null,
+      storySceneImages: insertProject.storySceneImages || null,
+      storyScenePrompts: insertProject.storyScenePrompts || null,
       createdAt: now,
       updatedAt: now
     };

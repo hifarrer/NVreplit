@@ -30,6 +30,7 @@ interface CompletedVideo {
   updatedAt: string;
   isPublic?: boolean;
   aspectRatio?: string;
+  projectType?: string;
   mux?: {
     playbackId: string | null;
     assetStatus: string | null;
@@ -89,9 +90,13 @@ export default function MyVideosPage() {
     );
   };
 
-  const handleEditVideo = (videoId: string) => {
-    // Add timestamp to force re-initialization of edit mode
-    setLocation(`/create/story-mode?edit=${videoId}&t=${Date.now()}`);
+  const handleEditVideo = (video: CompletedVideo) => {
+    const ts = Date.now();
+    if (video.projectType === "story_video") {
+      setLocation(`/create/story-video?edit=${video.id}&t=${ts}`);
+    } else {
+      setLocation(`/create/story-mode?edit=${video.id}&t=${ts}`);
+    }
   };
 
   const handleDownload = async (videoUrl: string, title: string) => {
@@ -392,7 +397,7 @@ export default function MyVideosPage() {
                           className="w-full sm:flex-1 text-xs px-2 justify-center sm:justify-start"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleEditVideo(video.id);
+                            handleEditVideo(video);
                           }}
                           data-testid={`button-edit-${video.id}`}
                         >

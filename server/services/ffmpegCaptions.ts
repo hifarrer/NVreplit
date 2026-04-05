@@ -117,6 +117,8 @@ export async function addTikTokCaptions(opts: {
   console.log(`[FFMPEG-CAPTIONS]   language: ${language}`);
   console.log(`[FFMPEG-CAPTIONS]   aspect_ratio: ${aspectRatio}`);
   console.log(`[FFMPEG-CAPTIONS]   position: ${position}`);
+  console.log(`[FFMPEG-CAPTIONS]   max_chars_per_line: ${maxCharsPerLine}`);
+  console.log(`[FFMPEG-CAPTIONS]   max_lines: ${maxLines}`);
 
   const response = await fetchWithRetry(FFMPEG_CAPTIONS_URL, {
     method: "POST",

@@ -10,24 +10,32 @@ import { Readable } from "stream";
 import sharp from "sharp";
 import { storage } from "./storage";
 import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema, insertPlanSchema, insertReferralSchema, type Plan, type InsertPlan } from "@shared/schema";
+import {
+  STORY_DEFAULT_NARRATOR_VOICE,
+  STORY_DURATION_MAX,
+  STORY_DURATION_MIN,
+  STORY_VIDEO_CREDITS_PER_30_SECONDS,
+  getStoryVideoGenerationCredits,
+} from "@shared/storyConstants";
 import { defaultSubtitleStyle, isSubtitleStyle } from "@shared/subtitleStyles";
 import { defaultGoogleFont, isGoogleFont } from "@shared/googleFonts";
 import { z } from "zod";
-import { generateLyrics, generateLyricsWithTitle, generateSongTitle, generateScenePrompts, generateInstrumentalScenePrompts, generateLyricVideoScenePrompts, splitLyricsIntoSections, openai, transcribeAudio } from "./services/openai";
+import { generateLyrics, generateLyricsWithTitle, generateSongTitle, generateScenePrompts, generateInstrumentalScenePrompts, generateLyricVideoScenePrompts, splitLyricsIntoSections, openai, transcribeAudio, generateStoryScript } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
 import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, generateInstrumentalSong } from "./services/minimax";
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
 import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAlbumCoverSeedreamV5Lite, generateAiImageEdit } from "./services/fal";
-import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition } from "./services/wavespeed";
+import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio } from "./services/wavespeed";
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback, uploadImageToImageKit, isImageKitConfigured } from "./services/imagekit";
-import { isBunnyConfigured, uploadToBunnyStorage, uploadCharacterImage, uploadSceneImage, uploadSongAudio, uploadSongCover, isBunnyUrl } from "./services/bunny";
+import { isBunnyConfigured, uploadToBunnyStorage, uploadCharacterImage, uploadSceneImage, uploadSongAudio, uploadSongCover, isBunnyUrl, uploadAudio } from "./services/bunny";
 import { emailService } from "./services/email";
 import { createMuxAssetForVideo } from "./services/muxJobs";
+import { listStoryVoiceOptions } from "./services/storyVoices";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -4648,14 +4656,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           return {
             id: p.id,
-            title: p.title || p.audioPrompt || "Untitled Video", // Use actual title (song title) if available, fallback to audio prompt, then default
+            title: p.title || p.audioPrompt || "Untitled Video",
             videoUrl: p.finalVideoUrl,
             thumbnailUrl,
             sceneImages: p.sceneImages || [],
             createdAt: p.createdAt,
             updatedAt: p.updatedAt,
-            isPublic: p.isPublic !== false, // default true for backwards compatibility
+            isPublic: p.isPublic !== false,
             aspectRatio: p.aspectRatio || "16:9",
+            projectType: p.projectType || "music_video",
             mux: {
               playbackId: p.muxPlaybackId || null,
               assetStatus: p.muxAssetStatus || null,
@@ -15081,6 +15090,620 @@ Do not add markdown. Return JSON only.`,
       res.status(500).json({
         error: error instanceof Error ? error.message : "Failed to get project status"
       });
+    }
+  });
+
+  // ==========================================
+  // STORY VIDEO ENDPOINTS
+  // ==========================================
+
+  /** Inworld TTS voice list + preview URLs (`public/voices/{id}.mp3`). Public for the create UI. */
+  app.get("/api/story-voices", (_req, res) => {
+    try {
+      res.json({ voices: listStoryVoiceOptions() });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  app.post("/api/story-video/generate-script", authenticateToken, async (req: any, res) => {
+    try {
+      const { storyPrompt, duration, narrator, narratorVoice, characters, aspectRatio } = req.body;
+
+      if (!storyPrompt || typeof storyPrompt !== "string") {
+        return res.status(400).json({ error: "storyPrompt is required" });
+      }
+      const durationSec = Math.max(30, Math.min(300, Number(duration) || 60));
+
+      const userId = req.user.userId;
+      console.log(`[Story Video] Generating script for user ${userId}: "${storyPrompt}" (${durationSec}s)`);
+
+      const charArray = Array.isArray(characters) ? characters.slice(0, 3) : [];
+
+      const script = await generateStoryScript(
+        storyPrompt,
+        durationSec,
+        !!narrator,
+        narratorVoice || null,
+        charArray.map((c: any) => ({ name: c.name || "Character", voiceId: c.voiceId || null })),
+      );
+
+      const project = await storage.createProject({
+        userId,
+        title: storyPrompt.substring(0, 80),
+        description: storyPrompt,
+        projectType: "story_video",
+        storyPrompt,
+        storyDuration: durationSec,
+        storyNarrator: !!narrator,
+        storyNarratorVoice: narratorVoice || null,
+        storyCharacters: charArray.map((c: any) => ({
+          name: c.name || "Character",
+          imageUrl: c.imageUrl || "",
+          voiceId: c.voiceId || null,
+          prompt: c.prompt || "",
+        })),
+        storyScript: script,
+        storyScenePrompts: script.map((s) => s.scene_description),
+        aspectRatio: aspectRatio === "16:9" ? "16:9" : "3:4",
+        currentStep: 2,
+      });
+
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "story_script",
+        message: `Story script generated with ${script.length} scenes`,
+        status: "completed",
+        metadata: { sceneCount: script.length },
+      });
+
+      console.log(`[Story Video] Project ${project.id} created with ${script.length} scenes`);
+      res.json({ projectId: project.id, script });
+    } catch (error) {
+      console.error("[Story Video] Script generation error:", error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post("/api/story-video/:id/update-script", authenticateToken, async (req: any, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project || project.userId !== req.user.userId) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      const { script } = req.body;
+      if (!Array.isArray(script)) {
+        return res.status(400).json({ error: "script must be an array" });
+      }
+
+      await storage.updateProject(project.id, {
+        storyScript: script,
+        storyScenePrompts: script.map((s: any) => s.scene_description),
+      });
+
+      console.log(`[Story Video] Script updated for project ${project.id}`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Story Video] Script update error:", error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post("/api/story-video/:id/generate-assets", authenticateToken, async (req: any, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project || project.userId !== req.user.userId) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (!project.storyScript || !Array.isArray(project.storyScript)) {
+        return res.status(400).json({ error: "No story script found" });
+      }
+
+      if (project.generationStatus === "generating") {
+        return res.status(409).json({ error: "Assets are already being generated" });
+      }
+
+      const durationSec = Math.max(
+        STORY_DURATION_MIN,
+        Math.min(STORY_DURATION_MAX, Number(project.storyDuration) || 60),
+      );
+      const storyVideoCredits = getStoryVideoGenerationCredits(durationSec);
+
+      const canAfford = await storage.canUserAffordCredits(project.userId, storyVideoCredits);
+      if (!canAfford) {
+        const creditsRemaining = await storage.getUserCreditsRemaining(project.userId);
+        return res.status(402).json({
+          error: `Insufficient credits. This story video (${durationSec}s) costs ${storyVideoCredits} credits (${STORY_VIDEO_CREDITS_PER_30_SECONDS} per 30 seconds).`,
+          creditsRequired: storyVideoCredits,
+          creditsRemaining,
+          storyDuration: durationSec,
+        });
+      }
+
+      const deducted = await storage.deductUserCredits(project.userId, storyVideoCredits);
+      if (!deducted) {
+        const creditsRemaining = await storage.getUserCreditsRemaining(project.userId);
+        return res.status(402).json({
+          error: `Insufficient credits. This story video (${durationSec}s) costs ${storyVideoCredits} credits.`,
+          creditsRequired: storyVideoCredits,
+          creditsRemaining,
+          storyDuration: durationSec,
+        });
+      }
+
+      console.log(
+        `[Story Video] Charged ${storyVideoCredits} credits for project ${project.id} (${durationSec}s target)`,
+      );
+
+      await storage.updateProject(project.id, {
+        generationStatus: "generating",
+        generationStartedAt: new Date(),
+      });
+
+      res.json({
+        status: "generating",
+        projectId: project.id,
+        creditsCharged: storyVideoCredits,
+        storyDuration: durationSec,
+      });
+
+      const storyScript = project.storyScript as { id: number; character: string; audio: string; scene_description: string }[];
+      const storyCharacters = (project.storyCharacters || []) as { name: string; imageUrl: string; voiceId: string | null; prompt: string }[];
+
+      (async () => {
+        try {
+          // --- AUDIO GENERATION ---
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "story_audio",
+            message: "Creating character voices...",
+            status: "started",
+          });
+          console.log(`[Story Video] Generating audio for ${storyScript.length} scenes`);
+
+          const voiceMap: Record<string, string> = {};
+          if (project.storyNarrator && project.storyNarratorVoice) {
+            voiceMap["Narrator"] = project.storyNarratorVoice;
+          }
+          for (const char of storyCharacters) {
+            if (char.voiceId) {
+              voiceMap[char.name] = char.voiceId;
+            }
+          }
+
+          const audioPromises = storyScript.map(async (scene, index) => {
+            const voiceId = voiceMap[scene.character] || STORY_DEFAULT_NARRATOR_VOICE;
+            console.log(`[Story Video] Scene ${scene.id}: voice="${voiceId}" for "${scene.character}"`);
+            try {
+              const audioUrl = await generateStoryAudio(scene.audio, voiceId);
+
+              let storedUrl = audioUrl;
+              if (isBunnyConfigured()) {
+                try {
+                  const audioResponse = await fetch(audioUrl);
+                  if (audioResponse.ok) {
+                    const buffer = Buffer.from(await audioResponse.arrayBuffer());
+                    const fileName = `story-${project.id}-scene-${index + 1}-${Date.now()}.mp3`;
+                    const bunnyResult = await uploadAudio(fileName, buffer);
+                    storedUrl = bunnyResult.url;
+                    console.log(`[Story Video] Scene ${scene.id} audio stored on Bunny: ${storedUrl}`);
+                  }
+                } catch (bunnyErr) {
+                  console.warn(`[Story Video] Bunny upload failed for scene ${scene.id}, using original URL`, bunnyErr);
+                }
+              }
+
+              return { index, url: storedUrl };
+            } catch (err) {
+              console.error(`[Story Video] Audio gen failed for scene ${scene.id}:`, err);
+              return { index, url: null };
+            }
+          });
+
+          const audioResults = await Promise.all(audioPromises);
+          const audioUrls: string[] = new Array(storyScript.length).fill("");
+          for (const r of audioResults) {
+            if (r.url) audioUrls[r.index] = r.url;
+          }
+
+          await storage.updateProject(project.id, { storyAudioUrls: audioUrls });
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "story_audio",
+            message: `Generated ${audioUrls.filter(Boolean).length}/${storyScript.length} audio files`,
+            status: "completed",
+          });
+
+          // --- IMAGE GENERATION ---
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "story_images",
+            message: "Painting the scenes...",
+            status: "started",
+          });
+          console.log(`[Story Video] Generating ${storyScript.length} scene images`);
+
+          const sceneDescriptions = storyScript.map((s) => s.scene_description);
+          const hasCharacterImage = storyCharacters.some((c) => c.imageUrl);
+
+          let sceneImages: string[];
+          if (hasCharacterImage) {
+            const refImage = storyCharacters.find((c) => c.imageUrl)!.imageUrl;
+            sceneImages = await generateSceneImages(sceneDescriptions, refImage, project.aspectRatio || "16:9");
+          } else {
+            sceneImages = await generateSceneImagesFromText(sceneDescriptions, project.aspectRatio || "16:9");
+          }
+
+          await storage.updateProject(project.id, {
+            storySceneImages: sceneImages,
+            currentStep: 3,
+            generationStatus: "completed",
+          });
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "story_images",
+            message: `Generated ${sceneImages.length} scene images`,
+            status: "completed",
+          });
+
+          console.log(`[Story Video] Assets complete: ${audioUrls.filter(Boolean).length} audio, ${sceneImages.length} images`);
+        } catch (error) {
+          console.error("[Story Video] Asset generation error:", error);
+          await storage.updateProject(project.id, { generationStatus: "failed" });
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "story_assets_error",
+            message: `Asset generation failed: ${(error as Error).message}`,
+            status: "error",
+          });
+        }
+      })();
+    } catch (error) {
+      console.error("[Story Video] Generate assets error:", error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post("/api/story-video/:id/regenerate-scene/:sceneIndex", authenticateToken, async (req: any, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project || project.userId !== req.user.userId) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      const sceneIndex = parseInt(req.params.sceneIndex, 10);
+      const sceneImages = (project.storySceneImages || []) as string[];
+      const scenePrompts = (project.storyScenePrompts || []) as string[];
+
+      if (sceneIndex < 0 || sceneIndex >= scenePrompts.length) {
+        return res.status(400).json({ error: "Invalid scene index" });
+      }
+
+      const prompt = req.body.prompt || scenePrompts[sceneIndex];
+
+      console.log(`[Story Video] Regenerating scene ${sceneIndex + 1} for project ${project.id}`);
+
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "story_regenerate_scene",
+        message: `Regenerating scene ${sceneIndex + 1}...`,
+        status: "started",
+      });
+
+      const storyCharacters = (project.storyCharacters || []) as { name: string; imageUrl: string; voiceId: string | null; prompt: string }[];
+      const hasCharacterImage = storyCharacters.some((c) => c.imageUrl);
+
+      let newImageUrl: string;
+      if (hasCharacterImage) {
+        const refImage = storyCharacters.find((c) => c.imageUrl)!.imageUrl;
+        newImageUrl = await generateSingleSceneImage(prompt, refImage, project.aspectRatio || "16:9");
+      } else {
+        const images = await generateSceneImagesFromText([prompt], project.aspectRatio || "16:9");
+        newImageUrl = images[0];
+      }
+
+      sceneImages[sceneIndex] = newImageUrl;
+      scenePrompts[sceneIndex] = prompt;
+
+      await storage.updateProject(project.id, {
+        storySceneImages: sceneImages,
+        storyScenePrompts: scenePrompts,
+      });
+
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "story_regenerate_scene",
+        message: `Scene ${sceneIndex + 1} regenerated`,
+        status: "completed",
+      });
+
+      console.log(`[Story Video] Scene ${sceneIndex + 1} regenerated: ${newImageUrl}`);
+      res.json({ imageUrl: newImageUrl });
+    } catch (error) {
+      console.error("[Story Video] Scene regeneration error:", error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post("/api/story-video/:id/generate-video", authenticateToken, async (req: any, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project || project.userId !== req.user.userId) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      const sceneImages = (project.storySceneImages || []) as string[];
+      const audioUrls = (project.storyAudioUrls || []) as string[];
+
+      if (sceneImages.length === 0 || audioUrls.filter(Boolean).length === 0) {
+        return res.status(400).json({ error: "Assets not yet generated" });
+      }
+
+      if (project.generationStatus === "generating") {
+        return res.status(409).json({ error: "Video is already being generated" });
+      }
+
+      const generationId = nanoid();
+      await storage.updateProject(project.id, {
+        generationId,
+        generationStatus: "generating",
+        generationStartedAt: new Date(),
+        generationTimeoutAt: new Date(Date.now() + 30 * 60 * 1000),
+        currentStep: 4,
+      });
+
+      res.json({ status: "generating", generationId, projectId: project.id });
+
+      (async () => {
+        try {
+          const storyScript = (project.storyScript || []) as { id: number; character: string; audio: string; scene_description: string }[];
+          const aspectRatio = project.aspectRatio || "16:9";
+          const dimensions = aspectRatio === "16:9" ? "1280x720" : "720x960";
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "story_video_start",
+            message: "Bringing scenes to life...",
+            status: "started",
+          });
+
+          console.log(`[Story Video] Generating ${sceneImages.length} video segments in parallel`);
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "story_video_segment",
+            message: `Generating all ${sceneImages.length} video scenes in parallel...`,
+            status: "progress",
+            metadata: { total: sceneImages.length },
+          });
+
+          const videoSegmentPromises = sceneImages.map(async (sceneImage, i) => {
+            const sceneAudio = audioUrls[i];
+            const scenePrompt = (project.storyScenePrompts as string[])?.[i] || "animated scene";
+            const isNarrator = storyScript[i]?.character === "Narrator";
+
+            console.log(`[Story Video] Scene ${i + 1}/${sceneImages.length} — character: "${storyScript[i]?.character}", model: ${isNarrator ? "seedance" : "infinitetalk"}`);
+
+            try {
+              let clipUrl: string;
+
+              if (isNarrator) {
+                console.log(`[Story Video] Scene ${i + 1}: seedance (narrator) — generating silent video`);
+                const silentVideoUrl = await generateVideoSegment(
+                  "",
+                  sceneImage,
+                  scenePrompt,
+                  "seedance",
+                  5,
+                  (project.videoQuality as "quick" | "medium" | "premium") || "quick",
+                  aspectRatio,
+                );
+                console.log(`[Story Video] Scene ${i + 1}: silent video ready, adding narrator audio via ffmpegapi`);
+
+                if (sceneAudio) {
+                  const mergeResult = await mergeVideos(
+                    [silentVideoUrl],
+                    sceneAudio,
+                    undefined,
+                    undefined,
+                    undefined,
+                    dimensions,
+                  );
+                  clipUrl = mergeResult.download_url;
+                  console.log(`[Story Video] Scene ${i + 1}: audio merged via ffmpegapi`);
+                } else {
+                  clipUrl = silentVideoUrl;
+                  console.warn(`[Story Video] Scene ${i + 1}: no audio available, using silent video`);
+                }
+              } else {
+                console.log(`[Story Video] Scene ${i + 1}: infinitetalk (character lipsync)`);
+                clipUrl = await generateVideoSegment(
+                  sceneAudio || "",
+                  sceneImage,
+                  scenePrompt,
+                  "infinitetalk",
+                  5,
+                  (project.videoQuality as "quick" | "medium" | "premium") || "quick",
+                  aspectRatio,
+                );
+                console.log(`[Story Video] Scene ${i + 1}: lipsync video ready`);
+              }
+
+              let storedClipUrl = clipUrl;
+              if (isBunnyConfigured()) {
+                try {
+                  const clipResponse = await fetch(clipUrl);
+                  if (clipResponse.ok) {
+                    const buffer = Buffer.from(await clipResponse.arrayBuffer());
+                    const fileName = `story-${project.id}-seg-${i + 1}-${Date.now()}.mp4`;
+                    const bunnyResult = await uploadToBunnyStorage("scenes", fileName, buffer);
+                    storedClipUrl = bunnyResult.url;
+                    console.log(`[Story Video] Scene ${i + 1}: uploaded to Bunny`);
+                  }
+                } catch (bunnyErr) {
+                  console.warn(`[Story Video] Bunny upload failed for segment ${i + 1}`, bunnyErr);
+                }
+              }
+
+              console.log(`[Story Video] Scene ${i + 1} complete: ${storedClipUrl}`);
+              return { index: i, url: storedClipUrl };
+            } catch (segErr) {
+              console.error(`[Story Video] Scene ${i + 1} failed:`, segErr);
+              throw new Error(`Scene ${i + 1} video generation failed: ${(segErr as Error).message}`);
+            }
+          });
+
+          const results = await Promise.all(videoSegmentPromises);
+          const videoSegmentUrls = results
+            .sort((a, b) => a.index - b.index)
+            .map((r) => r.url);
+
+          await storage.updateProject(project.id, { videoSegments: videoSegmentUrls });
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "story_video_segments",
+            message: `All ${videoSegmentUrls.length} video segments generated`,
+            status: "completed",
+          });
+
+          // Merge all clips into final video (each clip already has its own audio)
+          console.log(`[Story Video] Merging ${videoSegmentUrls.length} video segments`);
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "story_video_merge",
+            message: "Assembling the final video...",
+            status: "started",
+          });
+
+          const mergeResult = await mergeVideos(
+            videoSegmentUrls,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            dimensions,
+          );
+
+          // Upload merged video to Bunny
+          let finalVideoUrl = mergeResult.download_url;
+          if (isBunnyConfigured() && finalVideoUrl) {
+            try {
+              await storage.addGenerationLog({
+                projectId: project.id,
+                step: "story_video_upload",
+                message: "Uploading to cloud...",
+                status: "started",
+              });
+
+              const mergedResponse = await fetch(finalVideoUrl);
+              if (mergedResponse.ok) {
+                const buffer = Buffer.from(await mergedResponse.arrayBuffer());
+                const fileName = `story-${project.id}-final-${Date.now()}.mp4`;
+                const bunnyResult = await uploadToBunnyStorage("final", fileName, buffer);
+                finalVideoUrl = bunnyResult.url;
+                console.log(`[Story Video] Final video on Bunny: ${finalVideoUrl}`);
+              }
+            } catch (uploadErr) {
+              console.warn("[Story Video] Bunny upload for final video failed, using merge URL", uploadErr);
+            }
+          }
+
+          // Phrase-style captions (few words / line) via same Remotion endpoint as music videos
+          try {
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "story_video_captions",
+              message: "Adding captions…",
+              status: "started",
+            });
+
+            const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
+            const storyAspect = project.aspectRatio || "16:9";
+            let storyCaptionStyle = (project as { subtitleStyle?: string }).subtitleStyle || "yellow-bg";
+            if (storyCaptionStyle === "classic") {
+              storyCaptionStyle = "yellow-bg";
+            }
+            const captionResult = await addTikTokCaptions({
+              videoUrl: finalVideoUrl,
+              subtitleStyle: storyCaptionStyle,
+              language: "auto",
+              aspectRatio: storyAspect,
+              position: (project as { captionPosition?: string }).captionPosition || "bottom",
+              maxCharsPerLine: 50,
+              maxLines: 1,
+            });
+
+            if (isBunnyConfigured()) {
+              const capResponse = await fetch(captionResult.download_url);
+              if (capResponse.ok) {
+                const capBuffer = Buffer.from(await capResponse.arrayBuffer());
+                const capFileName = `story-${project.id}-final-captioned-${Date.now()}.mp4`;
+                const capBunny = await uploadToBunnyStorage("final", capFileName, capBuffer);
+                finalVideoUrl = capBunny.url;
+                console.log(`[Story Video] Captioned final on Bunny: ${finalVideoUrl}`);
+              } else {
+                console.warn("[Story Video] Could not download captioned video for Bunny upload, using caption API URL");
+                finalVideoUrl = captionResult.download_url;
+              }
+            } else {
+              finalVideoUrl = captionResult.download_url;
+            }
+
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "story_video_captions",
+              message: "Captions added",
+              status: "completed",
+            });
+          } catch (capErr) {
+            console.warn("[Story Video] Caption step failed, keeping uncaptioned final:", capErr);
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "story_video_captions",
+              message: `Captions skipped: ${(capErr as Error).message}`,
+              status: "warning",
+            });
+          }
+
+          await storage.updateProject(project.id, {
+            finalVideoUrl,
+            isCompleted: true,
+            currentStep: 5,
+            generationStatus: "completed",
+          });
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "story_video_complete",
+            message: "Story video is ready!",
+            status: "completed",
+            metadata: { finalVideoUrl },
+          });
+
+          try {
+            await createMuxAssetForVideo(project.id, finalVideoUrl);
+            console.log(`[Story Video] MUX asset creation initiated for project ${project.id}`);
+          } catch (muxErr) {
+            console.warn("[Story Video] MUX asset creation failed:", muxErr);
+          }
+
+          console.log(`[Story Video] Generation complete for project ${project.id}`);
+        } catch (error) {
+          console.error("[Story Video] Video generation error:", error);
+          await storage.updateProject(project.id, { generationStatus: "failed" });
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "story_video_error",
+            message: `Video generation failed: ${(error as Error).message}`,
+            status: "error",
+          });
+        }
+      })();
+    } catch (error) {
+      console.error("[Story Video] Generate video error:", error);
+      res.status(500).json({ error: (error as Error).message });
     }
   });
 

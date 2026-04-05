@@ -1,3 +1,5 @@
+import { withGenerationApiRetries } from "./generationRetry";
+
 const FFMPEG_API_KEY = process.env.FFMPEG_API_KEY || "ffmpeg_KfTAf98EY9OCuriwBtLT34ZtWZLJtnXX";
 
 const RETRYABLE_ERROR_CODES = new Set(["EAI_AGAIN", "ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT"]);
@@ -454,7 +456,7 @@ const NEONVIDEO_MERGE_URL = process.env.FFMPEG_NEONVIDEO_MERGE_URL || "https://f
 // Generic merge_videos endpoint (no outro). Used for loop-video and any 2+ video merge without outro.
 const MERGE_VIDEOS_URL = process.env.FFMPEG_MERGE_VIDEOS_URL || `${FFMPEG_API_BASE}/api/merge_videos`;
 
-export async function mergeVideos(
+async function mergeVideosInternal(
   videoUrls: string[],
   audioUrl?: string,
   subtitleUrl?: string,
@@ -463,7 +465,7 @@ export async function mergeVideos(
   dimensions?: string,
 ): Promise<{ download_url: string; filename: string }> {
   const useNeonvideoApi = !!outroUrl;
-  const useRemoteMergeNoOutro = !outroUrl && videoUrls.length >= 2;
+  const useRemoteMergeNoOutro = !outroUrl && (videoUrls.length >= 2 || !!audioUrl);
 
   if (useNeonvideoApi) {
     console.log("=== FFMPEG NEONVIDEO MERGE (remote API) ===");
@@ -586,4 +588,32 @@ export async function mergeVideos(
     console.error("Local video merging error:", error);
     throw new Error("Failed to merge videos locally: " + (error as Error).message);
   }
+}
+
+export async function mergeVideos(
+  videoUrls: string[],
+  audioUrl?: string,
+  subtitleUrl?: string,
+  watermarkUrl?: string,
+  outroUrl?: string,
+  dimensions?: string,
+): Promise<{ download_url: string; filename: string }> {
+  return withGenerationApiRetries(
+    "mergeVideos",
+    () =>
+      mergeVideosInternal(
+        videoUrls,
+        audioUrl,
+        subtitleUrl,
+        watermarkUrl,
+        outroUrl,
+        dimensions,
+      ),
+    {
+      shouldRetry: (err) =>
+        !/merge videos locally|Failed to merge videos locally|ffprobe|ENOENT|spawn ffprobe/i.test(
+          err.message,
+        ),
+    },
+  );
 }

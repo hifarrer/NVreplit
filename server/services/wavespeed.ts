@@ -1,4 +1,6 @@
+import { normalizeStoryVoiceId } from "@shared/storyConstants";
 import { parseAssToTimestampedWords } from "./captions";
+import { withGenerationApiRetries } from "./generationRetry";
 
 const WAVESPEED_API_KEY =
   process.env.WAVESPEED_API_KEY ||
@@ -164,14 +166,18 @@ async function generateVideoSegmentInternal(
         };
         break;
       case "quick":
-      default:
+      default: {
         // Seedance v1.5 Pro - Quick quality (new default)
-        // Backup model: seedance-v1-pro-i2v-480p (kept for fallback if needed)
+        // Use at least 6s: 5s clips often cut off overlaid/lipsync audio; longer requested segments unchanged.
+        const seedanceDuration = Math.min(maxDuration, Math.max(6, roundedDuration));
+        if (seedanceDuration !== roundedDuration) {
+          console.log(`Seedance v1.5 Pro duration: ${roundedDuration}s → ${seedanceDuration}s (minimum 6s for this model)`);
+        }
         endpoint = "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1.5-pro/image-to-video-fast";
         requestBody = {
           aspect_ratio: aspectRatio, // Dynamic aspect ratio from project settings
           camera_fixed: false,
-          duration: roundedDuration,
+          duration: seedanceDuration,
           generate_audio: false,
           image: imageUrl,
           prompt: prompt,
@@ -179,6 +185,7 @@ async function generateVideoSegmentInternal(
           seed: -1,
         };
         break;
+      }
     }
   }
 
@@ -307,50 +314,58 @@ export async function generateVideoSegment(
   videoQuality: VideoQuality = "quick",
   aspectRatio: string = "16:9",
 ): Promise<string> {
-  let lastError: Error | null = null;
-  let currentPrompt = prompt;
+  return withGenerationApiRetries(
+    `Video segment (${model})`,
+    async () => {
+      let lastError: Error | null = null;
+      let currentPrompt = prompt;
 
-  // Retry loop for transient errors
-  for (let attempt = 1; attempt <= MAX_TRANSIENT_RETRIES; attempt++) {
-    try {
-      console.log(`Video segment generation attempt ${attempt}/${MAX_TRANSIENT_RETRIES}`);
-      return await generateVideoSegmentInternal(audioUrl, imageUrl, currentPrompt, model, segmentDuration, videoQuality, aspectRatio);
-    } catch (error) {
-      const err = error as Error;
-      lastError = err;
+      for (let attempt = 1; attempt <= MAX_TRANSIENT_RETRIES; attempt++) {
+        try {
+          console.log(`Video segment generation attempt ${attempt}/${MAX_TRANSIENT_RETRIES}`);
+          return await generateVideoSegmentInternal(
+            audioUrl,
+            imageUrl,
+            currentPrompt,
+            model,
+            segmentDuration,
+            videoQuality,
+            aspectRatio,
+          );
+        } catch (error) {
+          const err = error as Error;
+          lastError = err;
 
-      // Check if the error is due to sensitive content
-      if (isSensitiveContentError(err)) {
-        console.log(`\n=== SENSITIVE CONTENT DETECTED ===`);
-        console.log(`Original prompt was flagged: "${currentPrompt}"`);
-        console.log(`Retrying with safe fallback prompt: "${SAFE_FALLBACK_PROMPT}"`);
-        console.log(`================================\n`);
+          if (isSensitiveContentError(err)) {
+            console.log(`\n=== SENSITIVE CONTENT DETECTED ===`);
+            console.log(`Original prompt was flagged: "${currentPrompt}"`);
+            console.log(`Retrying with safe fallback prompt: "${SAFE_FALLBACK_PROMPT}"`);
+            console.log(`================================\n`);
+            currentPrompt = SAFE_FALLBACK_PROMPT;
+            continue;
+          }
 
-        // Switch to safe fallback prompt and retry
-        currentPrompt = SAFE_FALLBACK_PROMPT;
-        continue;
+          if (isTransientError(err) && attempt < MAX_TRANSIENT_RETRIES) {
+            console.log(`\n=== TRANSIENT ERROR DETECTED (attempt ${attempt}/${MAX_TRANSIENT_RETRIES}) ===`);
+            console.log(`Error: ${err.message}`);
+            console.log(`Waiting ${RETRY_DELAY_MS / 1000} seconds before retry...`);
+            console.log(`================================================\n`);
+            await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+            continue;
+          }
+
+          break;
+        }
       }
 
-      // Check if this is a transient/retryable error
-      if (isTransientError(err) && attempt < MAX_TRANSIENT_RETRIES) {
-        console.log(`\n=== TRANSIENT ERROR DETECTED (attempt ${attempt}/${MAX_TRANSIENT_RETRIES}) ===`);
-        console.log(`Error: ${err.message}`);
-        console.log(`Waiting ${RETRY_DELAY_MS / 1000} seconds before retry...`);
-        console.log(`================================================\n`);
-
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
-        continue;
-      }
-
-      // For non-retryable errors or max retries exceeded, break out
-      break;
-    }
-  }
-
-  // If we get here, all retries failed
-  console.error("Wavespeed generation error after all retries:", lastError);
-  throw new Error(
-    "Failed to generate video segment after " + MAX_TRANSIENT_RETRIES + " attempts: " + (lastError?.message || "Unknown error"),
+      console.error("Wavespeed generation error after all retries:", lastError);
+      throw new Error(
+        "Failed to generate video segment after " +
+          MAX_TRANSIENT_RETRIES +
+          " attempts: " +
+          (lastError?.message || "Unknown error"),
+      );
+    },
   );
 }
 
@@ -929,8 +944,8 @@ export async function generateVideoFromImage(
   console.log("Image URL:", imageUrl);
   console.log("Prompt:", prompt);
   console.log("Aspect Ratio:", aspectRatio);
-  console.log("Duration:", duration);
-
+  const seedanceDuration = Math.min(12, Math.max(6, Math.round(duration)));
+  console.log("Duration:", duration, "→ API:", seedanceDuration, "s (seedance v1.5 min 6s)");
   const response = await fetchWithRetry(
     "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1.5-pro/image-to-video-fast",
     {
@@ -942,7 +957,7 @@ export async function generateVideoFromImage(
       body: JSON.stringify({
         aspect_ratio: aspectRatio,
         camera_fixed: false,
-        duration,
+        duration: seedanceDuration,
         generate_audio: false,
         image: imageUrl,
         prompt,
@@ -1108,4 +1123,87 @@ export async function generateVideoFromImageTransition(
     throw new Error("No request ID received from Wavespeed image-to-video (transition)");
   }
   return pollSeedanceResult(requestId, "Loop transition video");
+}
+
+export async function generateStoryAudio(
+  text: string,
+  voiceId: string,
+): Promise<string> {
+  const resolvedVoice = normalizeStoryVoiceId(voiceId);
+  return withGenerationApiRetries(`Story TTS (${resolvedVoice})`, async () => {
+    console.log(
+      `[Story TTS] Inworld Mini TTS voice "${resolvedVoice}" (requested: "${voiceId}"), text: "${text.substring(0, 80)}..."`,
+    );
+
+    const response = await fetchWithRetry(
+      "https://api.wavespeed.ai/api/v3/inworld/inworld-1.5-mini/text-to-speech",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        },
+        body: JSON.stringify({
+          speaking_rate: 1,
+          temperature: 1,
+          text,
+          voice_id: resolvedVoice,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Story TTS API error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    const requestId = result.data?.id || result.id;
+    if (!requestId) {
+      throw new Error("No request ID received from Story TTS API");
+    }
+
+    console.log(`[Story TTS] Got request ID: ${requestId}, polling for result...`);
+
+    let attempts = 0;
+    const maxAttempts = 120;
+    while (attempts < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      const statusResponse = await fetchWithRetry(
+        `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+        { headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` } },
+      );
+
+      if (!statusResponse.ok) {
+        throw new Error(`Story TTS status check failed: ${statusResponse.status}`);
+      }
+
+      const statusResult = await statusResponse.json();
+
+      if (
+        statusResult.data?.status === "completed" &&
+        statusResult.data.outputs &&
+        statusResult.data.outputs.length > 0
+      ) {
+        const audioUrl = statusResult.data.outputs[0];
+        console.log(`[Story TTS] Audio generated: ${audioUrl}`);
+        return audioUrl;
+      }
+
+      if (statusResult.data?.status === "failed" || statusResult.status === "failed") {
+        const errorDetails = statusResult.data?.error || statusResult.error || "Unknown error";
+        throw new Error(
+          `Story TTS failed: ${typeof errorDetails === "string" ? errorDetails : JSON.stringify(errorDetails)}`,
+        );
+      }
+
+      attempts++;
+      if (attempts % 10 === 0) {
+        console.log(`[Story TTS] Still processing... (${attempts * 3}s elapsed)`);
+      }
+    }
+
+    throw new Error("Story TTS generation timed out after " + maxAttempts * 3 + "s");
+  });
 }
