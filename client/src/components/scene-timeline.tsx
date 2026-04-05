@@ -21,6 +21,10 @@ interface SceneTimelineProps {
   finalVideoUrl?: string;
   isEditMode?: boolean;
   isInstrumental?: boolean; // Whether this is an instrumental video (no lipsync)
+  /** Music videos: 6s segments. Story videos: equal split across audioDuration. */
+  timelineLayout?: "music" | "story";
+  /** When true, mic / speaking indicators are display-only (e.g. story dialogue vs narrator). */
+  lipsyncReadOnly?: boolean;
   onReorder: (newOrder: number[]) => void;
   onSceneClick?: (sceneIndex: number) => void;
   onToggleLipsync?: (sceneIndex: number) => void;
@@ -37,6 +41,8 @@ export function SceneTimeline({
   finalVideoUrl,
   isEditMode = false,
   isInstrumental = false,
+  timelineLayout = "music",
+  lipsyncReadOnly = false,
   onReorder,
   onSceneClick,
   onToggleLipsync
@@ -295,21 +301,41 @@ export function SceneTimeline({
     };
   }, [audioUrl]);
   
-  // Calculate scene durations: each scene is 6 seconds, except the last one which may be shorter
-  // This matches the backend logic where audio is split into 6-second segments
-  // The last scene gets the remainder (if >= 2 seconds), otherwise it's excluded
+  // Music: 6s segments (last may be longer). Story: equal split across target duration.
   const getSceneDuration = (index: number): number => {
-    if (index < sceneCount - 1) {
-      return 6; // All scenes except the last are 6 seconds
+    if (timelineLayout === "story" && sceneCount > 0) {
+      if (audioDuration <= 0) {
+        return 1;
+      }
+      const seg = audioDuration / sceneCount;
+      if (index === sceneCount - 1) {
+        return Math.max(0.1, audioDuration - seg * (sceneCount - 1));
+      }
+      return seg;
     }
-    // Last scene: calculate remainder
+    if (index < sceneCount - 1) {
+      return 6;
+    }
     const usedDuration = (sceneCount - 1) * 6;
     const remainder = audioDuration - usedDuration;
-    // If remainder is < 2, it should have been excluded, but handle it gracefully
     return remainder >= 2 ? remainder : 6;
   };
-  
-  const sceneDuration = 6; // Default duration for most scenes (used for width calculation)
+
+  const getSceneStartTime = (orderPosition: number): number => {
+    if (timelineLayout === "story") {
+      if (audioDuration > 0 && sceneCount > 0) {
+        const seg = audioDuration / sceneCount;
+        return orderPosition * seg;
+      }
+      return 0;
+    }
+    return orderPosition * 6;
+  };
+
+  const sceneDuration =
+    timelineLayout === "story" && sceneCount > 0
+      ? (audioDuration > 0 ? audioDuration / sceneCount : 1)
+      : 6;
   
   const isLipsyncScene = (originalIndex: number): boolean => {
     // Instrumental videos never use lipsync
@@ -637,7 +663,7 @@ export function SceneTimeline({
               <div className="flex items-center gap-1">
                 <Type className="w-3 h-3 text-amber-400" />
                 <span className="text-[10px] text-slate-400 font-medium">
-                  {textOverlaySegments ? 'Text Overlay' : 'Lyrics'}
+                  {textOverlaySegments ? "Text Overlay" : timelineLayout === "story" ? "Dialogue" : "Lyrics"}
                 </span>
               </div>
             </div>
@@ -685,8 +711,7 @@ export function SceneTimeline({
                   const isDragging = draggedIndex === orderPosition;
                   const isDragOver = dragOverIndex === orderPosition;
                   const isLipsync = isLipsyncScene(originalIndex);
-                  // Calculate start/end times based on 6-second segments (except last)
-                  const startTime = orderPosition * 6;
+                  const startTime = getSceneStartTime(orderPosition);
                   const actualSceneDuration = getSceneDuration(orderPosition);
                   const endTime = Math.min(startTime + actualSceneDuration, audioDuration);
                   const hasLyrics = hasLyricsInTimeWindow(startTime, endTime);
@@ -734,21 +759,36 @@ export function SceneTimeline({
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button
-                                className={`absolute top-1 left-6 z-20 p-0.5 rounded transition-colors ${isInstrumental ? 'cursor-not-allowed opacity-50' : 'hover:bg-black/30'}`}
+                                type="button"
+                                className={`absolute top-1 left-6 z-20 p-0.5 rounded transition-colors ${
+                                  isInstrumental || lipsyncReadOnly
+                                    ? "cursor-default opacity-90"
+                                    : "hover:bg-black/30"
+                                }`}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!isInstrumental) {
+                                  if (!isInstrumental && !lipsyncReadOnly) {
                                     onToggleLipsync?.(originalIndex);
                                   }
                                 }}
-                                disabled={isInstrumental}
+                                disabled={isInstrumental || lipsyncReadOnly}
                                 data-testid={`timeline-lipsync-toggle-${orderPosition + 1}`}
                               >
                                 <Mic className={`w-3 h-3 drop-shadow-lg ${isLipsync ? 'text-pink-400' : 'text-gray-400'}`} />
                               </button>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-xs">
-                              <p>{isInstrumental ? 'Lipsync not available for instrumental videos' : (isLipsync ? 'Lipsync enabled - click to disable' : 'Lipsync disabled - click to enable')}</p>
+                              <p>
+                                {lipsyncReadOnly
+                                  ? isLipsync
+                                    ? "Character speaks on camera in this scene"
+                                    : "Narration / voiceover style scene"
+                                  : isInstrumental
+                                    ? "Lipsync not available for instrumental videos"
+                                    : isLipsync
+                                      ? "Lipsync enabled - click to disable"
+                                      : "Lipsync disabled - click to enable"}
+                              </p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -916,7 +956,7 @@ export function SceneTimeline({
         </div>
         <div className="flex items-center gap-1.5">
           <Mic className="w-3 h-3 text-pink-400" />
-          <span>Lipsync scene</span>
+          <span>{timelineLayout === "story" ? "Speaking scene" : "Lipsync scene"}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <GripVertical className="w-3 h-3 text-slate-400" />
@@ -928,7 +968,9 @@ export function SceneTimeline({
         </div>
         <div className="flex items-center gap-1.5">
           <Type className="w-3 h-3 text-amber-400" />
-          <span>{textOverlaySegments ? 'Text Overlay' : 'Lyrics'} (hover to view)</span>
+          <span>
+            {textOverlaySegments ? "Text Overlay" : timelineLayout === "story" ? "Dialogue" : "Lyrics"} (hover to view)
+          </span>
         </div>
       </div>
     </div>

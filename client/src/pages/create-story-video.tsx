@@ -16,9 +16,10 @@ import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CharacterLibraryModal } from "@/components/modals/character-library-modal";
+import { StoryScriptReviewStep } from "@/components/steps/story-script-review-step";
 import {
   Loader2, Play, ChevronLeft, ChevronRight,
-  Plus, X, BookOpen, Mic, Image as ImageIcon, CheckCircle2,
+  Plus, X, BookOpen, Image as ImageIcon, CheckCircle2,
 } from "lucide-react";
 import {
   STORY_DEFAULT_NARRATOR_VOICE,
@@ -162,7 +163,7 @@ export default function CreateStoryVideo() {
     autoVideoStartedRef.current = false;
   }, [projectId]);
 
-  // Step 1: Generate Script
+  // Step 1: Generate script, then scene preview images (same loading state until thumbnails exist)
   const generateScriptMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/story-video/generate-script", {
@@ -178,13 +179,65 @@ export default function CreateStoryVideo() {
         })),
         aspectRatio,
       });
-      return res.json();
+      const data = (await res.json()) as { projectId: string; script: StoryScene[] };
+
+      try {
+        await apiRequest("POST", `/api/story-video/${data.projectId}/generate-scene-images`);
+      } catch (e) {
+        return {
+          ...data,
+          sceneImages: [] as string[],
+          previewFailed: true as const,
+          previewError: (e as Error).message,
+        };
+      }
+
+      const sceneCount = data.script.length;
+      const deadline = Date.now() + 900_000;
+      let sceneImages: string[] = [];
+
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 2500));
+        const pr = await apiRequest("GET", `/api/projects/${data.projectId}`);
+        const p = (await pr.json()) as { storySceneImages?: string[] };
+        const imgs = p.storySceneImages;
+        if (
+          Array.isArray(imgs) &&
+          imgs.length === sceneCount &&
+          imgs.every((url) => typeof url === "string" && url.length > 0)
+        ) {
+          sceneImages = imgs;
+          break;
+        }
+      }
+
+      const previewIncomplete =
+        sceneImages.length !== sceneCount || !sceneImages.every((u) => u.length > 0);
+
+      return { ...data, sceneImages, previewIncomplete };
     },
     onSuccess: (data) => {
       setProjectId(data.projectId);
       setScript(data.script);
+      setSceneImages(data.sceneImages ?? []);
       setCurrentStep(2);
-      toast({ title: "Script generated!", description: `${data.script.length} scenes created` });
+      if ("previewFailed" in data && data.previewFailed) {
+        toast({
+          title: "Script generated",
+          description: `Scene previews could not start (${data.previewError}). You can still edit and run the full video.`,
+          variant: "destructive",
+        });
+      } else if (!("previewFailed" in data) && data.previewIncomplete) {
+        toast({
+          title: "Script generated",
+          description: `${data.script.length} scenes. Previews are still loading or failed — refresh if thumbnails are missing.`,
+        });
+      } else {
+        toast({
+          title: "Script generated!",
+          description: `${data.script.length} scenes with preview images`,
+        });
+      }
     },
     onError: (error: Error) => {
       toast({ title: "Failed to generate script", description: error.message, variant: "destructive" });
@@ -355,7 +408,7 @@ export default function CreateStoryVideo() {
     <div className="min-h-screen flex flex-col bg-background">
       <NavigationHeader currentPage="home" />
 
-      <main className="flex-1 container mx-auto px-4 py-8 max-w-4xl">
+      <main className="flex-1 container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-8">
           <button
             onClick={() => navigate("/create")}
@@ -614,7 +667,7 @@ export default function CreateStoryVideo() {
             >
               {generateScriptMutation.isPending ? (
                 <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" /> Generating Story...
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" /> Generating story and scene art...
                 </>
               ) : (
                 <>
@@ -626,120 +679,26 @@ export default function CreateStoryVideo() {
           </div>
         )}
 
-        {/* Step 2: Script Review */}
-        {currentStep === 2 && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">
-                {isEditMode ? "Edit Your Story Script" : "Review Your Story Script"}
-              </h2>
-              <Button variant="ghost" size="sm" onClick={() => setCurrentStep(1)}>
-                <ChevronLeft className="h-4 w-4 mr-1" /> Back
-              </Button>
-            </div>
-
-            <p className="text-sm text-muted-foreground mb-4">
-              Edit the dialogue and scene descriptions before generating assets.
-            </p>
-
-            {isEditMode && finalVideoUrl && (
-              <Card className="mb-4">
-                <CardContent className="p-4">
-                  <Label className="text-xs text-muted-foreground mb-2 block">Current Video</Label>
-                  <div className="rounded-lg overflow-hidden bg-black">
-                    <video
-                      src={finalVideoUrl}
-                      controls
-                      className="w-full max-h-[300px]"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {script.map((scene, i) => (
-              <Card key={scene.id} className="overflow-hidden">
-                <CardContent className="p-4">
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-bold bg-pink-500/20 text-pink-500 px-2 py-0.5 rounded">
-                      Scene {scene.id}
-                    </span>
-                    <span className="text-sm font-medium text-foreground">{scene.character}</span>
-                  </div>
-
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
-                    <div
-                      className={
-                        aspectRatio === "3:4"
-                          ? "relative mx-auto w-28 shrink-0 overflow-hidden rounded-lg bg-muted aspect-[3/4] sm:mx-0 sm:w-32"
-                          : "relative mx-auto w-40 shrink-0 overflow-hidden rounded-lg bg-muted aspect-video sm:mx-0 sm:w-36"
-                      }
-                    >
-                      {sceneImages[i] ? (
-                        <img
-                          src={sceneImages[i]}
-                          alt={`Scene ${scene.id}`}
-                          className="absolute inset-0 h-full w-full object-contain"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <ImageIcon className="h-8 w-8 text-muted-foreground/60" />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1 space-y-3">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Dialogue / Narration</Label>
-                        <Textarea
-                          value={scene.audio}
-                          onChange={(e) => {
-                            const updated = [...script];
-                            updated[i] = { ...updated[i], audio: e.target.value };
-                            setScript(updated);
-                          }}
-                          className="mt-1 min-h-[72px] text-sm"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Scene Description</Label>
-                        <Textarea
-                          value={scene.scene_description}
-                          onChange={(e) => {
-                            const updated = [...script];
-                            updated[i] = { ...updated[i], scene_description: e.target.value };
-                            setScript(updated);
-                          }}
-                          className="mt-1 min-h-[72px] text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-
-            <Button
-              onClick={() => generateAssetsMutation.mutate()}
-              disabled={
-                generateAssetsMutation.isPending ||
-                script.length === 0 ||
-                currentStep === 3
-              }
-              className="w-full h-12 text-base bg-pink-600 hover:bg-pink-700"
-            >
-              {generateAssetsMutation.isPending ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" /> Starting...
-                </>
-              ) : (
-                <>
-                  <Mic className="h-5 w-5 mr-2" />
-                  {`${isEditMode ? "Regenerate story video" : "Generate story video"} (${storyGenerationCredits.toLocaleString()} credits)`}
-                </>
-              )}
-            </Button>
-          </div>
+        {/* Step 2: Script review — same layout patterns as music-video scene editor (timeline + scene tools) */}
+        {currentStep === 2 && projectId && (
+          <StoryScriptReviewStep
+            projectId={projectId}
+            storyDuration={
+              (projectData as { storyDuration?: number } | undefined)?.storyDuration ?? duration
+            }
+            script={script}
+            sceneImages={sceneImages}
+            audioUrls={audioUrls}
+            finalVideoUrl={finalVideoUrl}
+            isEditMode={isEditMode}
+            storyGenerationCredits={storyGenerationCredits}
+            generatePending={generateAssetsMutation.isPending}
+            onScriptChange={setScript}
+            onSceneImagesChange={setSceneImages}
+            onAudioUrlsChange={setAudioUrls}
+            onBack={() => setCurrentStep(1)}
+            onGenerateVideo={() => generateAssetsMutation.mutate()}
+          />
         )}
 
         {/* Step 3: Full pipeline progress + final player (assets → video automatic) */}

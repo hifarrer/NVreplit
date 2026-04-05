@@ -69,6 +69,8 @@ type CharacterStyle = {
 };
 ```
 
+The UI reads `prompt_enhancer` from each catalog row and sends it as **`promptEnhancer`** on generate and upload style-change requests. The server appends it to the WaveSpeed prompt after the user text (see §5.1 / §5.2). **Per-style strings** are the single source of truth in repo-root **`characters.json`** and are listed in [§4.1](#41-prompt-enhancers-per-style).
+
 **“No style” defaults** (hardcoded in `server/routes.ts`)
 
 - `style_name`: `"No style"`
@@ -306,6 +308,45 @@ All thumbnails below are served from Bunny CDN:
 Full URL = `https://neonvideo.b-cdn.net/characterpublic/<filename>`.
 
 **Fallback image** (broken thumbnail in UI): `https://via.placeholder.com/150?text=No+Image`
+
+### 4.1 Prompt enhancers per style
+
+Each row in `characters.json` includes **`prompt_enhancer`**: comma-separated style keywords appended on the server as `, <prompt_enhancer>` after `front shot of a <user prompt>`. **`No style`** uses `null` and sends no extra fragment.
+
+| style_name | prompt_enhancer |
+|------------|-----------------|
+| Realistic Cinematic | ultra-realistic portrait, photorealistic skin texture, natural facial proportions, cinematic film style, cinematic dslr photography style |
+| Realistic Natural | ultra-realistic portrait, photorealistic skin texture, natural facial proportions |
+| 3D Animated | high-quality 3D animated character, soft studio lighting, smooth materials, subsurface scattering skin, expressive facial features, cinematic render |
+| 3D Toon | stylized 3D toon character, simplified shapes, smooth shading, vibrant colors, soft lighting, playful proportions, high quality render |
+| Anime Clean Cel | anime character, clean cel shading, sharp lineart, expressive eyes, smooth gradients, vibrant colors, modern anime style, studio quality illustration |
+| Anime Realistic | detailed anime style, semi-realistic anime, soft lighting, highly detailed eyes, smooth skin, painterly shading, high quality illustration |
+| Black and White | film noir character, black and white, dramatic shadows, high contrast lighting, cinematic mood |
+| Cartoon | 2D cartoon character, disney style, hand-drawn animation style, clean bold outlines, flat colors, simple shading, expressive facial features, smooth shapes, vibrant color palette, classic animation look, music video aesthetic |
+| Clay | clay character style, stop-motion aesthetic, handcrafted look, soft lighting, subtle texture, playful proportions |
+| Comic | comic book character, bold ink lines, dynamic pose, dramatic lighting, halftone texture, vibrant colors, graphic novel style |
+| Cyberpunk | cyberpunk character, neon lights, dark futuristic city vibe, high contrast lighting, glowing accents, dystopian atmosphere |
+| Digital Painting | digital painting, painterly brush strokes, soft blending, artistic lighting, high detail, concept art quality, professional illustration |
+| Fantasy | fantasy character illustration, magical atmosphere, dramatic lighting, detailed costume, epic style, high fantasy artwork |
+| Futuristic | futuristic sci-fi character, cyberpunk elements, neon accents, advanced technology aesthetic, cinematic lighting, high detail |
+| Goth | dark gothic character, moody lighting, deep shadows, dramatic atmosphere, high contrast, mysterious aesthetic |
+| Toy Blocks | LEGO character style, stop-motion aesthetic, handcrafted look, soft lighting, subtle texture, playful proportions |
+| Manga | manga style illustration, black and white, clean ink lines, screentone shading, high contrast, expressive linework, comic panel aesthetic |
+| Miniature Toy | miniature toy character, plastic and vinyl textures, smooth molded details, toy-like proportions, shallow depth of field, tilt-shift effect, studio tabletop lighting, playful aesthetic, high detail, cinematic macro look |
+| Oil Painting | oil painting portrait, rich colors, visible brush strokes, classical painting style, dramatic lighting, fine art aesthetic |
+| Pixelated | pixel art character, retro 16-bit style, limited color palette, crisp pixels, video game sprite aesthetic |
+| Psychodelic | psychedelic character, surreal colors, warped reality, dreamlike visuals, flowing shapes, trippy aesthetic |
+| Punk | punk rock character, edgy fashion, bold attitude, dramatic lighting, gritty textures, high contrast, rebellious aesthetic |
+| Retro | 1970s aesthetic, disco era style, warm golden tones, analog film grain, soft focus, stylish fashion, cinematic lighting, retro photography look, smooth textures, music video atmosphere |
+| Sketch | character concept sketch, pencil drawing style, loose linework, minimal shading, early concept art aesthetic |
+| Steampunk | steampunk character, victorian-era aesthetic, brass and copper mechanical elements, intricate gears and clockwork details, leather and metal accessories, retro-futuristic design, industrial elegance, warm sepia tones, cinematic lighting, highly detailed, concept art quality |
+| Watercolor | watercolor illustration, soft washes, light paper texture, gentle colors, loose brush strokes, artistic style |
+| Ultra Surreal | flowing reflective surfaces, organic motion, cinematic lighting, surreal aesthetic |
+| 1960 | 1960s aesthetic, psychedelic style, bold vibrant colors, swirling patterns, mod fashion, soft analog lighting, artistic expression, dreamy atmosphere, retro film look, music video aesthetic |
+| 1970 | 1970s aesthetic, psychedelic style, bold vibrant colors, swirling patterns, mod fashion, soft analog lighting, artistic expression, dreamy atmosphere, retro film look, music video aesthetic |
+| 1980 | retro 1980s aesthetic, glowing highlights, soft film grain, dramatic backlighting, futuristic retro fashion, cinematic atmosphere, high contrast, music video style |
+
+If you fork the catalog, keep **`characters.json`** and this table in sync, or treat the JSON file as authoritative and generate docs from it.
 
 ---
 

@@ -15190,6 +15190,90 @@ Do not add markdown. Return JSON only.`,
     }
   });
 
+  /**
+   * Generates scene images only (no credits, no TTS). Used after script creation so the
+   * review step can show thumbnails. Does not set generationStatus to avoid blocking generate-assets.
+   */
+  app.post("/api/story-video/:id/generate-scene-images", authenticateToken, async (req: any, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project || project.userId !== req.user.userId) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (!project.storyScript || !Array.isArray(project.storyScript)) {
+        return res.status(400).json({ error: "No story script found" });
+      }
+      if (project.generationStatus === "generating") {
+        return res.status(409).json({ error: "Full story generation is already in progress" });
+      }
+
+      const storyScript = project.storyScript as {
+        id: number;
+        character: string;
+        audio: string;
+        scene_description: string;
+      }[];
+      const storyCharacters = (project.storyCharacters || []) as {
+        name: string;
+        imageUrl: string;
+        voiceId: string | null;
+        prompt: string;
+      }[];
+
+      res.json({ status: "started", projectId: project.id });
+
+      (async () => {
+        try {
+          const sceneDescriptions = storyScript.map((s) => s.scene_description);
+          const hasCharacterImage = storyCharacters.some((c) => c.imageUrl);
+
+          console.log(`[Story Video] Preview: generating ${sceneDescriptions.length} scene images for ${project.id}`);
+
+          let sceneImages: string[];
+          if (hasCharacterImage) {
+            const refImage = storyCharacters.find((c) => c.imageUrl)!.imageUrl;
+            sceneImages = await generateSceneImages(
+              sceneDescriptions,
+              refImage,
+              project.aspectRatio || "16:9",
+            );
+          } else {
+            sceneImages = await generateSceneImagesFromText(
+              sceneDescriptions,
+              project.aspectRatio || "16:9",
+            );
+          }
+
+          await storage.updateProject(project.id, {
+            storySceneImages: sceneImages,
+            storyScenePrompts: sceneDescriptions,
+          });
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "story_preview_images",
+            message: `Generated ${sceneImages.length} scene preview images`,
+            status: "completed",
+            metadata: { sceneCount: sceneImages.length },
+          });
+
+          console.log(`[Story Video] Preview images complete for ${project.id}`);
+        } catch (error) {
+          console.error("[Story Video] Preview scene images error:", error);
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "story_preview_images",
+            message: `Preview images failed: ${(error as Error).message}`,
+            status: "error",
+          });
+        }
+      })();
+    } catch (error) {
+      console.error("[Story Video] Generate scene images error:", error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
   app.post("/api/story-video/:id/generate-assets", authenticateToken, async (req: any, res) => {
     try {
       const project = await storage.getProject(req.params.id);
@@ -15316,36 +15400,65 @@ Do not add markdown. Return JSON only.`,
           });
 
           // --- IMAGE GENERATION ---
-          await storage.addGenerationLog({
-            projectId: project.id,
-            step: "story_images",
-            message: "Painting the scenes...",
-            status: "started",
-          });
-          console.log(`[Story Video] Generating ${storyScript.length} scene images`);
-
           const sceneDescriptions = storyScript.map((s) => s.scene_description);
-          const hasCharacterImage = storyCharacters.some((c) => c.imageUrl);
+          const existingImages = (project.storySceneImages || []) as string[];
+          const existingPrompts = (project.storyScenePrompts || []) as string[];
+          const promptsMatch =
+            existingPrompts.length === sceneDescriptions.length &&
+            existingPrompts.every((p, i) => p === sceneDescriptions[i]);
+          const imagesReusable =
+            promptsMatch &&
+            existingImages.length === storyScript.length &&
+            existingImages.every((url) => typeof url === "string" && url.length > 0);
 
           let sceneImages: string[];
-          if (hasCharacterImage) {
-            const refImage = storyCharacters.find((c) => c.imageUrl)!.imageUrl;
-            sceneImages = await generateSceneImages(sceneDescriptions, refImage, project.aspectRatio || "16:9");
+
+          if (imagesReusable) {
+            sceneImages = existingImages;
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "story_images",
+              message: "Reusing scene art from script review",
+              status: "completed",
+            });
+            console.log(`[Story Video] Reusing ${sceneImages.length} existing scene images for ${project.id}`);
           } else {
-            sceneImages = await generateSceneImagesFromText(sceneDescriptions, project.aspectRatio || "16:9");
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "story_images",
+              message: "Painting the scenes...",
+              status: "started",
+            });
+            console.log(`[Story Video] Generating ${storyScript.length} scene images`);
+
+            const hasCharacterImage = storyCharacters.some((c) => c.imageUrl);
+
+            if (hasCharacterImage) {
+              const refImage = storyCharacters.find((c) => c.imageUrl)!.imageUrl;
+              sceneImages = await generateSceneImages(
+                sceneDescriptions,
+                refImage,
+                project.aspectRatio || "16:9",
+              );
+            } else {
+              sceneImages = await generateSceneImagesFromText(
+                sceneDescriptions,
+                project.aspectRatio || "16:9",
+              );
+            }
+
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "story_images",
+              message: `Generated ${sceneImages.length} scene images`,
+              status: "completed",
+            });
           }
 
           await storage.updateProject(project.id, {
             storySceneImages: sceneImages,
             currentStep: 3,
             generationStatus: "completed",
-          });
-
-          await storage.addGenerationLog({
-            projectId: project.id,
-            step: "story_images",
-            message: `Generated ${sceneImages.length} scene images`,
-            status: "completed",
           });
 
           console.log(`[Story Video] Assets complete: ${audioUrls.filter(Boolean).length} audio, ${sceneImages.length} images`);
@@ -15427,6 +15540,160 @@ Do not add markdown. Return JSON only.`,
     }
   });
 
+  /** Upload a custom image for one story scene (same crop pipeline as music-video scene upload). */
+  app.post(
+    "/api/story-video/:id/upload-scene-image",
+    authenticateToken,
+    sceneImageUpload.single("image"),
+    async (req: any, res) => {
+      try {
+        const sceneIndex = parseInt(req.body.sceneIndex, 10);
+        if (isNaN(sceneIndex)) {
+          return res.status(400).json({ error: "Scene index is required" });
+        }
+        if (!req.file) {
+          return res.status(400).json({ error: "Image file is required" });
+        }
+
+        const project = await storage.getProject(req.params.id);
+        if (!project || project.userId !== req.user.userId) {
+          return res.status(404).json({ error: "Project not found" });
+        }
+
+        const storyScript = (project.storyScript || []) as unknown[];
+        const storySceneImages = [...((project.storySceneImages || []) as string[])];
+        while (storySceneImages.length < storyScript.length) {
+          storySceneImages.push("");
+        }
+
+        if (sceneIndex < 0 || sceneIndex >= storyScript.length) {
+          return res.status(400).json({ error: "Invalid scene index" });
+        }
+
+        const aspectRatioStr = project.aspectRatio || "16:9";
+        const originalImage = sharp(req.file.buffer);
+        const metadata = await originalImage.metadata();
+        if (!metadata.width || !metadata.height) {
+          return res.status(400).json({ error: "Could not read image dimensions" });
+        }
+
+        const [widthPart, heightPart] = aspectRatioStr.split(":").map(Number);
+        const targetRatio = widthPart / heightPart;
+        const currentRatio = metadata.width / metadata.height;
+        const isVertical = targetRatio < 1;
+        const targetWidth = isVertical ? 720 : 1280;
+        const targetHeight = isVertical ? 960 : 720;
+
+        let cropWidth: number;
+        let cropHeight: number;
+        let cropLeft: number;
+        let cropTop: number;
+
+        if (currentRatio > targetRatio) {
+          cropHeight = metadata.height;
+          cropWidth = Math.round(metadata.height * targetRatio);
+          cropLeft = Math.round((metadata.width - cropWidth) / 2);
+          cropTop = 0;
+        } else {
+          cropWidth = metadata.width;
+          cropHeight = Math.round(metadata.width / targetRatio);
+          cropLeft = 0;
+          cropTop = Math.round((metadata.height - cropHeight) / 2);
+        }
+
+        const processedImageBuffer = await sharp(req.file.buffer)
+          .extract({ left: cropLeft, top: cropTop, width: cropWidth, height: cropHeight })
+          .resize(targetWidth, targetHeight, { fit: "fill", withoutEnlargement: false })
+          .jpeg({ quality: 90 })
+          .toBuffer();
+
+        const { randomUUID } = await import("crypto");
+        const filename = `${randomUUID()}.jpg`;
+        let storedUrl: string;
+
+        if (isBunnyConfigured("imageScenes")) {
+          const bunnyResult = await uploadSceneImage(filename, processedImageBuffer);
+          storedUrl = bunnyResult.url;
+        } else if (isImageKitConfigured()) {
+          const imagekitResult = await uploadImageToImageKit(processedImageBuffer, filename, "/scenes");
+          storedUrl = imagekitResult.url;
+        } else {
+          const imagePath = `scenes/${filename}`;
+          const objectStorageService = new ObjectStorageService();
+          const privateObjectDir = objectStorageService.getPrivateObjectDir();
+          const fullPath = `${privateObjectDir}/${imagePath}`;
+          const pathParts = fullPath.startsWith("/") ? fullPath.slice(1).split("/") : fullPath.split("/");
+          const bucketName = pathParts[0];
+          const objectName = pathParts.slice(1).join("/");
+          const bucket = objectStorageClient.bucket(bucketName);
+          const file = bucket.file(objectName);
+          await file.save(processedImageBuffer, {
+            metadata: {
+              contentType: "image/jpeg",
+              metadata: {
+                category: "scenes",
+                uploadedAt: new Date().toISOString(),
+                projectId: req.params.id,
+                sceneIndex: sceneIndex.toString(),
+                isUserUpload: "true",
+              },
+            },
+          });
+          storedUrl = `/objects/${imagePath}`;
+        }
+
+        storySceneImages[sceneIndex] = storedUrl;
+        await storage.updateProject(project.id, { storySceneImages });
+
+        await storage.addGenerationLog({
+          projectId: project.id,
+          step: "story_scene_upload",
+          message: `Story scene ${sceneIndex + 1} image uploaded`,
+          status: "completed",
+          metadata: { sceneIndex, imageUrl: storedUrl },
+        });
+
+        res.json({ imageUrl: storedUrl, sceneIndex });
+      } catch (error) {
+        console.error("[Story Video] Scene upload error:", error);
+        res.status(500).json({ error: (error as Error).message });
+      }
+    },
+  );
+
+  /** Persist a scene image URL (e.g. camera-angle API result) on the story project. */
+  app.patch("/api/story-video/:id/scene-image", authenticateToken, async (req: any, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project || project.userId !== req.user.userId) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      const sceneIndex = parseInt(req.body.sceneIndex, 10);
+      const imageUrl = typeof req.body.imageUrl === "string" ? req.body.imageUrl.trim() : "";
+      if (isNaN(sceneIndex) || !imageUrl) {
+        return res.status(400).json({ error: "sceneIndex and imageUrl are required" });
+      }
+
+      const storyScript = (project.storyScript || []) as unknown[];
+      const storySceneImages = [...((project.storySceneImages || []) as string[])];
+      while (storySceneImages.length < storyScript.length) {
+        storySceneImages.push("");
+      }
+      if (sceneIndex < 0 || sceneIndex >= storyScript.length) {
+        return res.status(400).json({ error: "Invalid scene index" });
+      }
+
+      storySceneImages[sceneIndex] = imageUrl;
+      await storage.updateProject(project.id, { storySceneImages });
+
+      res.json({ imageUrl, sceneIndex });
+    } catch (error) {
+      console.error("[Story Video] Patch scene image error:", error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
   app.post("/api/story-video/:id/generate-video", authenticateToken, async (req: any, res) => {
     try {
       const project = await storage.getProject(req.params.id);
@@ -15460,7 +15727,13 @@ Do not add markdown. Return JSON only.`,
         try {
           const storyScript = (project.storyScript || []) as { id: number; character: string; audio: string; scene_description: string }[];
           const aspectRatio = project.aspectRatio || "16:9";
-          const dimensions = aspectRatio === "16:9" ? "1280x720" : "720x960";
+          // Match music-video merge dimensions so neonvideo_merge + outro scale consistently
+          const dimensions =
+            aspectRatio === "9:16"
+              ? "1080x1920"
+              : aspectRatio === "3:4"
+                ? "1080x1440"
+                : "1920x1080";
 
           await storage.addGenerationLog({
             projectId: project.id,
@@ -15568,21 +15841,36 @@ Do not add markdown. Return JSON only.`,
             status: "completed",
           });
 
-          // Merge all clips into final video (each clip already has its own audio)
-          console.log(`[Story Video] Merging ${videoSegmentUrls.length} video segments`);
+          // Merge all clips into final video (each clip already has its own audio).
+          // Same neonvideo_merge path as music videos: outro + optional watermark.
+          console.log(`[Story Video] Merging ${videoSegmentUrls.length} video segments (+ outro)`);
           await storage.addGenerationLog({
             projectId: project.id,
             step: "story_video_merge",
-            message: "Assembling the final video...",
+            message: "Assembling the final video (with outro)...",
             status: "started",
           });
+
+          const isPortrait = aspectRatio === "3:4" || aspectRatio === "9:16";
+          const outroVideoUrl = isPortrait
+            ? "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4"
+            : "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_horizontal.mp4";
+
+          const userWithPlan = await storage.getUserWithPlan(project.userId);
+          const isPremiumUser = userWithPlan?.plan?.name === "Premium";
+          const shouldIncludeWatermark = isPremiumUser ? (project.includeWatermark !== false) : true;
+
+          let storyWatermarkUrl: string | undefined;
+          if (shouldIncludeWatermark) {
+            storyWatermarkUrl = (await getWatermarkUrl()) || undefined;
+          }
 
           const mergeResult = await mergeVideos(
             videoSegmentUrls,
             undefined,
             undefined,
-            undefined,
-            undefined,
+            storyWatermarkUrl,
+            outroVideoUrl,
             dimensions,
           );
 
