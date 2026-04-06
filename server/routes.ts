@@ -16061,8 +16061,34 @@ Do not add markdown. Return JSON only.`,
     const notificationEmail = process.env.CONTACT_EMAIL || "info@neonvideo.ai";
     const baseUrl = process.env.FRONTEND_URL || "https://neonvideo.ai";
     const LOG_TAG = "[AUTO-STORY]";
+    let currentStep = "initialization";
+
+    const sendFailureEmail = async (step: string, message: string) => {
+      try {
+        await emailService.sendEmail({
+          to: notificationEmail,
+          subject: `Auto-generated story video failed (${step})`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>Auto-Generated Story Video Failed</h2>
+              <p><strong>Failed step:</strong> ${step}</p>
+              <p><strong>Error:</strong> ${message}</p>
+              <p>Project ID: ${projectId}</p>
+              <p><a href="${baseUrl}/v/${projectId}">View project</a></p>
+            </div>
+          `,
+        });
+      } catch (emailErr) {
+        console.error(`${LOG_TAG} Failed to send failure email:`, emailErr);
+      }
+    };
 
     try {
+      await storage.updateProject(projectId, {
+        generationStatus: "generating",
+        generationStartedAt: new Date(),
+      });
+
       const OpenAI = (await import("openai")).default;
       const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -16070,6 +16096,7 @@ Do not add markdown. Return JSON only.`,
       const aspectRatio = "9:16";
 
       // ── Step 1: Generate story script via OpenAI ──
+      currentStep = "script_generation";
       console.log(`${LOG_TAG} Step 1: Generating story script (${sceneCount} scenes, ${targetDuration}s)`);
       await storage.addGenerationLog({
         projectId,
@@ -16183,6 +16210,7 @@ RULES:
       });
 
       // ── Step 2: Generate character images ──
+      currentStep = "character_generation";
       console.log(`${LOG_TAG} Step 2: Generating ${storyData.characters.length} character images (style: ${artStyle})`);
       await storage.addGenerationLog({
         projectId,
@@ -16196,25 +16224,18 @@ RULES:
       for (const char of storyData.characters.slice(0, 2)) {
         const charPrompt = `front shot of a ${char.description}`;
         console.log(`${LOG_TAG} Generating character "${char.name}" with style "${artStyle}": ${charPrompt.substring(0, 100)}...`);
-        try {
-          const imageUrls = await generateCharacterImages(charPrompt, aspectRatio, artStyle);
-          const imageUrl = imageUrls[0] || "";
-          storyCharacters.push({
-            name: char.name,
-            imageUrl,
-            voiceId: null,
-            prompt: charPrompt,
-          });
-          console.log(`${LOG_TAG} Character "${char.name}" image generated: ${imageUrl.substring(0, 80)}...`);
-        } catch (charErr) {
-          console.error(`${LOG_TAG} Character "${char.name}" image generation failed:`, charErr);
-          storyCharacters.push({
-            name: char.name,
-            imageUrl: "",
-            voiceId: null,
-            prompt: charPrompt,
-          });
+        const imageUrls = await generateCharacterImages(charPrompt, aspectRatio, artStyle);
+        const imageUrl = imageUrls[0] || "";
+        if (!imageUrl) {
+          throw new Error(`Character "${char.name}" image generation returned empty URL`);
         }
+        storyCharacters.push({
+          name: char.name,
+          imageUrl,
+          voiceId: null,
+          prompt: charPrompt,
+        });
+        console.log(`${LOG_TAG} Character "${char.name}" image generated: ${imageUrl.substring(0, 80)}...`);
       }
 
       await storage.addGenerationLog({
@@ -16225,6 +16246,7 @@ RULES:
       });
 
       // ── Step 3: Assign voices to characters via OpenAI ──
+      currentStep = "voice_assignment";
       console.log(`${LOG_TAG} Step 3: Assigning voices to characters`);
 
       const voiceAssignmentResponse = await openaiClient.chat.completions.create({
@@ -16282,6 +16304,7 @@ Pick voices that best match each character's personality, age, and gender.`,
       console.log(`${LOG_TAG} Voice map:`, voiceMap);
 
       // ── Step 4: Generate TTS audio for all scenes ──
+      currentStep = "audio_generation";
       console.log(`${LOG_TAG} Step 4: Generating audio for ${storyScript.length} scenes`);
       await storage.addGenerationLog({
         projectId,
@@ -16319,32 +16342,33 @@ Pick voices that best match each character's personality, age, and gender.`,
       };
 
       const audioPromises = storyScript.map(async (scene, index) => {
-        try {
-          if (
-            scene.multi_talk &&
-            (scene.audio_left || "").trim() &&
-            (scene.audio_right || "").trim()
-          ) {
-            const vL = voiceMap[(scene.character_left || "").trim().toLowerCase()] || STORY_DEFAULT_NARRATOR_VOICE;
-            const vR = voiceMap[(scene.character_right || "").trim().toLowerCase()] || STORY_DEFAULT_NARRATOR_VOICE;
-            console.log(`${LOG_TAG} Scene ${scene.id}: multi_talk L="${vL}" R="${vR}"`);
-            const leftRaw = await generateStoryAudio((scene.audio_left || "").trim(), vL);
-            const rightRaw = await generateStoryAudio((scene.audio_right || "").trim(), vR);
-            const leftStored = await storeAudioOnBunny(leftRaw, `scene-${index + 1}-L`);
-            const rightStored = await storeAudioOnBunny(rightRaw, `scene-${index + 1}-R`);
-            return { index, url: leftStored, urlRight: rightStored };
+        if (
+          scene.multi_talk &&
+          (scene.audio_left || "").trim() &&
+          (scene.audio_right || "").trim()
+        ) {
+          const vL = voiceMap[(scene.character_left || "").trim().toLowerCase()] || STORY_DEFAULT_NARRATOR_VOICE;
+          const vR = voiceMap[(scene.character_right || "").trim().toLowerCase()] || STORY_DEFAULT_NARRATOR_VOICE;
+          console.log(`${LOG_TAG} Scene ${scene.id}: multi_talk L="${vL}" R="${vR}"`);
+          const leftRaw = await generateStoryAudio((scene.audio_left || "").trim(), vL);
+          const rightRaw = await generateStoryAudio((scene.audio_right || "").trim(), vR);
+          const leftStored = await storeAudioOnBunny(leftRaw, `scene-${index + 1}-L`);
+          const rightStored = await storeAudioOnBunny(rightRaw, `scene-${index + 1}-R`);
+          if (!leftStored || !rightStored) {
+            throw new Error(`Scene ${scene.id} returned empty multi-talk audio URL`);
           }
-
-          const voiceId = voiceMap[(scene.character || "").trim().toLowerCase()] || STORY_DEFAULT_NARRATOR_VOICE;
-          const line = typeof scene.audio === "string" ? scene.audio : "";
-          console.log(`${LOG_TAG} Scene ${scene.id}: voice="${voiceId}" for "${scene.character}"`);
-          const audioUrl = await generateStoryAudio(line, voiceId);
-          const storedUrl = await storeAudioOnBunny(audioUrl, `scene-${index + 1}`);
-          return { index, url: storedUrl, urlRight: "" };
-        } catch (err) {
-          console.error(`${LOG_TAG} Audio gen failed for scene ${scene.id}:`, err);
-          return { index, url: null, urlRight: null };
+          return { index, url: leftStored, urlRight: rightStored };
         }
+
+        const voiceId = voiceMap[(scene.character || "").trim().toLowerCase()] || STORY_DEFAULT_NARRATOR_VOICE;
+        const line = typeof scene.audio === "string" ? scene.audio : "";
+        console.log(`${LOG_TAG} Scene ${scene.id}: voice="${voiceId}" for "${scene.character}"`);
+        const audioUrl = await generateStoryAudio(line, voiceId);
+        const storedUrl = await storeAudioOnBunny(audioUrl, `scene-${index + 1}`);
+        if (!storedUrl) {
+          throw new Error(`Scene ${scene.id} returned empty audio URL`);
+        }
+        return { index, url: storedUrl, urlRight: "" };
       });
 
       const audioResults = await Promise.all(audioPromises);
@@ -16364,6 +16388,7 @@ Pick voices that best match each character's personality, age, and gender.`,
       });
 
       // ── Step 5: Generate scene images ──
+      currentStep = "scene_images";
       console.log(`${LOG_TAG} Step 5: Generating ${storyScript.length} scene images`);
       await storage.addGenerationLog({
         projectId,
@@ -16394,6 +16419,7 @@ Pick voices that best match each character's personality, age, and gender.`,
       });
 
       // ── Step 6: Generate video segments ──
+      currentStep = "video_segments";
       console.log(`${LOG_TAG} Step 6: Generating ${sceneImages.length} video segments`);
       const generationId = nanoid();
       await storage.updateProject(projectId, {
@@ -16512,6 +16538,7 @@ Pick voices that best match each character's personality, age, and gender.`,
       });
 
       // ── Step 7: Merge, captions, finalize ──
+      currentStep = "merge_finalize";
       console.log(`${LOG_TAG} Step 7: Merging ${videoSegmentUrls.length} segments`);
       await storage.addGenerationLog({
         projectId,
@@ -16551,6 +16578,7 @@ Pick voices that best match each character's personality, age, and gender.`,
 
       if (includeCaptions) {
         try {
+          currentStep = "captions";
           await storage.addGenerationLog({
             projectId,
             step: "auto_story_captions",
@@ -16590,13 +16618,14 @@ Pick voices that best match each character's personality, age, and gender.`,
             status: "completed",
           });
         } catch (capErr) {
-          console.warn(`${LOG_TAG} Caption step failed, keeping uncaptioned final:`, capErr);
+          console.error(`${LOG_TAG} Caption step failed:`, capErr);
           await storage.addGenerationLog({
             projectId,
             step: "auto_story_captions",
-            message: `Captions skipped: ${(capErr as Error).message}`,
-            status: "warning",
+            message: `Captions failed: ${(capErr as Error).message}`,
+            status: "error",
           });
+          throw capErr;
         }
       }
 
@@ -16646,24 +16675,11 @@ Pick voices that best match each character's personality, age, and gender.`,
       await storage.addGenerationLog({
         projectId,
         step: "auto_story_error",
-        message: `Generation failed: ${errMsg}`,
+        message: `Generation failed at ${currentStep}: ${errMsg}`,
         status: "error",
+        metadata: { failedStep: currentStep },
       });
-
-      const notificationEmail = process.env.CONTACT_EMAIL || "info@neonvideo.ai";
-      const baseUrl = process.env.FRONTEND_URL || "https://neonvideo.ai";
-      await emailService.sendEmail({
-        to: notificationEmail,
-        subject: "Auto-generated story video failed",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Auto-Generated Story Video Failed</h2>
-            <p>Error: ${errMsg}</p>
-            <p>Project ID: ${projectId}</p>
-            <p><a href="${baseUrl}/v/${projectId}">View project</a></p>
-          </div>
-        `,
-      });
+      await sendFailureEmail(currentStep, errMsg);
     }
   }
 
