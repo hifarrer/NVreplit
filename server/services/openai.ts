@@ -818,6 +818,21 @@ MULTI-CHARACTER LIPSYNC (critical when two named characters appear together in t
       throw new Error("OpenAI returned empty or invalid scenes array");
     }
 
+    const canonicalNames = hasNarrator ? ["Narrator", ...characterNames] : [...characterNames];
+    const canonicalLookup = new Map(canonicalNames.map((n) => [n.trim().toLowerCase(), n]));
+
+    function fixCharacterName(raw: string | undefined): string {
+      if (!raw) return "";
+      const key = raw.trim().toLowerCase();
+      return canonicalLookup.get(key) ?? raw.trim();
+    }
+
+    for (const scene of scenes) {
+      scene.character = fixCharacterName(scene.character);
+      if (scene.character_left) scene.character_left = fixCharacterName(scene.character_left);
+      if (scene.character_right) scene.character_right = fixCharacterName(scene.character_right);
+    }
+
     scenes.forEach((scene, i) => {
       scene.id = i + 1;
       if (scene.multi_talk) {

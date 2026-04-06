@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import {
   STORY_DEFAULT_NARRATOR_VOICE,
+  STORY_DEFAULT_CHARACTER_VOICE_POOL,
   STORY_DURATION_MIN,
   STORY_DURATION_MAX,
   STORY_MAX_CHARACTERS,
@@ -427,12 +428,16 @@ export default function CreateStoryVideo() {
       toast({ title: "Maximum characters reached", description: `You can add up to ${STORY_MAX_CHARACTERS} characters`, variant: "destructive" });
       return;
     }
+    const usedVoices = new Set(characters.map((c) => c.voiceId).filter(Boolean));
+    const autoVoice =
+      STORY_DEFAULT_CHARACTER_VOICE_POOL.find((v) => !usedVoices.has(v)) ??
+      STORY_DEFAULT_CHARACTER_VOICE_POOL[characters.length % STORY_DEFAULT_CHARACTER_VOICE_POOL.length];
     setCharacters((prev) => [
       ...prev,
       {
         name: character.name || `Character ${prev.length + 1}`,
         imageUrl: character.imageUrl,
-        voiceId: null,
+        voiceId: autoVoice,
         prompt: character.prompt || "",
       },
     ]);
@@ -783,7 +788,6 @@ export default function CreateStoryVideo() {
             audioUrls={audioUrls}
             audioUrlsRight={audioUrlsRight}
             finalVideoUrl={finalVideoUrl}
-            isEditMode={isEditMode}
             storyGenerationCredits={storyGenerationCredits}
             generatePending={generateAssetsMutation.isPending}
             onScriptChange={setScript}

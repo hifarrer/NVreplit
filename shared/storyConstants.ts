@@ -89,6 +89,23 @@ export type StoryVoiceId = (typeof STORY_INWORLD_VOICE_IDS)[number];
 
 export const STORY_DEFAULT_NARRATOR_VOICE = "Alex";
 
+/**
+ * Distinct English voices cycled through when characters have no explicit voiceId.
+ * Deliberately avoids "Alex" (the narrator default) so characters sound different from narration.
+ */
+export const STORY_DEFAULT_CHARACTER_VOICE_POOL: readonly string[] = [
+  "Ashley",
+  "Craig",
+  "Julia",
+  "Ronald",
+  "Olivia",
+  "Dennis",
+  "Elizabeth",
+  "Shaun",
+  "Deborah",
+  "Edward",
+];
+
 /** Map legacy ElevenLabs preset names (stored on old projects) to Inworld voice IDs */
 const LEGACY_ELEVENLABS_TO_INWORLD: Record<string, string> = {
   Aria: "Ashley",

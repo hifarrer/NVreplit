@@ -43,7 +43,6 @@ interface StoryScriptReviewStepProps {
   /** Right-channel audio URLs for multi_talk scenes (parallel to audioUrls). */
   audioUrlsRight: string[];
   finalVideoUrl?: string | null;
-  isEditMode?: boolean;
   storyGenerationCredits: number;
   generatePending: boolean;
   onScriptChange: (next: StoryScene[]) => void;
@@ -62,7 +61,6 @@ export function StoryScriptReviewStep({
   audioUrls,
   audioUrlsRight,
   finalVideoUrl,
-  isEditMode,
   storyGenerationCredits,
   generatePending,
   onScriptChange,
@@ -260,7 +258,7 @@ export function StoryScriptReviewStep({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
             <h3 className="text-2xl font-bold gradient-text mb-1">
-              {isEditMode ? "Edit Your Story Video" : "Review Your Story Script"}
+              {finalVideoUrl ? "Edit Your Story Video" : "Review Your Story Script"}
             </h3>
             <p className="text-sm text-muted-foreground">
               Timeline, scene art, and dialogue — same layout as music-video editing. Reorder scenes by dragging thumbnails.
@@ -561,7 +559,7 @@ export function StoryScriptReviewStep({
             ) : (
               <>
                 <Mic className="h-5 w-5 mr-2 inline" />
-                {`${isEditMode ? "Regenerate story video" : "Generate story video"} (${storyGenerationCredits.toLocaleString()} credits)`}
+                {`${finalVideoUrl ? "Regenerate Story Video" : "Generate Story Video"} (${storyGenerationCredits.toLocaleString()} credits)`}
               </>
             )}
           </Button>

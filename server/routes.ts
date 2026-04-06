@@ -12,6 +12,7 @@ import { storage } from "./storage";
 import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema, insertPlanSchema, insertReferralSchema, type Plan, type InsertPlan } from "@shared/schema";
 import {
   STORY_DEFAULT_NARRATOR_VOICE,
+  STORY_DEFAULT_CHARACTER_VOICE_POOL,
   STORY_DURATION_MAX,
   STORY_DURATION_MIN,
   STORY_VIDEO_CREDITS_PER_30_SECONDS,
@@ -15289,11 +15290,17 @@ Do not add markdown. Return JSON only.`,
 
           const voiceMap: Record<string, string> = {};
           if (project.storyNarrator && project.storyNarratorVoice) {
-            voiceMap["Narrator"] = project.storyNarratorVoice;
+            voiceMap["narrator"] = project.storyNarratorVoice;
           }
+          let defaultPoolIdx = 0;
           for (const char of storyCharacters) {
+            const key = (char.name || "").trim().toLowerCase();
+            if (!key) continue;
             if (char.voiceId) {
-              voiceMap[char.name] = char.voiceId;
+              voiceMap[key] = char.voiceId;
+            } else {
+              voiceMap[key] = STORY_DEFAULT_CHARACTER_VOICE_POOL[defaultPoolIdx % STORY_DEFAULT_CHARACTER_VOICE_POOL.length];
+              defaultPoolIdx++;
             }
           }
 
@@ -15335,8 +15342,8 @@ Do not add markdown. Return JSON only.`,
                 (scene.audio_left || "").trim() &&
                 (scene.audio_right || "").trim()
               ) {
-                const vL = voiceMap[scene.character_left || ""] || STORY_DEFAULT_NARRATOR_VOICE;
-                const vR = voiceMap[scene.character_right || ""] || STORY_DEFAULT_NARRATOR_VOICE;
+                const vL = voiceMap[(scene.character_left || "").trim().toLowerCase()] || STORY_DEFAULT_NARRATOR_VOICE;
+                const vR = voiceMap[(scene.character_right || "").trim().toLowerCase()] || STORY_DEFAULT_NARRATOR_VOICE;
                 console.log(
                   `[Story Video] Scene ${scene.id}: multi_talk voices L="${vL}" (${scene.character_left}) R="${vR}" (${scene.character_right})`,
                 );
@@ -15348,7 +15355,7 @@ Do not add markdown. Return JSON only.`,
                 return { index, url: leftStored, urlRight: rightStored };
               }
 
-              const voiceId = voiceMap[scene.character] || STORY_DEFAULT_NARRATOR_VOICE;
+              const voiceId = voiceMap[(scene.character || "").trim().toLowerCase()] || STORY_DEFAULT_NARRATOR_VOICE;
               const line = typeof scene.audio === "string" ? scene.audio : "";
               console.log(`[Story Video] Scene ${scene.id}: voice="${voiceId}" for "${scene.character}"`);
               const audioUrl = await generateStoryAudio(line, voiceId);
