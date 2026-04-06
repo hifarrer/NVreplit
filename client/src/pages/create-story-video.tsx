@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useLocation } from "wouter";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -47,6 +47,7 @@ export default function CreateStoryVideo() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { refreshUser } = useAuth();
+  const queryClient = useQueryClient();
 
   const urlParams = new URLSearchParams(window.location.search);
   const editProjectId = urlParams.get("edit");
@@ -70,6 +71,7 @@ export default function CreateStoryVideo() {
 
   const [sceneImages, setSceneImages] = useState<string[]>([]);
   const [audioUrls, setAudioUrls] = useState<string[]>([]);
+  const [audioUrlsRight, setAudioUrlsRight] = useState<string[]>([]);
 
   const [isGeneratingAssets, setIsGeneratingAssets] = useState(false);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
@@ -77,6 +79,8 @@ export default function CreateStoryVideo() {
 
   /** Ensures we only auto-call generate-video once after assets finish */
   const autoVideoStartedRef = useRef(false);
+  /** After "Generate video", ignore stale cache until refetch shows server caught up (avoids 409 + step-2 bounce). */
+  const assetsPollSawServerRef = useRef(false);
 
   const stepLabels = ["Story Setup", "Script Review", "Story Video"];
 
@@ -112,10 +116,23 @@ export default function CreateStoryVideo() {
     if (p.storyScript?.length) setScript(p.storyScript);
     if (p.storySceneImages?.length) setSceneImages(p.storySceneImages);
     if (p.storyAudioUrls?.length) setAudioUrls(p.storyAudioUrls);
+    setAudioUrlsRight(Array.isArray(p.storyAudioUrlsRight) ? p.storyAudioUrlsRight : []);
     if (p.finalVideoUrl) setFinalVideoUrl(p.finalVideoUrl);
 
     if (p.storyScript?.length) {
-      setCurrentStep(2);
+      const hasFinal = !!(p.finalVideoUrl && p.isCompleted !== false);
+      const isActivelyGenerating = p.generationStatus === "generating";
+      if (hasFinal) {
+        setCurrentStep(3);
+        setIsGeneratingAssets(false);
+        setIsGeneratingVideo(false);
+        setFinalVideoUrl(p.finalVideoUrl);
+      } else if (isActivelyGenerating) {
+        setCurrentStep(3);
+        setIsGeneratingAssets(true);
+      } else {
+        setCurrentStep(2);
+      }
     }
   }, [isEditMode, editProjectData]);
 
@@ -161,6 +178,7 @@ export default function CreateStoryVideo() {
 
   useEffect(() => {
     autoVideoStartedRef.current = false;
+    assetsPollSawServerRef.current = false;
   }, [projectId]);
 
   // Step 1: Generate script, then scene preview images (same loading state until thumbnails exist)
@@ -220,7 +238,10 @@ export default function CreateStoryVideo() {
       setProjectId(data.projectId);
       setScript(data.script);
       setSceneImages(data.sceneImages ?? []);
+      setAudioUrls([]);
+      setAudioUrlsRight([]);
       setCurrentStep(2);
+      window.history.replaceState(null, "", `/create/story-video?edit=${data.projectId}`);
       if ("previewFailed" in data && data.previewFailed) {
         toast({
           title: "Script generated",
@@ -252,8 +273,21 @@ export default function CreateStoryVideo() {
       return res.json();
     },
     onSuccess: async () => {
+      autoVideoStartedRef.current = false;
+      assetsPollSawServerRef.current = false;
       setIsGeneratingAssets(true);
       setCurrentStep(3);
+      if (projectId) {
+        await queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+        await queryClient.refetchQueries({ queryKey: [`/api/projects/${projectId}`] });
+        const fresh = queryClient.getQueryData([`/api/projects/${projectId}`]) as
+          | { generationStatus?: string }
+          | undefined;
+        const st = fresh?.generationStatus;
+        if (st === "generating" || st === "completed" || st === "failed") {
+          assetsPollSawServerRef.current = true;
+        }
+      }
       await refreshUser();
       toast({
         title: "Creating your story",
@@ -279,9 +313,18 @@ export default function CreateStoryVideo() {
       const res = await apiRequest("POST", `/api/story-video/${projectId}/generate-video`);
       return res.json();
     },
-    onError: (error: Error) => {
+    onError: (error: Error & { status?: number }) => {
       setIsGeneratingVideo(false);
       autoVideoStartedRef.current = false;
+      const msg = error.message || "";
+      const is409 = error.status === 409 || msg.includes("409") || msg.includes("already being generated");
+      if (is409) {
+        toast({
+          title: "Video will start shortly",
+          description: "Still finishing voices and images — this page will continue automatically.",
+        });
+        return;
+      }
       setCurrentStep(2);
       toast({ title: "Failed to start video", description: error.message, variant: "destructive" });
     },
@@ -309,6 +352,7 @@ export default function CreateStoryVideo() {
     if (p.storySceneImages?.length > 0) {
       setSceneImages(p.storySceneImages);
       setAudioUrls(p.storyAudioUrls || []);
+      setAudioUrlsRight(Array.isArray(p.storyAudioUrlsRight) ? p.storyAudioUrlsRight : []);
     }
 
     if (p.finalVideoUrl && p.isCompleted) {
@@ -318,20 +362,65 @@ export default function CreateStoryVideo() {
       return;
     }
 
-    const assetsReady = Array.isArray(p.storySceneImages) && p.storySceneImages.length > 0;
-    const assetsPhaseDone = p.generationStatus === "completed" && assetsReady;
+    if (p.generationStatus === "generating" && isGeneratingAssets) {
+      assetsPollSawServerRef.current = true;
+    }
+
+    const scriptArr = Array.isArray(p.storyScript) ? p.storyScript : [];
+    const sceneImagesArr = Array.isArray(p.storySceneImages) ? p.storySceneImages : [];
+    const audioArr = Array.isArray(p.storyAudioUrls) ? p.storyAudioUrls : [];
+    const audioUrlsRightArr = Array.isArray(p.storyAudioUrlsRight) ? p.storyAudioUrlsRight : [];
+    const imagesReady =
+      sceneImagesArr.length > 0 &&
+      sceneImagesArr.length >= scriptArr.length &&
+      sceneImagesArr.every((u: string) => typeof u === "string" && u.length > 0);
+
+    let audioReady = audioArr.length >= scriptArr.length;
+    if (audioReady) {
+      for (let i = 0; i < scriptArr.length; i++) {
+        const u = audioArr[i];
+        if (typeof u !== "string" || !u.length) {
+          audioReady = false;
+          break;
+        }
+        const s = scriptArr[i] as {
+          multi_talk?: boolean;
+          audio_left?: string;
+          audio_right?: string;
+        };
+        if (s?.multi_talk && (s.audio_left || "").trim() && (s.audio_right || "").trim()) {
+          const r = audioUrlsRightArr[i];
+          if (typeof r !== "string" || !r.trim().length) {
+            audioReady = false;
+            break;
+          }
+        }
+      }
+    }
+
+    const assetsPhaseDone =
+      p.generationStatus === "completed" && imagesReady && audioReady;
 
     if (
       currentStep === 3 &&
       assetsPhaseDone &&
       !p.finalVideoUrl &&
-      !autoVideoStartedRef.current
+      !isGeneratingVideo &&
+      !autoVideoStartedRef.current &&
+      assetsPollSawServerRef.current
     ) {
       autoVideoStartedRef.current = true;
       setIsGeneratingAssets(false);
       generateVideoMutation.mutate();
     }
-  }, [projectData, currentStep, toast, generateVideoMutation.mutate]);
+  }, [
+    projectData,
+    currentStep,
+    isGeneratingVideo,
+    isGeneratingAssets,
+    toast,
+    generateVideoMutation.mutate,
+  ]);
 
   const handleAddCharacter = useCallback((character: any) => {
     if (characters.length >= STORY_MAX_CHARACTERS) {
@@ -538,6 +627,7 @@ export default function CreateStoryVideo() {
                   <Label className="text-base font-medium">Aspect Ratio</Label>
                   <div className="flex gap-3 mt-2">
                     <Button
+                      type="button"
                       variant={aspectRatio === "16:9" ? "default" : "outline"}
                       onClick={() => setAspectRatio("16:9")}
                       className="flex-1"
@@ -545,6 +635,7 @@ export default function CreateStoryVideo() {
                       Horizontal (16:9)
                     </Button>
                     <Button
+                      type="button"
                       variant={aspectRatio === "3:4" ? "default" : "outline"}
                       onClick={() => setAspectRatio("3:4")}
                       className="flex-1"
@@ -661,6 +752,7 @@ export default function CreateStoryVideo() {
             </Card>
 
             <Button
+              type="button"
               onClick={() => generateScriptMutation.mutate()}
               disabled={!storyPrompt.trim() || generateScriptMutation.isPending}
               className="w-full h-12 text-base bg-pink-600 hover:bg-pink-700"
@@ -689,6 +781,7 @@ export default function CreateStoryVideo() {
             script={script}
             sceneImages={sceneImages}
             audioUrls={audioUrls}
+            audioUrlsRight={audioUrlsRight}
             finalVideoUrl={finalVideoUrl}
             isEditMode={isEditMode}
             storyGenerationCredits={storyGenerationCredits}
@@ -696,6 +789,7 @@ export default function CreateStoryVideo() {
             onScriptChange={setScript}
             onSceneImagesChange={setSceneImages}
             onAudioUrlsChange={setAudioUrls}
+            onAudioUrlsRightChange={setAudioUrlsRight}
             onBack={() => setCurrentStep(1)}
             onGenerateVideo={() => generateAssetsMutation.mutate()}
           />
@@ -812,6 +906,7 @@ export default function CreateStoryVideo() {
                       setScript([]);
                       setSceneImages([]);
                       setAudioUrls([]);
+                      setAudioUrlsRight([]);
                       setFinalVideoUrl(null);
                       setStoryPrompt("");
                       setCharacters([]);

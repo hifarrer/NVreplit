@@ -742,6 +742,12 @@ export interface StorySceneOutput {
   character: string;
   audio: string;
   scene_description: string;
+  multi_talk?: boolean;
+  character_left?: string;
+  character_right?: string;
+  audio_left?: string;
+  audio_right?: string;
+  multi_talk_order?: "left_right" | "right_left" | "meanwhile";
 }
 
 export async function generateStoryScript(
@@ -774,7 +780,16 @@ ${narratorInstruction}
 - Each scene must have: id (sequential number starting at 1), character (who is speaking — either "Narrator" or a character name), audio (the dialogue or narration text for that 5-second clip), and scene_description (visual description of what should be shown).
 - Distribute dialogue naturally among all characters. Each character should speak at least once.
 - Scene descriptions should be vivid and specific, describing camera angles, settings, and character actions.
+- When multiple named characters are available, include several scenes where they interact together (not only solo shots). Name each character in the scene_description when they are visible so image generation can align with their reference portraits.
 - The story should have a clear beginning, middle, and end within exactly ${sceneCount} scenes.
+
+MULTI-CHARACTER LIPSYNC (critical when two named characters appear together in the same shot):
+- If the scene shows TWO characters on screen at once (both faces visible, conversation between two named characters from the list), set multi_talk: true.
+- For multi_talk scenes you MUST also set: character_left and character_right (exact names from the character list, left-to-right from the VIEWER'S perspective), audio_left and audio_right (each about 6-12 words, together fitting ~5 seconds), and scene_description MUST state clearly who stands on the LEFT and who on the RIGHT of the frame.
+- Set character to the name of whoever speaks first in the clip. Set audio to a short summary or the same text as audio_left for backward compatibility.
+- For multi_talk, multi_talk_order is optional: use "left_right" (default) if the left character speaks first, "right_left" if the right speaks first, or "meanwhile" if both speak over each other.
+- Do NOT set multi_talk for narrator-only shots, single-character shots, or when only one face is visible — use multi_talk: false or omit it (single-speaker infinitetalk).
+
 - Output ONLY a JSON object with a single key "scenes" containing an array of exactly ${sceneCount} scene objects.`;
 
     console.log(`[Story Script] Generating exactly ${sceneCount} scenes for "${storyPrompt}" (${durationSeconds}s = ${sceneCount} x 5s clips)`);
@@ -805,6 +820,28 @@ ${narratorInstruction}
 
     scenes.forEach((scene, i) => {
       scene.id = i + 1;
+      if (scene.multi_talk) {
+        const left = (scene.audio_left || "").trim();
+        const right = (scene.audio_right || "").trim();
+        scene.audio_left = left;
+        scene.audio_right = right;
+        if (!left || !right) {
+          console.warn(
+            `[Story Script] Scene ${scene.id}: multi_talk without both lines — falling back to single-speaker`,
+          );
+          scene.multi_talk = false;
+        } else {
+          if (!scene.audio || !String(scene.audio).trim()) {
+            scene.audio = [left, right].filter(Boolean).join(" ").trim() || left || right;
+          }
+          if (!scene.multi_talk_order) {
+            scene.multi_talk_order = "left_right";
+          }
+        }
+      }
+      if (!scene.multi_talk) {
+        scene.multi_talk = false;
+      }
     });
 
     console.log(`[Story Script] Generated ${scenes.length} scenes successfully`);

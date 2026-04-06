@@ -1,9 +1,7 @@
 import fetch from "node-fetch";
 import { ObjectStorageService } from "../objectStorage";
 import { randomUUID } from "crypto";
-import { isImageKitConfigured, uploadImageToImageKit } from "./imagekit";
 import { isBunnyConfigured, uploadCharacterImage, uploadSceneImage } from "./bunny";
-import { storage } from "../storage";
 
 export interface StoredImageResult {
   storedUrl: string;
@@ -134,7 +132,6 @@ export async function downloadAndStoreImage(
       };
     } catch (error) {
       console.error(`[Bunny Storage] Failed to upload character image:`, error);
-      // Fall through to ImageKit or GCS fallback
     }
   }
   
@@ -152,42 +149,11 @@ export async function downloadAndStoreImage(
       };
     } catch (error) {
       console.error(`[Bunny Storage] Failed to upload scene image:`, error);
-      // Fall through to ImageKit or GCS fallback
     }
   }
   
-  // Always use ImageKit as primary storage if configured (for other categories or Bunny failed)
-  if (isImageKitConfigured()) {
-    try {
-      console.log(`[ImageKit] Uploading image to ImageKit: ${filename}`);
-      const imagekitResult = await uploadImageToImageKit(imageBuffer, filename.split('/').pop() || filename, `/${category}`);
-      
-      console.log(`[ImageKit] Image uploaded successfully: ${imagekitResult.url}`);
-      
-      // Return ImageKit URL as primary, with storedUrl as fallback path format
-      const storedUrl = `/objects/${filename}`;
-      
-      // Record the backup in the database (for compatibility)
-      await storage.recordImagekitBackup({
-        originalPath: storedUrl,
-        imagekitUrl: imagekitResult.url,
-        imagekitFileId: imagekitResult.fileId,
-        fileType: "character"
-      });
-      
-      return {
-        storedUrl: imagekitResult.url, // Return ImageKit URL as primary
-        originalUrl: imageUrl,
-        imagekitUrl: imagekitResult.url,
-      };
-    } catch (error) {
-      console.error(`[ImageKit] Failed to upload image to ImageKit:`, error);
-      // Fall through to Google Cloud Storage fallback
-    }
-  }
-  
-  // Fallback to Google Cloud Storage only if ImageKit is not configured or failed
-  console.log("[Storage] ImageKit not configured or failed, falling back to Google Cloud Storage");
+  // Permanent storage: Google Cloud Storage (Bunny is preferred above when configured)
+  console.log("[Storage] Uploading to Google Cloud Storage");
   const objectStorageService = new ObjectStorageService();
   const privateObjectDir = objectStorageService.getPrivateObjectDir();
   

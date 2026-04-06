@@ -129,11 +129,36 @@ export function normalizeStoryVoiceId(voiceId: string | null | undefined): strin
   return STORY_DEFAULT_NARRATOR_VOICE;
 }
 
+/** WaveSpeed infinitetalk/multi: speaking order for left vs right audio. */
+export const STORY_MULTI_TALK_ORDERS = ["left_right", "right_left", "meanwhile"] as const;
+export type StoryMultiTalkOrder = (typeof STORY_MULTI_TALK_ORDERS)[number];
+
+export function normalizeStoryMultiTalkOrder(v: string | null | undefined): StoryMultiTalkOrder {
+  const x = (v || "").trim().toLowerCase();
+  if (x === "right_left" || x === "meanwhile") return x;
+  return "left_right";
+}
+
 export interface StoryScene {
   id: number;
   character: string;
   audio: string;
   scene_description: string;
+  /**
+   * Two characters visible in frame with separate voices — use infinitetalk/multi (not single infinitetalk-fast).
+   * When true, use audio_left/audio_right and character_left/character_right; `audio` may summarize both for UI.
+   */
+  multi_talk?: boolean;
+  /** Character on the LEFT side of the frame (viewer perspective); must match a story character name or Narrator. */
+  character_left?: string;
+  /** Character on the RIGHT side of the frame. */
+  character_right?: string;
+  /** Line spoken by the left character (~half the clip). */
+  audio_left?: string;
+  /** Line spoken by the right character. */
+  audio_right?: string;
+  /** Who speaks first / how audio is sequenced in the multi model. Default left_right. */
+  multi_talk_order?: StoryMultiTalkOrder;
 }
 
 export interface StoryCharacter {

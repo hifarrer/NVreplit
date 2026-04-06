@@ -1130,9 +1130,19 @@ export async function generateStoryAudio(
   voiceId: string,
 ): Promise<string> {
   const resolvedVoice = normalizeStoryVoiceId(voiceId);
+  const trimmed =
+    typeof text === "string" ? text.trim() : String(text ?? "").trim();
+  if (!trimmed) {
+    throw new Error(
+      "Story TTS requires non-empty dialogue text (scene is missing `audio` or it is blank)",
+    );
+  }
+
   return withGenerationApiRetries(`Story TTS (${resolvedVoice})`, async () => {
+    const preview =
+      trimmed.length > 80 ? `${trimmed.slice(0, 80)}...` : trimmed;
     console.log(
-      `[Story TTS] Inworld Mini TTS voice "${resolvedVoice}" (requested: "${voiceId}"), text: "${text.substring(0, 80)}..."`,
+      `[Story TTS] Inworld Mini TTS voice "${resolvedVoice}" (requested: "${voiceId}"), text: "${preview}"`,
     );
 
     const response = await fetchWithRetry(
@@ -1146,7 +1156,7 @@ export async function generateStoryAudio(
         body: JSON.stringify({
           speaking_rate: 1,
           temperature: 1,
-          text,
+          text: trimmed,
           voice_id: resolvedVoice,
         }),
       },
@@ -1205,5 +1215,121 @@ export async function generateStoryAudio(
     }
 
     throw new Error("Story TTS generation timed out after " + maxAttempts * 3 + "s");
+  });
+}
+
+export type InfinitetalkMultiOrder = "left_right" | "right_left" | "meanwhile";
+
+async function generateInfinitetalkMultiVideoSegmentInternal(
+  imageUrl: string,
+  leftAudioUrl: string,
+  rightAudioUrl: string,
+  order: InfinitetalkMultiOrder,
+  prompt: string,
+  resolution: "480p" | "720p",
+): Promise<string> {
+  const endpoint = "https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk/multi";
+  const requestBody = {
+    image: imageUrl,
+    left_audio: leftAudioUrl,
+    right_audio: rightAudioUrl,
+    order,
+    prompt: prompt || "",
+    resolution,
+    seed: -1,
+  };
+
+  console.log("=== GENERATING INFINITETALK MULTI SEGMENT ===");
+  console.log("Endpoint:", endpoint);
+  console.log("Order:", order, "Resolution:", resolution);
+
+  const response = await fetchWithRetry(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Wavespeed infinitetalk/multi error: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  const requestId = result.data?.id || result.id;
+  if (!requestId) {
+    throw new Error("No request ID received from Wavespeed (infinitetalk/multi)");
+  }
+
+  let attempts = 0;
+  const maxAttempts = 60;
+  while (attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+    const statusResponse = await fetchWithRetry(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      { headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` } },
+    );
+    if (!statusResponse.ok) {
+      throw new Error(`Status check failed: ${statusResponse.status}`);
+    }
+    const statusResult = await statusResponse.json();
+    if (
+      statusResult.data?.status === "completed" &&
+      statusResult.data.outputs &&
+      statusResult.data.outputs.length > 0
+    ) {
+      return statusResult.data.outputs[0];
+    }
+    if (statusResult.status === "failed" || statusResult.data?.status === "failed") {
+      const errorDetails = statusResult.error || statusResult.data?.error || "Unknown error";
+      const errorMessage = typeof errorDetails === "string" ? errorDetails : JSON.stringify(errorDetails);
+      throw new Error(`Infinitetalk multi failed: ${errorMessage}`);
+    }
+    attempts++;
+  }
+  throw new Error("Infinitetalk multi generation timed out");
+}
+
+/** Two-character image + left/right audio (WaveSpeed infinitetalk/multi). */
+export async function generateInfinitetalkMultiVideoSegment(
+  imageUrl: string,
+  leftAudioUrl: string,
+  rightAudioUrl: string,
+  order: InfinitetalkMultiOrder,
+  prompt: string,
+  resolution: "480p" | "720p" = "480p",
+): Promise<string> {
+  return withGenerationApiRetries("Infinitetalk multi", async () => {
+    let lastError: Error | null = null;
+    let currentPrompt = prompt;
+    for (let attempt = 1; attempt <= MAX_TRANSIENT_RETRIES; attempt++) {
+      try {
+        return await generateInfinitetalkMultiVideoSegmentInternal(
+          imageUrl,
+          leftAudioUrl,
+          rightAudioUrl,
+          order,
+          currentPrompt,
+          resolution,
+        );
+      } catch (error) {
+        const err = error as Error;
+        lastError = err;
+        if (isSensitiveContentError(err)) {
+          currentPrompt = SAFE_FALLBACK_PROMPT;
+          continue;
+        }
+        if (isTransientError(err) && attempt < MAX_TRANSIENT_RETRIES) {
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+          continue;
+        }
+        break;
+      }
+    }
+    throw new Error(
+      "Failed infinitetalk/multi after " + MAX_TRANSIENT_RETRIES + " attempts: " + (lastError?.message || "unknown"),
+    );
   });
 }

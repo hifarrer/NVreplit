@@ -105,8 +105,23 @@ export const projects = pgTable("projects", {
   storyNarrator: boolean("story_narrator").default(false),
   storyNarratorVoice: text("story_narrator_voice"),
   storyCharacters: jsonb("story_characters").$type<{ name: string; imageUrl: string; voiceId: string | null; prompt: string }[]>(),
-  storyScript: jsonb("story_script").$type<{ id: number; character: string; audio: string; scene_description: string }[]>(),
+  storyScript: jsonb("story_script").$type<
+    {
+      id: number;
+      character: string;
+      audio: string;
+      scene_description: string;
+      multi_talk?: boolean;
+      character_left?: string;
+      character_right?: string;
+      audio_left?: string;
+      audio_right?: string;
+      multi_talk_order?: "left_right" | "right_left" | "meanwhile";
+    }[]
+  >(),
   storyAudioUrls: jsonb("story_audio_urls").$type<string[]>(),
+  /** Parallel to storyAudioUrls: right-channel audio for multi_talk scenes; empty string when not multi. */
+  storyAudioUrlsRight: jsonb("story_audio_urls_right").$type<string[]>(),
   storySceneImages: jsonb("story_scene_images").$type<string[]>(),
   storyScenePrompts: jsonb("story_scene_prompts").$type<string[]>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

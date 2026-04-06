@@ -105,373 +105,29 @@ function seedreamImageToImageSizeForAspectRatio(aspectRatio: string = "1:1"): st
 }
 
 /**
- * Model configurations for scene generation
- */
-type WavespeedModel = {
-  name: string;
-  endpoint: string;
-  buildRequestBody: (imageUrl: string, prompt: string, aspectRatio?: string) => any;
-};
-
-/**
- * Model configuration for edit-plus that supports multiple images
- */
-type WavespeedEditPlusModel = {
-  name: string;
-  endpoint: string;
-  buildRequestBody: (imageUrls: string[], prompt: string, aspectRatio?: string) => any;
-};
-
-const WAVESPEED_MODELS: { primary: WavespeedModel; fallback: WavespeedModel } = {
-  primary: {
-    name: "wavespeed-ai/qwen-image/edit",
-    endpoint: "https://api.wavespeed.ai/api/v3/wavespeed-ai/qwen-image/edit",
-    buildRequestBody: (imageUrl: string, prompt: string, aspectRatio: string = "16:9") => ({
-      enable_base64_output: false,
-      enable_sync_mode: false,
-      image: imageUrl, // Qwen uses "image" (singular) instead of "images" array
-      output_format: "jpeg",
-      prompt: prompt,
-      seed: -1,
-      size: aspectRatioToSize(aspectRatio), // Qwen uses size instead of aspect_ratio
-    }),
-  },
-  fallback: {
-    name: "alibaba/wan-2.5/image-edit",
-    endpoint: "https://api.wavespeed.ai/api/v3/alibaba/wan-2.5/image-edit",
-    buildRequestBody: (imageUrl: string, prompt: string, aspectRatio?: string) => ({
-      images: [imageUrl],
-      prompt: prompt,
-      seed: -1,
-    }),
-  },
-};
-
-const WAVESPEED_EDIT_PLUS_MODEL: WavespeedEditPlusModel = {
-  name: "wavespeed-ai/qwen-image/edit-plus",
-  endpoint: "https://api.wavespeed.ai/api/v3/wavespeed-ai/qwen-image/edit-plus",
-  buildRequestBody: (imageUrls: string[], prompt: string, aspectRatio: string = "16:9") => ({
-    enable_base64_output: false,
-    enable_sync_mode: false,
-    images: imageUrls,
-    output_format: "jpeg",
-    prompt: prompt,
-    seed: -1,
-    size: aspectRatioToSize(aspectRatio),
-  }),
-};
-
-/**
- * Helper function to submit and poll a scene generation request to Wavespeed
- * Supports both primary and fallback models
- */
-async function submitAndPollSceneGeneration(
-  model: WavespeedModel,
-  imageUrl: string,
-  prompt: string,
-  sceneLabel: string = "scene",
-  aspectRatio: string = "16:9",
-): Promise<string> {
-  const sceneRequestId = `SCENE-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-  const sceneStartTime = Date.now();
-  
-  console.log(`[WAVESPEED-API ${new Date().toISOString()}] ${sceneLabel} API call started`);
-  console.log(`[WAVESPEED-API] Request ID: ${sceneRequestId}`);
-  console.log(`[WAVESPEED-API] Model: ${model.name}`);
-  
-  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
-  if (!WAVESPEED_API_KEY) {
-    throw new Error("WAVESPEED_API_KEY environment variable is required");
-  }
-
-  const requestBody = model.buildRequestBody(imageUrl, prompt, aspectRatio);
-
-  console.log(
-    `[${model.name}] Submitting ${sceneLabel} generation with prompt: "${prompt.substring(0, 50)}..."`,
-  );
-  console.log(
-    `[${model.name}] Request body:`,
-    JSON.stringify(requestBody, null, 2),
-  );
-
-  // Submit generation request
-  const response = await fetch(model.endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${WAVESPEED_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(requestBody),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`[${model.name}] ${sceneLabel} submission failed:`, errorText);
-    throw new Error(
-      `${model.name} submission failed: ${response.status} - ${errorText}`,
-    );
-  }
-
-  const result = await response.json();
-  console.log(
-    `[${model.name}] ${sceneLabel} submission result:`,
-    JSON.stringify(result, null, 2),
-  );
-
-  const requestId = result.data?.id;
-  if (!requestId) {
-    throw new Error(`No request ID received from ${model.name} for ${sceneLabel}`);
-  }
-
-  console.log(`[${model.name}] Got ${sceneLabel} request ID: ${requestId}`);
-
-  // Poll for results
-  let attempts = 0;
-  const maxAttempts = 180; // 15 minutes with 3-second intervals
-
-  while (attempts < maxAttempts) {
-    await new Promise((resolve) => setTimeout(resolve, 3000)); // Wait 3 seconds
-
-    const statusResponse = await fetch(
-      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
-      {
-        headers: {
-          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
-        },
-      },
-    );
-
-    if (!statusResponse.ok) {
-      const errorText = await statusResponse.text();
-      console.error(`[${model.name}] ${sceneLabel} status check failed:`, errorText);
-      throw new Error(
-        `Status check failed for ${sceneLabel}: ${statusResponse.status} - ${errorText}`,
-      );
-    }
-
-    const statusResult = await statusResponse.json();
-
-    if (statusResult.data?.status === "completed") {
-      const sceneDuration = Date.now() - sceneStartTime;
-      console.log(`[WAVESPEED-API ${sceneRequestId}] ${sceneLabel} generation COMPLETED in ${sceneDuration}ms`);
-      console.log(`[${model.name}] ${sceneLabel} generation completed!`);
-
-      if (statusResult.data.outputs && statusResult.data.outputs.length > 0) {
-        const imageUrl = statusResult.data.outputs[0];
-        console.log(`[${model.name}] Found ${sceneLabel} image URL: ${imageUrl}`);
-        return imageUrl;
-      } else {
-        console.error(
-          `[${model.name}] No outputs found in ${sceneLabel} results:`,
-          statusResult,
-        );
-        throw new Error(`No outputs in ${sceneLabel} results from ${model.name}`);
-      }
-    } else if (statusResult.data?.status === "failed") {
-      const errorMsg = statusResult.data?.error || "Unknown error";
-      console.error(`[${model.name}] ${sceneLabel} generation failed:`, statusResult);
-      throw new Error(`${sceneLabel} generation failed with ${model.name}: ${errorMsg}`);
-    }
-
-    attempts++;
-  }
-
-  throw new Error(
-    `${sceneLabel} generation with ${model.name} timed out after ${maxAttempts} attempts`,
-  );
-}
-
-/**
- * Helper function to submit and poll a scene generation request to Wavespeed using edit-plus model with multiple images
- */
-async function submitAndPollSceneGenerationWithMultipleImages(
-  model: WavespeedEditPlusModel,
-  imageUrls: string[],
-  prompt: string,
-  sceneLabel: string = "scene",
-  aspectRatio: string = "16:9",
-): Promise<string> {
-  const sceneRequestId = `SCENE-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-  const sceneStartTime = Date.now();
-  
-  console.log(`[WAVESPEED-API ${new Date().toISOString()}] ${sceneLabel} API call started (edit-plus)`);
-  console.log(`[WAVESPEED-API] Request ID: ${sceneRequestId}`);
-  console.log(`[WAVESPEED-API] Model: ${model.name}`);
-  console.log(`[WAVESPEED-API] Number of images: ${imageUrls.length}`);
-  
-  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
-  if (!WAVESPEED_API_KEY) {
-    throw new Error("WAVESPEED_API_KEY environment variable is required");
-  }
-
-  const requestBody = model.buildRequestBody(imageUrls, prompt, aspectRatio);
-
-  console.log(
-    `[${model.name}] Submitting ${sceneLabel} generation with prompt: "${prompt.substring(0, 50)}..."`,
-  );
-  console.log(
-    `[${model.name}] Request body:`,
-    JSON.stringify(requestBody, null, 2),
-  );
-
-  // Submit generation request
-  const response = await fetch(model.endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${WAVESPEED_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(requestBody),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`[${model.name}] ${sceneLabel} submission failed:`, errorText);
-    throw new Error(
-      `${model.name} submission failed: ${response.status} - ${errorText}`,
-    );
-  }
-
-  const result = await response.json();
-  console.log(
-    `[${model.name}] ${sceneLabel} submission result:`,
-    JSON.stringify(result, null, 2),
-  );
-
-  const requestId = result.data?.id;
-  if (!requestId) {
-    throw new Error(`No request ID received from ${model.name} for ${sceneLabel}`);
-  }
-
-  console.log(`[${model.name}] Got ${sceneLabel} request ID: ${requestId}`);
-
-  // Poll for results
-  let attempts = 0;
-  const maxAttempts = 180; // 15 minutes with 3-second intervals
-
-  while (attempts < maxAttempts) {
-    await new Promise((resolve) => setTimeout(resolve, 3000)); // Wait 3 seconds
-
-    const statusResponse = await fetch(
-      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
-      {
-        headers: {
-          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
-        },
-      },
-    );
-
-    if (!statusResponse.ok) {
-      const errorText = await statusResponse.text();
-      console.error(`[${model.name}] ${sceneLabel} status check failed:`, errorText);
-      throw new Error(
-        `Status check failed for ${sceneLabel}: ${statusResponse.status} - ${errorText}`,
-      );
-    }
-
-    const statusResult = await statusResponse.json();
-
-    if (statusResult.data?.status === "completed") {
-      const sceneDuration = Date.now() - sceneStartTime;
-      console.log(`[WAVESPEED-API ${sceneRequestId}] ${sceneLabel} generation COMPLETED in ${sceneDuration}ms`);
-      console.log(`[${model.name}] ${sceneLabel} generation completed!`);
-
-      if (statusResult.data.outputs && statusResult.data.outputs.length > 0) {
-        const imageUrl = statusResult.data.outputs[0];
-        console.log(`[${model.name}] Found ${sceneLabel} image URL: ${imageUrl}`);
-        return imageUrl;
-      } else {
-        console.error(
-          `[${model.name}] No outputs found in ${sceneLabel} results:`,
-          statusResult,
-        );
-        throw new Error(`No outputs in ${sceneLabel} results from ${model.name}`);
-      }
-    } else if (statusResult.data?.status === "failed") {
-      const errorMsg = statusResult.data?.error || "Unknown error";
-      console.error(`[${model.name}] ${sceneLabel} generation failed:`, statusResult);
-      throw new Error(`${sceneLabel} generation failed with ${model.name}: ${errorMsg}`);
-    }
-
-    attempts++;
-  }
-
-  throw new Error(
-    `${sceneLabel} generation with ${model.name} timed out after ${maxAttempts} attempts`,
-  );
-}
-
-/**
- * Generate a single scene image with automatic fallback to alibaba model if google model fails
- */
-async function generateSceneWithFallback(
-  imageUrl: string,
-  prompt: string,
-  sceneLabel: string = "scene",
-  aspectRatio: string = "16:9",
-): Promise<{ imageUrl: string; modelUsed: string }> {
-  // Try primary model first
-  try {
-    const resultUrl = await submitAndPollSceneGeneration(
-      WAVESPEED_MODELS.primary,
-      imageUrl,
-      prompt,
-      sceneLabel,
-      aspectRatio,
-    );
-    return { imageUrl: resultUrl, modelUsed: WAVESPEED_MODELS.primary.name };
-  } catch (primaryError) {
-    console.warn(
-      `[Fallback] Primary model ${WAVESPEED_MODELS.primary.name} failed for ${sceneLabel}:`,
-      primaryError instanceof Error ? primaryError.message : primaryError,
-    );
-    console.log(
-      `[Fallback] Attempting fallback to ${WAVESPEED_MODELS.fallback.name}...`,
-    );
-
-    // Try fallback model
-    try {
-      const resultUrl = await submitAndPollSceneGeneration(
-        WAVESPEED_MODELS.fallback,
-        imageUrl,
-        prompt,
-        sceneLabel,
-        aspectRatio,
-      );
-      console.log(
-        `[Fallback] Successfully generated ${sceneLabel} using fallback model ${WAVESPEED_MODELS.fallback.name}`,
-      );
-      return { imageUrl: resultUrl, modelUsed: WAVESPEED_MODELS.fallback.name };
-    } catch (fallbackError) {
-      // Both models failed
-      const errorMsg =
-        `Both models failed for ${sceneLabel}.\n` +
-        `Primary (${WAVESPEED_MODELS.primary.name}): ${primaryError instanceof Error ? primaryError.message : primaryError}\n` +
-        `Fallback (${WAVESPEED_MODELS.fallback.name}): ${fallbackError instanceof Error ? fallbackError.message : fallbackError}`;
-      console.error(`[Fallback] ${errorMsg}`);
-      throw new Error(errorMsg);
-    }
-  }
-}
-
-/**
  * Submit and poll bytedance/seedream-v4.5/edit for Regenerate Image button only.
  * Size is determined by aspectRatioToSize (see ASPECT_RATIO_TO_SIZE mapping).
  */
 async function submitAndPollSeedreamV45EditForRegenerate(
-  characterImageUrl: string,
+  referenceImageUrls: string[],
   prompt: string,
   aspectRatio: string = "16:9",
 ): Promise<string> {
   const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
   if (!WAVESPEED_API_KEY) {
     throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
+
+  if (!referenceImageUrls.length) {
+    throw new Error("seedream-v4.5/edit requires at least one reference image URL");
   }
 
   const size = seedreamV45EditSizeForAspectRatio(aspectRatio);
   const endpoint = "https://api.wavespeed.ai/api/v3/bytedance/seedream-v4.5/edit";
 
-  console.log(`[seedream-v4.5/edit] Regenerate Image: size=${size}, aspectRatio=${aspectRatio}`);
+  console.log(
+    `[seedream-v4.5/edit] Regenerate Image: size=${size}, aspectRatio=${aspectRatio}, refImages=${referenceImageUrls.length}`,
+  );
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -482,7 +138,7 @@ async function submitAndPollSeedreamV45EditForRegenerate(
     body: JSON.stringify({
       enable_base64_output: false,
       enable_sync_mode: false,
-      images: [characterImageUrl],
+      images: referenceImageUrls,
       prompt,
       size,
     }),
@@ -540,7 +196,22 @@ export async function generateAiImageEdit(
   aspectRatio: string = "16:9",
 ): Promise<string> {
   const publicImageUrl = await ensurePublicImageUrl(imageUrl, 86400);
-  return submitAndPollSeedreamV45EditForRegenerate(publicImageUrl, prompt, aspectRatio);
+  return submitAndPollSeedreamV45EditForRegenerate([publicImageUrl], prompt, aspectRatio);
+}
+
+/** Unique non-empty image URLs from story characters, in list order (for multi-character reference generation). */
+export function collectStoryCharacterReferenceImageUrls(
+  characters: { imageUrl?: string | null }[],
+): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const c of characters) {
+    const u = (c.imageUrl ?? "").trim();
+    if (!u || seen.has(u)) continue;
+    seen.add(u);
+    out.push(u);
+  }
+  return out;
 }
 
 // New Wavespeed.ai character generation function (used for 3D and Cartoon styles)
@@ -1969,7 +1640,7 @@ async function generateSingleSceneImageFromText(
 
 export async function generateSingleSceneImage(
   prompt: string,
-  characterImageUrl: string | undefined,
+  characterImageUrl: string | string[] | undefined,
   aspectRatio: string = "16:9",
   currentSceneImageUrl?: string,
 ): Promise<string> {
@@ -1977,26 +1648,41 @@ export async function generateSingleSceneImage(
   console.log(`Starting single scene generation with prompt: ${prompt}`);
   console.log(`Aspect ratio: ${aspectRatio}`);
   
+  const refList = (
+    Array.isArray(characterImageUrl)
+      ? characterImageUrl
+      : characterImageUrl
+        ? [characterImageUrl]
+        : []
+  )
+    .map((u) => (typeof u === "string" ? u.trim() : ""))
+    .filter(Boolean);
+
   // If no character image URL is provided, use text-to-image generation (for instrumental videos)
-  if (!characterImageUrl) {
+  if (refList.length === 0) {
     console.log(`[INSTRUMENTAL] No character image URL provided, using text-to-image generation`);
     return await generateSingleSceneImageFromText(prompt, aspectRatio);
   }
 
-  console.log(`Input character image URL: ${characterImageUrl}`);
+  console.log(`Input reference image URL(s): ${refList.length}`, refList.map((u) => u.substring(0, 60)));
   if (currentSceneImageUrl) {
     console.log(`Current scene image URL provided: ${currentSceneImageUrl}`);
   }
 
-  // Ensure we have a valid public HTTP/HTTPS URL for Wavespeed API
-  const publicCharacterImageUrl = await ensurePublicImageUrl(characterImageUrl, 86400);
-  console.log(`✓ Using validated character image URL for Wavespeed API`);
+  const publicUrls = await Promise.all(refList.map((u) => ensurePublicImageUrl(u, 86400)));
+  console.log(`✓ Using ${publicUrls.length} validated reference URL(s) for Wavespeed API`);
 
-  // Regenerate Image button: always use bytedance/seedream-v4.5/edit with character image and size by aspect ratio
+  const multiHint =
+    publicUrls.length > 1
+      ? `Multiple character references are provided — preserve each character's look from its reference and compose them together as the scene requires.\n\n`
+      : "";
+  const editPrompt = multiHint + prompt;
+
+  // Regenerate Image: seedream-v4.5/edit with one or more reference images
   console.log(`Using bytedance/seedream-v4.5/edit for Regenerate Image (size: ${seedreamV45EditSizeForAspectRatio(aspectRatio)})`);
   const resultImageUrl = await submitAndPollSeedreamV45EditForRegenerate(
-    publicCharacterImageUrl,
-    prompt,
+    publicUrls,
+    editPrompt,
     aspectRatio,
   );
 
@@ -2016,19 +1702,33 @@ export async function generateSingleSceneImage(
  * Generate scene images using sequential batch generation (seedream-v4.5/edit-sequential)
  * This generates multiple images in a single API call
  */
+function buildEditSequentialIntro(sceneCount: number, referenceCount: number): string {
+  if (referenceCount <= 1) {
+    return `Generate a sequence of ${sceneCount} images using the same style as the reference image.\n\n`;
+  }
+  return `Generate a sequence of ${sceneCount} images. ${referenceCount} reference images are provided — each shows a different main character. Preserve each character's species, face, body proportions, fur/skin, clothing, and colors to match its reference image. Compose these characters together in every scene as described; keep each character visually consistent across all images.\n\n`;
+}
+
 async function generateSceneImagesSequential(
   prompts: string[],
-  characterImageUrl: string,
+  referenceImageUrls: string[],
   aspectRatio: string = "16:9",
 ): Promise<string[]> {
   const batchId = `SEQUENTIAL-${Date.now()}-${Math.random().toString(36).substring(7)}`;
   const batchStartTime = Date.now();
-  
+
+  if (!referenceImageUrls.length) {
+    throw new Error("generateSceneImagesSequential requires at least one reference image URL");
+  }
+
   console.log(`\n========================================`);
   console.log(`[SEQUENTIAL-GEN ${new Date().toISOString()}] SEQUENTIAL BATCH STARTED`);
   console.log(`[SEQUENTIAL-GEN] Batch ID: ${batchId}`);
   console.log(`[SEQUENTIAL-GEN] Scene count: ${prompts.length}`);
-  console.log(`[SEQUENTIAL-GEN] Character Image: ${characterImageUrl?.substring(0, 80)}...`);
+  console.log(`[SEQUENTIAL-GEN] Reference images: ${referenceImageUrls.length}`);
+  referenceImageUrls.forEach((u, i) => {
+    console.log(`[SEQUENTIAL-GEN]   ref ${i + 1}: ${u?.substring(0, 80)}...`);
+  });
   console.log(`[SEQUENTIAL-GEN] Aspect Ratio: ${aspectRatio}`);
   console.log(`========================================\n`);
 
@@ -2037,22 +1737,21 @@ async function generateSceneImagesSequential(
     throw new Error("WAVESPEED_API_KEY environment variable is required");
   }
 
-  // Ensure we have a valid public HTTP/HTTPS URL for Wavespeed API
-  const publicCharacterImageUrl = await ensurePublicImageUrl(characterImageUrl, 86400);
-  console.log(`✓ Using validated character image URL for sequential generation`);
+  const publicUrls = await Promise.all(
+    referenceImageUrls.map((u) => ensurePublicImageUrl(u, 86400)),
+  );
+  console.log(`✓ Using ${publicUrls.length} validated reference URL(s) for sequential generation`);
 
   // edit-sequential requires at least 3686400 pixels; use seedream-v4.5 size mapping (1:1→2048*2048, 16:9→2560*1440, etc.)
   const size = seedreamImageToImageSizeForAspectRatio(aspectRatio);
   console.log(`[SEQUENTIAL-GEN] Using size: ${size} for aspect ratio: ${aspectRatio}`);
 
-  // Format the prompts directly into the sequential format matching user's example
-  // Format: "Generate a sequence of N images using the same style as the reference image.\n\nScene 1 – ...\n..."
-  let sequentialPrompt = `Generate a sequence of ${prompts.length} images using the same style as the reference image.\n\n`;
-  
+  let sequentialPrompt = buildEditSequentialIntro(prompts.length, publicUrls.length);
+
   prompts.forEach((prompt, index) => {
     sequentialPrompt += `Scene ${index + 1} – ${prompt}\n`;
   });
-  
+
   sequentialPrompt += `\nKeep the characters and setting consistent across all ${prompts.length} images so they feel like same time of day in the exact same location.`;
 
   // Handle batching: max 15 images per API call (using 12 for safety)
@@ -2074,22 +1773,22 @@ async function generateSceneImagesSequential(
     console.log(`[SEQUENTIAL-GEN] Processing batch ${batchIndex + 1}/${batches.length} (scenes ${batchStartIndex + 1}-${batchStartIndex + batch.length})`);
 
     // Create sequential prompt for this batch (same format as main prompt)
-    let batchSequentialPrompt = `Generate a sequence of ${batch.length} images using the same style as the reference image.\n\n`;
-    
+    let batchSequentialPrompt = buildEditSequentialIntro(batch.length, publicUrls.length);
+
     batch.forEach((prompt, index) => {
       batchSequentialPrompt += `Scene ${batchStartIndex + index + 1} – ${prompt}\n`;
     });
-    
+
     batchSequentialPrompt += `\nKeep the characters and setting consistent across all ${batch.length} images so they feel like same time of day in the exact same location.`;
 
     const requestId = `SEQ-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     console.log(`[SEQUENTIAL-GEN] Batch ${batchIndex + 1} request ID: ${requestId}`);
 
-    // Submit sequential generation request
+    // Submit sequential generation request (all reference characters in images[])
     const requestBody = {
       enable_base64_output: false,
       enable_sync_mode: false,
-      images: [publicCharacterImageUrl],
+      images: publicUrls,
       max_images: batch.length,
       prompt: batchSequentialPrompt,
       size: size,
@@ -2229,118 +1928,26 @@ async function generateSceneImagesSequential(
 
 export async function generateSceneImages(
   prompts: string[],
-  characterImageUrl: string,
+  characterImageUrl: string | string[],
   aspectRatio: string = "16:9",
 ): Promise<string[]> {
   return withGenerationApiRetries("generateSceneImages", async () => {
-  // Use sequential generation for initial scene generation
-  // This generates all scenes in a single (or batched) API call using seedream-v4.5/edit-sequential
-  console.log(`[generateSceneImages] Using sequential generation for ${prompts.length} scenes`);
-  
-  try {
-    return await generateSceneImagesSequential(prompts, characterImageUrl, aspectRatio);
-  } catch (error) {
-    console.error(`[generateSceneImages] Sequential generation failed, falling back to parallel generation:`, error);
-    // Fallback to parallel generation if sequential fails
-    const batchId = `BATCH-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    const batchStartTime = Date.now();
-    
-    console.log(`\n========================================`);
-    console.log(`[FAL-SERVICE ${new Date().toISOString()}] SCENE BATCH STARTED (FALLBACK)`);
-    console.log(`[FAL-SERVICE] Batch ID: ${batchId}`);
-    console.log(`[FAL-SERVICE] Scene count: ${prompts.length}`);
-    console.log(`[FAL-SERVICE] Character Image: ${characterImageUrl?.substring(0, 80)}...`);
-    console.log(`[FAL-SERVICE] Aspect Ratio: ${aspectRatio}`);
-    console.log(`========================================\n`);
-    
-    console.log(
-      `Starting parallel scene generation for ${prompts.length} scenes (fallback mode)`,
-    );
-    console.log(`Input character image URL: ${characterImageUrl}`);
-    console.log(`Aspect ratio: ${aspectRatio}`);
+  const referenceUrls = (
+    Array.isArray(characterImageUrl) ? characterImageUrl : [characterImageUrl]
+  )
+    .map((u) => (typeof u === "string" ? u.trim() : ""))
+    .filter(Boolean);
 
-    // Ensure we have a valid public HTTP/HTTPS URL for Wavespeed API
-    const publicCharacterImageUrl = await ensurePublicImageUrl(characterImageUrl, 86400);
-    console.log(`✓ Using validated character image URL for ${prompts.length} scenes`);
-
-    // Generate all scenes in parallel using the fallback system
-    // Each scene will automatically try google/nano-banana/edit first, then alibaba/wan-2.5/image-edit if it fails
-    const sceneGenerationPromises = prompts.map((prompt, index) =>
-      generateSceneWithFallback(
-        publicCharacterImageUrl,
-        prompt,
-        `scene ${index + 1}`,
-        aspectRatio,
-      ),
-    );
-
-    console.log(
-      `Submitting ${prompts.length} scene generation requests in parallel with automatic fallback...`,
-    );
-
-    // Wait for all scenes to complete (with automatic retries/fallback built-in)
-    const results = await Promise.allSettled(sceneGenerationPromises);
-
-    // Process results
-    const successfulScenes: string[] = [];
-    const failedScenes: { index: number; reason: string }[] = [];
-
-    results.forEach((result, index) => {
-      if (result.status === "fulfilled") {
-        successfulScenes.push(result.value.imageUrl);
-        console.log(
-          `✓ Scene ${index + 1} generated successfully using ${result.value.modelUsed}`,
-        );
-      } else {
-        failedScenes.push({
-          index: index + 1,
-          reason: result.reason instanceof Error ? result.reason.message : String(result.reason),
-        });
-        console.error(`✗ Scene ${index + 1} failed:`, result.reason);
-      }
-    });
-
-    // If any scenes failed, throw an error with details
-    if (failedScenes.length > 0) {
-      const failedIndices = failedScenes.map((f) => f.index).join(", ");
-      const failureDetails = failedScenes
-        .map((f) => `Scene ${f.index}: ${f.reason}`)
-        .join("\n");
-
-      throw new Error(
-        `Failed to generate ${failedScenes.length} scene(s) after trying both models.\n` +
-          `Failed scenes: ${failedIndices}\n\n` +
-          `Details:\n${failureDetails}`,
-      );
-    }
-
-    console.log(
-      `✓ All ${prompts.length} scenes generated successfully (with automatic fallback support)`,
-    );
-    
-    // Download and store all scene images permanently
-    console.log(`[FAL-SERVICE ${batchId}] Downloading and storing ${successfulScenes.length} scene images permanently...`);
-    const { downloadAndStoreImage } = await import("./imageStorage");
-    
-    const storePromises = successfulScenes.map(async (sceneUrl, index) => {
-      console.log(`[FAL-SERVICE ${batchId}] Storing scene ${index + 1}...`);
-      const storedImage = await downloadAndStoreImage(sceneUrl, "scenes");
-      console.log(`[FAL-SERVICE ${batchId}] Scene ${index + 1} stored permanently at: ${storedImage.storedUrl}`);
-      return storedImage.storedUrl;
-    });
-    
-    const storedSceneUrls = await Promise.all(storePromises);
-    
-    const batchDuration = Date.now() - batchStartTime;
-    console.log(`\n========================================`);
-    console.log(`[FAL-SERVICE ${new Date().toISOString()}] SCENE BATCH COMPLETED`);
-    console.log(`[FAL-SERVICE] Batch ID: ${batchId}`);
-    console.log(`[FAL-SERVICE] Duration: ${batchDuration}ms`);
-    console.log(`[FAL-SERVICE] Scenes stored: ${storedSceneUrls.length}`);
-    console.log(`========================================\n`);
-    
-    return storedSceneUrls;
+  if (!referenceUrls.length) {
+    throw new Error("generateSceneImages requires at least one reference image URL");
   }
+
+  // All scenes: seedream-v4.5/edit-sequential only (no per-scene Qwen/WAN fallback).
+  console.log(
+    `[generateSceneImages] Using edit-sequential for ${prompts.length} scenes (${referenceUrls.length} reference image(s))`,
+  );
+
+  return await generateSceneImagesSequential(prompts, referenceUrls, aspectRatio);
   });
 }
 

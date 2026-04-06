@@ -488,6 +488,7 @@ export class MemStorage implements IStorage {
       storyCharacters: insertProject.storyCharacters || null,
       storyScript: insertProject.storyScript || null,
       storyAudioUrls: insertProject.storyAudioUrls || null,
+      storyAudioUrlsRight: insertProject.storyAudioUrlsRight || null,
       storySceneImages: insertProject.storySceneImages || null,
       storyScenePrompts: insertProject.storyScenePrompts || null,
       createdAt: now,

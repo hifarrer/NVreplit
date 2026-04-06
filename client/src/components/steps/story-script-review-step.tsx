@@ -3,6 +3,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -18,10 +26,11 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { SceneData } from "@/lib/types";
-import type { StoryScene } from "@shared/storyConstants";
+import type { StoryMultiTalkOrder, StoryScene } from "@shared/storyConstants";
+import { normalizeStoryMultiTalkOrder } from "@shared/storyConstants";
 import { SceneTimeline } from "@/components/scene-timeline";
 import { CameraAngleModal } from "@/components/modals/camera-angle-modal";
-import { RefreshCw, Upload, Loader2, Mic, Image as ImageIcon, Camera, ChevronLeft } from "lucide-react";
+import { RefreshCw, Upload, Loader2, Mic, Image as ImageIcon, Camera, ChevronLeft, Users } from "lucide-react";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -31,6 +40,8 @@ interface StoryScriptReviewStepProps {
   script: StoryScene[];
   sceneImages: string[];
   audioUrls: string[];
+  /** Right-channel audio URLs for multi_talk scenes (parallel to audioUrls). */
+  audioUrlsRight: string[];
   finalVideoUrl?: string | null;
   isEditMode?: boolean;
   storyGenerationCredits: number;
@@ -38,6 +49,7 @@ interface StoryScriptReviewStepProps {
   onScriptChange: (next: StoryScene[]) => void;
   onSceneImagesChange: (next: string[]) => void;
   onAudioUrlsChange: (next: string[]) => void;
+  onAudioUrlsRightChange: (next: string[]) => void;
   onBack: () => void;
   onGenerateVideo: () => void;
 }
@@ -48,6 +60,7 @@ export function StoryScriptReviewStep({
   script,
   sceneImages,
   audioUrls,
+  audioUrlsRight,
   finalVideoUrl,
   isEditMode,
   storyGenerationCredits,
@@ -55,6 +68,7 @@ export function StoryScriptReviewStep({
   onScriptChange,
   onSceneImagesChange,
   onAudioUrlsChange,
+  onAudioUrlsRightChange,
   onBack,
   onGenerateVideo,
 }: StoryScriptReviewStepProps) {
@@ -79,13 +93,29 @@ export function StoryScriptReviewStep({
         prompt: s.scene_description,
         imageUrl: sceneImages[i] ?? "",
         lipsync: s.character !== "Narrator",
+        storyMultiCharacter: !!s.multi_talk,
+        storyMultiTalkOrder: normalizeStoryMultiTalkOrder(s.multi_talk_order),
       })),
     [script, sceneImages],
   );
 
-  const dialogueLyrics = useMemo(() => script.map((s) => s.audio).join("\n"), [script]);
+  const dialogueLyrics = useMemo(
+    () =>
+      script
+        .map((s) =>
+          s.multi_talk && ((s.audio_left || "").trim() || (s.audio_right || "").trim())
+            ? [s.audio_left || "", s.audio_right || ""].filter((t) => t.trim()).join("\n")
+            : s.audio,
+        )
+        .join("\n"),
+    [script],
+  );
 
-  const previewAudioUrl = useMemo(() => audioUrls.find((u) => u && u.length > 0), [audioUrls]);
+  const previewAudioUrl = useMemo(() => {
+    const left = audioUrls.find((u) => u && u.length > 0);
+    if (left) return left;
+    return audioUrlsRight.find((u) => u && u.length > 0);
+  }, [audioUrls, audioUrlsRight]);
 
   const invalidateProject = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
@@ -96,8 +126,18 @@ export function StoryScriptReviewStep({
       onScriptChange(newOrder.map((i) => script[i]));
       onSceneImagesChange(newOrder.map((i) => sceneImages[i] ?? ""));
       onAudioUrlsChange(newOrder.map((i) => audioUrls[i] ?? ""));
+      onAudioUrlsRightChange(newOrder.map((i) => audioUrlsRight[i] ?? ""));
     },
-    [script, sceneImages, audioUrls, onScriptChange, onSceneImagesChange, onAudioUrlsChange],
+    [
+      script,
+      sceneImages,
+      audioUrls,
+      audioUrlsRight,
+      onScriptChange,
+      onSceneImagesChange,
+      onAudioUrlsChange,
+      onAudioUrlsRightChange,
+    ],
   );
 
   const scrollToScene = useCallback((sceneIndex: number) => {
@@ -261,6 +301,8 @@ export function StoryScriptReviewStep({
               {script.map((scene, index) => {
                 const imageUrl = sceneImages[index] ?? "";
                 const speaking = scene.character !== "Narrator";
+                const multi = !!scene.multi_talk;
+                const orderVal = normalizeStoryMultiTalkOrder(scene.multi_talk_order);
                 return (
                   <div
                     key={`${scene.id}-${index}`}
@@ -302,16 +344,24 @@ export function StoryScriptReviewStep({
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <span className="inline-flex">
-                                    <Mic
-                                      className={`w-4 h-4 ${speaking ? "text-pink-500" : "text-muted-foreground"}`}
-                                    />
+                                    {multi ? (
+                                      <Users
+                                        className={`w-4 h-4 ${speaking ? "text-violet-500" : "text-muted-foreground"}`}
+                                      />
+                                    ) : (
+                                      <Mic
+                                        className={`w-4 h-4 ${speaking ? "text-pink-500" : "text-muted-foreground"}`}
+                                      />
+                                    )}
                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent>
                                   <p>
-                                    {speaking
-                                      ? "Character speaks on camera in this scene"
-                                      : "Narrator / voiceover style"}
+                                    {!speaking
+                                      ? "Narrator / voiceover style"
+                                      : multi
+                                        ? "Multi-character lipsync (infinitetalk/multi, left & right audio)"
+                                        : "Single-character lipsync (infinitetalk-fast)"}
                                   </p>
                                 </TooltipContent>
                               </Tooltip>
@@ -397,14 +447,86 @@ export function StoryScriptReviewStep({
                         </div>
                       </div>
 
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Dialogue / Narration</Label>
-                        <Textarea
-                          value={scene.audio}
-                          onChange={(e) => updateSceneField(index, { audio: e.target.value })}
-                          className="mt-1 min-h-[72px] text-sm"
-                        />
-                      </div>
+                      {multi ? (
+                        <>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Left character (in frame)</Label>
+                              <Input
+                                value={scene.character_left ?? ""}
+                                onChange={(e) => updateSceneField(index, { character_left: e.target.value })}
+                                className="mt-1 h-9 text-sm"
+                                placeholder="Name"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Right character (in frame)</Label>
+                              <Input
+                                value={scene.character_right ?? ""}
+                                onChange={(e) => updateSceneField(index, { character_right: e.target.value })}
+                                className="mt-1 h-9 text-sm"
+                                placeholder="Name"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">Left line (audio)</Label>
+                            <Textarea
+                              value={scene.audio_left ?? ""}
+                              onChange={(e) => updateSceneField(index, { audio_left: e.target.value })}
+                              className="mt-1 min-h-[64px] text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">Right line (audio)</Label>
+                            <Textarea
+                              value={scene.audio_right ?? ""}
+                              onChange={(e) => updateSceneField(index, { audio_right: e.target.value })}
+                              className="mt-1 min-h-[64px] text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">Speaking order</Label>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Maps to WaveSpeed <code className="text-xs">order</code>: which side speaks first, or both
+                              together.
+                            </p>
+                            <Select
+                              value={orderVal}
+                              onValueChange={(v) =>
+                                updateSceneField(index, { multi_talk_order: v as StoryMultiTalkOrder })
+                              }
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Order" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="left_right">Left character speaks first</SelectItem>
+                                <SelectItem value="right_left">Right character speaks first</SelectItem>
+                                <SelectItem value="meanwhile">Both at once</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">Summary (optional)</Label>
+                            <Textarea
+                              value={scene.audio}
+                              onChange={(e) => updateSceneField(index, { audio: e.target.value })}
+                              className="mt-1 min-h-[48px] text-sm"
+                              placeholder="Short summary for timeline / notes"
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Dialogue / Narration</Label>
+                          <Textarea
+                            value={scene.audio}
+                            onChange={(e) => updateSceneField(index, { audio: e.target.value })}
+                            className="mt-1 min-h-[72px] text-sm"
+                          />
+                        </div>
+                      )}
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">Scene Prompt</Label>
                         <Textarea
@@ -424,7 +546,11 @@ export function StoryScriptReviewStep({
 
         <div className="flex justify-center">
           <Button
-            onClick={onGenerateVideo}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onGenerateVideo();
+            }}
             disabled={generatePending || script.length === 0}
             className="floating-button py-3 px-6 sm:px-10 text-sm sm:text-base button-glow"
           >

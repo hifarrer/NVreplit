@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { SceneData } from "@/lib/types";
-import { Film, GripVertical, Clock, Mic, Music, Type, Play, Pause, AlertTriangle, Video, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
+import { Film, GripVertical, Clock, Mic, Music, Type, Play, Pause, AlertTriangle, Video, SkipBack, SkipForward, Volume2, VolumeX, Users } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -745,7 +745,13 @@ export function SceneTimeline({
                         ${isDragOver 
                           ? 'border-primary shadow-[0_0_20px_rgba(168,85,247,0.4)]' 
                           : 'border-slate-600 hover:border-slate-500'}
-                        ${isLipsync ? 'ring-2 ring-pink-500/30' : ''}
+                        ${
+                          isLipsync
+                            ? scene.storyMultiCharacter
+                              ? "ring-2 ring-violet-500/35"
+                              : "ring-2 ring-pink-500/30"
+                            : ""
+                        }
                       `}>
                         <div className="absolute top-1 left-1 z-20 cursor-grab active:cursor-grabbing">
                           <GripVertical className="w-4 h-4 text-white/70 drop-shadow-lg hover:text-white transition-colors" />
@@ -774,14 +780,24 @@ export function SceneTimeline({
                                 disabled={isInstrumental || lipsyncReadOnly}
                                 data-testid={`timeline-lipsync-toggle-${orderPosition + 1}`}
                               >
-                                <Mic className={`w-3 h-3 drop-shadow-lg ${isLipsync ? 'text-pink-400' : 'text-gray-400'}`} />
+                                {scene.storyMultiCharacter ? (
+                                  <Users
+                                    className={`w-3 h-3 drop-shadow-lg ${isLipsync ? "text-violet-400" : "text-gray-400"}`}
+                                  />
+                                ) : (
+                                  <Mic
+                                    className={`w-3 h-3 drop-shadow-lg ${isLipsync ? "text-pink-400" : "text-gray-400"}`}
+                                  />
+                                )}
                               </button>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-xs">
                               <p>
                                 {lipsyncReadOnly
                                   ? isLipsync
-                                    ? "Character speaks on camera in this scene"
+                                    ? scene.storyMultiCharacter
+                                      ? "Multi-character lipsync (two voices, left/right in frame)"
+                                      : "Character speaks on camera in this scene"
                                     : "Narration / voiceover style scene"
                                   : isInstrumental
                                     ? "Lipsync not available for instrumental videos"
@@ -956,8 +972,14 @@ export function SceneTimeline({
         </div>
         <div className="flex items-center gap-1.5">
           <Mic className="w-3 h-3 text-pink-400" />
-          <span>{timelineLayout === "story" ? "Speaking scene" : "Lipsync scene"}</span>
+          <span>{timelineLayout === "story" ? "Single-character lipsync" : "Lipsync scene"}</span>
         </div>
+        {timelineLayout === "story" && (
+          <div className="flex items-center gap-1.5">
+            <Users className="w-3 h-3 text-violet-400" />
+            <span>Multi-character lipsync</span>
+          </div>
+        )}
         <div className="flex items-center gap-1.5">
           <GripVertical className="w-3 h-3 text-slate-400" />
           <span>Drag to reorder</span>

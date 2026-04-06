@@ -8,6 +8,9 @@ export interface SceneData {
   imageUrl: string;
   lipsync?: boolean;
   videoUrl?: string; // Optional video preview URL for the scene
+  /** Story video: infinitetalk/multi (two characters) vs single infinitetalk-fast */
+  storyMultiCharacter?: boolean;
+  storyMultiTalkOrder?: "left_right" | "right_left" | "meanwhile";
 }
 
 export interface GenerationLog {

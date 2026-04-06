@@ -26,12 +26,12 @@ import { generateSongWithElevenLabs } from "./services/elevenlabs";
 import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, generateInstrumentalSong } from "./services/minimax";
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
-import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAlbumCoverSeedreamV5Lite, generateAiImageEdit } from "./services/fal";
-import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio } from "./services/wavespeed";
+import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAlbumCoverSeedreamV5Lite, generateAiImageEdit, collectStoryCharacterReferenceImageUrls } from "./services/fal";
+import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio } from "./services/wavespeed";
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
-import { resolveUrlWithImageKitFallback, uploadImageToImageKit, isImageKitConfigured } from "./services/imagekit";
+import { resolveUrlWithImageKitFallback } from "./services/imagekit";
 import { isBunnyConfigured, uploadToBunnyStorage, uploadCharacterImage, uploadSceneImage, uploadSongAudio, uploadSongCover, isBunnyUrl, uploadAudio } from "./services/bunny";
 import { emailService } from "./services/email";
 import { createMuxAssetForVideo } from "./services/muxJobs";
@@ -8064,20 +8064,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const bunnyResult = await uploadSceneImage(filename, processedImageBuffer);
         storedUrl = bunnyResult.url;
         console.log(`[Bunny Storage] Scene image uploaded: ${storedUrl}`);
-      } else if (isImageKitConfigured()) {
-        const imagekitResult = await uploadImageToImageKit(processedImageBuffer, filename, '/scenes');
-        storedUrl = imagekitResult.url;
-        console.log(`[ImageKit] Scene image uploaded: ${storedUrl}`);
-        try {
-          await storage.recordImagekitBackup({
-            originalPath: `/objects/scenes/${filename}`,
-            imagekitUrl: imagekitResult.url,
-            imagekitFileId: imagekitResult.fileId,
-            fileType: 'image'
-          });
-        } catch (err) {
-          console.error('[ImageKit] Failed to save backup record:', err);
-        }
       } else {
         const imagePath = `scenes/${filename}`;
         const objectStorageService = new ObjectStorageService();
@@ -8213,10 +8199,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const bunnyResult = await uploadSceneImage(filename, processedImageBuffer);
         imageUrl = bunnyResult.url;
         console.log(`[Bunny Storage] Standalone scene image uploaded: ${imageUrl}`);
-      } else if (isImageKitConfigured()) {
-        const result = await uploadImageToImageKit(processedImageBuffer, filename, "/scenes");
-        imageUrl = result.url;
-        console.log(`[ImageKit] Standalone scene image uploaded: ${imageUrl}`);
       } else {
         const imagePath = `scenes/${filename}`;
         const objectStorageService = new ObjectStorageService();
@@ -8274,9 +8256,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isBunnyConfigured("imageScenes")) {
         const bunnyResult = await uploadSceneImage(filename, buffer);
         imageUrl = bunnyResult.url;
-      } else if (isImageKitConfigured()) {
-        const result = await uploadImageToImageKit(buffer, filename, "/scenes");
-        imageUrl = result.url;
       } else {
         const imagePath = `scenes/${filename}`;
         const objectStorageService = new ObjectStorageService();
@@ -10120,7 +10099,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filename = `character_${nanoid()}.jpg`;
       const imagePath = `characters/${filename}`;
 
-      // Prefer Bunny Storage for character images when configured, then ImageKit, then GCS
+      // Prefer Bunny Storage for character images when configured; otherwise Google Cloud Storage
       let permanentPath: string;
 
       if (isBunnyConfigured("characters")) {
@@ -10142,28 +10121,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             error: `Image rejected: Our AI detected content that doesn't comply with our policies (${violationList}). Please upload a different image.`
           });
         }
-      } else if (isImageKitConfigured()) {
-        // Fallback to ImageKit
-        console.log(`[ImageKit] Uploading character image to ImageKit: ${filename}`);
-        const imagekitResult = await uploadImageToImageKit(processedBuffer, filename, '/characters');
-        permanentPath = imagekitResult.url;
-        console.log(`[ImageKit] Character image uploaded: ${permanentPath}`);
-
-        const moderationResult = await moderateImageContent(permanentPath);
-
-        if (!moderationResult.safe) {
-          console.log(`[Content Moderation] Image rejected but already uploaded to ImageKit: ${permanentPath}`);
-          if (moderationResult.error) {
-            return res.status(503).json({ error: moderationResult.error });
-          }
-          const violationList = moderationResult.violations.join(", ");
-          return res.status(400).json({
-            error: `Image rejected: Our AI detected content that doesn't comply with our policies (${violationList}). Please upload a different image.`
-          });
-        }
       } else {
-        // Fallback to Google Cloud Storage
-        console.log("[Storage] Bunny and ImageKit not configured, falling back to Google Cloud Storage");
+        // Google Cloud Storage
+        console.log("[Storage] Bunny not configured for characters, using Google Cloud Storage");
         const objectPath = `${objectStorage.getPrivateObjectDir()}/${imagePath}`;
         const { bucketName, objectName } = objectStorage.parseObjectPath(objectPath);
 
@@ -11106,7 +11066,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filename = `character_${nanoid()}.jpg`;
       const imagePath = `characters/${filename}`;
 
-      // Prefer Bunny Storage for character images when configured, then ImageKit, then GCS
+      // Prefer Bunny Storage for character images when configured; otherwise Google Cloud Storage
       let permanentPath: string;
 
       if (isBunnyConfigured("characters")) {
@@ -11127,37 +11087,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             error: `Image rejected: Our AI detected content that doesn't comply with our policies (${violationList}). Please upload a different image.`
           });
         }
-      } else if (isImageKitConfigured()) {
-        console.log(`[ImageKit] Uploading character image to ImageKit: ${filename}`);
-        const imagekitResult = await uploadImageToImageKit(processedBuffer, filename, '/characters');
-        permanentPath = imagekitResult.url;
-        console.log(`[ImageKit] Character image uploaded: ${permanentPath}`);
-
-        const moderationResult = await moderateImageContent(permanentPath);
-
-        if (!moderationResult.safe) {
-          console.log(`[Content Moderation] Image rejected but already uploaded to ImageKit: ${permanentPath}`);
-          if (moderationResult.error) {
-            return res.status(503).json({ error: moderationResult.error });
-          }
-          const violationList = moderationResult.violations.join(", ");
-          return res.status(400).json({
-            error: `Image rejected: Our AI detected content that doesn't comply with our policies (${violationList}). Please upload a different image.`
-          });
-        }
-
-        try {
-          await storage.recordImagekitBackup({
-            originalPath: `/objects/${imagePath}`,
-            imagekitUrl: permanentPath,
-            imagekitFileId: imagekitResult.fileId,
-            fileType: 'character'
-          });
-        } catch (backupError) {
-          console.error('[ImageKit] Failed to record backup:', backupError);
-        }
       } else {
-        console.log("[Storage] Bunny and ImageKit not configured, falling back to Google Cloud Storage");
+        console.log("[Storage] Bunny not configured for characters, using Google Cloud Storage");
         const objectPath = `${objectStorage.getPrivateObjectDir()}/${imagePath}`;
         const { bucketName, objectName } = objectStorage.parseObjectPath(objectPath);
 
@@ -15225,16 +15156,15 @@ Do not add markdown. Return JSON only.`,
       (async () => {
         try {
           const sceneDescriptions = storyScript.map((s) => s.scene_description);
-          const hasCharacterImage = storyCharacters.some((c) => c.imageUrl);
+          const refUrls = collectStoryCharacterReferenceImageUrls(storyCharacters);
 
-          console.log(`[Story Video] Preview: generating ${sceneDescriptions.length} scene images for ${project.id}`);
+          console.log(`[Story Video] Preview: generating ${sceneDescriptions.length} scene images for ${project.id} (${refUrls.length} character ref image(s))`);
 
           let sceneImages: string[];
-          if (hasCharacterImage) {
-            const refImage = storyCharacters.find((c) => c.imageUrl)!.imageUrl;
+          if (refUrls.length > 0) {
             sceneImages = await generateSceneImages(
               sceneDescriptions,
-              refImage,
+              refUrls,
               project.aspectRatio || "16:9",
             );
           } else {
@@ -15332,7 +15262,18 @@ Do not add markdown. Return JSON only.`,
         storyDuration: durationSec,
       });
 
-      const storyScript = project.storyScript as { id: number; character: string; audio: string; scene_description: string }[];
+      const storyScript = project.storyScript as {
+        id: number;
+        character: string;
+        audio: string;
+        scene_description: string;
+        multi_talk?: boolean;
+        character_left?: string;
+        character_right?: string;
+        audio_left?: string;
+        audio_right?: string;
+        multi_talk_order?: "left_right" | "right_left" | "meanwhile";
+      }[];
       const storyCharacters = (project.storyCharacters || []) as { name: string; imageUrl: string; voiceId: string | null; prompt: string }[];
 
       (async () => {
@@ -15356,42 +15297,79 @@ Do not add markdown. Return JSON only.`,
             }
           }
 
-          const audioPromises = storyScript.map(async (scene, index) => {
-            const voiceId = voiceMap[scene.character] || STORY_DEFAULT_NARRATOR_VOICE;
-            console.log(`[Story Video] Scene ${scene.id}: voice="${voiceId}" for "${scene.character}"`);
-            try {
-              const audioUrl = await generateStoryAudio(scene.audio, voiceId);
-
-              let storedUrl = audioUrl;
-              if (isBunnyConfigured()) {
-                try {
-                  const audioResponse = await fetch(audioUrl);
-                  if (audioResponse.ok) {
-                    const buffer = Buffer.from(await audioResponse.arrayBuffer());
-                    const fileName = `story-${project.id}-scene-${index + 1}-${Date.now()}.mp3`;
-                    const bunnyResult = await uploadAudio(fileName, buffer);
-                    storedUrl = bunnyResult.url;
-                    console.log(`[Story Video] Scene ${scene.id} audio stored on Bunny: ${storedUrl}`);
-                  }
-                } catch (bunnyErr) {
-                  console.warn(`[Story Video] Bunny upload failed for scene ${scene.id}, using original URL`, bunnyErr);
+          const storeAudioOnBunny = async (remoteUrl: string, fileLabel: string): Promise<string> => {
+            if (!isBunnyConfigured()) return remoteUrl;
+            const maxAttempts = 3;
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              try {
+                const audioResponse = await fetch(remoteUrl);
+                if (!audioResponse.ok) return remoteUrl;
+                const buffer = Buffer.from(await audioResponse.arrayBuffer());
+                const fileName = `story-${project.id}-${fileLabel}-${Date.now()}.mp3`;
+                const bunnyResult = await uploadAudio(fileName, buffer);
+                return bunnyResult.url;
+              } catch (e) {
+                const retryable =
+                  attempt < maxAttempts &&
+                  (String((e as Error)?.cause ?? (e as Error)?.message ?? e).includes("ECONNRESET") ||
+                    String((e as Error)?.message ?? e).includes("fetch failed") ||
+                    String((e as Error)?.message ?? e).includes("ETIMEDOUT"));
+                if (retryable) {
+                  await new Promise((r) => setTimeout(r, 800 * attempt));
+                  continue;
                 }
+                console.warn(
+                  `[Story Video] Bunny upload failed (${fileLabel})${attempt > 1 ? ` after ${attempt} attempts` : ""}, using original URL`,
+                  e,
+                );
+                return remoteUrl;
+              }
+            }
+            return remoteUrl;
+          };
+
+          const audioPromises = storyScript.map(async (scene, index) => {
+            try {
+              if (
+                scene.multi_talk &&
+                (scene.audio_left || "").trim() &&
+                (scene.audio_right || "").trim()
+              ) {
+                const vL = voiceMap[scene.character_left || ""] || STORY_DEFAULT_NARRATOR_VOICE;
+                const vR = voiceMap[scene.character_right || ""] || STORY_DEFAULT_NARRATOR_VOICE;
+                console.log(
+                  `[Story Video] Scene ${scene.id}: multi_talk voices L="${vL}" (${scene.character_left}) R="${vR}" (${scene.character_right})`,
+                );
+                const leftRaw = await generateStoryAudio((scene.audio_left || "").trim(), vL);
+                const rightRaw = await generateStoryAudio((scene.audio_right || "").trim(), vR);
+                const leftStored = await storeAudioOnBunny(leftRaw, `scene-${index + 1}-L`);
+                const rightStored = await storeAudioOnBunny(rightRaw, `scene-${index + 1}-R`);
+                console.log(`[Story Video] Scene ${scene.id} dual audio ready`);
+                return { index, url: leftStored, urlRight: rightStored };
               }
 
-              return { index, url: storedUrl };
+              const voiceId = voiceMap[scene.character] || STORY_DEFAULT_NARRATOR_VOICE;
+              const line = typeof scene.audio === "string" ? scene.audio : "";
+              console.log(`[Story Video] Scene ${scene.id}: voice="${voiceId}" for "${scene.character}"`);
+              const audioUrl = await generateStoryAudio(line, voiceId);
+              const storedUrl = await storeAudioOnBunny(audioUrl, `scene-${index + 1}`);
+              console.log(`[Story Video] Scene ${scene.id} audio stored: ${storedUrl}`);
+              return { index, url: storedUrl, urlRight: "" };
             } catch (err) {
               console.error(`[Story Video] Audio gen failed for scene ${scene.id}:`, err);
-              return { index, url: null };
+              return { index, url: null, urlRight: null };
             }
           });
 
           const audioResults = await Promise.all(audioPromises);
           const audioUrls: string[] = new Array(storyScript.length).fill("");
+          const audioUrlsRight: string[] = new Array(storyScript.length).fill("");
           for (const r of audioResults) {
             if (r.url) audioUrls[r.index] = r.url;
+            if (r.urlRight) audioUrlsRight[r.index] = r.urlRight;
           }
 
-          await storage.updateProject(project.id, { storyAudioUrls: audioUrls });
+          await storage.updateProject(project.id, { storyAudioUrls: audioUrls, storyAudioUrlsRight: audioUrlsRight });
           await storage.addGenerationLog({
             projectId: project.id,
             step: "story_audio",
@@ -15431,13 +15409,12 @@ Do not add markdown. Return JSON only.`,
             });
             console.log(`[Story Video] Generating ${storyScript.length} scene images`);
 
-            const hasCharacterImage = storyCharacters.some((c) => c.imageUrl);
+            const refUrls = collectStoryCharacterReferenceImageUrls(storyCharacters);
 
-            if (hasCharacterImage) {
-              const refImage = storyCharacters.find((c) => c.imageUrl)!.imageUrl;
+            if (refUrls.length > 0) {
               sceneImages = await generateSceneImages(
                 sceneDescriptions,
-                refImage,
+                refUrls,
                 project.aspectRatio || "16:9",
               );
             } else {
@@ -15506,12 +15483,11 @@ Do not add markdown. Return JSON only.`,
       });
 
       const storyCharacters = (project.storyCharacters || []) as { name: string; imageUrl: string; voiceId: string | null; prompt: string }[];
-      const hasCharacterImage = storyCharacters.some((c) => c.imageUrl);
+      const refUrls = collectStoryCharacterReferenceImageUrls(storyCharacters);
 
       let newImageUrl: string;
-      if (hasCharacterImage) {
-        const refImage = storyCharacters.find((c) => c.imageUrl)!.imageUrl;
-        newImageUrl = await generateSingleSceneImage(prompt, refImage, project.aspectRatio || "16:9");
+      if (refUrls.length > 0) {
+        newImageUrl = await generateSingleSceneImage(prompt, refUrls, project.aspectRatio || "16:9");
       } else {
         const images = await generateSceneImagesFromText([prompt], project.aspectRatio || "16:9");
         newImageUrl = images[0];
@@ -15614,9 +15590,6 @@ Do not add markdown. Return JSON only.`,
         if (isBunnyConfigured("imageScenes")) {
           const bunnyResult = await uploadSceneImage(filename, processedImageBuffer);
           storedUrl = bunnyResult.url;
-        } else if (isImageKitConfigured()) {
-          const imagekitResult = await uploadImageToImageKit(processedImageBuffer, filename, "/scenes");
-          storedUrl = imagekitResult.url;
         } else {
           const imagePath = `scenes/${filename}`;
           const objectStorageService = new ObjectStorageService();
@@ -15703,8 +15676,31 @@ Do not add markdown. Return JSON only.`,
 
       const sceneImages = (project.storySceneImages || []) as string[];
       const audioUrls = (project.storyAudioUrls || []) as string[];
+      const audioUrlsRight = (project.storyAudioUrlsRight || []) as string[];
+      const scriptPre = (project.storyScript || []) as {
+        character: string;
+        multi_talk?: boolean;
+        audio_left?: string;
+        audio_right?: string;
+      }[];
 
-      if (sceneImages.length === 0 || audioUrls.filter(Boolean).length === 0) {
+      let audioAssetsIncomplete = sceneImages.length === 0;
+      if (!audioAssetsIncomplete) {
+        for (let i = 0; i < scriptPre.length; i++) {
+          const s = scriptPre[i];
+          if (!audioUrls[i]) {
+            audioAssetsIncomplete = true;
+            break;
+          }
+          if (s?.multi_talk && (s.audio_left || "").trim() && (s.audio_right || "").trim()) {
+            if (!(audioUrlsRight[i] || "").trim()) {
+              audioAssetsIncomplete = true;
+              break;
+            }
+          }
+        }
+      }
+      if (audioAssetsIncomplete) {
         return res.status(400).json({ error: "Assets not yet generated" });
       }
 
@@ -15725,8 +15721,20 @@ Do not add markdown. Return JSON only.`,
 
       (async () => {
         try {
-          const storyScript = (project.storyScript || []) as { id: number; character: string; audio: string; scene_description: string }[];
+          const storyScript = (project.storyScript || []) as {
+            id: number;
+            character: string;
+            audio: string;
+            scene_description: string;
+            multi_talk?: boolean;
+            character_left?: string;
+            character_right?: string;
+            audio_left?: string;
+            audio_right?: string;
+            multi_talk_order?: "left_right" | "right_left" | "meanwhile";
+          }[];
           const aspectRatio = project.aspectRatio || "16:9";
+          const audioUrlsRightSeg = (project.storyAudioUrlsRight || []) as string[];
           // Match music-video merge dimensions so neonvideo_merge + outro scale consistently
           const dimensions =
             aspectRatio === "9:16"
@@ -15754,10 +15762,30 @@ Do not add markdown. Return JSON only.`,
 
           const videoSegmentPromises = sceneImages.map(async (sceneImage, i) => {
             const sceneAudio = audioUrls[i];
+            const sceneAudioRight = (audioUrlsRightSeg[i] || "").trim();
             const scenePrompt = (project.storyScenePrompts as string[])?.[i] || "animated scene";
             const isNarrator = storyScript[i]?.character === "Narrator";
+            const sc = storyScript[i];
+            const useInfinitetalkMulti =
+              !isNarrator &&
+              !!sc?.multi_talk &&
+              (sc.audio_left || "").trim() &&
+              (sc.audio_right || "").trim() &&
+              !!sceneAudio &&
+              !!sceneAudioRight;
+            const multiOrder =
+              sc?.multi_talk_order === "right_left" || sc?.multi_talk_order === "meanwhile"
+                ? sc.multi_talk_order
+                : "left_right";
 
-            console.log(`[Story Video] Scene ${i + 1}/${sceneImages.length} — character: "${storyScript[i]?.character}", model: ${isNarrator ? "seedance" : "infinitetalk"}`);
+            const modelLabel = isNarrator
+              ? "seedance"
+              : useInfinitetalkMulti
+                ? "infinitetalk/multi"
+                : "infinitetalk";
+            console.log(
+              `[Story Video] Scene ${i + 1}/${sceneImages.length} — character: "${storyScript[i]?.character}", model: ${modelLabel}`,
+            );
 
             try {
               let clipUrl: string;
@@ -15790,8 +15818,21 @@ Do not add markdown. Return JSON only.`,
                   clipUrl = silentVideoUrl;
                   console.warn(`[Story Video] Scene ${i + 1}: no audio available, using silent video`);
                 }
+              } else if (useInfinitetalkMulti) {
+                console.log(
+                  `[Story Video] Scene ${i + 1}: infinitetalk/multi order=${multiOrder} (dual character lipsync)`,
+                );
+                clipUrl = await generateInfinitetalkMultiVideoSegment(
+                  sceneImage,
+                  sceneAudio,
+                  sceneAudioRight,
+                  multiOrder,
+                  scenePrompt,
+                  "480p",
+                );
+                console.log(`[Story Video] Scene ${i + 1}: infinitetalk/multi video ready`);
               } else {
-                console.log(`[Story Video] Scene ${i + 1}: infinitetalk (character lipsync)`);
+                console.log(`[Story Video] Scene ${i + 1}: infinitetalk-fast (single character lipsync)`);
                 clipUrl = await generateVideoSegment(
                   sceneAudio || "",
                   sceneImage,
