@@ -16043,6 +16043,710 @@ Do not add markdown. Return JSON only.`,
     }
   });
 
+  // ─── AUTO-GENERATE STORY VIDEO (private, cron-friendly) ──────────────
+  app.options("/api/auto-generate-story-video", (_req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.sendStatus(204);
+  });
+
+  async function processAutoGenerateStoryVideo(
+    userId: string,
+    projectId: string,
+    targetDuration: number,
+    includeCaptions: boolean,
+    videoQuality: string,
+  ) {
+    const notificationEmail = process.env.CONTACT_EMAIL || "info@neonvideo.ai";
+    const baseUrl = process.env.FRONTEND_URL || "https://neonvideo.ai";
+    const LOG_TAG = "[AUTO-STORY]";
+
+    try {
+      const OpenAI = (await import("openai")).default;
+      const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+      const sceneCount = Math.floor(targetDuration / 5);
+      const aspectRatio = "9:16";
+
+      // ── Step 1: Generate story script via OpenAI ──
+      console.log(`${LOG_TAG} Step 1: Generating story script (${sceneCount} scenes, ${targetDuration}s)`);
+      await storage.addGenerationLog({
+        projectId,
+        step: "auto_story_script",
+        message: "Writing the story...",
+        status: "started",
+      });
+
+      const scriptResponse = await openaiClient.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are a professional story writer for short animated videos. Generate a complete story with characters and scenes.
+
+OUTPUT FORMAT: Respond ONLY with valid JSON matching this schema:
+{
+  "title": "Story title (max 60 chars)",
+  "theme": "fantasy" | "medieval" | "kids_tale" | "futuristic",
+  "narrator_voice": "Theodore" | "Alex" | "Ashley",
+  "art_style": "realistic" | "3d" | "cartoon",
+  "characters": [
+    {
+      "name": "CharacterName (single word or two words, no spaces in JSON keys)",
+      "gender": "male" | "female",
+      "age": "child" | "teen" | "adult" | "elderly",
+      "description": "Detailed visual description of the character's appearance, clothing, and distinctive features for image generation"
+    }
+  ],
+  "scenes": [
+    {
+      "id": 1,
+      "character": "Narrator" or "CharacterName",
+      "audio": "The spoken dialogue or narration for this 5-second scene (12-18 words)",
+      "scene_description": "Vivid visual description of what should be shown (camera angle, setting, character actions)"
+    }
+  ]
+}
+
+RULES:
+- Generate EXACTLY 1 or 2 characters (never more). All stories need 1 or 2 characters.
+- Always include a Narrator who sets up scenes and provides transitions.
+- Generate EXACTLY ${sceneCount} scenes (video is ${targetDuration}s, each scene is 5s).
+- Each scene's "audio" must be 12-18 words (fits in 5 seconds of speech). Never fewer than 8 words or more than 20.
+- Distribute dialogue among narrator and characters naturally. Each character speaks at least once.
+- Scene descriptions must be vivid and specific, describing camera angles, settings, and character actions.
+- Name characters in scene_description when they are visible.
+- Pick the theme randomly from: fantasy, medieval, kids_tale, futuristic.
+- Pick narrator_voice based on the story mood: Theodore (old man, great for fantasy/medieval), Alex (energetic male, great for action/futuristic), Ashley (serene female, great for kids tales/gentle stories).
+- Pick art_style based on theme: "realistic" for medieval/futuristic, "3d" for fantasy, "cartoon" for kids tales. You may vary this creatively.
+- Character descriptions should be detailed enough for AI image generation (appearance, clothing, hair, notable features).
+- For two-character scenes where BOTH characters speak, you may use multi_talk. Add these fields to the scene:
+  "multi_talk": true, "character_left": "Name1", "character_right": "Name2", "audio_left": "dialogue for left character", "audio_right": "dialogue for right character", "multi_talk_order": "left_right" | "right_left" | "meanwhile"
+  When multi_talk is true, the "character" field should be the primary speaker and "audio" can be empty.
+- Keep multi_talk scenes to at most 2-3 per story. Most scenes should be single-speaker.`,
+          },
+          {
+            role: "user",
+            content: "Generate a unique and captivating short story for an animated video. Be creative with the characters and plot!",
+          },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 1.1,
+        max_tokens: 2000,
+      });
+
+      const storyData = JSON.parse(scriptResponse.choices[0].message.content || "{}");
+      console.log(`${LOG_TAG} Story generated: "${storyData.title}" (${storyData.theme}), ${storyData.characters?.length} characters, ${storyData.scenes?.length} scenes`);
+
+      if (!storyData.scenes || !Array.isArray(storyData.scenes) || storyData.scenes.length === 0) {
+        throw new Error("OpenAI returned no scenes");
+      }
+      if (!storyData.characters || !Array.isArray(storyData.characters) || storyData.characters.length === 0) {
+        throw new Error("OpenAI returned no characters");
+      }
+
+      const storyTitle = storyData.title || "Auto-Generated Story";
+      const narratorVoice = storyData.narrator_voice || "Alex";
+      const artStyle: string = storyData.art_style || "3d";
+      const storyScript = storyData.scenes as {
+        id: number;
+        character: string;
+        audio: string;
+        scene_description: string;
+        multi_talk?: boolean;
+        character_left?: string;
+        character_right?: string;
+        audio_left?: string;
+        audio_right?: string;
+        multi_talk_order?: "left_right" | "right_left" | "meanwhile";
+      }[];
+
+      await storage.updateProject(projectId, {
+        title: storyTitle.substring(0, 80),
+        description: storyData.title,
+        storyPrompt: `Auto-generated ${storyData.theme} story: ${storyTitle}`,
+        storyDuration: targetDuration,
+        storyNarrator: true,
+        storyNarratorVoice: narratorVoice,
+        storyScript,
+        storyScenePrompts: storyScript.map((s) => s.scene_description),
+        currentStep: 2,
+      });
+
+      await storage.addGenerationLog({
+        projectId,
+        step: "auto_story_script",
+        message: `Script generated: "${storyTitle}" with ${storyScript.length} scenes`,
+        status: "completed",
+        metadata: { title: storyTitle, theme: storyData.theme, sceneCount: storyScript.length },
+      });
+
+      // ── Step 2: Generate character images ──
+      console.log(`${LOG_TAG} Step 2: Generating ${storyData.characters.length} character images (style: ${artStyle})`);
+      await storage.addGenerationLog({
+        projectId,
+        step: "auto_story_characters",
+        message: "Creating characters...",
+        status: "started",
+      });
+
+      const storyCharacters: { name: string; imageUrl: string; voiceId: string | null; prompt: string }[] = [];
+
+      for (const char of storyData.characters.slice(0, 2)) {
+        const charPrompt = `front shot of a ${char.description}`;
+        console.log(`${LOG_TAG} Generating character "${char.name}" with style "${artStyle}": ${charPrompt.substring(0, 100)}...`);
+        try {
+          const imageUrls = await generateCharacterImages(charPrompt, aspectRatio, artStyle);
+          const imageUrl = imageUrls[0] || "";
+          storyCharacters.push({
+            name: char.name,
+            imageUrl,
+            voiceId: null,
+            prompt: charPrompt,
+          });
+          console.log(`${LOG_TAG} Character "${char.name}" image generated: ${imageUrl.substring(0, 80)}...`);
+        } catch (charErr) {
+          console.error(`${LOG_TAG} Character "${char.name}" image generation failed:`, charErr);
+          storyCharacters.push({
+            name: char.name,
+            imageUrl: "",
+            voiceId: null,
+            prompt: charPrompt,
+          });
+        }
+      }
+
+      await storage.addGenerationLog({
+        projectId,
+        step: "auto_story_characters",
+        message: `Generated ${storyCharacters.filter((c) => c.imageUrl).length}/${storyCharacters.length} character images`,
+        status: "completed",
+      });
+
+      // ── Step 3: Assign voices to characters via OpenAI ──
+      console.log(`${LOG_TAG} Step 3: Assigning voices to characters`);
+
+      const voiceAssignmentResponse = await openaiClient.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You assign voices to story characters. Given character info, pick the best voice ID for each.
+
+Available MALE voices:
+- "Alex": Energetic younger male adult
+- "Craig": Older male adult, calm
+- "Theodore": Old man, wise
+- "Hades": Deep menacing voice, great for villains
+
+Available FEMALE/KIDS voices:
+- "Ashley": Serene adult female
+- "Elizabeth": Younger adult female
+- "Julia": Female teenager
+- "Pixie": High-pitched, great for small creatures or fairies
+
+Respond ONLY with valid JSON: { "assignments": { "CharacterName": "VoiceId", ... } }
+Pick voices that best match each character's personality, age, and gender.`,
+          },
+          {
+            role: "user",
+            content: `Assign voices to these characters:\n${storyData.characters.map((c: any) => `- ${c.name}: ${c.gender}, ${c.age}, ${c.description}`).join("\n")}`,
+          },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+      });
+
+      const voiceAssignments = JSON.parse(voiceAssignmentResponse.choices[0].message.content || "{}");
+      const assignments: Record<string, string> = voiceAssignments.assignments || {};
+      console.log(`${LOG_TAG} Voice assignments:`, assignments);
+
+      const voiceMap: Record<string, string> = {};
+      voiceMap["narrator"] = narratorVoice;
+
+      for (const char of storyCharacters) {
+        const key = (char.name || "").trim().toLowerCase();
+        if (!key) continue;
+        const assignedVoice = assignments[char.name] || assignments[key];
+        if (assignedVoice) {
+          voiceMap[key] = assignedVoice;
+          char.voiceId = assignedVoice;
+        } else {
+          voiceMap[key] = STORY_DEFAULT_CHARACTER_VOICE_POOL[storyCharacters.indexOf(char) % STORY_DEFAULT_CHARACTER_VOICE_POOL.length];
+          char.voiceId = voiceMap[key];
+        }
+      }
+
+      await storage.updateProject(projectId, { storyCharacters });
+      console.log(`${LOG_TAG} Voice map:`, voiceMap);
+
+      // ── Step 4: Generate TTS audio for all scenes ──
+      console.log(`${LOG_TAG} Step 4: Generating audio for ${storyScript.length} scenes`);
+      await storage.addGenerationLog({
+        projectId,
+        step: "auto_story_audio",
+        message: "Creating character voices...",
+        status: "started",
+      });
+
+      const storeAudioOnBunny = async (remoteUrl: string, fileLabel: string): Promise<string> => {
+        if (!isBunnyConfigured()) return remoteUrl;
+        const maxAttempts = 3;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            const audioResponse = await fetch(remoteUrl);
+            if (!audioResponse.ok) return remoteUrl;
+            const buffer = Buffer.from(await audioResponse.arrayBuffer());
+            const fileName = `story-${projectId}-${fileLabel}-${Date.now()}.mp3`;
+            const bunnyResult = await uploadAudio(fileName, buffer);
+            return bunnyResult.url;
+          } catch (e) {
+            const retryable =
+              attempt < maxAttempts &&
+              (String((e as Error)?.cause ?? (e as Error)?.message ?? e).includes("ECONNRESET") ||
+                String((e as Error)?.message ?? e).includes("fetch failed") ||
+                String((e as Error)?.message ?? e).includes("ETIMEDOUT"));
+            if (retryable) {
+              await new Promise((r) => setTimeout(r, 800 * attempt));
+              continue;
+            }
+            console.warn(`${LOG_TAG} Bunny upload failed (${fileLabel})`, e);
+            return remoteUrl;
+          }
+        }
+        return remoteUrl;
+      };
+
+      const audioPromises = storyScript.map(async (scene, index) => {
+        try {
+          if (
+            scene.multi_talk &&
+            (scene.audio_left || "").trim() &&
+            (scene.audio_right || "").trim()
+          ) {
+            const vL = voiceMap[(scene.character_left || "").trim().toLowerCase()] || STORY_DEFAULT_NARRATOR_VOICE;
+            const vR = voiceMap[(scene.character_right || "").trim().toLowerCase()] || STORY_DEFAULT_NARRATOR_VOICE;
+            console.log(`${LOG_TAG} Scene ${scene.id}: multi_talk L="${vL}" R="${vR}"`);
+            const leftRaw = await generateStoryAudio((scene.audio_left || "").trim(), vL);
+            const rightRaw = await generateStoryAudio((scene.audio_right || "").trim(), vR);
+            const leftStored = await storeAudioOnBunny(leftRaw, `scene-${index + 1}-L`);
+            const rightStored = await storeAudioOnBunny(rightRaw, `scene-${index + 1}-R`);
+            return { index, url: leftStored, urlRight: rightStored };
+          }
+
+          const voiceId = voiceMap[(scene.character || "").trim().toLowerCase()] || STORY_DEFAULT_NARRATOR_VOICE;
+          const line = typeof scene.audio === "string" ? scene.audio : "";
+          console.log(`${LOG_TAG} Scene ${scene.id}: voice="${voiceId}" for "${scene.character}"`);
+          const audioUrl = await generateStoryAudio(line, voiceId);
+          const storedUrl = await storeAudioOnBunny(audioUrl, `scene-${index + 1}`);
+          return { index, url: storedUrl, urlRight: "" };
+        } catch (err) {
+          console.error(`${LOG_TAG} Audio gen failed for scene ${scene.id}:`, err);
+          return { index, url: null, urlRight: null };
+        }
+      });
+
+      const audioResults = await Promise.all(audioPromises);
+      const audioUrls: string[] = new Array(storyScript.length).fill("");
+      const audioUrlsRight: string[] = new Array(storyScript.length).fill("");
+      for (const r of audioResults) {
+        if (r.url) audioUrls[r.index] = r.url;
+        if (r.urlRight) audioUrlsRight[r.index] = r.urlRight;
+      }
+
+      await storage.updateProject(projectId, { storyAudioUrls: audioUrls, storyAudioUrlsRight: audioUrlsRight });
+      await storage.addGenerationLog({
+        projectId,
+        step: "auto_story_audio",
+        message: `Generated ${audioUrls.filter(Boolean).length}/${storyScript.length} audio files`,
+        status: "completed",
+      });
+
+      // ── Step 5: Generate scene images ──
+      console.log(`${LOG_TAG} Step 5: Generating ${storyScript.length} scene images`);
+      await storage.addGenerationLog({
+        projectId,
+        step: "auto_story_images",
+        message: "Painting the scenes...",
+        status: "started",
+      });
+
+      const sceneDescriptions = storyScript.map((s) => s.scene_description);
+      const refUrls = collectStoryCharacterReferenceImageUrls(storyCharacters);
+
+      let sceneImages: string[];
+      if (refUrls.length > 0) {
+        sceneImages = await generateSceneImages(sceneDescriptions, refUrls, aspectRatio);
+      } else {
+        sceneImages = await generateSceneImagesFromText(sceneDescriptions, aspectRatio);
+      }
+
+      await storage.updateProject(projectId, {
+        storySceneImages: sceneImages,
+        currentStep: 3,
+      });
+      await storage.addGenerationLog({
+        projectId,
+        step: "auto_story_images",
+        message: `Generated ${sceneImages.length} scene images`,
+        status: "completed",
+      });
+
+      // ── Step 6: Generate video segments ──
+      console.log(`${LOG_TAG} Step 6: Generating ${sceneImages.length} video segments`);
+      const generationId = nanoid();
+      await storage.updateProject(projectId, {
+        generationId,
+        generationStatus: "generating",
+        generationStartedAt: new Date(),
+        generationTimeoutAt: new Date(Date.now() + 30 * 60 * 1000),
+        currentStep: 4,
+      });
+
+      await storage.addGenerationLog({
+        projectId,
+        step: "auto_story_video_start",
+        message: "Bringing scenes to life...",
+        status: "started",
+      });
+
+      const dimensions =
+        aspectRatio === "9:16" ? "1080x1920"
+        : aspectRatio === "3:4" ? "1080x1440"
+        : "1920x1080";
+
+      const videoSegmentPromises = sceneImages.map(async (sceneImage, i) => {
+        const sceneAudio = audioUrls[i];
+        const sceneAudioRight = (audioUrlsRight[i] || "").trim();
+        const scenePrompt = sceneDescriptions[i] || "animated scene";
+        const isNarrator = storyScript[i]?.character === "Narrator";
+        const sc = storyScript[i];
+        const useInfinitetalkMulti =
+          !isNarrator &&
+          !!sc?.multi_talk &&
+          (sc.audio_left || "").trim() &&
+          (sc.audio_right || "").trim() &&
+          !!sceneAudio &&
+          !!sceneAudioRight;
+        const multiOrder =
+          sc?.multi_talk_order === "right_left" || sc?.multi_talk_order === "meanwhile"
+            ? sc.multi_talk_order
+            : "left_right";
+
+        const modelLabel = isNarrator ? "seedance" : useInfinitetalkMulti ? "infinitetalk/multi" : "infinitetalk";
+        console.log(`${LOG_TAG} Scene ${i + 1}/${sceneImages.length} — "${storyScript[i]?.character}", model: ${modelLabel}`);
+
+        try {
+          let clipUrl: string;
+
+          if (isNarrator) {
+            const silentVideoUrl = await generateVideoSegment(
+              "",
+              sceneImage,
+              scenePrompt,
+              "seedance",
+              5,
+              (videoQuality as "quick" | "medium" | "premium") || "medium",
+              aspectRatio,
+            );
+            if (sceneAudio) {
+              const mergeResult = await mergeVideos([silentVideoUrl], sceneAudio, undefined, undefined, undefined, dimensions);
+              clipUrl = mergeResult.download_url;
+            } else {
+              clipUrl = silentVideoUrl;
+            }
+          } else if (useInfinitetalkMulti) {
+            clipUrl = await generateInfinitetalkMultiVideoSegment(
+              sceneImage,
+              sceneAudio,
+              sceneAudioRight,
+              multiOrder,
+              scenePrompt,
+              "480p",
+            );
+          } else {
+            clipUrl = await generateVideoSegment(
+              sceneAudio || "",
+              sceneImage,
+              scenePrompt,
+              "infinitetalk",
+              5,
+              (videoQuality as "quick" | "medium" | "premium") || "medium",
+              aspectRatio,
+            );
+          }
+
+          let storedClipUrl = clipUrl;
+          if (isBunnyConfigured()) {
+            try {
+              const clipResponse = await fetch(clipUrl);
+              if (clipResponse.ok) {
+                const buffer = Buffer.from(await clipResponse.arrayBuffer());
+                const fileName = `story-${projectId}-seg-${i + 1}-${Date.now()}.mp4`;
+                const bunnyResult = await uploadToBunnyStorage("scenes", fileName, buffer);
+                storedClipUrl = bunnyResult.url;
+              }
+            } catch (bunnyErr) {
+              console.warn(`${LOG_TAG} Bunny upload failed for segment ${i + 1}`, bunnyErr);
+            }
+          }
+
+          console.log(`${LOG_TAG} Scene ${i + 1} complete: ${storedClipUrl.substring(0, 80)}`);
+          return { index: i, url: storedClipUrl };
+        } catch (segErr) {
+          console.error(`${LOG_TAG} Scene ${i + 1} failed:`, segErr);
+          throw new Error(`Scene ${i + 1} video generation failed: ${(segErr as Error).message}`);
+        }
+      });
+
+      const results = await Promise.all(videoSegmentPromises);
+      const videoSegmentUrls = results.sort((a, b) => a.index - b.index).map((r) => r.url);
+
+      await storage.updateProject(projectId, { videoSegments: videoSegmentUrls });
+      await storage.addGenerationLog({
+        projectId,
+        step: "auto_story_video_segments",
+        message: `All ${videoSegmentUrls.length} video segments generated`,
+        status: "completed",
+      });
+
+      // ── Step 7: Merge, captions, finalize ──
+      console.log(`${LOG_TAG} Step 7: Merging ${videoSegmentUrls.length} segments`);
+      await storage.addGenerationLog({
+        projectId,
+        step: "auto_story_merge",
+        message: "Assembling the final video...",
+        status: "started",
+      });
+
+      const outroVideoUrl = "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4";
+
+      const storyWatermarkUrl = (await getWatermarkUrl()) || undefined;
+
+      const mergeResult = await mergeVideos(
+        videoSegmentUrls,
+        undefined,
+        undefined,
+        storyWatermarkUrl,
+        outroVideoUrl,
+        dimensions,
+      );
+
+      let finalVideoUrl = mergeResult.download_url;
+      if (isBunnyConfigured() && finalVideoUrl) {
+        try {
+          const mergedResponse = await fetch(finalVideoUrl);
+          if (mergedResponse.ok) {
+            const buffer = Buffer.from(await mergedResponse.arrayBuffer());
+            const fileName = `story-${projectId}-final-${Date.now()}.mp4`;
+            const bunnyResult = await uploadToBunnyStorage("final", fileName, buffer);
+            finalVideoUrl = bunnyResult.url;
+            console.log(`${LOG_TAG} Final video on Bunny: ${finalVideoUrl}`);
+          }
+        } catch (uploadErr) {
+          console.warn(`${LOG_TAG} Bunny upload for final video failed, using merge URL`, uploadErr);
+        }
+      }
+
+      if (includeCaptions) {
+        try {
+          await storage.addGenerationLog({
+            projectId,
+            step: "auto_story_captions",
+            message: "Adding captions...",
+            status: "started",
+          });
+
+          const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
+          const captionResult = await addTikTokCaptions({
+            videoUrl: finalVideoUrl,
+            subtitleStyle: "yellow-bg",
+            language: "auto",
+            aspectRatio,
+            position: "bottom",
+            maxCharsPerLine: 50,
+            maxLines: 1,
+          });
+
+          if (isBunnyConfigured()) {
+            const capResponse = await fetch(captionResult.download_url);
+            if (capResponse.ok) {
+              const capBuffer = Buffer.from(await capResponse.arrayBuffer());
+              const capFileName = `story-${projectId}-final-captioned-${Date.now()}.mp4`;
+              const capBunny = await uploadToBunnyStorage("final", capFileName, capBuffer);
+              finalVideoUrl = capBunny.url;
+            } else {
+              finalVideoUrl = captionResult.download_url;
+            }
+          } else {
+            finalVideoUrl = captionResult.download_url;
+          }
+
+          await storage.addGenerationLog({
+            projectId,
+            step: "auto_story_captions",
+            message: "Captions added",
+            status: "completed",
+          });
+        } catch (capErr) {
+          console.warn(`${LOG_TAG} Caption step failed, keeping uncaptioned final:`, capErr);
+          await storage.addGenerationLog({
+            projectId,
+            step: "auto_story_captions",
+            message: `Captions skipped: ${(capErr as Error).message}`,
+            status: "warning",
+          });
+        }
+      }
+
+      await storage.updateProject(projectId, {
+        finalVideoUrl,
+        isCompleted: true,
+        currentStep: 5,
+        generationStatus: "completed",
+      });
+
+      await storage.addGenerationLog({
+        projectId,
+        step: "auto_story_complete",
+        message: "Story video is ready!",
+        status: "completed",
+        metadata: { finalVideoUrl },
+      });
+
+      try {
+        await createMuxAssetForVideo(projectId, finalVideoUrl);
+        console.log(`${LOG_TAG} MUX asset creation initiated for project ${projectId}`);
+      } catch (muxErr) {
+        console.warn(`${LOG_TAG} MUX asset creation failed:`, muxErr);
+      }
+
+      console.log(`${LOG_TAG} Generation complete for project ${projectId}`);
+
+      await emailService.sendEmail({
+        to: notificationEmail,
+        subject: `Auto-generated story video is ready: ${storyTitle}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Auto-Generated Story Video Ready</h2>
+            <p><strong>${storyTitle}</strong></p>
+            <p>Theme: ${storyData.theme} | Style: ${artStyle} | Duration: ${targetDuration}s</p>
+            <p>Characters: ${storyCharacters.map((c) => c.name).join(", ")}</p>
+            <p><a href="${baseUrl}/v/${projectId}">View project</a></p>
+            <p style="color:#666; font-size: 12px;">Project ID: ${projectId}</p>
+          </div>
+        `,
+      });
+    } catch (error) {
+      const errMsg = (error as Error).message;
+      console.error(`${LOG_TAG} Error:`, error);
+
+      await storage.updateProject(projectId, { generationStatus: "failed" });
+      await storage.addGenerationLog({
+        projectId,
+        step: "auto_story_error",
+        message: `Generation failed: ${errMsg}`,
+        status: "error",
+      });
+
+      const notificationEmail = process.env.CONTACT_EMAIL || "info@neonvideo.ai";
+      const baseUrl = process.env.FRONTEND_URL || "https://neonvideo.ai";
+      await emailService.sendEmail({
+        to: notificationEmail,
+        subject: "Auto-generated story video failed",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Auto-Generated Story Video Failed</h2>
+            <p>Error: ${errMsg}</p>
+            <p>Project ID: ${projectId}</p>
+            <p><a href="${baseUrl}/v/${projectId}">View project</a></p>
+          </div>
+        `,
+      });
+    }
+  }
+
+  app.get("/api/auto-generate-story-video", extractTokenFromUrl, authenticateToken, async (req: any, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    try {
+      const userId = req.user!.userId;
+      const { duration: requestedDuration, quality: requestedQuality, captions: requestedCaptions } = req.query;
+
+      const validQualities = ["medium", "premium"];
+      const videoQuality = validQualities.includes(requestedQuality) ? requestedQuality : "medium";
+
+      let targetDuration = 45;
+      if (requestedDuration) {
+        const parsedDuration = parseInt(requestedDuration, 10);
+        if (!isNaN(parsedDuration) && parsedDuration >= 15 && parsedDuration <= 60) {
+          targetDuration = parsedDuration;
+        }
+      }
+
+      const includeCaptions = requestedCaptions !== "false";
+
+      console.log(`[AUTO-STORY] Starting auto story video generation for user ${userId} (duration=${targetDuration}s, quality=${videoQuality}, captions=${includeCaptions})`);
+
+      const project = await storage.createProject({
+        userId,
+        title: "Auto-Generated Story Video",
+        description: "",
+        projectType: "story_video",
+        storyDuration: targetDuration,
+        storyNarrator: true,
+        aspectRatio: "9:16",
+        videoQuality,
+        currentStep: 1,
+      });
+
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "project_creation",
+        message: "Setting up Auto-Generate Story Video...",
+        status: "completed",
+        metadata: {},
+      });
+
+      const baseUrl = process.env.FRONTEND_URL || "https://neonvideo.ai";
+      const notificationEmail = process.env.CONTACT_EMAIL || "info@neonvideo.ai";
+      const timestamp = new Date().toISOString();
+
+      res.json({
+        success: true,
+        projectId: project.id,
+        message: `Auto-generated story video is being processed. You will receive an email at ${notificationEmail} when it's ready.`,
+        timestamp,
+        statusUrl: `/api/neon-single-prompt/status/${project.id}`,
+        projectUrl: `${baseUrl}/v/${project.id}`,
+        details: {
+          duration: targetDuration,
+          quality: videoQuality,
+          captions: includeCaptions,
+          aspectRatio: "9:16",
+        },
+      });
+
+      processAutoGenerateStoryVideo(
+        userId,
+        project.id,
+        targetDuration,
+        includeCaptions,
+        videoQuality,
+      ).catch((error) => {
+        console.error("[AUTO-STORY] Background processing failed:", error);
+      });
+    } catch (error) {
+      console.error("[AUTO-STORY] Route error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to start auto-generate story video",
+      });
+    }
+  });
+
   // Register public API v1 routes
   registerApiV1Routes(app);
 
