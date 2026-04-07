@@ -40,6 +40,10 @@ interface LyricSegment {
 }
 
 export function VideoManagement() {
+  const VIDEOS_PER_ROW = 5;
+  const ROWS_PER_PAGE = 10;
+  const PAGE_SIZE = VIDEOS_PER_ROW * ROWS_PER_PAGE;
+
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -48,7 +52,7 @@ export function VideoManagement() {
   const [deletingVideo, setDeletingVideo] = useState<VideoWithUser | null>(null);
   const [viewingScenesVideo, setViewingScenesVideo] = useState<VideoWithUser | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(50);
+  const [pageSize] = useState(PAGE_SIZE);
   
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -552,7 +556,7 @@ export function VideoManagement() {
       </Card>
 
       {/* Videos List */}
-      <div className="grid gap-4">
+      <div className="space-y-4">
         {isLoading ? (
           <Card className="bg-black/30 border-purple-500/20">
             <CardContent className="p-8 text-center text-gray-300">
@@ -566,14 +570,21 @@ export function VideoManagement() {
             </CardContent>
           </Card>
         ) : (
-          videos.map((video) => (
-            <Card key={video.id} className="bg-black/30 border-purple-500/20">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex gap-4 flex-1">
-                    {/* Video Preview */}
-                    {video.finalVideoUrl && (
-                      <div className="w-32 h-20 rounded-md overflow-hidden bg-black/50 flex-shrink-0 group relative">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            {videos.map((video) => {
+              const trimmedTitle = video.title.length > 50 ? `${video.title.slice(0, 50)}...` : video.title;
+
+              return (
+                <Card key={video.id} className="bg-black/30 border-purple-500/20 overflow-hidden">
+                  <CardContent className="p-0 h-full flex flex-col">
+                    <a
+                      href={`/v/${video.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block aspect-video bg-black/60 hover:opacity-90 transition-opacity"
+                      data-testid={`video-thumbnail-link-${video.id}`}
+                    >
+                      {video.finalVideoUrl ? (
                         <video
                           className="w-full h-full object-cover"
                           src={video.finalVideoUrl}
@@ -590,203 +601,147 @@ export function VideoManagement() {
                             videoEl.pause();
                             videoEl.currentTime = 0;
                           }}
-                          onError={(e) => {
-                            // Hide video element if it fails to load
-                            e.currentTarget.style.display = 'none';
-                          }}
                         />
-                      </div>
-                    )}
-                    
-                    <div className="space-y-2 flex-1">
-                      <div className="flex items-center gap-3">
-                        {!video.finalVideoUrl && <Video className="h-5 w-5 text-purple-400" />}
-                        <h3 className="text-lg font-semibold text-white">{video.title}</h3>
-                        <Badge className={`${getStepColor(video.currentStep)} text-white`}>
-                          {getStepName(video.currentStep)}
-                        </Badge>
-                      </div>
-                    
-                    {video.description && (
-                      <p className="text-gray-300 text-sm">{video.description}</p>
-                    )}
-                    
-                      <div className="flex items-center gap-4 text-sm text-gray-400 flex-wrap">
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Video className="h-8 w-8 text-purple-400" />
+                        </div>
+                      )}
+                    </a>
+
+                    <div className="p-3 space-y-2 flex-1">
+                      <h3 className="text-sm font-semibold text-white leading-snug min-h-[2.5rem]" title={video.title}>
+                        {trimmedTitle}
+                      </h3>
+
+                      <div className="space-y-1 text-xs text-gray-400">
                         <div className="flex items-center gap-1">
                           <User className="h-3 w-3" />
-                          {video.username ? (
-                            <a
-                              href={`/u/${video.username}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-purple-400 hover:text-purple-300 hover:underline"
-                              data-testid={`user-link-${video.username}`}
-                            >
-                              {video.username}
-                            </a>
-                          ) : (
-                            <span>Unknown User</span>
-                          )}
+                          <span className="truncate">{video.username || "Unknown User"}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           <span>{new Date(video.createdAt).toLocaleDateString()}</span>
                         </div>
-                        {video.audioDuration && (
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            <span>{formatDuration(video.audioDuration)}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-1">
-                          {video.audioType === 'generated' ? (
-                            <>
-                              <Sparkles className="h-3 w-3 text-pink-400" />
-                              <span className="text-pink-400">AI Song</span>
-                            </>
-                          ) : video.audioType === 'uploaded' ? (
-                            <>
-                              <Upload className="h-3 w-3 text-blue-400" />
-                              <span className="text-blue-400">Uploaded</span>
-                            </>
-                          ) : (
-                            <>
-                              <Music className="h-3 w-3" />
-                              <span>Unknown</span>
-                            </>
-                          )}
-                        </div>
                       </div>
-
-                      {video.finalVideoUrl && (
-                        <div className="flex items-center gap-2 mt-2">
-                          <a
-                            href={video.finalVideoUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-purple-400 hover:text-purple-300 text-sm flex items-center gap-1"
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                            View Video
-                          </a>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 ml-4">
-                    {video.audioUrl && (
-                      <Button
-                        onClick={() => {
-                          const link = document.createElement('a');
-                          link.href = video.audioUrl!;
-                          link.download = `${video.title.replace(/[^a-z0-9]/gi, '_')}_audio.mp3`;
-                          link.target = '_blank';
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                        }}
-                        variant="outline"
-                        size="sm"
-                        className="border-green-500/30 text-green-300 hover:bg-green-600/20"
-                        data-testid={`download-audio-${video.id}`}
-                        title="Download song audio"
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {parseSceneData(video).length > 0 && (
-                      <Button
-                        onClick={() => setViewingScenesVideo(video)}
-                        variant="outline"
-                        size="sm"
-                        className="border-cyan-500/30 text-cyan-300 hover:bg-cyan-600/20"
-                        data-testid={`view-scenes-${video.id}`}
-                        title="View scene images and timeline"
-                      >
-                        <Images className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <Button
-                      onClick={() => setEditingVideo(video)}
-                      variant="outline"
-                      size="sm"
-                      className="border-purple-500/30 text-purple-300 hover:bg-purple-600/20"
-                      data-testid={`edit-video-${video.id}`}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        updateVideoMutation.mutate({
-                          id: video.id,
-                          updates: { isPublic: video.isPublic === false },
-                        });
-                      }}
-                      variant="outline"
-                      size="sm"
-                      className={`border-emerald-500/30 ${
-                        video.isPublic !== false
-                          ? "text-emerald-300 bg-emerald-600/20"
-                          : "text-emerald-300 hover:bg-emerald-600/20"
-                      }`}
-                      disabled={updateVideoMutation.isPending}
-                      data-testid={`visibility-video-${video.id}`}
-                      title={video.isPublic !== false ? "Hide from public (set private)" : "Make public"}
-                    >
-                      {video.isPublic !== false ? (
-                        <Eye className="h-4 w-4" />
-                      ) : (
-                        <EyeOff className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        toggleFeaturedMutation.mutate({
-                          id: video.id,
-                          isFeatured: !video.isFeatured
-                        });
-                      }}
-                      variant="outline"
-                      size="sm"
-                      className={`border-yellow-500/30 ${
-                        video.isFeatured 
-                          ? 'text-yellow-300 bg-yellow-600/20' 
-                          : 'text-yellow-300 hover:bg-yellow-600/20'
-                      }`}
-                      disabled={toggleFeaturedMutation.isPending}
-                      data-testid={`feature-video-${video.id}`}
-                      title={video.isFeatured ? "Remove from featured" : "Add to featured"}
-                    >
-                      <Star className={`h-4 w-4 ${video.isFeatured ? 'fill-current' : ''}`} />
-                    </Button>
-                    {video.isCompleted && video.finalVideoUrl && (
-                      <Button
-                        onClick={() => postToSocialMutation.mutate(video.id)}
-                        variant="outline"
-                        size="sm"
-                        className="border-blue-500/30 text-blue-300 hover:bg-blue-600/20"
-                        disabled={postToSocialMutation.isPending}
-                        data-testid={`post-to-social-${video.id}`}
-                        title="Post to Facebook via Postiz"
-                      >
-                        <Share2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <Button
-                      onClick={() => setDeletingVideo(video)}
-                      variant="outline"
-                      size="sm"
-                      className="border-red-500/30 text-red-300 hover:bg-red-600/20"
-                      data-testid={`delete-video-${video.id}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+
+                    <div className="border-t border-purple-500/20 p-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {video.audioUrl && (
+                          <Button
+                            onClick={() => {
+                              const link = document.createElement('a');
+                              link.href = video.audioUrl!;
+                              link.download = `${video.title.replace(/[^a-z0-9]/gi, '_')}_audio.mp3`;
+                              link.target = '_blank';
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="border-green-500/30 text-green-300 hover:bg-green-600/20"
+                            data-testid={`download-audio-${video.id}`}
+                            title="Download song audio"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {parseSceneData(video).length > 0 && (
+                          <Button
+                            onClick={() => setViewingScenesVideo(video)}
+                            variant="outline"
+                            size="sm"
+                            className="border-cyan-500/30 text-cyan-300 hover:bg-cyan-600/20"
+                            data-testid={`view-scenes-${video.id}`}
+                            title="View scene images and timeline"
+                          >
+                            <Images className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          onClick={() => setEditingVideo(video)}
+                          variant="outline"
+                          size="sm"
+                          className="border-purple-500/30 text-purple-300 hover:bg-purple-600/20"
+                          data-testid={`edit-video-${video.id}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            updateVideoMutation.mutate({
+                              id: video.id,
+                              updates: { isPublic: video.isPublic === false },
+                            });
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className={`border-emerald-500/30 ${
+                            video.isPublic !== false
+                              ? "text-emerald-300 bg-emerald-600/20"
+                              : "text-emerald-300 hover:bg-emerald-600/20"
+                          }`}
+                          disabled={updateVideoMutation.isPending}
+                          data-testid={`visibility-video-${video.id}`}
+                          title={video.isPublic !== false ? "Hide from public (set private)" : "Make public"}
+                        >
+                          {video.isPublic !== false ? (
+                            <Eye className="h-4 w-4" />
+                          ) : (
+                            <EyeOff className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            toggleFeaturedMutation.mutate({
+                              id: video.id,
+                              isFeatured: !video.isFeatured
+                            });
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className={`border-yellow-500/30 ${
+                            video.isFeatured
+                              ? 'text-yellow-300 bg-yellow-600/20'
+                              : 'text-yellow-300 hover:bg-yellow-600/20'
+                          }`}
+                          disabled={toggleFeaturedMutation.isPending}
+                          data-testid={`feature-video-${video.id}`}
+                          title={video.isFeatured ? "Remove from featured" : "Add to featured"}
+                        >
+                          <Star className={`h-4 w-4 ${video.isFeatured ? 'fill-current' : ''}`} />
+                        </Button>
+                        {video.isCompleted && video.finalVideoUrl && (
+                          <Button
+                            onClick={() => postToSocialMutation.mutate(video.id)}
+                            variant="outline"
+                            size="sm"
+                            className="border-blue-500/30 text-blue-300 hover:bg-blue-600/20"
+                            disabled={postToSocialMutation.isPending}
+                            data-testid={`post-to-social-${video.id}`}
+                            title="Post to Facebook via Postiz"
+                          >
+                            <Share2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          onClick={() => setDeletingVideo(video)}
+                          variant="outline"
+                          size="sm"
+                          className="border-red-500/30 text-red-300 hover:bg-red-600/20"
+                          data-testid={`delete-video-${video.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         )}
 
         {/* Pagination Controls */}
