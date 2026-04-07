@@ -16051,6 +16051,71 @@ Do not add markdown. Return JSON only.`,
     res.sendStatus(204);
   });
 
+  app.options("/api/auto-generate-story-video/debug/:projectId", (_req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.sendStatus(204);
+  });
+
+  /** Cron/internal: inspect generation logs + project state for an auto story (or any) project. */
+  app.get(
+    "/api/auto-generate-story-video/debug/:projectId",
+    extractTokenFromUrl,
+    authenticateToken,
+    async (req: any, res) => {
+      res.header("Access-Control-Allow-Origin", "*");
+      res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      try {
+        const userId = req.user!.userId;
+        const projectId = req.params.projectId;
+        const project = await storage.getProject(projectId);
+        if (!project || project.userId !== userId) {
+          return res.status(404).json({ error: "Project not found" });
+        }
+        const logs = await storage.getGenerationLogs(projectId);
+        const storyScript = project.storyScript as unknown[] | null;
+        const storyAudio = (project.storyAudioUrls || []) as string[];
+        const storyImages = (project.storySceneImages || []) as string[];
+        const segments = (project.videoSegments || []) as string[];
+        res.json({
+          projectId: project.id,
+          projectType: project.projectType,
+          title: project.title,
+          description: project.description,
+          generationStatus: project.generationStatus,
+          currentStep: project.currentStep,
+          isCompleted: project.isCompleted,
+          finalVideoUrl: project.finalVideoUrl,
+          storyDuration: project.storyDuration,
+          aspectRatio: project.aspectRatio,
+          videoQuality: project.videoQuality,
+          storyNarrator: project.storyNarrator,
+          storyNarratorVoice: project.storyNarratorVoice,
+          storyScriptSceneCount: Array.isArray(storyScript) ? storyScript.length : 0,
+          storyCharactersCount: Array.isArray(project.storyCharacters) ? project.storyCharacters.length : 0,
+          storyAudioFilledCount: storyAudio.filter(Boolean).length,
+          storySceneImagesFilledCount: storyImages.filter(Boolean).length,
+          videoSegmentsCount: segments.filter(Boolean).length,
+          resendEmailConfigured: !!process.env.RESEND_API_KEY?.trim(),
+          notificationRecipient: process.env.CONTACT_EMAIL || "info@neonvideo.ai",
+          logs: logs.map((l) => ({
+            id: l.id,
+            step: l.step,
+            message: l.message,
+            status: l.status,
+            createdAt: l.createdAt,
+            metadata: l.metadata,
+          })),
+        });
+      } catch (error) {
+        console.error("[AUTO-STORY] Debug route error:", error);
+        res.status(500).json({ error: error instanceof Error ? error.message : "Failed to load debug info" });
+      }
+    },
+  );
+
   async function processAutoGenerateStoryVideo(
     userId: string,
     projectId: string,
@@ -16063,12 +16128,41 @@ Do not add markdown. Return JSON only.`,
     const LOG_TAG = "[AUTO-STORY]";
     let currentStep = "initialization";
 
-    const sendFailureEmail = async (step: string, message: string) => {
+    /** Resend returns false (no throw) when RESEND_API_KEY is missing or API errors — log and persist so ops can see it in debug. */
+    const sendStoryNotificationEmail = async (kind: "success" | "failure", subject: string, html: string) => {
       try {
-        await emailService.sendEmail({
-          to: notificationEmail,
-          subject: `Auto-generated story video failed (${step})`,
-          html: `
+        const sent = await emailService.sendEmail({ to: notificationEmail, subject, html });
+        if (!sent) {
+          const hint =
+            "Email was not sent: set RESEND_API_KEY (and verify EMAIL_FROM domain in Resend). Check server logs for Resend errors.";
+          console.error(`${LOG_TAG} ${hint} (kind=${kind}, project=${projectId})`);
+          await storage.addGenerationLog({
+            projectId,
+            step: "auto_story_email",
+            message: hint,
+            status: "warning",
+            metadata: { kind, recipient: notificationEmail },
+          });
+        }
+        return sent;
+      } catch (emailErr) {
+        console.error(`${LOG_TAG} sendEmail threw:`, emailErr);
+        await storage.addGenerationLog({
+          projectId,
+          step: "auto_story_email",
+          message: `Email send threw: ${(emailErr as Error).message}`,
+          status: "error",
+          metadata: { kind },
+        });
+        return false;
+      }
+    };
+
+    const sendFailureEmail = async (step: string, message: string) => {
+      await sendStoryNotificationEmail(
+        "failure",
+        `Auto-generated story video failed (${step})`,
+        `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <h2>Auto-Generated Story Video Failed</h2>
               <p><strong>Failed step:</strong> ${step}</p>
@@ -16077,10 +16171,7 @@ Do not add markdown. Return JSON only.`,
               <p><a href="${baseUrl}/v/${projectId}">View project</a></p>
             </div>
           `,
-        });
-      } catch (emailErr) {
-        console.error(`${LOG_TAG} Failed to send failure email:`, emailErr);
-      }
+      );
     };
 
     try {
@@ -16653,10 +16744,10 @@ Pick voices that best match each character's personality, age, and gender.`,
 
       console.log(`${LOG_TAG} Generation complete for project ${projectId}`);
 
-      await emailService.sendEmail({
-        to: notificationEmail,
-        subject: `Auto-generated story video is ready: ${storyTitle}`,
-        html: `
+      await sendStoryNotificationEmail(
+        "success",
+        `Auto-generated story video is ready: ${storyTitle}`,
+        `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2>Auto-Generated Story Video Ready</h2>
             <p><strong>${storyTitle}</strong></p>
@@ -16666,7 +16757,7 @@ Pick voices that best match each character's personality, age, and gender.`,
             <p style="color:#666; font-size: 12px;">Project ID: ${projectId}</p>
           </div>
         `,
-      });
+      );
     } catch (error) {
       const errMsg = (error as Error).message;
       console.error(`${LOG_TAG} Error:`, error);
@@ -16746,14 +16837,31 @@ Pick voices that best match each character's personality, age, and gender.`,
         },
       });
 
+      const createdProjectId = project.id;
       processAutoGenerateStoryVideo(
         userId,
-        project.id,
+        createdProjectId,
         targetDuration,
         includeCaptions,
         videoQuality,
-      ).catch((error) => {
-        console.error("[AUTO-STORY] Background processing failed:", error);
+      ).catch(async (error) => {
+        console.error("[AUTO-STORY] Background processing rejected (unexpected):", error);
+        const notifyTo = process.env.CONTACT_EMAIL || "info@neonvideo.ai";
+        const frontend = process.env.FRONTEND_URL || "https://neonvideo.ai";
+        const errMsg = error instanceof Error ? error.message : String(error);
+        const errStack = error instanceof Error ? error.stack || "" : "";
+        try {
+          const sent = await emailService.sendEmail({
+            to: notifyTo,
+            subject: "Auto-generated story video failed (unexpected)",
+            html: `<div style="font-family:Arial,sans-serif"><h2>Unexpected pipeline failure</h2><p>Project: <code>${createdProjectId}</code></p><p><strong>Error:</strong> ${errMsg}</p><pre style="white-space:pre-wrap;font-size:12px">${errStack}</pre><p><a href="${frontend}/v/${createdProjectId}">View project</a></p><p>If no email usually arrives, set RESEND_API_KEY.</p></div>`,
+          });
+          if (!sent) {
+            console.error("[AUTO-STORY] Failure email not sent (Resend not configured or API error).");
+          }
+        } catch (emailErr) {
+          console.error("[AUTO-STORY] Could not send unexpected-failure email:", emailErr);
+        }
       });
     } catch (error) {
       console.error("[AUTO-STORY] Route error:", error);
