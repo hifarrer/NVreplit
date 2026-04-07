@@ -231,7 +231,10 @@ export default function LandingPage() {
       {/* Featured Videos Section */}
       <section className="container mx-auto px-4 py-12">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold mb-3">Featured Videos</h2>
+          <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent max-w-4xl mx-auto px-2">
+            No Cherry-Picking, real first-try results.
+          </h2>
+          <h3 className="text-3xl font-bold mb-3">Featured Videos</h3>
           <p className="text-muted-foreground">
             Discover AI-generated music videos from our community
           </p>
