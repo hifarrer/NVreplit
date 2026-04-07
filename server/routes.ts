@@ -16353,7 +16353,7 @@ OUTPUT FORMAT: Respond ONLY with valid JSON matching this schema:
 {
   "title": "Story title (max 60 chars)",
   "theme": "fantasy" | "medieval" | "kids_tale" | "futuristic",
-  "narrator_voice": "Theodore" | "Alex" | "Ashley",
+  "narrator_voice": "Theodore" | "Alex" | "Ashley" | "Timothy" | "Ronald" | "Olivia" | "Hana" | "Jing",
   "art_style": "realistic" | "3d" | "cartoon",
   "characters": [
     {
@@ -16382,7 +16382,10 @@ RULES:
 - Scene descriptions must be vivid and specific, describing camera angles, settings, and character actions.
 - Name characters in scene_description when they are visible.
 - Pick the theme randomly from: fantasy, medieval, kids_tale, futuristic.
-- Pick narrator_voice based on the story mood: Theodore (old man, great for fantasy/medieval), Alex (energetic male, great for action/futuristic), Ashley (serene female, great for kids tales/gentle stories).
+- Pick narrator_voice based on the story mood from this list:
+  Theodore (old man, great for fantasy/medieval), Alex (energetic male, great for action/futuristic), Ashley (serene female, great for kids tales/gentle stories),
+  Timothy (young serene male, 18-30), Ronald (older male, 40-60), Olivia (young female, sensual and serene, 18-30),
+  Hana (young 7-10 year old girl), Jing (cute, childish voice male/female, 2-8 years old).
 - Pick art_style based on theme: "realistic" for medieval/futuristic, "3d" for fantasy, "cartoon" for kids tales. You may vary this creatively.
 - Character descriptions should be detailed enough for AI image generation (appearance, clothing, hair, notable features).
 - For two-character scenes where BOTH characters speak, you may use multi_talk. Add these fields to the scene:
@@ -16498,12 +16501,19 @@ Available MALE voices:
 - "Craig": Older male adult, calm
 - "Theodore": Old man, wise
 - "Hades": Deep menacing voice, great for villains
+- "Timothy": Young, serene male (18-30 years)
+- "Ronald": Older male (40-60 years)
+- "Blake": Evil genius male voice (30-60 years)
+- "Dominus": Evil cyborg
 
 Available FEMALE/KIDS voices:
 - "Ashley": Serene adult female
 - "Elizabeth": Younger adult female
 - "Julia": Female teenager
 - "Pixie": High-pitched, great for small creatures or fairies
+- "Olivia": Young female, sensual and serene voice (18-30 years)
+- "Hana": Young girl voice (7-10 years old)
+- "Jing": Cute, childish voice male/female (2-8 years old)
 
 Respond ONLY with valid JSON: { "assignments": { "CharacterName": "VoiceId", ... } }
 Pick voices that best match each character's personality, age, and gender.`,

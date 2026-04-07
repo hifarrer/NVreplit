@@ -326,13 +326,23 @@ export default function LandingPage() {
                       rel="noopener noreferrer"
                       className="block rounded-lg overflow-hidden bg-black/60 hover:opacity-90 transition-opacity"
                     >
-                      <div className="aspect-video">
+                      <div className="aspect-[3/4]">
                         <video
                           className="w-full h-full object-cover"
                           src={video.videoUrl}
                           preload="metadata"
                           muted
                           playsInline
+                          onMouseEnter={(e) => {
+                            const videoEl = e.currentTarget;
+                            videoEl.currentTime = 0;
+                            videoEl.play().catch(() => {});
+                          }}
+                          onMouseLeave={(e) => {
+                            const videoEl = e.currentTarget;
+                            videoEl.pause();
+                            videoEl.currentTime = 0;
+                          }}
                         />
                       </div>
                     </a>
