@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard, Mail, MailCheck, Download, Plus, ChevronLeft, ChevronRight, Search, ChevronsRight, Ban, Check, Image, Wand2, Clock, Eye, X } from "lucide-react";
+import { Trash2, Edit, User, Calendar, Music, Video, Loader2, AlertTriangle, CreditCard, Mail, MailCheck, Download, Plus, ChevronLeft, ChevronRight, Search, ChevronsRight, Ban, Check, Image, Wand2, Clock, Eye, X, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { convertAvatarUrlToImageKit } from "@/lib/utils";
@@ -29,6 +29,12 @@ interface UserWithStats {
   creditsLimit: number;
   planCredits: number;
   bonusCredits: number;
+  lastIpAddress: string | null;
+  lastKnownLocation: string | null;
+  lastUserAgent: string | null;
+  lastDeviceType: string | null;
+  lastBrowser: string | null;
+  lastSeenAt: string | null;
 }
 
 interface BannedUser {
@@ -744,6 +750,23 @@ export function UserManagement() {
                     </Badge>
                     <span className="text-xs text-gray-400">
                       {user.creditsUsed?.toLocaleString() || 0}/{user.creditsLimit?.toLocaleString() || 0} credits used
+                    </span>
+                  </div>
+
+                  <div className="flex items-center space-x-4 text-xs text-gray-500">
+                    <span>IP: {user.lastIpAddress || "Unknown"}</span>
+                    <span className="flex items-center">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      {user.lastKnownLocation || "Unknown location"}
+                    </span>
+                    <span>
+                      Device: {user.lastDeviceType || "Unknown"}
+                    </span>
+                    <span>
+                      Browser: {user.lastBrowser || "Unknown"}
+                    </span>
+                    <span>
+                      Last seen: {user.lastSeenAt ? new Date(user.lastSeenAt).toLocaleString() : "Unknown"}
                     </span>
                   </div>
                 </div>

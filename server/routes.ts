@@ -52,6 +52,106 @@ const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
 /** Free users can have at most this many songs in their library; paid users have no limit. */
 const FREE_USER_SONG_LIBRARY_LIMIT = 10;
 
+function getClientIpAddress(req: any): string | null {
+  const forwardedFor = req.headers["x-forwarded-for"];
+  const realIp = req.headers["x-real-ip"];
+  const cfConnectingIp = req.headers["cf-connecting-ip"];
+  const directIp = req.ip || req.socket?.remoteAddress || null;
+
+  const candidate =
+    (typeof cfConnectingIp === "string" && cfConnectingIp.trim()) ||
+    (typeof realIp === "string" && realIp.trim()) ||
+    (typeof forwardedFor === "string" && forwardedFor.split(",")[0]?.trim()) ||
+    (typeof directIp === "string" && directIp.trim()) ||
+    null;
+
+  if (!candidate) return null;
+  return candidate.startsWith("::ffff:") ? candidate.replace("::ffff:", "") : candidate;
+}
+
+function inferLocationFromHeaders(req: any): string | null {
+  const country =
+    (typeof req.headers["cf-ipcountry"] === "string" && req.headers["cf-ipcountry"]) ||
+    (typeof req.headers["x-vercel-ip-country"] === "string" && req.headers["x-vercel-ip-country"]) ||
+    (typeof req.headers["x-appengine-country"] === "string" && req.headers["x-appengine-country"]) ||
+    "";
+  const region =
+    (typeof req.headers["x-vercel-ip-country-region"] === "string" && req.headers["x-vercel-ip-country-region"]) ||
+    (typeof req.headers["x-appengine-region"] === "string" && req.headers["x-appengine-region"]) ||
+    "";
+  const city =
+    (typeof req.headers["x-vercel-ip-city"] === "string" && req.headers["x-vercel-ip-city"]) ||
+    (typeof req.headers["x-appengine-city"] === "string" && req.headers["x-appengine-city"]) ||
+    "";
+
+  const parts = [city, region, country]
+    .map((part) => part.trim())
+    .filter((part) => !!part);
+
+  return parts.length ? parts.join(", ") : null;
+}
+
+function parseUserAgent(req: any): { userAgent: string | null; deviceType: string | null; browser: string | null } {
+  const rawUserAgent = req.headers["user-agent"];
+  const ua = typeof rawUserAgent === "string" ? rawUserAgent : "";
+  const lower = ua.toLowerCase();
+
+  let deviceType: string | null = null;
+  if (lower.includes("iphone")) {
+    deviceType = "iPhone";
+  } else if (lower.includes("ipad")) {
+    deviceType = "iPad";
+  } else if (lower.includes("android")) {
+    deviceType = "Android";
+  } else if (lower.includes("windows")) {
+    deviceType = "Windows PC";
+  } else if (lower.includes("macintosh") || lower.includes("mac os x")) {
+    deviceType = "Mac";
+  } else if (lower.includes("linux")) {
+    deviceType = "Linux";
+  } else if (lower.includes("cros")) {
+    deviceType = "Chromebook";
+  }
+
+  let browser: string | null = null;
+  if (lower.includes("edg/")) {
+    browser = "Edge";
+  } else if (lower.includes("opr/") || lower.includes("opera")) {
+    browser = "Opera";
+  } else if (lower.includes("firefox/")) {
+    browser = "Firefox";
+  } else if (lower.includes("samsungbrowser/")) {
+    browser = "Samsung Internet";
+  } else if (lower.includes("crios/") || (lower.includes("chrome/") && !lower.includes("edg/") && !lower.includes("opr/"))) {
+    browser = "Chrome";
+  } else if (lower.includes("safari/") && !lower.includes("chrome/") && !lower.includes("crios/")) {
+    browser = "Safari";
+  }
+
+  return {
+    userAgent: ua || null,
+    deviceType,
+    browser,
+  };
+}
+
+function getRequestUserMetadata(req: any): {
+  ipAddress: string | null;
+  location: string | null;
+  userAgent: string | null;
+  deviceType: string | null;
+  browser: string | null;
+} {
+  const uaData = parseUserAgent(req);
+  return {
+    ipAddress: getClientIpAddress(req),
+    location: inferLocationFromHeaders(req),
+    userAgent: uaData.userAgent,
+    deviceType: uaData.deviceType,
+    browser: uaData.browser,
+  };
+}
+
 function inferCharacterVocalGender(
   character: string | null | undefined
 ): "female" | "male" | null {
@@ -492,10 +592,12 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
         clientID: GOOGLE_CLIENT_ID,
         clientSecret: GOOGLE_CLIENT_SECRET,
         callbackURL: GOOGLE_CALLBACK_URL,
+        passReqToCallback: true,
       },
-      async (accessToken, refreshToken, profile, done) => {
+      async (req: any, accessToken, refreshToken, profile, done) => {
         try {
           console.log("Google OAuth profile:", profile);
+          const requestMeta = getRequestUserMetadata(req);
 
           // Check if user exists by Google ID or email
           let user = await storage.getUserByGoogleId(profile.id);
@@ -517,10 +619,31 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
                 }
                 await storage.updateUser(user.id, {
                   planId: freePlan.id,
-                  creditsUsed: user.creditsUsed || 0
+                  creditsUsed: user.creditsUsed || 0,
+                  lastIpAddress: requestMeta.ipAddress,
+                  lastKnownLocation: requestMeta.location,
+                  lastUserAgent: requestMeta.userAgent,
+                  lastDeviceType: requestMeta.deviceType,
+                  lastBrowser: requestMeta.browser,
+                  lastSeenAt: new Date(),
                 });
                 user.planId = freePlan.id;
                 user.creditsUsed = user.creditsUsed || 0;
+                user.lastIpAddress = requestMeta.ipAddress;
+                user.lastKnownLocation = requestMeta.location;
+                user.lastUserAgent = requestMeta.userAgent;
+                user.lastDeviceType = requestMeta.deviceType;
+                user.lastBrowser = requestMeta.browser;
+                user.lastSeenAt = new Date();
+              } else {
+                await storage.updateUser(user.id, {
+                  lastIpAddress: requestMeta.ipAddress,
+                  lastKnownLocation: requestMeta.location,
+                  lastUserAgent: requestMeta.userAgent,
+                  lastDeviceType: requestMeta.deviceType,
+                  lastBrowser: requestMeta.browser,
+                  lastSeenAt: new Date(),
+                });
               }
             }
           }
@@ -553,7 +676,13 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
               googleId: profile.id,
               emailVerified: true, // Google OAuth users are considered verified
               planId: freePlan.id, // ALWAYS assign free plan - guaranteed to exist
-              creditsUsed: 0 // Initialize credits usage
+              creditsUsed: 0, // Initialize credits usage
+              lastIpAddress: requestMeta.ipAddress,
+              lastKnownLocation: requestMeta.location,
+              lastUserAgent: requestMeta.userAgent,
+              lastDeviceType: requestMeta.deviceType,
+              lastBrowser: requestMeta.browser,
+              lastSeenAt: new Date(),
             });
           }
 
@@ -1178,6 +1307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/register", async (req, res) => {
     try {
       const { username, email, password } = insertUserSchema.parse(req.body);
+      const requestMeta = getRequestUserMetadata(req);
 
       // Check if email is banned
       const isBanned = await storage.isEmailBanned(email);
@@ -1299,7 +1429,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         avatarUrl: "/public-objects/public/avatars/anonymous.png",
         planId: freePlan.id, // ALWAYS assign free plan
         creditsUsed: 0,
-        bonusCredits: shouldAwardBonus ? 500 : 0
+        bonusCredits: shouldAwardBonus ? 500 : 0,
+        lastIpAddress: requestMeta.ipAddress,
+        lastKnownLocation: requestMeta.location,
+        lastUserAgent: requestMeta.userAgent,
+        lastDeviceType: requestMeta.deviceType,
+        lastBrowser: requestMeta.browser,
+        lastSeenAt: new Date()
       });
 
       // Create affiliate signup record if user used affiliate code
@@ -1396,6 +1532,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         JWT_SECRET,
         { expiresIn: '24h' }
       );
+
+      const requestMeta = getRequestUserMetadata(req);
+      await storage.updateUser(user.id, {
+        lastIpAddress: requestMeta.ipAddress,
+        lastKnownLocation: requestMeta.location,
+        lastUserAgent: requestMeta.userAgent,
+        lastDeviceType: requestMeta.deviceType,
+        lastBrowser: requestMeta.browser,
+        lastSeenAt: new Date(),
+      });
 
       res.json({
         user: { id: user.id, username: user.username, email: user.email, avatarUrl: user.avatarUrl },
@@ -2880,8 +3026,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("✅ Admin password updated and verified successfully");
 
         // Send security notification email
-        const forwardedFor = req.headers['x-forwarded-for'] as string;
-        const ipAddress = forwardedFor ? forwardedFor.split(',')[0].trim() : (req.socket.remoteAddress || 'Unknown');
+        const ipAddress = getClientIpAddress(req) || 'Unknown';
         const userAgent = req.headers['user-agent'] || 'Unknown';
         emailService.sendAdminSettingsChangeNotification({
           settingName: 'Admin Password',
@@ -2945,8 +3090,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Send security notification email if any settings were changed
       if (changedSettings.length > 0) {
-        const forwardedFor = req.headers['x-forwarded-for'] as string;
-        const ipAddress = forwardedFor ? forwardedFor.split(',')[0].trim() : (req.socket.remoteAddress || 'Unknown');
+        const ipAddress = getClientIpAddress(req) || 'Unknown';
         const userAgent = req.headers['user-agent'] || 'Unknown';
         emailService.sendAdminSettingsChangeNotification({
           settingName: 'Stripe Configuration',
@@ -16821,6 +16965,8 @@ Pick voices that best match each character's personality, age, and gender.`,
       const baseUrl = process.env.FRONTEND_URL || "https://neonvideo.ai";
       const notificationEmail = process.env.CONTACT_EMAIL || "info@neonvideo.ai";
       const timestamp = new Date().toISOString();
+      const apiOrigin = getBaseUrl(req);
+      const logsSoFar = await storage.getGenerationLogs(project.id);
 
       res.json({
         success: true,
@@ -16834,6 +16980,25 @@ Pick voices that best match each character's personality, age, and gender.`,
           quality: videoQuality,
           captions: includeCaptions,
           aspectRatio: "9:16",
+        },
+        debug: {
+          summary:
+            "The projectId above identifies this run. The pipeline runs in the background after this response. Refresh the poll URL below (same auth as this request) to see newer generation logs and final state.",
+          generationLogsSnapshot: logsSoFar.map((l) => ({
+            step: l.step,
+            message: l.message,
+            status: l.status,
+            createdAt: l.createdAt,
+            metadata: l.metadata,
+          })),
+          pollDetailedLogsPath: `/api/auto-generate-story-video/debug/${project.id}`,
+          pollDetailedLogsUrl: `${apiOrigin}/api/auto-generate-story-video/debug/${project.id}`,
+          authHint:
+            "Open pollDetailedLogsUrl with the same ?token=... or Authorization: Bearer ... you used for this request.",
+          resendEmailConfigured: !!process.env.RESEND_API_KEY?.trim(),
+          openaiApiConfigured: !!process.env.OPENAI_API_KEY?.trim(),
+          wavespeedConfigured: !!process.env.WAVESPEED_API_KEY?.trim(),
+          notificationRecipient: notificationEmail,
         },
       });
 

@@ -35,6 +35,12 @@ export const users = pgTable("users", {
   stripeSubscriptionId: text("stripe_subscription_id"),
   referredBy: varchar("referred_by"), // Who referred this user - self-reference handled separately
   referralCode: text("referral_code").unique(), // User's personal referral code (auto-generated)
+  lastIpAddress: text("last_ip_address"),
+  lastKnownLocation: text("last_known_location"),
+  lastUserAgent: text("last_user_agent"),
+  lastDeviceType: text("last_device_type"),
+  lastBrowser: text("last_browser"),
+  lastSeenAt: timestamp("last_seen_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

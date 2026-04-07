@@ -112,6 +112,12 @@ export interface IStorage {
       creditsLimit: number;
       planCredits: number;
       bonusCredits: number;
+      lastIpAddress: string | null;
+      lastKnownLocation: string | null;
+      lastUserAgent: string | null;
+      lastDeviceType: string | null;
+      lastBrowser: string | null;
+      lastSeenAt: Date | null;
     }>;
     totalCount: number;
   }>;
@@ -327,10 +333,28 @@ export class MemStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
     const user: User = { 
-      ...insertUser,
       id,
+      username: insertUser.username,
+      password: insertUser.password,
+      email: insertUser.email,
+      emailVerified: insertUser.emailVerified ?? false,
+      emailVerificationToken: insertUser.emailVerificationToken ?? null,
+      emailVerificationTokenExpiresAt: insertUser.emailVerificationTokenExpiresAt ?? null,
       avatarUrl: insertUser.avatarUrl || null,
+      planId: insertUser.planId ?? null,
+      creditsUsed: insertUser.creditsUsed ?? 0,
+      bonusCredits: insertUser.bonusCredits ?? 0,
+      stripeCustomerId: insertUser.stripeCustomerId ?? null,
+      stripeSubscriptionId: insertUser.stripeSubscriptionId ?? null,
+      referredBy: insertUser.referredBy ?? null,
+      referralCode: insertUser.referralCode ?? null,
       googleId: insertUser.googleId || null,
+      lastIpAddress: insertUser.lastIpAddress ?? null,
+      lastKnownLocation: insertUser.lastKnownLocation ?? null,
+      lastUserAgent: insertUser.lastUserAgent ?? null,
+      lastDeviceType: insertUser.lastDeviceType ?? null,
+      lastBrowser: insertUser.lastBrowser ?? null,
+      lastSeenAt: insertUser.lastSeenAt ?? null,
       createdAt: new Date()
     };
     this.users.set(id, user);
@@ -851,6 +875,12 @@ export class MemStorage implements IStorage {
       creditsLimit: number;
       planCredits: number;
       bonusCredits: number;
+      lastIpAddress: string | null;
+      lastKnownLocation: string | null;
+      lastUserAgent: string | null;
+      lastDeviceType: string | null;
+      lastBrowser: string | null;
+      lastSeenAt: Date | null;
     }>;
     totalCount: number;
   }> {
@@ -899,7 +929,13 @@ export class MemStorage implements IStorage {
         creditsUsed: userWithPlan?.creditsUsed || 0,
         creditsLimit: planCredits + bonusCredits,
         planCredits: planCredits,
-        bonusCredits: bonusCredits
+        bonusCredits: bonusCredits,
+        lastIpAddress: user.lastIpAddress || null,
+        lastKnownLocation: user.lastKnownLocation || null,
+        lastUserAgent: user.lastUserAgent || null,
+        lastDeviceType: user.lastDeviceType || null,
+        lastBrowser: user.lastBrowser || null,
+        lastSeenAt: user.lastSeenAt || null
       };
     }));
     
@@ -2394,6 +2430,12 @@ export class DbStorage implements IStorage {
       creditsLimit: number;
       planCredits: number;
       bonusCredits: number;
+      lastIpAddress: string | null;
+      lastKnownLocation: string | null;
+      lastUserAgent: string | null;
+      lastDeviceType: string | null;
+      lastBrowser: string | null;
+      lastSeenAt: Date | null;
     }>;
     totalCount: number;
   }> {
@@ -2463,7 +2505,13 @@ export class DbStorage implements IStorage {
         creditsUsed: user.creditsUsed || 0,
         creditsLimit: planCredits + bonusCredits,
         planCredits: planCredits,
-        bonusCredits: bonusCredits
+        bonusCredits: bonusCredits,
+        lastIpAddress: user.lastIpAddress || null,
+        lastKnownLocation: user.lastKnownLocation || null,
+        lastUserAgent: user.lastUserAgent || null,
+        lastDeviceType: user.lastDeviceType || null,
+        lastBrowser: user.lastBrowser || null,
+        lastSeenAt: user.lastSeenAt || null
       };
     }));
     

@@ -1,0 +1,7 @@
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS last_ip_address TEXT,
+  ADD COLUMN IF NOT EXISTS last_known_location TEXT,
+  ADD COLUMN IF NOT EXISTS last_user_agent TEXT,
+  ADD COLUMN IF NOT EXISTS last_device_type TEXT,
+  ADD COLUMN IF NOT EXISTS last_browser TEXT,
+  ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMP;
