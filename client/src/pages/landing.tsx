@@ -2,7 +2,8 @@ import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Video, Sparkles, Music, Wand2, Play, ArrowRight, Volume2, VolumeX } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Video, Sparkles, Music, Wand2, Play, ArrowRight, Volume2, VolumeX, X } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 import { useAuth } from "@/hooks/use-auth";
@@ -14,6 +15,9 @@ interface FeaturedVideo {
   id: string;
   title: string;
   videoUrl: string;
+  streamVideoId?: string | null;
+  streamThumbnailUrl?: string | null;
+  streamEmbedUrl?: string | null;
 }
 
 export default function LandingPage() {
@@ -21,9 +25,8 @@ export default function LandingPage() {
   const { user } = useAuth();
   const [isMuted, setIsMuted] = useState(true);
   const [visibleRows, setVisibleRows] = useState(5);
-  const [playingFeaturedVideoId, setPlayingFeaturedVideoId] = useState<string | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<FeaturedVideo | null>(null);
   const heroVideoRef = useRef<HTMLVideoElement>(null);
-  const featuredVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const VIDEOS_PER_ROW = 5;
   const ROWS_PER_BATCH = 5;
 
@@ -39,34 +42,6 @@ export default function LandingPage() {
   const visibleCount = visibleRows * VIDEOS_PER_ROW;
   const visibleVideos = featuredVideos.slice(0, visibleCount);
   const canLoadMore = visibleCount < featuredVideos.length;
-
-  const toggleFeaturedVideoPlayback = async (videoId: string) => {
-    const videoEl = featuredVideoRefs.current[videoId];
-    if (!videoEl) return;
-
-    if (playingFeaturedVideoId && playingFeaturedVideoId !== videoId) {
-      const previousVideo = featuredVideoRefs.current[playingFeaturedVideoId];
-      if (previousVideo) {
-        previousVideo.pause();
-        previousVideo.currentTime = 0;
-      }
-    }
-
-    if (playingFeaturedVideoId === videoId && !videoEl.paused) {
-      videoEl.pause();
-      videoEl.currentTime = 0;
-      setPlayingFeaturedVideoId(null);
-      return;
-    }
-
-    videoEl.currentTime = 0;
-    try {
-      await videoEl.play();
-      setPlayingFeaturedVideoId(videoId);
-    } catch {
-      setPlayingFeaturedVideoId(null);
-    }
-  };
 
   const handleGetStarted = () => {
     if (user) {
@@ -275,6 +250,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {visibleVideos.map((video) => {
                 const trimmedTitle = video.title.length > 50 ? `${video.title.slice(0, 50)}...` : video.title;
+                const hasStream = !!video.streamThumbnailUrl;
                 return (
                   <div key={video.id} className="space-y-2" data-testid={`featured-video-${video.id}`}>
                     <h3 className="text-sm font-medium text-center line-clamp-1" title={video.title}>
@@ -282,35 +258,31 @@ export default function LandingPage() {
                     </h3>
                     <button
                       type="button"
-                      onClick={() => toggleFeaturedVideoPlayback(video.id)}
-                      className="block w-full rounded-lg overflow-hidden bg-black/60 hover:opacity-90 transition-opacity"
+                      onClick={() => setSelectedVideo(video)}
+                      className="block w-full rounded-lg overflow-hidden bg-black/60 hover:opacity-90 transition-opacity relative group"
                     >
                       <div className="aspect-[3/4]">
-                        <video
-                          ref={(el) => {
-                            featuredVideoRefs.current[video.id] = el;
-                          }}
-                          className="w-full h-full object-cover"
-                          src={video.videoUrl}
-                          preload="metadata"
-                          muted
-                          playsInline
-                          onMouseEnter={(e) => {
-                            if (playingFeaturedVideoId === video.id) return;
-                            const videoEl = e.currentTarget;
-                            videoEl.currentTime = 0;
-                            videoEl.play().catch(() => {});
-                          }}
-                          onMouseLeave={(e) => {
-                            if (playingFeaturedVideoId === video.id) return;
-                            const videoEl = e.currentTarget;
-                            videoEl.pause();
-                            videoEl.currentTime = 0;
-                          }}
-                          onEnded={() => {
-                            setPlayingFeaturedVideoId((currentId) => (currentId === video.id ? null : currentId));
-                          }}
-                        />
+                        {hasStream ? (
+                          <img
+                            src={video.streamThumbnailUrl!}
+                            alt={video.title}
+                            loading="lazy"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <video
+                            className="w-full h-full object-cover"
+                            src={video.videoUrl}
+                            preload="metadata"
+                            muted
+                            playsInline
+                          />
+                        )}
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="bg-black/50 rounded-full p-3 backdrop-blur-sm">
+                          <Play className="h-8 w-8 text-white" fill="white" />
+                        </div>
                       </div>
                     </button>
                   </div>
@@ -332,6 +304,46 @@ export default function LandingPage() {
           </>
         )}
       </section>
+
+      {/* Bunny Stream Player Modal */}
+      <Dialog open={!!selectedVideo} onOpenChange={(open) => { if (!open) setSelectedVideo(null); }}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden border-none bg-black [&>button]:hidden">
+          {selectedVideo && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setSelectedVideo(null)}
+                className="absolute top-2 right-2 z-10 bg-black/60 hover:bg-black/80 rounded-full p-1.5 transition-colors"
+                aria-label="Close video"
+              >
+                <X className="h-5 w-5 text-white" />
+              </button>
+              <div className="aspect-[3/4] bg-black">
+                {selectedVideo.streamEmbedUrl ? (
+                  <iframe
+                    src={`${selectedVideo.streamEmbedUrl}?autoplay=true&preload=true`}
+                    loading="lazy"
+                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                    className="w-full h-full border-none"
+                  />
+                ) : (
+                  <video
+                    className="w-full h-full object-contain"
+                    src={selectedVideo.videoUrl}
+                    controls
+                    autoPlay
+                    playsInline
+                  />
+                )}
+              </div>
+              <div className="px-4 py-3 bg-black/90">
+                <h3 className="text-white text-sm font-medium line-clamp-2">{selectedVideo.title}</h3>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Why choose NeonVideo */}
       <section className="container mx-auto px-4">

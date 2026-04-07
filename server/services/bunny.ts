@@ -286,3 +286,87 @@ export function isBunnyUrl(url: string): boolean {
 export function isBunnyStorageMp4(url: string): boolean {
   return isBunnyUrl(url) && url.endsWith(".mp4");
 }
+
+// ─── Bunny Stream (video library / HLS) helpers ─────────────────
+
+function getStreamConfig() {
+  return {
+    libraryId: process.env.BUNNY_STREAM_FINAL_LIBRARY_ID || "",
+    apiKey: process.env.BUNNY_STREAM_FINAL_API_KEY || "",
+    cdnHostname: process.env.BUNNY_STREAM_FINAL_CDN_HOSTNAME || "",
+  };
+}
+
+export function isBunnyStreamConfigured(): boolean {
+  const cfg = getStreamConfig();
+  return !!(cfg.libraryId && cfg.apiKey && cfg.cdnHostname);
+}
+
+/**
+ * Push an existing video URL into a Bunny Stream library via the Fetch API.
+ * Bunny will download the file and transcode it to HLS in the background.
+ * Returns the Stream video GUID on success.
+ */
+export async function fetchVideoToBunnyStream(
+  sourceUrl: string,
+  title: string,
+): Promise<{ videoId: string; libraryId: string }> {
+  const cfg = getStreamConfig();
+  if (!cfg.libraryId || !cfg.apiKey) {
+    throw new Error("Bunny Stream is not configured (missing BUNNY_STREAM_FINAL_LIBRARY_ID or API key)");
+  }
+
+  const url = `https://video.bunnycdn.com/library/${cfg.libraryId}/videos/fetch`;
+
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        AccessKey: cfg.apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ url: sourceUrl, title }),
+    });
+
+    if (response.status === 429) {
+      const waitMs = Math.min(5000 * (attempt + 1), 15000);
+      console.warn(`[Bunny Stream] Rate limited (429), retrying in ${waitMs}ms...`);
+      await new Promise((r) => setTimeout(r, waitMs));
+      lastError = new Error("Rate limited by Bunny Stream API");
+      continue;
+    }
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Bunny Stream fetch failed (${response.status}): ${text}`);
+    }
+
+    const data = (await response.json()) as { success?: boolean; message?: string; statusCode?: number; id?: string };
+
+    const videoId = data.id;
+    if (!videoId) {
+      throw new Error(`Bunny Stream fetch returned no video ID: ${JSON.stringify(data)}`);
+    }
+
+    console.log(`[Bunny Stream] Video fetch initiated: ${videoId} for "${title}"`);
+    return { videoId, libraryId: cfg.libraryId };
+  }
+
+  throw lastError || new Error("Bunny Stream fetch failed after retries");
+}
+
+export function getBunnyStreamThumbnailUrl(videoId: string): string {
+  const cfg = getStreamConfig();
+  return `https://${cfg.cdnHostname}/${videoId}/thumbnail.jpg`;
+}
+
+export function getBunnyStreamPreviewUrl(videoId: string): string {
+  const cfg = getStreamConfig();
+  return `https://${cfg.cdnHostname}/${videoId}/preview.webp`;
+}
+
+export function getBunnyStreamEmbedUrl(videoId: string): string {
+  const cfg = getStreamConfig();
+  return `https://player.mediadelivery.net/embed/${cfg.libraryId}/${videoId}`;
+}

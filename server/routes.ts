@@ -33,7 +33,7 @@ import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWaterm
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback } from "./services/imagekit";
-import { isBunnyConfigured, uploadToBunnyStorage, uploadCharacterImage, uploadSceneImage, uploadSongAudio, uploadSongCover, isBunnyUrl, uploadAudio } from "./services/bunny";
+import { isBunnyConfigured, uploadToBunnyStorage, uploadCharacterImage, uploadSceneImage, uploadSongAudio, uploadSongCover, isBunnyUrl, uploadAudio, isBunnyStreamConfigured, fetchVideoToBunnyStream, getBunnyStreamThumbnailUrl, getBunnyStreamEmbedUrl } from "./services/bunny";
 import { emailService } from "./services/email";
 import { createMuxAssetForVideo } from "./services/muxJobs";
 import { listStoryVoiceOptions } from "./services/storyVoices";
@@ -3370,6 +3370,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Video not found" });
       }
 
+      // When featuring a video, push it to Bunny Stream for HLS playback (fire-and-forget)
+      if (isFeatured && isBunnyStreamConfigured()) {
+        const project = await storage.getProject(videoId);
+        if (project?.finalVideoUrl && !project.bunnyVideoId) {
+          fetchVideoToBunnyStream(project.finalVideoUrl, project.title)
+            .then(async ({ videoId: streamVideoId, libraryId }) => {
+              await storage.updateProject(videoId, {
+                bunnyVideoId: streamVideoId,
+                bunnyLibraryId: libraryId,
+                bunnyVideoStatus: "processing",
+              });
+              console.log(`[Admin] Bunny Stream fetch initiated for featured video ${videoId} -> ${streamVideoId}`);
+            })
+            .catch((err) => {
+              console.error(`[Admin] Failed to push featured video ${videoId} to Bunny Stream:`, err);
+            });
+        }
+      }
+
       res.json({
         message: isFeatured ? "Video featured successfully" : "Video unfeatured successfully",
         isFeatured
@@ -4751,11 +4770,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
 
+          const streamVideoId = project.bunnyVideoId || null;
+          const streamThumbnailUrl = streamVideoId ? getBunnyStreamThumbnailUrl(streamVideoId) : null;
+          const streamEmbedUrl = streamVideoId ? getBunnyStreamEmbedUrl(streamVideoId) : null;
+
           return {
             id: project.id,
             title: ["My Music Video", "NeonVideo Song", "AI Generated Song"].includes(project.title) ? (project.audioPrompt ? project.audioPrompt.substring(0, 30) + (project.audioPrompt.length > 30 ? '...' : '') : project.title) : project.title,
             videoUrl: project.finalVideoUrl,
             thumbnailUrl,
+            streamVideoId,
+            streamThumbnailUrl,
+            streamEmbedUrl,
             createdAt: project.createdAt,
             duration: project.audioDuration || 30,
             creator: {
