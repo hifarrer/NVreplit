@@ -307,7 +307,7 @@ export default function LandingPage() {
 
       {/* Bunny Stream Player Modal */}
       <Dialog open={!!selectedVideo} onOpenChange={(open) => { if (!open) setSelectedVideo(null); }}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden border-none bg-black [&>button]:hidden">
+        <DialogContent className="max-w-2xl md:max-w-[min(42rem,calc(80vh*3/4))] p-0 overflow-hidden border-none bg-black [&>button]:hidden">
           {selectedVideo && (
             <div className="relative">
               <button

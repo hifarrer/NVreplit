@@ -232,7 +232,8 @@ export async function generateCharacterImageWavespeed(
     "3d": "3D animation style"
   };
   const styleDescription = styleDescriptions[style] || "3D animation style";
-  const enhancedPrompt = `front shot of a ${prompt}, ${styleDescription}`;
+  const normalizedPrompt = normalizeCharacterPrompt(prompt);
+  const enhancedPrompt = `${normalizedPrompt}, ${styleDescription}`;
 
   const imageSize = aspectRatioToSize(aspectRatio);
   console.log(
@@ -241,7 +242,7 @@ export async function generateCharacterImageWavespeed(
   );
   console.log(`Using aspect ratio: ${aspectRatio}, image size: ${imageSize}`);
 
-  try {
+  async function runOneAttempt(promptText: string): Promise<string> {
     // Submit generation request to Wavespeed.ai using seedream-v4 model
     const response = await fetch(
       "https://api.wavespeed.ai/api/v3/bytedance/seedream-v4",
@@ -254,7 +255,7 @@ export async function generateCharacterImageWavespeed(
         body: JSON.stringify({
           enable_base64_output: false,
           enable_sync_mode: false,
-          prompt: enhancedPrompt,
+          prompt: promptText,
           size: imageSize,
         }),
       },
@@ -351,12 +352,73 @@ export async function generateCharacterImageWavespeed(
     }
 
     throw new Error("Image generation timed out");
+  }
+
+  try {
+    return await runOneAttempt(enhancedPrompt);
   } catch (error) {
-    console.error("Wavespeed.ai character generation error:", error);
+    const err = error as Error;
+    if (isCharacterSensitiveError(err)) {
+      const safePrompt = `${sanitizeCharacterPromptForSafety(normalizedPrompt)}, ${styleDescription}`;
+      console.warn(
+        "Wavespeed.ai character generation flagged as sensitive. Retrying with safer prompt:",
+        safePrompt,
+      );
+      try {
+        return await runOneAttempt(safePrompt);
+      } catch (retryError) {
+        console.error("Wavespeed.ai character generation retry failed:", retryError);
+      }
+    }
+    console.error("Wavespeed.ai character generation error:", err);
     throw new Error(
-      "Failed to generate character image: " + (error as Error).message,
+      "Failed to generate character image: " + err.message,
     );
   }
+}
+
+/** Normalize to a single "front shot of a ..." prefix and collapse repeated wording. */
+function normalizeCharacterPrompt(prompt: string): string {
+  const raw = (prompt || "").trim().replace(/\s+/g, " ");
+  const withoutDuplicateFrontShot = raw
+    .replace(/^(front shot of a\s+){2,}/i, "front shot of a ")
+    .replace(/^(front shot of an\s+){2,}/i, "front shot of an ");
+
+  if (/^front shot of (a|an)\s+/i.test(withoutDuplicateFrontShot)) {
+    return withoutDuplicateFrontShot;
+  }
+  return `front shot of a ${withoutDuplicateFrontShot}`;
+}
+
+/**
+ * Replace high-risk wording with safer synonyms to reduce model safety false-positives.
+ * Keep this conservative so visuals remain faithful to user intent.
+ */
+function sanitizeCharacterPromptForSafety(prompt: string): string {
+  const replacements: Array<[RegExp, string]> = [
+    [/\benormous\b/gi, "large"],
+    [/\bhuge\b/gi, "very large"],
+    [/\bmassive\b/gi, "very large"],
+    [/\bsensual\b/gi, "graceful"],
+    [/\bsexy\b/gi, "stylish"],
+    [/\bnude\b/gi, "fully clothed"],
+    [/\bnaked\b/gi, "fully clothed"],
+  ];
+
+  let safePrompt = prompt;
+  for (const [pattern, replacement] of replacements) {
+    safePrompt = safePrompt.replace(pattern, replacement);
+  }
+  return safePrompt.replace(/\s+/g, " ").trim();
+}
+
+function isCharacterSensitiveError(error: Error): boolean {
+  const msg = (error.message || "").toLowerCase();
+  return (
+    msg.includes("potentially sensitive") ||
+    msg.includes("content flagged") ||
+    (msg.includes("sensitive") && msg.includes("prompt"))
+  );
 }
 
 // Safe fallback when album cover is flagged as potentially sensitive
