@@ -4712,6 +4712,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Get excludeUserId from query params if provided
       const excludeUserId = req.query.excludeUserId as string | undefined;
+      const requestedLimit = parseInt(req.query.limit as string, 10);
+      const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 500) : 200;
 
       // Get all completed projects with final videos from all users
       const allProjects = await storage.getAllVideosForAdmin(); // Reuse admin function to get all videos
@@ -4727,7 +4729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return p.isCompleted && p.finalVideoUrl && p.isFeatured && p.isPublic !== false;
         })
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 12) // Get top 12 videos
+        .slice(0, limit)
         .map(async (project) => {
           // Get the user info for each video
           const user = await storage.getUser(project.userId);

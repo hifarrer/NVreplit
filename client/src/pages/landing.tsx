@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Video, Sparkles, Music, Wand2, Play, ArrowRight, Volume2, VolumeX } from "lucide-react";
@@ -9,86 +10,33 @@ import { SiTiktok, SiFacebook, SiYoutube } from "react-icons/si";
 
 const heroVideo = "https://res.cloudinary.com/dqemas8ht/video/upload/v1769200552/hero_video-BLAd97Wv_urt68e.mp4";
 
-// TikTok embed has a fixed width of 325px, we use height 538px to hide bottom UI
-function TikTokEmbed({ videoId }: { videoId: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-
-  useEffect(() => {
-    const updateScale = () => {
-      if (containerRef.current) {
-        const containerWidth = containerRef.current.offsetWidth;
-        const containerHeight = containerRef.current.offsetHeight;
-        // TikTok embed is 325x538 (reduced height to hide bottom UI)
-        const scaleX = containerWidth / 325;
-        const scaleY = containerHeight / 538;
-        // Use the smaller scale to fit everything (1.00x - no extra scaling)
-        const newScale = Math.min(scaleX, scaleY);
-        setScale(newScale);
-      }
-    };
-
-    updateScale();
-    window.addEventListener('resize', updateScale);
-    // Use ResizeObserver for more accurate container size tracking
-    const resizeObserver = new ResizeObserver(updateScale);
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
-    }
-    return () => {
-      window.removeEventListener('resize', updateScale);
-      resizeObserver.disconnect();
-    };
-  }, []);
-
-  return (
-    <Card 
-      className="overflow-hidden bg-card/50 backdrop-blur-sm"
-      data-testid={`tiktok-video-${videoId}`}
-    >
-      <div 
-        ref={containerRef}
-        className="bg-black relative"
-        style={{
-          aspectRatio: '325 / 538', // Match the iframe aspect ratio (325:538)
-        }}
-      >
-        <div
-          className="absolute"
-          style={{
-            width: '325px',
-            height: '538px',
-            left: '50%',
-            top: '50%',
-            transform: `translate(-50%, -50%) scale(${scale})`,
-            transformOrigin: 'center center',
-          }}
-        >
-          <iframe
-            src={`https://www.tiktok.com/embed/v2/${videoId}`}
-            className="w-full h-full"
-            style={{
-              width: '325px',
-              height: '538px',
-              pointerEvents: 'auto',
-            }}
-            frameBorder="0"
-            scrolling="no"
-            allow="encrypted-media"
-            allowFullScreen
-            title={`TikTok video ${videoId}`}
-          />
-        </div>
-      </div>
-    </Card>
-  );
+interface FeaturedVideo {
+  id: string;
+  title: string;
+  videoUrl: string;
 }
 
 export default function LandingPage() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const [isMuted, setIsMuted] = useState(true);
+  const [visibleRows, setVisibleRows] = useState(5);
   const heroVideoRef = useRef<HTMLVideoElement>(null);
+  const VIDEOS_PER_ROW = 5;
+  const ROWS_PER_BATCH = 5;
+
+  const { data: featuredVideos = [], isLoading: isFeaturedVideosLoading } = useQuery<FeaturedVideo[]>({
+    queryKey: ["/api/trending-videos", "featured-landing"],
+    queryFn: async () => {
+      const response = await fetch("/api/trending-videos?limit=500");
+      if (!response.ok) throw new Error("Failed to fetch featured videos");
+      return response.json();
+    },
+  });
+
+  const visibleCount = visibleRows * VIDEOS_PER_ROW;
+  const visibleVideos = featuredVideos.slice(0, visibleCount);
+  const canLoadMore = visibleCount < featuredVideos.length;
 
   const handleGetStarted = () => {
     if (user) {
@@ -345,63 +293,67 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* TikTok Videos Section */}
+      {/* Featured Videos Section */}
       <section className="container mx-auto px-4 py-12">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold mb-3">Featured Videos</h2>
           <p className="text-muted-foreground">
-            Check out our latest AI-generated music videos on TikTok
+            Discover AI-generated music videos from our community
           </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-          {[
-            "7599078362769886494",
-            "7575338797584469279",
-            "7574658234779208991",
-            "7602994316557978893",
-            "7598756835025227039",
-            "7561092405684915470",
-            "7596083992202349837",
-            "7573353727168433422",
-            "7566720433408445709",
-            "7592820321829276983",
-            "7575203893395623198",
-            "7578919925947895095",
-            "7579090130250632462",
-            "7592341002602515767",
-            "7600984196785523999",
-            "7574420688082144525",
-            "7596167634417143070",
-            "7559368462649281806",
-            "7559236974125583629",
-            "7559190585400167735",
-            "7582630957912542477",
-            "7576044166963023159",
-            "7562576600429120781",
-            "7593021385451113741",
-            "7602437689744428318",
-            "7600814100892896543",
-            "7600659726912769311",
-            "7582058866762943758",
-            "7598649418065169677",
-            "7598587535555693837",
-            "7560303418946981175",
-            "7560457124677963022",
-            "7560544083698027790",
-            "7560546740261227831",
-            "7560860394026274061",
-            "7564231136319147277",
-            "7566983387001474359",
-            "7564973260727782669",
-            "7579059252707347725",
-            "7564571361318882615",
-            "7569271658574269751",
-            "7581950539068411150",
-          ].map((videoId) => (
-            <TikTokEmbed key={videoId} videoId={videoId} />
-          ))}
-        </div>
+        {isFeaturedVideosLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="loading-spinner w-6 h-6"></div>
+          </div>
+        ) : featuredVideos.length === 0 ? (
+          <div className="text-center py-10 text-muted-foreground">
+            No featured videos available right now.
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {visibleVideos.map((video) => {
+                const trimmedTitle = video.title.length > 50 ? `${video.title.slice(0, 50)}...` : video.title;
+                return (
+                  <div key={video.id} className="space-y-2" data-testid={`featured-video-${video.id}`}>
+                    <h3 className="text-sm font-medium text-center line-clamp-1" title={video.title}>
+                      {trimmedTitle}
+                    </h3>
+                    <a
+                      href={`/v/${video.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block rounded-lg overflow-hidden bg-black/60 hover:opacity-90 transition-opacity"
+                    >
+                      <div className="aspect-video">
+                        <video
+                          className="w-full h-full object-cover"
+                          src={video.videoUrl}
+                          preload="metadata"
+                          muted
+                          playsInline
+                        />
+                      </div>
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+
+            {canLoadMore && (
+              <div className="flex justify-center mt-8">
+                <Button
+                  variant="outline"
+                  onClick={() => setVisibleRows((rows) => rows + ROWS_PER_BATCH)}
+                  data-testid="featured-videos-load-more"
+                >
+                  Load more
+                </Button>
+              </div>
+            )}
+          </>
+        )}
       </section>
 
       {/* CTA Section */}
