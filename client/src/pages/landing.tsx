@@ -21,7 +21,9 @@ export default function LandingPage() {
   const { user } = useAuth();
   const [isMuted, setIsMuted] = useState(true);
   const [visibleRows, setVisibleRows] = useState(5);
+  const [playingFeaturedVideoId, setPlayingFeaturedVideoId] = useState<string | null>(null);
   const heroVideoRef = useRef<HTMLVideoElement>(null);
+  const featuredVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const VIDEOS_PER_ROW = 5;
   const ROWS_PER_BATCH = 5;
 
@@ -37,6 +39,34 @@ export default function LandingPage() {
   const visibleCount = visibleRows * VIDEOS_PER_ROW;
   const visibleVideos = featuredVideos.slice(0, visibleCount);
   const canLoadMore = visibleCount < featuredVideos.length;
+
+  const toggleFeaturedVideoPlayback = async (videoId: string) => {
+    const videoEl = featuredVideoRefs.current[videoId];
+    if (!videoEl) return;
+
+    if (playingFeaturedVideoId && playingFeaturedVideoId !== videoId) {
+      const previousVideo = featuredVideoRefs.current[playingFeaturedVideoId];
+      if (previousVideo) {
+        previousVideo.pause();
+        previousVideo.currentTime = 0;
+      }
+    }
+
+    if (playingFeaturedVideoId === videoId && !videoEl.paused) {
+      videoEl.pause();
+      videoEl.currentTime = 0;
+      setPlayingFeaturedVideoId(null);
+      return;
+    }
+
+    videoEl.currentTime = 0;
+    try {
+      await videoEl.play();
+      setPlayingFeaturedVideoId(videoId);
+    } catch {
+      setPlayingFeaturedVideoId(null);
+    }
+  };
 
   const handleGetStarted = () => {
     if (user) {
@@ -223,6 +253,86 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Featured Videos Section */}
+      <section className="container mx-auto px-4 py-12">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold mb-3">Featured Videos</h2>
+          <p className="text-muted-foreground">
+            Discover AI-generated music videos from our community
+          </p>
+        </div>
+
+        {isFeaturedVideosLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="loading-spinner w-6 h-6"></div>
+          </div>
+        ) : featuredVideos.length === 0 ? (
+          <div className="text-center py-10 text-muted-foreground">
+            No featured videos available right now.
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {visibleVideos.map((video) => {
+                const trimmedTitle = video.title.length > 50 ? `${video.title.slice(0, 50)}...` : video.title;
+                return (
+                  <div key={video.id} className="space-y-2" data-testid={`featured-video-${video.id}`}>
+                    <h3 className="text-sm font-medium text-center line-clamp-1" title={video.title}>
+                      {trimmedTitle}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => toggleFeaturedVideoPlayback(video.id)}
+                      className="block w-full rounded-lg overflow-hidden bg-black/60 hover:opacity-90 transition-opacity"
+                    >
+                      <div className="aspect-[3/4]">
+                        <video
+                          ref={(el) => {
+                            featuredVideoRefs.current[video.id] = el;
+                          }}
+                          className="w-full h-full object-cover"
+                          src={video.videoUrl}
+                          preload="metadata"
+                          muted
+                          playsInline
+                          onMouseEnter={(e) => {
+                            if (playingFeaturedVideoId === video.id) return;
+                            const videoEl = e.currentTarget;
+                            videoEl.currentTime = 0;
+                            videoEl.play().catch(() => {});
+                          }}
+                          onMouseLeave={(e) => {
+                            if (playingFeaturedVideoId === video.id) return;
+                            const videoEl = e.currentTarget;
+                            videoEl.pause();
+                            videoEl.currentTime = 0;
+                          }}
+                          onEnded={() => {
+                            setPlayingFeaturedVideoId((currentId) => (currentId === video.id ? null : currentId));
+                          }}
+                        />
+                      </div>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {canLoadMore && (
+              <div className="flex justify-center mt-8">
+                <Button
+                  variant="outline"
+                  onClick={() => setVisibleRows((rows) => rows + ROWS_PER_BATCH)}
+                  data-testid="featured-videos-load-more"
+                >
+                  Load more
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
       {/* Why choose NeonVideo */}
       <section className="container mx-auto px-4">
         <div className="text-center mb-8">
@@ -291,79 +401,6 @@ export default function LandingPage() {
             </table>
           </div>
         </div>
-      </section>
-
-      {/* Featured Videos Section */}
-      <section className="container mx-auto px-4 py-12">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold mb-3">Featured Videos</h2>
-          <p className="text-muted-foreground">
-            Discover AI-generated music videos from our community
-          </p>
-        </div>
-
-        {isFeaturedVideosLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="loading-spinner w-6 h-6"></div>
-          </div>
-        ) : featuredVideos.length === 0 ? (
-          <div className="text-center py-10 text-muted-foreground">
-            No featured videos available right now.
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {visibleVideos.map((video) => {
-                const trimmedTitle = video.title.length > 50 ? `${video.title.slice(0, 50)}...` : video.title;
-                return (
-                  <div key={video.id} className="space-y-2" data-testid={`featured-video-${video.id}`}>
-                    <h3 className="text-sm font-medium text-center line-clamp-1" title={video.title}>
-                      {trimmedTitle}
-                    </h3>
-                    <a
-                      href={`/v/${video.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block rounded-lg overflow-hidden bg-black/60 hover:opacity-90 transition-opacity"
-                    >
-                      <div className="aspect-[3/4]">
-                        <video
-                          className="w-full h-full object-cover"
-                          src={video.videoUrl}
-                          preload="metadata"
-                          muted
-                          playsInline
-                          onMouseEnter={(e) => {
-                            const videoEl = e.currentTarget;
-                            videoEl.currentTime = 0;
-                            videoEl.play().catch(() => {});
-                          }}
-                          onMouseLeave={(e) => {
-                            const videoEl = e.currentTarget;
-                            videoEl.pause();
-                            videoEl.currentTime = 0;
-                          }}
-                        />
-                      </div>
-                    </a>
-                  </div>
-                );
-              })}
-            </div>
-
-            {canLoadMore && (
-              <div className="flex justify-center mt-8">
-                <Button
-                  variant="outline"
-                  onClick={() => setVisibleRows((rows) => rows + ROWS_PER_BATCH)}
-                  data-testid="featured-videos-load-more"
-                >
-                  Load more
-                </Button>
-              </div>
-            )}
-          </>
-        )}
       </section>
 
       {/* CTA Section */}
