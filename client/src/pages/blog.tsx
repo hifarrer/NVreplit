@@ -17,6 +17,15 @@ interface BlogPost {
 
 const blogPosts: BlogPost[] = [
   {
+    title: "Version 2.9 Released: Story Videos, UI Polish & Video Style Guide",
+    slug: "/version-2-9-release",
+    excerpt:
+      "NeonVideo.ai version 2.9 introduces Story Videos—scripted narratives with characters, narration, and scene control—plus creation hub updates, reliability fixes, and practical tips for every music video style.",
+    date: "April 7, 2026",
+    category: "Product Update",
+    readTime: "9 min read"
+  },
+  {
     title: "Version 2.8 Released: New Video Tools, API & Five Video Styles",
     slug: "/version-2-8-release",
     excerpt: "NeonVideo.ai version 2.8 brings new video tools, API endpoint availability, five video styles (Pro Mode, Simple Mode, Single Prompt, Instrumental, Lyric), plus multiple enhancements and bug fixes.",
