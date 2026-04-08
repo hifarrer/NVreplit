@@ -98,12 +98,13 @@ export function VideoStyleCapabilityNotes({ variant, className }: VideoStyleCapa
   return (
     <div
       className={cn(
-        "rounded-lg border border-border/70 bg-muted/25 px-3 py-2.5 text-[11px] sm:text-xs leading-snug",
+        "grid grid-cols-2 gap-3 rounded-lg border border-border/70 bg-muted/25 px-3 py-2.5 text-[10px] sm:gap-4 sm:text-xs sm:px-4",
+        "leading-snug",
         className
       )}
       data-testid="video-style-capability-notes"
     >
-      <ul className="m-0 list-none space-y-1 p-0">
+      <ul className="m-0 min-w-0 list-none space-y-1 p-0">
         {pros.map((line) => (
           <li key={line} className="flex items-start gap-2">
             <Check
@@ -114,7 +115,7 @@ export function VideoStyleCapabilityNotes({ variant, className }: VideoStyleCapa
           </li>
         ))}
       </ul>
-      <ul className="m-0 mt-2 list-none space-y-1 border-t border-border/50 p-0 pt-2">
+      <ul className="m-0 min-w-0 list-none space-y-1 border-l border-border/50 p-0 pl-3 sm:pl-4">
         {cons.map((line) => (
           <li key={line} className="flex items-start gap-2">
             <X className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-600 dark:text-red-400" aria-hidden />
