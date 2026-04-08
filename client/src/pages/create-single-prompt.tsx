@@ -12,6 +12,7 @@ import { Loader2, Music, Video, Monitor, Smartphone, Palette, ArrowLeft, Clock, 
 import { apiRequest } from "@/lib/queryClient";
 import { downloadFileFromUrl } from "@/lib/utils";
 import { NavigationHeader } from "@/components/navigation-header";
+import { VideoStyleCapabilityNotes } from "@/components/video-style-capability-notes";
 import { Footer } from "@/components/footer";
 import { Link, useLocation } from "wouter";
 import { Project, GenerationLog } from "@/lib/types";
@@ -255,6 +256,8 @@ export default function CreateSinglePrompt() {
               Create a complete AI music video from a single prompt
             </p>
           </div>
+
+          <VideoStyleCapabilityNotes variant="single-prompt" className="mb-6" />
 
           <Card className="bg-card border-border mb-8">
             <CardHeader>

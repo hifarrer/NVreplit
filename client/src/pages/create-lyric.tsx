@@ -12,6 +12,7 @@ import { Loader2, Music, Video, Monitor, Smartphone, ArrowLeft, Clock, ChevronDo
 import { apiRequest } from "@/lib/queryClient";
 import { downloadFileFromUrl } from "@/lib/utils";
 import { NavigationHeader } from "@/components/navigation-header";
+import { VideoStyleCapabilityNotes } from "@/components/video-style-capability-notes";
 import { Footer } from "@/components/footer";
 import { useLocation } from "wouter";
 import { Project, GenerationLog } from "@/lib/types";
@@ -779,6 +780,8 @@ export default function CreateLyric() {
             <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">Lyric</h1>
             <p className="text-muted-foreground">Create lyric videos with AI songs, timed captions, and scene generation.</p>
           </div>
+
+          <VideoStyleCapabilityNotes variant="lyric" className="mb-6" />
 
           <Card className="bg-card border-border mb-8">
             <CardHeader>

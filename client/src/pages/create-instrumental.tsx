@@ -13,6 +13,7 @@ import { Loader2, Music, Video, Monitor, Smartphone, Palette, ArrowLeft, Clock, 
 import { apiRequest } from "@/lib/queryClient";
 import { downloadFileFromUrl } from "@/lib/utils";
 import { NavigationHeader } from "@/components/navigation-header";
+import { VideoStyleCapabilityNotes } from "@/components/video-style-capability-notes";
 import { Footer } from "@/components/footer";
 import { useLocation } from "wouter";
 import { Project, GenerationLog } from "@/lib/types";
@@ -687,6 +688,8 @@ export default function CreateInstrumental() {
               Create cinematic instrumental music videos with optional text overlays
             </p>
           </div>
+
+          <VideoStyleCapabilityNotes variant="instrumental" className="mb-6" />
 
           <Card className="bg-card border-border mb-8">
             <CardHeader>

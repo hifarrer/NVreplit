@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { Card, CardContent } from "@/components/ui/card";
+import { VideoStylePreview } from "@/components/video-style-preview";
 import { AddCaptionsToolModal } from "@/components/modals/add-captions-tool-modal";
 import { TrimVideoToolModal } from "@/components/modals/trim-video-tool-modal";
 import { TrimAudioToolModal } from "@/components/modals/trim-audio-tool-modal";
@@ -26,7 +27,7 @@ export default function CreateSelect() {
       title: "Pro Mode",
       description: "Pro Mode",
       explanation: "Full control with character customization and scene editing",
-      imageUrl: "https://res.cloudinary.com/dqemas8ht/image/upload/v1771118603/singkitty2a_n6vznj.png",
+      videoUrl: "https://stream.mux.com/izYi3JADnbg7h8SHzsASpOyB9ajBYAJc5LsC02i9TC02c.m3u8?redundant_streams=true",
       route: "/create/story-mode",
       available: true,
     },
@@ -35,7 +36,7 @@ export default function CreateSelect() {
       title: "Simple Mode",
       description: "Simple Mode",
       explanation: "Prompt-first flow with optional song and image attachments",
-      imageUrl: "https://neonvideo.b-cdn.net/custom/1.png",
+      videoUrl: "https://stream.mux.com/qqkJMythzHpac01DZzzzDYacWsFTSMdXXNL2uQXQ1jBc.m3u8?redundant_streams=true",
       route: "/create/simple-mode",
       available: true,
     },
@@ -44,7 +45,7 @@ export default function CreateSelect() {
       title: "Seamless Loop Video",
       description: "Seamless Loop Video",
       explanation: "Create a video loop for any song",
-      imageUrl: "https://neonvideo.b-cdn.net/logos/videoloop.jpeg",
+      videoUrl: "https://stream.mux.com/VNcm3lLuOzdlm02EngDb7uWpU3JNDKo1JVsJAEzgRfMI.m3u8?redundant_streams=true",
       route: "/create/loop-video",
       available: true,
     },
@@ -62,7 +63,7 @@ export default function CreateSelect() {
       title: "Instrumental",
       description: "Instrumental",
       explanation: "Music-only videos without characters or lip-sync features",
-      imageUrl: "https://res.cloudinary.com/dqemas8ht/image/upload/v1771302921/instrumental4_l55bhb.jpg",
+      videoUrl: "https://stream.mux.com/02hJ7SQZDm1rsQgkxGa02W02DdOgk02Iy00QJmA9NBb01im1I.m3u8?redundant_streams=true",
       route: "/create/instrumental",
       available: true,
     },
@@ -71,7 +72,7 @@ export default function CreateSelect() {
       title: "Lyric",
       description: "Lyric",
       explanation: "Automatically add lyrics to any song",
-      imageUrl: "https://res.cloudinary.com/dqemas8ht/image/upload/v1771295880/lyric_video_lh0pta.jpg",
+      videoUrl: "https://stream.mux.com/3xcUjCgA00x9Uu6BZEfVAYmU3L7FoUaE2rId8GedrxeE.m3u8?redundant_streams=true",
       route: "/create/lyric",
       available: true,
     },
@@ -80,7 +81,7 @@ export default function CreateSelect() {
       title: "Music Video Shorts",
       description: "Music Video Shorts",
       explanation: "Create stunning 12-second video shorts from a single prompt",
-      imageUrl: "https://neonvideo.b-cdn.net/custom/electricgoat.jpg",
+      videoUrl: "https://stream.mux.com/009H5uoHfflL1Y00PQkW3w8FvrTUxYXbsmIrHh13i00800s.m3u8?redundant_streams=true",
       route: "/create/video-shorts",
       available: true,
     },
@@ -113,12 +114,19 @@ export default function CreateSelect() {
                 }`}
                 onClick={() => handleModeClick(mode)}
               >
-                <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                  <img
-                    src={mode.imageUrl}
-                    alt={mode.title}
-                    className="w-full h-full object-cover"
-                  />
+                <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+                  {"imageUrl" in mode && mode.imageUrl ? (
+                    <img
+                      src={mode.imageUrl}
+                      alt={mode.title}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  ) : "videoUrl" in mode && mode.videoUrl ? (
+                    <VideoStylePreview
+                      hlsUrl={mode.videoUrl}
+                      className="absolute inset-0"
+                    />
+                  ) : null}
                   {!mode.available && (
                     <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
                       <span className="text-muted-foreground text-sm font-medium">
@@ -149,11 +157,10 @@ export default function CreateSelect() {
               className="overflow-hidden border border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer transition-all"
               onClick={() => navigate("/create/story-video")}
             >
-              <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                <img
-                  src="https://neonvideo.b-cdn.net/neonvideooutros/story.jpg"
-                  alt="Story Video"
-                  className="w-full h-full object-cover"
+              <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+                <VideoStylePreview
+                  hlsUrl="https://stream.mux.com/UyR7Y01LqlVFKJzYcXHAvHl2OCHM4FUZyKpHTxz7BSNs.m3u8?redundant_streams=true"
+                  className="absolute inset-0"
                 />
               </div>
               <div className="px-4 sm:px-6 pt-3 pb-2">

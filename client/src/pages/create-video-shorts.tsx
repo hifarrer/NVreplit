@@ -10,6 +10,7 @@ import { Loader2, Music, Video, Monitor, Smartphone, ArrowLeft, Upload, X, Check
 import { apiRequest } from "@/lib/queryClient";
 import { downloadFileFromUrl } from "@/lib/utils";
 import { NavigationHeader } from "@/components/navigation-header";
+import { VideoStyleCapabilityNotes } from "@/components/video-style-capability-notes";
 import { Footer } from "@/components/footer";
 import { Link, useLocation } from "wouter";
 import { Project, GenerationLog } from "@/lib/types";
@@ -472,6 +473,8 @@ export default function CreateVideoShorts() {
               Create stunning 12-second video shorts from a single prompt
             </p>
           </div>
+
+          <VideoStyleCapabilityNotes variant="video-shorts" className="mb-6" />
 
           <Card className="bg-card border-border mb-8">
             <CardHeader>

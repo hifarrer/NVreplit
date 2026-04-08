@@ -5,6 +5,7 @@ import { SceneGenerationStep } from "@/components/steps/scene-generation-step";
 import { VideoGenerationStep } from "@/components/steps/video-generation-step";
 import { VideoResultStep } from "@/components/steps/video-result-step";
 import { NavigationHeader } from "@/components/navigation-header";
+import { VideoStyleCapabilityNotes } from "@/components/video-style-capability-notes";
 import { Footer } from "@/components/footer";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -175,6 +176,11 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
+        {currentStep === 1 && (
+          <div className="max-w-5xl mx-auto mb-4">
+            <VideoStyleCapabilityNotes variant="pro-mode" />
+          </div>
+        )}
 
         {currentStep === 1 && (
           <AudioCreationStep

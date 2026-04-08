@@ -10,6 +10,7 @@ import { Loader2, Music, Video, ArrowLeft, Upload, X, CheckCircle2, Link as Link
 import { apiRequest } from "@/lib/queryClient";
 import { downloadFileFromUrl } from "@/lib/utils";
 import { NavigationHeader } from "@/components/navigation-header";
+import { VideoStyleCapabilityNotes } from "@/components/video-style-capability-notes";
 import { Footer } from "@/components/footer";
 import { Link, useLocation } from "wouter";
 import { Project, GenerationLog } from "@/lib/types";
@@ -372,6 +373,8 @@ export default function CreateLoopVideo() {
               Create a loopable video from a prompt and your song. We generate an image, turn it into a video, then create a smooth transition back to the start.
             </p>
           </div>
+
+          <VideoStyleCapabilityNotes variant="loop-video" className="mb-6" />
 
           <Card className="bg-card border-border mb-8">
             <CardHeader>
