@@ -1,8 +1,9 @@
+import { useEffect, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "wouter";
+import Hls from "hls.js";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
-import { VideoStylePreview } from "@/components/video-style-preview";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -21,6 +22,32 @@ import {
 } from "lucide-react";
 
 export default function Version290Release() {
+  const featuredVideoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = featuredVideoRef.current;
+    if (!video) return;
+
+    const hlsUrl =
+      "https://stream.mux.com/UyR7Y01LqlVFKJzYcXHAvHl2OCHM4FUZyKpHTxz7BSNs.m3u8?redundant_streams=true";
+
+    if (Hls.isSupported()) {
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+      });
+      hls.loadSource(hlsUrl);
+      hls.attachMedia(video);
+      return () => {
+        hls.destroy();
+      };
+    }
+
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = hlsUrl;
+    }
+  }, []);
+
   return (
     <>
       <Helmet>
@@ -79,10 +106,14 @@ export default function Version290Release() {
                 summarized how to pick the right music video style for your goal.
               </p>
 
-              <div className="rounded-lg overflow-hidden border border-purple-500/20 mb-8">
-                <VideoStylePreview
-                  hlsUrl="https://stream.mux.com/UyR7Y01LqlVFKJzYcXHAvHl2OCHM4FUZyKpHTxz7BSNs.m3u8?redundant_streams=true"
-                  className="w-full aspect-[9/16]"
+              <div className="w-1/4 mx-auto rounded-lg overflow-hidden border border-purple-500/20 mb-8">
+                <video
+                  ref={featuredVideoRef}
+                  className="w-full h-auto"
+                  controls
+                  playsInline
+                  preload="metadata"
+                  data-testid="video-release-hero"
                 />
               </div>
             </header>
