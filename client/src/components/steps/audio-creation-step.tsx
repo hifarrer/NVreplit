@@ -17,6 +17,8 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
+import { isFreePlanUser } from "@/lib/plan-utils";
+import { FreePlanVideoUpsellParagraph } from "@/components/free-plan-video-upsell";
 import { checkProfanity, getCategoryMessage, type ProfanityCheckResult } from "@/lib/profanity-filter";
 import { StepCircles } from "@/components/ui/step-circles";
 import {
@@ -1813,12 +1815,22 @@ Chasing after dreams as big as the sea."
               {/* Credit Info/Warning Message */}
               <div className="mt-3">
                 {!hasEnoughCredits ? (
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-md p-3">
-                    <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
-                      <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-                      Credits Required to Generate Video: {totalCreditsNeeded.toLocaleString()} (You have {userCreditsRemaining.toLocaleString()} remaining)
-                    </p>
-                  </div>
+                  isFreePlanUser(user) ? (
+                    <div className="border border-primary/30 rounded-md p-3 bg-primary/5">
+                      <FreePlanVideoUpsellParagraph
+                        user={user}
+                        className="text-sm text-muted-foreground text-center m-0"
+                      />
+                    </div>
+                  ) : (
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-md p-3">
+                      <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                        Credits Required to Generate Video: {totalCreditsNeeded.toLocaleString()} (You have{" "}
+                        {userCreditsRemaining.toLocaleString()} remaining)
+                      </p>
+                    </div>
+                  )
                 ) : (
                   <p className="text-sm text-muted-foreground text-center">
                     Credits Required to Generate Video: {totalCreditsNeeded.toLocaleString()}

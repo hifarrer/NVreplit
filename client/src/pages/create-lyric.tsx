@@ -17,6 +17,8 @@ import { Footer } from "@/components/footer";
 import { useLocation } from "wouter";
 import { Project, GenerationLog } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
+import { isFreePlanUser } from "@/lib/plan-utils";
+import { FreePlanVideoUpsellAlert } from "@/components/free-plan-video-upsell";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   defaultSubtitleStyle,
@@ -1211,12 +1213,18 @@ export default function CreateLyric() {
                       </p>
                     )}
                     {!hasEnoughCredits && (
-                      <Alert variant="destructive">
-                        <AlertTitle>Insufficient Credits</AlertTitle>
-                        <AlertDescription>
-                          You need {creditCost.toLocaleString()} credits to generate this video, but you have {userCreditsRemaining.toLocaleString()}.
-                        </AlertDescription>
-                      </Alert>
+                      <>
+                        <FreePlanVideoUpsellAlert user={user} className="mt-2" />
+                        {!isFreePlanUser(user) && (
+                          <Alert variant="destructive" className="mt-2">
+                            <AlertTitle>Insufficient Credits</AlertTitle>
+                            <AlertDescription>
+                              Credits Required to Generate Video: {creditCost.toLocaleString()} (You have{" "}
+                              {userCreditsRemaining.toLocaleString()} remaining)
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </>
                     )}
                     <Button
                       onClick={() => {

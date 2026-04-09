@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { isFreePlanUser } from "@/lib/plan-utils";
+import { FreePlanVideoUpsellParagraph } from "@/components/free-plan-video-upsell";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -47,7 +49,7 @@ interface GenerationLog {
 export default function CreateStoryVideo() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const queryClient = useQueryClient();
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -164,6 +166,10 @@ export default function CreateStoryVideo() {
     () => getStoryVideoGenerationCredits(storyDurationForCredits),
     [storyDurationForCredits],
   );
+
+  const userCreditsRemaining = user?.creditsRemaining ?? 0;
+  const step1CreditsRequired = getStoryVideoGenerationCredits(duration);
+  const hasEnoughCreditsForStorySetup = userCreditsRemaining >= step1CreditsRequired;
 
   // Poll logs during step 3 pipeline (assets + video) until the final file is ready
   const { data: logs } = useQuery<GenerationLog[]>({
@@ -755,6 +761,18 @@ export default function CreateStoryVideo() {
                 )}
               </CardContent>
             </Card>
+
+            {!hasEnoughCreditsForStorySetup && (
+              <div className="mb-4 space-y-2">
+                <FreePlanVideoUpsellParagraph user={user} />
+                {!isFreePlanUser(user) && (
+                  <p className="text-center text-sm text-muted-foreground">
+                    Credits Required to Generate Video: {step1CreditsRequired.toLocaleString()} (You have{" "}
+                    {userCreditsRemaining.toLocaleString()} remaining)
+                  </p>
+                )}
+              </div>
+            )}
 
             <Button
               type="button"

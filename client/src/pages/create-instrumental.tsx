@@ -18,6 +18,8 @@ import { Footer } from "@/components/footer";
 import { useLocation } from "wouter";
 import { Project, GenerationLog } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
+import { isFreePlanUser } from "@/lib/plan-utils";
+import { FreePlanVideoUpsellAlert } from "@/components/free-plan-video-upsell";
 import {
   defaultSubtitleStyle,
   isSubtitleStyle,
@@ -1144,12 +1146,18 @@ export default function CreateInstrumental() {
               {songSource === "ai-generated" && (
                 <>
                   {!hasEnoughCredits && (
-                    <Alert variant="destructive" className="mt-4">
-                      <AlertTitle>Insufficient Credits</AlertTitle>
-                      <AlertDescription>
-                        You need {creditCost.toLocaleString()} credits to generate this video, but you only have {userCreditsRemaining.toLocaleString()} credits.
-                      </AlertDescription>
-                    </Alert>
+                    <>
+                      <FreePlanVideoUpsellAlert user={user} className="mt-4" />
+                      {!isFreePlanUser(user) && (
+                        <Alert variant="destructive" className="mt-4">
+                          <AlertTitle>Insufficient Credits</AlertTitle>
+                          <AlertDescription>
+                            Credits Required to Generate Video: {creditCost.toLocaleString()} (You have{" "}
+                            {userCreditsRemaining.toLocaleString()} remaining)
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </>
                   )}
                   <Button
                     onClick={handleGenerate}
@@ -1179,12 +1187,18 @@ export default function CreateInstrumental() {
               {songSource === "upload" && uploadedAudioUrl && trimmedDuration && (
                 <>
                   {!hasEnoughCredits && (
-                    <Alert variant="destructive" className="mt-4">
-                      <AlertTitle>Insufficient Credits</AlertTitle>
-                      <AlertDescription>
-                        You need {creditCost.toLocaleString()} credits to generate this video, but you only have {userCreditsRemaining.toLocaleString()} credits.
-                      </AlertDescription>
-                    </Alert>
+                    <>
+                      <FreePlanVideoUpsellAlert user={user} className="mt-4" />
+                      {!isFreePlanUser(user) && (
+                        <Alert variant="destructive" className="mt-4">
+                          <AlertTitle>Insufficient Credits</AlertTitle>
+                          <AlertDescription>
+                            Credits Required to Generate Video: {creditCost.toLocaleString()} (You have{" "}
+                            {userCreditsRemaining.toLocaleString()} remaining)
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </>
                   )}
                   <Button
                     onClick={() => generateUploadedMutation.mutate()}

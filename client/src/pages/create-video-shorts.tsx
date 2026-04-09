@@ -12,9 +12,11 @@ import { downloadFileFromUrl } from "@/lib/utils";
 import { NavigationHeader } from "@/components/navigation-header";
 import { VideoStyleCapabilityNotes } from "@/components/video-style-capability-notes";
 import { Footer } from "@/components/footer";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { Project, GenerationLog } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
+import { isFreePlanUser } from "@/lib/plan-utils";
+import { FreePlanVideoUpsellParagraph } from "@/components/free-plan-video-upsell";
 import { Progress } from "@/components/ui/progress";
 import { AudioTrimInterface } from "@/components/ui/audio-trim-interface";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -756,12 +758,15 @@ export default function CreateVideoShorts() {
               </Button>
 
               {uploadedAudioUrl && !hasEnoughCredits && (
-                <p className="text-center text-sm text-muted-foreground mt-3">
-                  You don&apos;t have enough credits for this video (need {creditCost.toLocaleString()}, you have {userCreditsRemaining.toLocaleString()}).{" "}
-                  <Link href="/plans" className="text-primary font-medium hover:underline">
-                    Subscribe to get more credits
-                  </Link>
-                </p>
+                <>
+                  <FreePlanVideoUpsellParagraph user={user} />
+                  {!isFreePlanUser(user) && (
+                    <p className="text-center text-sm text-muted-foreground mt-3">
+                      Credits Required to Generate Video: {creditCost.toLocaleString()} (You have{" "}
+                      {userCreditsRemaining.toLocaleString()} remaining)
+                    </p>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

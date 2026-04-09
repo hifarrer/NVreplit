@@ -25,6 +25,9 @@ import {
 } from "@/components/ui/tooltip";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { isFreePlanUser } from "@/lib/plan-utils";
+import { FreePlanVideoUpsellParagraph } from "@/components/free-plan-video-upsell";
 import type { SceneData } from "@/lib/types";
 import type { StoryMultiTalkOrder, StoryScene } from "@shared/storyConstants";
 import { normalizeStoryMultiTalkOrder } from "@shared/storyConstants";
@@ -71,7 +74,10 @@ export function StoryScriptReviewStep({
   onGenerateVideo,
 }: StoryScriptReviewStepProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
+  const userCreditsRemaining = user?.creditsRemaining ?? 0;
+  const hasEnoughStoryCredits = userCreditsRemaining >= storyGenerationCredits;
   const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
 
   const [regeneratingScenes, setRegeneratingScenes] = useState<number[]>([]);
@@ -540,6 +546,18 @@ export function StoryScriptReviewStep({
               })}
             </div>
           </>
+        )}
+
+        {script.length > 0 && !hasEnoughStoryCredits && (
+          <div className="mb-4 space-y-2">
+            <FreePlanVideoUpsellParagraph user={user} />
+            {!isFreePlanUser(user) && (
+              <p className="text-center text-sm text-muted-foreground">
+                Credits Required to Generate Video: {storyGenerationCredits.toLocaleString()} (You have{" "}
+                {userCreditsRemaining.toLocaleString()} remaining)
+              </p>
+            )}
+          </div>
         )}
 
         <div className="flex justify-center">
