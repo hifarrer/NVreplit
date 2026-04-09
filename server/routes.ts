@@ -10510,10 +10510,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateUser(userId, { stripeCustomerId });
       }
 
-      // Basic $1 Trial plan gets a 3-day free trial before first charge
-      const BASIC_TRIAL_PLAN_ID = '9f518d2b-d15e-4afe-b48d-3f584dbbcc49';
-      const isTrialPlan = planId === BASIC_TRIAL_PLAN_ID;
-
       // Create checkout session
       const session = await stripe.checkout.sessions.create({
         customer: stripeCustomerId,
@@ -10522,7 +10518,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           quantity: 1,
         }],
         mode: 'subscription',
-        ...(isTrialPlan ? { subscription_data: { trial_period_days: 3 } } : {}),
         success_url: `${req.headers.origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${req.headers.origin}/plans`,
         allow_promotion_codes: true,

@@ -111,7 +111,7 @@ export default function CreateSelect() {
                   <Sparkles className="h-6 w-6 text-primary shrink-0" />
                   <div>
                     <h2 className="text-lg font-bold">You need a plan to start creating</h2>
-                    <p className="text-sm text-muted-foreground">Try NeonVideo for just $1/month with a 3-day free trial. Get 4,000 credits to create AI music videos.</p>
+                    <p className="text-sm text-muted-foreground">Try NeonVideo for just $1/month. Get 4,000 credits to create AI music videos.</p>
                   </div>
                 </div>
                 <Link href="/plans?trial=1">

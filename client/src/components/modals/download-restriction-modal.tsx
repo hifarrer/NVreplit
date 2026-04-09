@@ -24,7 +24,7 @@ export function DownloadRestrictionModal({
         <DialogHeader>
           <DialogTitle>Subscribe to Download Songs</DialogTitle>
           <DialogDescription className="pt-2">
-            Downloading songs requires a paid plan. Try our Basic plan for just $1/month with a 3-day free trial to unlock downloads and 4,000 credits.
+            Downloading songs requires a paid plan. Try our Basic plan for just $1/month to unlock downloads and 4,000 credits.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-col sm:flex-row gap-2">

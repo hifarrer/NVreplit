@@ -155,7 +155,7 @@ export default function PlansPage() {
               <h2 className="text-xl font-bold">Try NeonVideo for just $1</h2>
             </div>
             <p className="text-muted-foreground">
-              Get started with a 3-day free trial on the Basic plan. You'll receive 4,000 credits to create amazing AI music videos. Cancel anytime before the trial ends and you won't be charged.
+              Get started with the Basic plan for just $1. You'll receive 4,000 credits to create amazing AI music videos.
             </p>
           </div>
         )}
@@ -208,7 +208,7 @@ export default function PlansPage() {
               >
                 {isTrialPlan && !isCurrentPlan && (
                   <div className="absolute top-0 right-0 bg-emerald-500 text-white px-3 py-1 text-xs font-bold rounded-bl-lg">
-                    3-DAY FREE TRIAL
+                    $1 TRIAL
                   </div>
                 )}
                 {isPopular && !isCurrentPlan && !isTrialPlan && (
@@ -226,7 +226,7 @@ export default function PlansPage() {
                   <CardTitle className="text-2xl mb-2">{plan.name}</CardTitle>
                   {isTrialPlan && !isCurrentPlan && (
                     <div className="text-xs font-semibold text-emerald-500 mb-2">
-                      Try free for 3 days, then ${((plan.monthlyPrice ?? 0) / 100).toFixed(0)}/month
+                      Try for just ${((plan.monthlyPrice ?? 0) / 100).toFixed(0)}/month
                     </div>
                   )}
                   <CardDescription className="text-sm mb-4">
@@ -288,7 +288,7 @@ export default function PlansPage() {
                     ) : isCurrentPlan ? (
                       'Current Plan'
                     ) : isTrialPlan ? (
-                      user ? 'Start Free Trial' : 'Sign up & Try Free'
+                      user ? 'Start $1 Trial' : 'Sign up & Start $1 Trial'
                     ) : (
                       user ? 'Upgrade' : 'Sign up Now'
                     )}
