@@ -1889,7 +1889,7 @@ Chasing after dreams as big as the sea."
                 <span>
                   Upload your audio file and we'll automatically detect its duration. Maximum allowed: <strong>{isPaidUser ? '4 minutes' : '2 minutes'}</strong>. The number of scenes will be determined by your audio length (6 seconds per scene).
                   {!isPaidUser && (
-                    <span className="block mt-1 text-orange-600 dark:text-orange-400">• Free plan users: maximum 2 minutes</span>
+                    <span className="block mt-1 text-orange-600 dark:text-orange-400">• Your current plan: maximum 2 minutes. Subscribe for up to 4 minutes.</span>
                   )}
                 </span>
               </p>

@@ -1,14 +1,14 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Loader2, Coins, CreditCard, Gift } from "lucide-react";
+import { Check, Loader2, Coins, CreditCard, Sparkles } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Plan } from "@shared/schema";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocation, Link } from "wouter";
+import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
@@ -106,20 +106,22 @@ export default function PlansPage() {
     }
   }, [toast, refreshUser]);
 
+  const BASIC_TRIAL_PLAN_ID = '9f518d2b-d15e-4afe-b48d-3f584dbbcc49';
+
+  // Detect if user is on Free plan (no active subscription, plan name is Free or no plan)
+  const isOnFreePlan = user && (
+    !user.plan || 
+    user.plan.name.toLowerCase() === 'free' || 
+    (!subscriptionStatus?.hasSubscription && user.plan.credits === 0)
+  );
+
+  // Show trial prompt from URL param (post-registration redirect)
+  const showTrialPrompt = new URLSearchParams(window.location.search).get('trial') === '1';
+
   const handleSelectPlan = (plan: Plan, billingPeriod: 'monthly' | 'yearly' = 'monthly') => {
     if (!user) {
       navigate("/auth");
     } else {
-      // Skip checkout for free plan (using price-based detection)
-      // Free plan has monthlyPrice of 0 (not null)
-      if (plan.monthlyPrice === 0) {
-        toast({
-          title: "Free Plan",
-          description: "You already have access to the free plan!",
-        });
-        return;
-      }
-      
       // For yearly-only plans (monthlyPrice is null), always use yearly billing
       const effectiveBillingPeriod = plan.monthlyPrice === null ? 'yearly' : billingPeriod;
       
@@ -145,6 +147,19 @@ export default function PlansPage() {
       <NavigationHeader currentPage="plans" />
 
       <div className="container mx-auto px-4 py-16">
+        {/* Trial prompt banner for free-plan users */}
+        {(isOnFreePlan || showTrialPrompt) && (
+          <div className="max-w-2xl mx-auto mb-8 p-6 rounded-xl border-2 border-primary/40 bg-gradient-to-r from-primary/10 to-purple-500/10">
+            <div className="flex items-center gap-3 mb-2">
+              <Sparkles className="h-6 w-6 text-primary" />
+              <h2 className="text-xl font-bold">Try NeonVideo for just $1</h2>
+            </div>
+            <p className="text-muted-foreground">
+              Get started with a 3-day free trial on the Basic plan. You'll receive 4,000 credits to create amazing AI music videos. Cancel anytime before the trial ends and you won't be charged.
+            </p>
+          </div>
+        )}
+
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold gradient-text mb-4">
             Choose Your Plan
@@ -176,23 +191,27 @@ export default function PlansPage() {
           {regularPlans.map((plan, index) => {
             // Mark the second plan as popular (if there are at least 2 plans)
             const isPopular = index === 1 && regularPlans.length > 1;
+            const isTrialPlan = plan.id === BASIC_TRIAL_PLAN_ID;
             
-            // For Free plan: user is on it if they don't have an active subscription AND no database plan
-            // For paid plans: user is on it if they have an active subscription for that plan OR database plan matches
-            const isCurrentPlan = plan.name.toLowerCase() === 'free' 
-              ? user && !subscriptionStatus?.hasSubscription && !user.plan
-              : (subscriptionStatus?.planId === plan.id && subscriptionStatus?.hasSubscription) || 
-                (user?.plan?.id === plan.id);
+            // User is on this plan if they have an active subscription for it OR database plan matches
+            const isCurrentPlan = (subscriptionStatus?.planId === plan.id && subscriptionStatus?.hasSubscription) || 
+                (user?.plan?.id === plan.id && subscriptionStatus?.hasSubscription);
             
             return (
               <Card 
                 key={plan.id} 
                 className={`relative overflow-hidden transition-all hover:shadow-xl ${
                   isPopular ? 'border-primary shadow-lg scale-105' : ''
+                } ${isTrialPlan && !isPopular ? 'border-emerald-500/50 shadow-md' : ''
                 } ${isCurrentPlan ? 'border-green-500 bg-green-50/5' : ''}`}
                 data-testid={`plan-card-${plan.id}`}
               >
-                {isPopular && !isCurrentPlan && (
+                {isTrialPlan && !isCurrentPlan && (
+                  <div className="absolute top-0 right-0 bg-emerald-500 text-white px-3 py-1 text-xs font-bold rounded-bl-lg">
+                    3-DAY FREE TRIAL
+                  </div>
+                )}
+                {isPopular && !isCurrentPlan && !isTrialPlan && (
                   <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-bold rounded-bl-lg">
                     MOST POPULAR
                   </div>
@@ -205,6 +224,11 @@ export default function PlansPage() {
                 
                 <CardHeader className="text-center pb-8">
                   <CardTitle className="text-2xl mb-2">{plan.name}</CardTitle>
+                  {isTrialPlan && !isCurrentPlan && (
+                    <div className="text-xs font-semibold text-emerald-500 mb-2">
+                      Try free for 3 days, then ${((plan.monthlyPrice ?? 0) / 100).toFixed(0)}/month
+                    </div>
+                  )}
                   <CardDescription className="text-sm mb-4">
                     Perfect for {index === 0 ? 'getting started' : index === regularPlans.length - 1 ? 'professional creators' : 'growing creators'}
                   </CardDescription>
@@ -263,6 +287,8 @@ export default function PlansPage() {
                       </>
                     ) : isCurrentPlan ? (
                       'Current Plan'
+                    ) : isTrialPlan ? (
+                      user ? 'Start Free Trial' : 'Sign up & Try Free'
                     ) : (
                       user ? 'Upgrade' : 'Sign up Now'
                     )}
@@ -361,71 +387,6 @@ export default function PlansPage() {
             </p>
           </div>
         )}
-
-        {/* Gift a Subscription */}
-        <div className="mt-16">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold gradient-text mb-2">Gift a Subscription</h2>
-            <p className="text-muted-foreground">Give the gift of music video creation to your loved ones</p>
-          </div>
-          <div className="flex justify-center">
-            <Card className="border-2 border-pink-500/30 bg-gradient-to-br from-pink-500/5 to-purple-500/5 w-full max-w-md hover:shadow-xl transition-all">
-              <CardHeader className="text-center">
-                <div className="mx-auto w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-500 rounded-full flex items-center justify-center mb-4">
-                  <Gift className="h-8 w-8 text-white" />
-                </div>
-                <CardTitle className="text-xl">Share the Joy of Creation</CardTitle>
-                <CardDescription>
-                  Send a prepaid subscription to a friend or family member. They'll receive an email with a unique code to activate their account.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Link href="/gift">
-                  <Button 
-                    className="w-full bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600"
-                    data-testid="button-gift-subscription-plans"
-                  >
-                    <Gift className="h-4 w-4 mr-2" />
-                    Gift a Subscription
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        <div className="mt-12 sm:mt-16 text-center">
-          <h2 className="text-xl sm:text-2xl font-semibold mb-4">All Plans Include</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 max-w-4xl mx-auto">
-            <div className="flex flex-col items-center p-4">
-              <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-3">
-                <i className="fas fa-music text-primary"></i>
-              </div>
-              <h3 className="font-semibold mb-2">AI Music Generation</h3>
-              <p className="text-sm text-muted-foreground">
-                Create original songs with ElevenLabs AI
-              </p>
-            </div>
-            <div className="flex flex-col items-center p-4">
-              <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-3">
-                <i className="fas fa-video text-primary"></i>
-              </div>
-              <h3 className="font-semibold mb-2">Video Creation</h3>
-              <p className="text-sm text-muted-foreground">
-                Generate stunning music videos with AI
-              </p>
-            </div>
-            <div className="flex flex-col items-center p-4">
-              <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-3">
-                <i className="fas fa-cloud text-primary"></i>
-              </div>
-              <h3 className="font-semibold mb-2">Cloud Storage</h3>
-              <p className="text-sm text-muted-foreground">
-                Save and access your creations anytime
-              </p>
-            </div>
-          </div>
-        </div>
 
         {/* Buy Additional Credits - Only for Paid Subscribers */}
         {user && user.plan && user.plan.name !== "Free" && (

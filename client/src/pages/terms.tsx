@@ -58,7 +58,7 @@ export default function TermsPage() {
                     Our service operates on a credit-based system:
                   </p>
                   <ul className="list-disc pl-6 space-y-1 text-muted-foreground">
-                    <li><strong>Free Plan:</strong> Limited credits for basic usage</li>
+                    <li><strong>Basic $1 Trial:</strong> 4,000 credits with a 3-day free trial</li>
                     <li><strong>Starter Plan:</strong> Monthly credits for regular users</li>
                     <li><strong>Creator Plan:</strong> Enhanced credits for content creators</li>
                     <li><strong>Pro Plan:</strong> Maximum credits for professional use</li>

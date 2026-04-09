@@ -202,13 +202,13 @@ export default function CharactersPage() {
             <AlertDescription className="text-sm">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <span>
-                  You've reached the limit of {limitInfo.limit} saved characters on the Free plan. 
-                  Delete some characters or upgrade to save unlimited characters and create more.
+                  You've reached the limit of {limitInfo.limit} saved characters. 
+                  Delete some characters or subscribe to save unlimited characters and create more.
                 </span>
-                <Link href="/plans">
+                <Link href="/plans?trial=1">
                   <Button size="sm" className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 whitespace-nowrap">
                     <Crown className="h-3 w-3 mr-1" />
-                    Upgrade Plan
+                    Start $1 Trial
                   </Button>
                 </Link>
               </div>

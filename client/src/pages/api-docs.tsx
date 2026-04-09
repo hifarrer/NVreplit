@@ -69,7 +69,7 @@ export default function ApiDocsPage() {
               <div className="mt-4 p-4 rounded-lg border border-amber-500/30 bg-amber-500/5">
                 <p className="text-sm text-amber-400">
                   API access requires a paid plan.{" "}
-                  <Link href="/plans" className="underline font-medium">Upgrade your plan</Link> to get started.
+                  <Link href="/plans?trial=1" className="underline font-medium">Start with our $1 Trial</Link> to get started.
                 </p>
               </div>
             )}

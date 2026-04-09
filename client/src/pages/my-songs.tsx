@@ -147,12 +147,12 @@ export default function MySongsPage() {
             </CardTitle>
             <CardDescription>
               {songLimit != null
-                ? `Free plan: up to ${songLimit} songs. Subscribe for unlimited songs.`
+                ? `Up to ${songLimit} songs on your current plan. Subscribe for unlimited songs.`
                 : "Your AI-generated songs library"}
             </CardDescription>
             {atLimit && songLimit != null && (
               <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
-                You&apos;ve reached the free plan limit ({songLimit} songs). Delete a song to add more, or subscribe for unlimited songs.
+                You&apos;ve reached the limit ({songLimit} songs). Delete a song to add more, or subscribe for unlimited songs.
               </p>
             )}
           </CardHeader>

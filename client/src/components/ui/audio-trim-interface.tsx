@@ -443,16 +443,16 @@ export function AudioTrimInterface({
             </div>
             <DialogTitle className="text-2xl font-bold">Upgrade Your Plan</DialogTitle>
             <DialogDescription className="text-base pt-2">
-              Free plans are limited to 30 seconds for music videos. Upgrade to select a longer section.
+              Your current plan is limited to 30 seconds for music videos. Subscribe to select a longer section.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center pt-4">
-            <Link href="/plans">
+            <Link href="/plans?trial=1">
               <Button 
                 className="bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white"
                 onClick={() => setShowUpgradeModal(false)}
               >
-                View Plans
+                Start $1 Trial
               </Button>
             </Link>
           </div>

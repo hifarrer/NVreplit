@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { VideoStylePreview } from "@/components/video-style-preview";
 import { AddCaptionsToolModal } from "@/components/modals/add-captions-tool-modal";
 import { TrimVideoToolModal } from "@/components/modals/trim-video-tool-modal";
@@ -11,9 +12,13 @@ import { AudioToLyricsToolModal } from "@/components/modals/audio-to-lyrics-tool
 import { VideoUpscalerToolModal } from "@/components/modals/video-upscaler-tool-modal";
 import { AIVideoEditionToolModal } from "@/components/modals/ai-video-edition-tool-modal";
 import { VideoBackgroundRemoverToolModal } from "@/components/modals/video-background-remover-tool-modal";
+import { useAuth } from "@/hooks/use-auth";
+import { Sparkles } from "lucide-react";
 
 export default function CreateSelect() {
   const [, navigate] = useLocation();
+  const { user } = useAuth();
+  const isOnFreePlan = user && (!user.plan || user.plan.name?.toLowerCase() === 'free');
   const [addCaptionsOpen, setAddCaptionsOpen] = useState(false);
   const [trimVideoOpen, setTrimVideoOpen] = useState(false);
   const [trimAudioOpen, setTrimAudioOpen] = useState(false);
@@ -99,6 +104,23 @@ export default function CreateSelect() {
       
       <main className="flex-1 container mx-auto px-4 py-8 sm:py-12">
         <div className="max-w-6xl mx-auto">
+          {isOnFreePlan && (
+            <div className="mb-8 p-5 rounded-xl border-2 border-primary/40 bg-gradient-to-r from-primary/10 to-purple-500/10">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Sparkles className="h-6 w-6 text-primary shrink-0" />
+                  <div>
+                    <h2 className="text-lg font-bold">You need a plan to start creating</h2>
+                    <p className="text-sm text-muted-foreground">Try NeonVideo for just $1/month with a 3-day free trial. Get 4,000 credits to create AI music videos.</p>
+                  </div>
+                </div>
+                <Link href="/plans?trial=1">
+                  <Button className="shrink-0">Start $1 Trial</Button>
+                </Link>
+              </div>
+            </div>
+          )}
+
           <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-8 sm:mb-12">
             Music Video Style
           </h1>

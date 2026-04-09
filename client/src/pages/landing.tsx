@@ -373,11 +373,6 @@ export default function LandingPage() {
                   <td className="px-4 py-3 text-muted-foreground">SD</td>
                 </tr>
                 <tr className="border-b border-border/50 hover:bg-muted/20">
-                  <td className="px-4 py-3 font-medium">Free plan available</td>
-                  <td className="px-4 py-3">Yes</td>
-                  <td className="px-4 py-3 text-muted-foreground">No (free trial only)</td>
-                </tr>
-                <tr className="border-b border-border/50 hover:bg-muted/20">
                   <td className="px-4 py-3 font-medium">Video Length Limit</td>
                   <td className="px-4 py-3">4 minutes</td>
                   <td className="px-4 py-3 text-muted-foreground">15 seconds</td>
@@ -409,7 +404,7 @@ export default function LandingPage() {
                 </tr>
                 <tr className="hover:bg-muted/20">
                   <td className="px-4 py-3 font-medium">Basic Plan cost</td>
-                  <td className="px-4 py-3">$15</td>
+                  <td className="px-4 py-3">$9</td>
                   <td className="px-4 py-3 text-muted-foreground">$39</td>
                 </tr>
               </tbody>

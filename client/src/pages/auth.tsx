@@ -88,16 +88,18 @@ export default function AuthPage() {
         }
         
         // CRITICAL FIX: Load full user data with credits/plan BEFORE navigation
-        refreshUser(token).then(() => {
+        refreshUser(token).then((userData: any) => {
           // Check for pending redirect URL from OAuth flow
           const pendingRedirect = localStorage.getItem('pending_redirect_url');
           if (pendingRedirect) {
             localStorage.removeItem('pending_redirect_url');
             window.location.href = pendingRedirect;
           } else {
-            setLocation('/'); // Navigate only after full user data is loaded
+            // Redirect free-plan users to plans page to prompt trial signup
+            const isFreePlan = !userData?.plan || userData?.plan?.name?.toLowerCase() === 'free';
+            setLocation(isFreePlan ? '/plans?trial=1' : '/');
           }
-        }).catch((err) => {
+        }).catch((err: any) => {
           console.error('Failed to load user data after OAuth:', err);
           setError('Failed to load user data. Please try again.');
         });
@@ -127,8 +129,9 @@ export default function AuthPage() {
         localStorage.removeItem('pending_redirect_url');
         window.location.href = pendingRedirect;
       } else {
-        // Default to create page
-        setLocation('/create');
+        // Redirect free-plan users to plans page to prompt trial signup
+        const isFreePlan = !user.plan || user.plan.name?.toLowerCase() === 'free';
+        setLocation(isFreePlan ? '/plans?trial=1' : '/create');
       }
     }
   }, [user, setLocation]);

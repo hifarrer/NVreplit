@@ -281,13 +281,13 @@ export function CharacterGeneratorModal({ isOpen, onClose, onCharacterGenerated,
               <AlertDescription className="text-sm">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <span>
-                    You've reached the limit of {limitInfo.limit} saved characters on the Free plan. 
-                    You can still generate characters, but to save them, please delete some existing characters or upgrade your plan.
+                    You've reached the limit of {limitInfo.limit} saved characters. 
+                    You can still generate characters, but to save them, please delete some existing characters or subscribe to a plan.
                   </span>
-                  <Link href="/plans" onClick={handleClose}>
+                  <Link href="/plans?trial=1" onClick={handleClose}>
                     <Button size="sm" className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 whitespace-nowrap">
                       <Crown className="h-3 w-3 mr-1" />
-                      Upgrade
+                      Start $1 Trial
                     </Button>
                   </Link>
                 </div>
