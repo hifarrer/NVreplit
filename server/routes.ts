@@ -10510,6 +10510,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateUser(userId, { stripeCustomerId });
       }
 
+      // Auto-apply $1 trial coupon for the Basic $1 Trial plan
+      const BASIC_TRIAL_PLAN_ID = '9f518d2b-d15e-4afe-b48d-3f584dbbcc49';
+      const isTrialPlan = planId === BASIC_TRIAL_PLAN_ID;
+
       // Create checkout session
       const session = await stripe.checkout.sessions.create({
         customer: stripeCustomerId,
@@ -10518,9 +10522,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           quantity: 1,
         }],
         mode: 'subscription',
+        ...(isTrialPlan
+          ? { discounts: [{ coupon: 'ONEDOLLARTRIAL' }] }
+          : { allow_promotion_codes: true }),
         success_url: `${req.headers.origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${req.headers.origin}/plans`,
-        allow_promotion_codes: true,
         metadata: {
           userId,
           planId,

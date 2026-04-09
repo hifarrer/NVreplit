@@ -226,7 +226,7 @@ export default function PlansPage() {
                   <CardTitle className="text-2xl mb-2">{plan.name}</CardTitle>
                   {isTrialPlan && !isCurrentPlan && (
                     <div className="text-xs font-semibold text-emerald-500 mb-2">
-                      Try for just ${((plan.monthlyPrice ?? 0) / 100).toFixed(0)}/month
+                      Try for just $1
                     </div>
                   )}
                   <CardDescription className="text-sm mb-4">
