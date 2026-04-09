@@ -10523,7 +10523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }],
         mode: 'subscription',
         ...(isTrialPlan
-          ? { discounts: [{ coupon: 'ONEDOLLARTRIAL' }] }
+          ? { discounts: [{ promotion_code: 'promo_1TKA1UQxrAsbY9f0WroqAiTX' }] }
           : { allow_promotion_codes: true }),
         success_url: `${req.headers.origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${req.headers.origin}/plans`,
