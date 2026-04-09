@@ -29,7 +29,7 @@ export default function Version290Release() {
     if (!video) return;
 
     const hlsUrl =
-      "https://stream.mux.com/UyR7Y01LqlVFKJzYcXHAvHl2OCHM4FUZyKpHTxz7BSNs.m3u8?redundant_streams=true";
+      "https://stream.mux.com/VsniqdvGwpGukMk8FT01DxuU9tEif1x8wU2FURa8AS3Q.m3u8?redundant_streams=true";
 
     if (Hls.isSupported()) {
       const hls = new Hls({
