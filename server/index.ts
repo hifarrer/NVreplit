@@ -325,10 +325,12 @@ app.use((req, res, next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
-    // Send error notification for server errors (500+), except benign Google OAuth token exchange noise
-    const isGoogleOAuthTokenError =
-      req.path === "/api/auth/google/callback" && err?.name === "TokenError";
-    if (status >= 500 && !isGoogleOAuthTokenError) {
+    // Send error notification for server errors (500+), except benign Google OAuth callback noise
+    const isBenignGoogleOAuthCallbackError =
+      req.path === "/api/auth/google/callback" &&
+      (err?.name === "TokenError" ||
+        err?.message === "System configuration error");
+    if (status >= 500 && !isBenignGoogleOAuthCallbackError) {
       const user = (req as any).user;
       errorMonitoring.notifyAPIError(err, req.path, req.method, {
         userId: user?.userId,

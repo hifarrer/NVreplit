@@ -615,7 +615,8 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
                 const freePlan = await storage.getFreePlan();
                 if (!freePlan) {
                   console.error("CRITICAL: Free plan not found for existing user!");
-                  return done(new Error("System configuration error"), false);
+                  // Fail auth without throwing — avoids 500 + Resend alerts; fix DB/plan seeding
+                  return done(null, false);
                 }
                 await storage.updateUser(user.id, {
                   planId: freePlan.id,
@@ -665,7 +666,8 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
             const freePlan = await storage.getFreePlan();
             if (!freePlan) {
               console.error("CRITICAL: Free plan not found for Google OAuth user!");
-              return done(new Error("System configuration error"), false);
+              // Fail auth without throwing — avoids 500 + Resend alerts; fix DB/plan seeding
+              return done(null, false);
             }
 
             user = await storage.createUser({

@@ -442,9 +442,10 @@ export class MemStorage implements IStorage {
     return true;
   }
 
+  /** Default tier for new users; not gated by isActive (public listing hides Free by name in /api/plans). */
   async getFreePlan(): Promise<Plan | undefined> {
     const plans = Array.from(this.plans.values());
-    return plans.find(p => p.name.toLowerCase() === 'free' && p.isActive);
+    return plans.find(p => p.name.toLowerCase() === "free");
   }
 
   async getProject(id: string): Promise<Project | undefined> {
@@ -1928,10 +1929,11 @@ export class DbStorage implements IStorage {
     }, { operationName: 'deductUserCredits' });
   }
 
+  /** Default tier for new users; not gated by isActive (public listing hides Free by name in /api/plans). */
   async getFreePlan(): Promise<Plan | undefined> {
     const result = await this.db.select()
       .from(plans)
-      .where(and(ilike(plans.name, 'free'), eq(plans.isActive, true)))
+      .where(ilike(plans.name, "free"))
       .limit(1);
     return result[0];
   }
