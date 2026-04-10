@@ -1270,24 +1270,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       })
     );
 
-    app.get("/api/auth/google/callback",
-      passport.authenticate("google", { session: false }),
-      async (req: any, res) => {
-        try {
-          const user = req.user;
+    app.get("/api/auth/google/callback", (req: any, res, next) => {
+      const frontendURL = () => {
+        const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+        const host = req.get("host");
+        return process.env.FRONTEND_URL || `${protocol}://${host}`;
+      };
+      const redirectOAuthFailed = () => res.redirect(`${frontendURL()}/auth?error=oauth_failed`);
 
-          // Generate JWT token
+      passport.authenticate("google", { session: false }, (err: any, user: any) => {
+        if (err) {
+          // Token exchange failures (reused/expired code, etc.) — do not propagate as 500 / error emails
+          if (err?.name === "TokenError") {
+            console.warn("[Google OAuth] Token exchange failed:", err.message);
+            return redirectOAuthFailed();
+          }
+          return next(err);
+        }
+        if (!user) {
+          return redirectOAuthFailed();
+        }
+        try {
           const token = jwt.sign(
             { userId: user.id, username: user.username },
             JWT_SECRET,
-            { expiresIn: '24h' }
+            { expiresIn: "24h" }
           );
-
-          // Redirect to frontend with token
-          const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-          const host = req.get('host');
-          const frontendURL = process.env.FRONTEND_URL || `${protocol}://${host}`;
-          res.redirect(`${frontendURL}/auth?token=${token}&user=${encodeURIComponent(JSON.stringify({
+          res.redirect(`${frontendURL()}/auth?token=${token}&user=${encodeURIComponent(JSON.stringify({
             id: user.id,
             username: user.username,
             email: user.email,
@@ -1295,13 +1304,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }))}`);
         } catch (error) {
           console.error("Google OAuth callback error:", error);
-          const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-          const host = req.get('host');
-          const frontendURL = process.env.FRONTEND_URL || `${protocol}://${host}`;
-          res.redirect(`${frontendURL}/auth?error=oauth_failed`);
+          redirectOAuthFailed();
         }
-      }
-    );
+      })(req, res, next);
+    });
   }
   // Authentication routes
   app.post("/api/register", async (req, res) => {
