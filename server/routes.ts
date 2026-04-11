@@ -45,6 +45,7 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { checkProfanity, getCategoryMessage, validateCharacterGenerationPrompt } from "./profanity-filter";
 import { getJWKS, initializeOAuthKeys } from "./services/oauth";
 import { resolveLoopVideoTheme } from "./services/loopVideoThemes";
+import { lookupCountryFromIp } from "./services/ipGeo";
 
 // Content moderation API for user-uploaded images
 const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
@@ -67,28 +68,6 @@ function getClientIpAddress(req: any): string | null {
 
   if (!candidate) return null;
   return candidate.startsWith("::ffff:") ? candidate.replace("::ffff:", "") : candidate;
-}
-
-function inferLocationFromHeaders(req: any): string | null {
-  const country =
-    (typeof req.headers["cf-ipcountry"] === "string" && req.headers["cf-ipcountry"]) ||
-    (typeof req.headers["x-vercel-ip-country"] === "string" && req.headers["x-vercel-ip-country"]) ||
-    (typeof req.headers["x-appengine-country"] === "string" && req.headers["x-appengine-country"]) ||
-    "";
-  const region =
-    (typeof req.headers["x-vercel-ip-country-region"] === "string" && req.headers["x-vercel-ip-country-region"]) ||
-    (typeof req.headers["x-appengine-region"] === "string" && req.headers["x-appengine-region"]) ||
-    "";
-  const city =
-    (typeof req.headers["x-vercel-ip-city"] === "string" && req.headers["x-vercel-ip-city"]) ||
-    (typeof req.headers["x-appengine-city"] === "string" && req.headers["x-appengine-city"]) ||
-    "";
-
-  const parts = [city, region, country]
-    .map((part) => part.trim())
-    .filter((part) => !!part);
-
-  return parts.length ? parts.join(", ") : null;
 }
 
 function parseUserAgent(req: any): { userAgent: string | null; deviceType: string | null; browser: string | null } {
@@ -135,17 +114,19 @@ function parseUserAgent(req: any): { userAgent: string | null; deviceType: strin
   };
 }
 
-function getRequestUserMetadata(req: any): {
+async function getRequestUserMetadataAsync(req: any): Promise<{
   ipAddress: string | null;
   location: string | null;
   userAgent: string | null;
   deviceType: string | null;
   browser: string | null;
-} {
+}> {
   const uaData = parseUserAgent(req);
+  const ipAddress = getClientIpAddress(req);
+  const country = await lookupCountryFromIp(ipAddress ?? "");
   return {
-    ipAddress: getClientIpAddress(req),
-    location: inferLocationFromHeaders(req),
+    ipAddress,
+    location: country,
     userAgent: uaData.userAgent,
     deviceType: uaData.deviceType,
     browser: uaData.browser,
@@ -597,7 +578,7 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
       async (req: any, accessToken, refreshToken, profile, done) => {
         try {
           console.log("Google OAuth profile:", profile);
-          const requestMeta = getRequestUserMetadata(req);
+          const requestMeta = await getRequestUserMetadataAsync(req);
 
           // Check if user exists by Google ID or email
           let user = await storage.getUserByGoogleId(profile.id);
@@ -1315,7 +1296,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/register", async (req, res) => {
     try {
       const { username, email, password } = insertUserSchema.parse(req.body);
-      const requestMeta = getRequestUserMetadata(req);
+      const requestMeta = await getRequestUserMetadataAsync(req);
 
       // Check if email is banned
       const isBanned = await storage.isEmailBanned(email);
@@ -1541,7 +1522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { expiresIn: '24h' }
       );
 
-      const requestMeta = getRequestUserMetadata(req);
+      const requestMeta = await getRequestUserMetadataAsync(req);
       await storage.updateUser(user.id, {
         lastIpAddress: requestMeta.ipAddress,
         lastKnownLocation: requestMeta.location,

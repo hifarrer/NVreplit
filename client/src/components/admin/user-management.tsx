@@ -49,8 +49,9 @@ interface Plan {
   id: string;
   name: string;
   credits: number;
-  monthlyPrice: number;
+  monthlyPrice: number | null;
   yearlyPrice: number;
+  isActive?: boolean;
 }
 
 interface UserProject {
@@ -138,7 +139,7 @@ export function UserManagement() {
         page: currentPage.toString(),
         limit: pageSize.toString(),
       });
-      if (planFilter !== "all") {
+      if (planFilter !== "all" && planFilter !== "banned") {
         params.append("plan", planFilter);
       }
       if (debouncedSearchQuery.trim()) {
@@ -621,22 +622,34 @@ export function UserManagement() {
             <div className="flex items-center space-x-2">
               <Label className="text-sm text-gray-300">Filter by Plan:</Label>
               <Select value={planFilter} onValueChange={handlePlanFilterChange}>
-                <SelectTrigger className="w-36 bg-gray-800/50 border-gray-600 text-white">
-                  <SelectValue />
+                <SelectTrigger className="min-w-[11rem] max-w-[20rem] bg-gray-800/50 border-gray-600 text-white">
+                  <SelectValue placeholder="All plans" />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-800 border-gray-600">
                   <SelectItem value="all" className="text-white hover:bg-gray-700">
                     All Plans
                   </SelectItem>
-                  <SelectItem value="Free" className="text-white hover:bg-gray-700">
-                    Free
-                  </SelectItem>
-                  <SelectItem value="Basic" className="text-white hover:bg-gray-700">
-                    Basic
-                  </SelectItem>
-                  <SelectItem value="Premium" className="text-white hover:bg-gray-700">
-                    Premium
-                  </SelectItem>
+                  {(plans ?? [])
+                    .slice()
+                    .sort((a, b) => {
+                      if (a.name === "Free") return -1;
+                      if (b.name === "Free") return 1;
+                      return a.name.localeCompare(b.name);
+                    })
+                    .map((plan) => (
+                      <SelectItem
+                        key={plan.id}
+                        value={plan.id}
+                        className="text-white hover:bg-gray-700"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>{plan.name}</span>
+                          {plan.isActive === false && (
+                            <span className="text-xs text-amber-400/90">(inactive)</span>
+                          )}
+                        </span>
+                      </SelectItem>
+                    ))}
                   <SelectItem value="banned" className="text-red-400 hover:bg-gray-700">
                     Banned Users
                   </SelectItem>

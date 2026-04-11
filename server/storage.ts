@@ -897,11 +897,24 @@ export class MemStorage implements IStorage {
     }
     
     if (planFilter && planFilter !== "all") {
-      const usersWithPlans = await Promise.all(allUsers.map(async (u) => {
-        const userWithPlan = await this.getUserWithPlan(u.id);
-        return { user: u, planName: userWithPlan?.plan?.name || "Free" };
-      }));
-      allUsers = usersWithPlans.filter(u => u.planName === planFilter).map(u => u.user);
+      const allPlans = await this.getAllPlans();
+      const freePlan = allPlans.find(p => p.name === "Free");
+      const targetPlan =
+        allPlans.find(p => p.id === planFilter) ||
+        allPlans.find(p => p.name === planFilter);
+      const isFreeFilter =
+        planFilter === "Free" ||
+        (freePlan != null && planFilter === freePlan.id);
+
+      allUsers = allUsers.filter((u) => {
+        if (isFreeFilter) {
+          return !u.planId || u.planId === freePlan?.id;
+        }
+        if (targetPlan) {
+          return u.planId === targetPlan.id;
+        }
+        return false;
+      });
     }
     
     const totalCount = allUsers.length;
@@ -2458,11 +2471,25 @@ export class DbStorage implements IStorage {
     const freePlan = allPlans.find(p => p.name === "Free");
     
     if (planFilter && planFilter !== "all") {
-      const matchingPlan = allPlans.find(p => p.name === planFilter);
-      if (matchingPlan) {
+      const matchingById = allPlans.find(p => p.id === planFilter);
+      const matchingByName = allPlans.find(p => p.name === planFilter);
+      const matchingPlan = matchingById || matchingByName;
+      const isFreeFilter =
+        planFilter === "Free" ||
+        (freePlan != null && planFilter === freePlan.id);
+
+      if (isFreeFilter) {
+        if (freePlan?.id) {
+          conditions.push(
+            sql`(${users.planId} IS NULL OR ${users.planId} = ${freePlan.id})`
+          );
+        } else {
+          conditions.push(sql`${users.planId} IS NULL`);
+        }
+      } else if (matchingPlan) {
         conditions.push(eq(users.planId, matchingPlan.id));
-      } else if (planFilter === "Free") {
-        conditions.push(sql`(${users.planId} IS NULL OR ${users.planId} = ${freePlan?.id || ''})`);
+      } else {
+        conditions.push(sql`1 = 0`);
       }
     }
     
