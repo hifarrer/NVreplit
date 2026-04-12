@@ -2,7 +2,7 @@ import { type User, type InsertUser, type Project, type InsertProject, type Gene
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { eq, asc, desc, sql, and, inArray, ilike } from "drizzle-orm";
+import { eq, asc, desc, sql, and, inArray, ilike, or, isNotNull } from "drizzle-orm";
 import { withDbRetry } from "./db";
 
 export type AdminSceneSource = "music_video" | "story_video";
@@ -20,6 +20,35 @@ export type AdminSceneRow = {
   sceneIndex: number;
   source: AdminSceneSource;
 };
+
+/** Normalize project.scene_images / story_scene_images jsonb into URL strings (handles string[], legacy JSON string, or { imageUrl } entries). */
+function extractSceneImageUrlsFromJsonb(raw: unknown): string[] {
+  if (raw == null) return [];
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    if (!t) return [];
+    try {
+      return extractSceneImageUrlsFromJsonb(JSON.parse(t));
+    } catch {
+      return [t];
+    }
+  }
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const item of raw) {
+    if (item == null) continue;
+    if (typeof item === "string") {
+      const u = item.trim();
+      if (u) out.push(u);
+      continue;
+    }
+    if (typeof item === "object" && "imageUrl" in item && typeof (item as { imageUrl: unknown }).imageUrl === "string") {
+      const u = (item as { imageUrl: string }).imageUrl.trim();
+      if (u) out.push(u);
+    }
+  }
+  return out;
+}
 
 export interface IStorage {
   // User methods
@@ -1033,41 +1062,37 @@ export class MemStorage implements IStorage {
     for (const p of Array.from(this.projects.values())) {
       const user = this.users.get(p.userId);
       if (!user) continue;
-      const music = (p.sceneImages as string[] | null) || [];
-      music.forEach((url, sceneIndex) => {
-        if (url && String(url).trim()) {
-          scenes.push({
-            projectId: p.id,
-            userId: user.id,
-            username: user.username,
-            email: user.email,
-            userCreatedAt: user.createdAt,
-            projectTitle: p.title,
-            projectCreatedAt: p.createdAt,
-            projectUpdatedAt: p.updatedAt,
-            imageUrl: url,
-            sceneIndex,
-            source: "music_video",
-          });
-        }
+      const music = extractSceneImageUrlsFromJsonb(p.sceneImages);
+      music.forEach((imageUrl, sceneIndex) => {
+        scenes.push({
+          projectId: p.id,
+          userId: user.id,
+          username: user.username,
+          email: user.email,
+          userCreatedAt: user.createdAt,
+          projectTitle: p.title,
+          projectCreatedAt: p.createdAt,
+          projectUpdatedAt: p.updatedAt,
+          imageUrl,
+          sceneIndex,
+          source: "music_video",
+        });
       });
-      const story = (p.storySceneImages as string[] | null) || [];
-      story.forEach((url, sceneIndex) => {
-        if (url && String(url).trim()) {
-          scenes.push({
-            projectId: p.id,
-            userId: user.id,
-            username: user.username,
-            email: user.email,
-            userCreatedAt: user.createdAt,
-            projectTitle: p.title,
-            projectCreatedAt: p.createdAt,
-            projectUpdatedAt: p.updatedAt,
-            imageUrl: url,
-            sceneIndex,
-            source: "story_video",
-          });
-        }
+      const story = extractSceneImageUrlsFromJsonb(p.storySceneImages);
+      story.forEach((imageUrl, sceneIndex) => {
+        scenes.push({
+          projectId: p.id,
+          userId: user.id,
+          username: user.username,
+          email: user.email,
+          userCreatedAt: user.createdAt,
+          projectTitle: p.title,
+          projectCreatedAt: p.createdAt,
+          projectUpdatedAt: p.updatedAt,
+          imageUrl,
+          sceneIndex,
+          source: "story_video",
+        });
       });
     }
     scenes.sort(
@@ -2691,86 +2716,73 @@ export class DbStorage implements IStorage {
   }> {
     const { limit, offset } = options;
 
-    const countResult = await this.db.execute(sql`
-      SELECT COUNT(*)::int AS c FROM (
-        SELECT 1
-        FROM projects p
-        INNER JOIN users u ON u.id = p.user_id
-        CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(p.scene_images, '[]'::jsonb)) WITH ORDINALITY AS t(elem, ord)
-        WHERE t.elem IS NOT NULL AND btrim(t.elem::text) <> ''
-        UNION ALL
-        SELECT 1
-        FROM projects p
-        INNER JOIN users u ON u.id = p.user_id
-        CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(p.story_scene_images, '[]'::jsonb)) WITH ORDINALITY AS t(elem, ord)
-        WHERE t.elem IS NOT NULL AND btrim(t.elem::text) <> ''
-      ) sub
-    `);
-    const countRows = countResult as unknown as { c: number }[];
-    const totalCount = Number(countRows[0]?.c ?? 0);
+    // Use Drizzle select + JS flatten (same shapes as the rest of the app). Raw sql`execute` with
+    // postgres-js was not reliably returning row objects, and jsonb_array_elements_text fails if any
+    // row stores non-array JSON in scene_images.
+    const rows = await this.db
+      .select({
+        projectId: projects.id,
+        userId: projects.userId,
+        username: users.username,
+        email: users.email,
+        userCreatedAt: users.createdAt,
+        projectTitle: projects.title,
+        projectCreatedAt: projects.createdAt,
+        projectUpdatedAt: projects.updatedAt,
+        sceneImages: projects.sceneImages,
+        storySceneImages: projects.storySceneImages,
+      })
+      .from(projects)
+      .innerJoin(users, eq(projects.userId, users.id))
+      .where(or(isNotNull(projects.sceneImages), isNotNull(projects.storySceneImages)))
+      .orderBy(desc(projects.updatedAt));
 
-    const pageResult = await this.db.execute(sql`
-      SELECT * FROM (
-        SELECT
-          p.id AS "projectId",
-          p.user_id AS "userId",
-          u.username AS "username",
-          u.email AS "email",
-          u.created_at AS "userCreatedAt",
-          p.title AS "projectTitle",
-          p.created_at AS "projectCreatedAt",
-          p.updated_at AS "projectUpdatedAt",
-          t.elem AS "imageUrl",
-          (t.ord - 1)::int AS "sceneIndex",
-          'music_video'::text AS "source"
-        FROM projects p
-        INNER JOIN users u ON u.id = p.user_id
-        CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(p.scene_images, '[]'::jsonb)) WITH ORDINALITY AS t(elem, ord)
-        WHERE t.elem IS NOT NULL AND btrim(t.elem::text) <> ''
-        UNION ALL
-        SELECT
-          p.id AS "projectId",
-          p.user_id AS "userId",
-          u.username AS "username",
-          u.email AS "email",
-          u.created_at AS "userCreatedAt",
-          p.title AS "projectTitle",
-          p.created_at AS "projectCreatedAt",
-          p.updated_at AS "projectUpdatedAt",
-          t.elem AS "imageUrl",
-          (t.ord - 1)::int AS "sceneIndex",
-          'story_video'::text AS "source"
-        FROM projects p
-        INNER JOIN users u ON u.id = p.user_id
-        CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(p.story_scene_images, '[]'::jsonb)) WITH ORDINALITY AS t(elem, ord)
-        WHERE t.elem IS NOT NULL AND btrim(t.elem::text) <> ''
-      ) all_scenes
-      ORDER BY "projectUpdatedAt" DESC NULLS LAST, "projectId", "source", "sceneIndex"
-      LIMIT ${limit} OFFSET ${offset}
-    `);
+    const scenes: AdminSceneRow[] = [];
+    for (const row of rows) {
+      const music = extractSceneImageUrlsFromJsonb(row.sceneImages);
+      music.forEach((imageUrl, sceneIndex) => {
+        scenes.push({
+          projectId: row.projectId,
+          userId: row.userId,
+          username: row.username,
+          email: row.email,
+          userCreatedAt: row.userCreatedAt,
+          projectTitle: row.projectTitle,
+          projectCreatedAt: row.projectCreatedAt,
+          projectUpdatedAt: row.projectUpdatedAt,
+          imageUrl,
+          sceneIndex,
+          source: "music_video",
+        });
+      });
+      const story = extractSceneImageUrlsFromJsonb(row.storySceneImages);
+      story.forEach((imageUrl, sceneIndex) => {
+        scenes.push({
+          projectId: row.projectId,
+          userId: row.userId,
+          username: row.username,
+          email: row.email,
+          userCreatedAt: row.userCreatedAt,
+          projectTitle: row.projectTitle,
+          projectCreatedAt: row.projectCreatedAt,
+          projectUpdatedAt: row.projectUpdatedAt,
+          imageUrl,
+          sceneIndex,
+          source: "story_video",
+        });
+      });
+    }
 
-    const list = pageResult as unknown as Record<string, unknown>[];
+    scenes.sort((a, b) => {
+      const dt = b.projectUpdatedAt.getTime() - a.projectUpdatedAt.getTime();
+      if (dt !== 0) return dt;
+      if (a.projectId !== b.projectId) return a.projectId.localeCompare(b.projectId);
+      if (a.source !== b.source) return a.source.localeCompare(b.source);
+      return a.sceneIndex - b.sceneIndex;
+    });
 
-    const toDate = (v: unknown): Date => {
-      if (v instanceof Date) return v;
-      return new Date(String(v));
-    };
-
-    const scenes: AdminSceneRow[] = list.map((r) => ({
-      projectId: String(r.projectId),
-      userId: String(r.userId),
-      username: String(r.username),
-      email: String(r.email),
-      userCreatedAt: toDate(r.userCreatedAt),
-      projectTitle: String(r.projectTitle),
-      projectCreatedAt: toDate(r.projectCreatedAt),
-      projectUpdatedAt: toDate(r.projectUpdatedAt),
-      imageUrl: String(r.imageUrl),
-      sceneIndex: Number(r.sceneIndex),
-      source: r.source === "story_video" ? "story_video" : "music_video",
-    }));
-
-    return { scenes, totalCount };
+    const totalCount = scenes.length;
+    return { scenes: scenes.slice(offset, offset + limit), totalCount };
   }
   
   // App settings methods
