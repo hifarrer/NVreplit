@@ -1,4 +1,5 @@
 import { withGenerationApiRetries } from "./generationRetry";
+import { allPurposeImageSizeForAspect } from "@shared/allPurposeAspect";
 
 const FAL_KEY = process.env.FAL_KEY;
 const KIE_API_TOKEN = process.env.KIE_API_TOKEN;
@@ -2224,5 +2225,110 @@ export async function generateSceneImagesFromText(
   console.log(`========================================\n`);
 
   return storedSceneUrls;
+  });
+}
+
+const WAN_27_TEXT_TO_IMAGE_ENDPOINT =
+  "https://api.wavespeed.ai/api/v3/alibaba/wan-2.7/text-to-image";
+
+/**
+ * Single image via Wan 2.7 text-to-image (used for All Purpose when no reference images).
+ * Uses explicit `size` from aspect ratio (2048*2048, 2560*1440, etc.).
+ */
+async function submitAndPollWan27TextToImage(
+  prompt: string,
+  size: string,
+): Promise<string> {
+  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
+
+  const response = await fetch(WAN_27_TEXT_TO_IMAGE_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+    },
+    body: JSON.stringify({
+      prompt,
+      seed: -1,
+      size,
+      thinking_mode: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Wan 2.7 text-to-image error: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  const requestId = result.data?.id || result.id;
+  if (!requestId) {
+    throw new Error("No request ID from Wan 2.7 text-to-image");
+  }
+
+  let attempts = 0;
+  const maxAttempts = 120;
+  while (attempts < maxAttempts) {
+    await new Promise((r) => setTimeout(r, 5000));
+
+    const statusResponse = await fetch(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      {
+        headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` },
+      },
+    );
+    if (!statusResponse.ok) {
+      throw new Error(`Wan 2.7 status check failed: ${statusResponse.status}`);
+    }
+
+    const statusResult = await statusResponse.json();
+    const status = statusResult.data?.status;
+
+    if (status === "completed" && statusResult.data?.outputs?.length > 0) {
+      return statusResult.data.outputs[0] as string;
+    }
+    if (status === "failed" || statusResult.status === "failed") {
+      const err = statusResult.data?.error || statusResult.error || "Unknown";
+      throw new Error(
+        `Wan 2.7 text-to-image failed: ${typeof err === "string" ? err : JSON.stringify(err)}`,
+      );
+    }
+
+    attempts++;
+  }
+  throw new Error("Wan 2.7 text-to-image timed out");
+}
+
+/**
+ * Generate scene stills for All Purpose text-only path: one Wan 2.7 call per prompt, same size for all.
+ */
+export async function generateAllPurposeWan27TextToImageMany(
+  prompts: string[],
+  aspectRatio: string,
+): Promise<string[]> {
+  return withGenerationApiRetries("generateAllPurposeWan27TextToImageMany", async () => {
+    const size = allPurposeImageSizeForAspect(aspectRatio);
+    console.log(
+      `[ALL-PURPOSE-WAN-T2I] Generating ${prompts.length} image(s), size=${size}, aspect=${aspectRatio}`,
+    );
+
+    const rawUrls: string[] = [];
+    for (let i = 0; i < prompts.length; i++) {
+      console.log(`[ALL-PURPOSE-WAN-T2I] Scene ${i + 1}/${prompts.length}...`);
+      const url = await submitAndPollWan27TextToImage(prompts[i]!, size);
+      rawUrls.push(url);
+    }
+
+    const { downloadAndStoreImage } = await import("./imageStorage");
+    const storedSceneUrls: string[] = [];
+    for (let i = 0; i < rawUrls.length; i++) {
+      const stored = await downloadAndStoreImage(rawUrls[i]!, "scenes");
+      storedSceneUrls.push(stored.storedUrl);
+    }
+
+    return storedSceneUrls;
   });
 }

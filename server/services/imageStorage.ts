@@ -60,7 +60,8 @@ async function withRetry<T>(
       const jitter = Math.random() * 0.3 * baseDelay; // Add up to 30% jitter
       const delay = Math.floor(baseDelay + jitter);
       
-      console.warn(
+      // Transient network errors (e.g. ECONNRESET) are expected; log at info level until final failure
+      console.log(
         `[Retry] ${operationName} attempt ${attempt}/${maxRetries} failed with ${errorMessage}. ` +
         `Retrying in ${delay}ms...`
       );

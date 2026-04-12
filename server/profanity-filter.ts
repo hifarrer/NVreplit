@@ -123,6 +123,38 @@ const PROFANITY_DATA = {
     "child porn",
     "molest",
     "grooming"
+  ],
+  "violence": [
+    "gore",
+    "gory",
+    "mutilation",
+    "mutilate",
+    "mutilated",
+    "torture",
+    "torturing",
+    "murder",
+    "murdering",
+    "massacre",
+    "massacring",
+    "beheading",
+    "decapitate",
+    "decapitation",
+    "dismember",
+    "dismemberment",
+    "snuff",
+    "genocide",
+    "lynch",
+    "lynching",
+    "bloodbath",
+    "gorefest",
+    "splatter",
+    "brutality",
+    "brutally",
+    "terrorism",
+    "terrorist",
+    "strangulation",
+    "guillotine",
+    "crucifixion"
   ]
 };
 
@@ -174,6 +206,8 @@ export function getCategoryMessage(category: string): string {
       return 'Content contains hate speech.';
     case 'extreme_prohibited':
       return 'Content is strictly prohibited.';
+    case 'violence':
+      return 'Content contains graphic violence or related material.';
     default:
       return 'Content contains inappropriate material.';
   }

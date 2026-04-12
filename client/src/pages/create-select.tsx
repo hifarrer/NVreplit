@@ -1,19 +1,38 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useLocation, Link } from "wouter";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { VideoStylePreview } from "@/components/video-style-preview";
-import { AddCaptionsToolModal } from "@/components/modals/add-captions-tool-modal";
-import { TrimVideoToolModal } from "@/components/modals/trim-video-tool-modal";
-import { TrimAudioToolModal } from "@/components/modals/trim-audio-tool-modal";
-import { AudioToLyricsToolModal } from "@/components/modals/audio-to-lyrics-tool-modal";
-import { VideoUpscalerToolModal } from "@/components/modals/video-upscaler-tool-modal";
-import { AIVideoEditionToolModal } from "@/components/modals/ai-video-edition-tool-modal";
-import { VideoBackgroundRemoverToolModal } from "@/components/modals/video-background-remover-tool-modal";
 import { useAuth } from "@/hooks/use-auth";
 import { Sparkles } from "lucide-react";
+
+// Lazy-loaded so tool modal code is not in the initial /create JS bundle (reduces Lighthouse "unused JavaScript"
+// until a user opens a tool). All modals are still required for full functionality.
+const AddCaptionsToolModal = lazy(() =>
+  import("@/components/modals/add-captions-tool-modal").then((m) => ({ default: m.AddCaptionsToolModal })),
+);
+const TrimVideoToolModal = lazy(() =>
+  import("@/components/modals/trim-video-tool-modal").then((m) => ({ default: m.TrimVideoToolModal })),
+);
+const TrimAudioToolModal = lazy(() =>
+  import("@/components/modals/trim-audio-tool-modal").then((m) => ({ default: m.TrimAudioToolModal })),
+);
+const AudioToLyricsToolModal = lazy(() =>
+  import("@/components/modals/audio-to-lyrics-tool-modal").then((m) => ({ default: m.AudioToLyricsToolModal })),
+);
+const VideoUpscalerToolModal = lazy(() =>
+  import("@/components/modals/video-upscaler-tool-modal").then((m) => ({ default: m.VideoUpscalerToolModal })),
+);
+const AIVideoEditionToolModal = lazy(() =>
+  import("@/components/modals/ai-video-edition-tool-modal").then((m) => ({ default: m.AIVideoEditionToolModal })),
+);
+const VideoBackgroundRemoverToolModal = lazy(() =>
+  import("@/components/modals/video-background-remover-tool-modal").then((m) => ({
+    default: m.VideoBackgroundRemoverToolModal,
+  })),
+);
 
 export default function CreateSelect() {
   const [, navigate] = useLocation();
@@ -26,6 +45,18 @@ export default function CreateSelect() {
   const [aiVideoEditionOpen, setAIVideoEditionOpen] = useState(false);
   const [videoBgRemoverOpen, setVideoBgRemoverOpen] = useState(false);
   const [audioToLyricsOpen, setAudioToLyricsOpen] = useState(false);
+
+  const allPurposeMode = {
+    id: "all-purpose",
+    title: "All Purpose / Long Format Video",
+    description: "All Purpose / Long Format Video",
+    explanation: "Don't get limited by 10 second videos",
+    videoUrl:
+      "https://stream.mux.com/6mkV14sCmLrl7eS2dHyXB1YmKCQopHb1wPq00Q3O7Gbg.m3u8?redundant_streams=true",
+    route: "/create/all-purpose",
+    available: true,
+  } as const;
+
   const videoModes = [
     {
       id: "story-mode",
@@ -92,7 +123,7 @@ export default function CreateSelect() {
     },
   ];
 
-  const handleModeClick = (mode: typeof videoModes[0]) => {
+  const handleModeClick = (mode: typeof allPurposeMode | (typeof videoModes)[0]) => {
     if (mode.available) {
       navigate(mode.route);
     }
@@ -121,7 +152,7 @@ export default function CreateSelect() {
             </div>
           )}
 
-          <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-8 sm:mb-12">
+          <h1 className="text-3xl sm:text-4xl font-bold text-foreground mt-8 sm:mt-12 mb-8 sm:mb-12">
             Music Video Style
           </h1>
 
@@ -193,6 +224,40 @@ export default function CreateSelect() {
               <CardContent className="p-4 sm:p-6 pt-2">
                 <p className="text-center text-foreground text-sm sm:text-base font-medium">
                   Story Video
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-16 mb-6">
+            All Purpose Video
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
+            <Card
+              className={`overflow-hidden border transition-all ${
+                allPurposeMode.available
+                  ? "border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer"
+                  : "border-border/50 opacity-60 cursor-not-allowed"
+              }`}
+              onClick={() => handleModeClick(allPurposeMode)}
+            >
+              <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+                <VideoStylePreview
+                  hlsUrl={allPurposeMode.videoUrl}
+                  className="absolute inset-0"
+                />
+                {!allPurposeMode.available && (
+                  <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                    <span className="text-muted-foreground text-sm font-medium">Coming Soon</span>
+                  </div>
+                )}
+              </div>
+              <div className="px-4 sm:px-6 pt-3 pb-2">
+                <p className="text-center text-pink-500 text-xs sm:text-sm">{allPurposeMode.explanation}</p>
+              </div>
+              <CardContent className="p-4 sm:p-6 pt-2">
+                <p className="text-center text-foreground text-sm sm:text-base font-medium">
+                  {allPurposeMode.description}
                 </p>
               </CardContent>
             </Card>
@@ -434,35 +499,37 @@ export default function CreateSelect() {
         </div>
       </main>
 
-      <AddCaptionsToolModal
-        isOpen={addCaptionsOpen}
-        onClose={() => setAddCaptionsOpen(false)}
-        onSuccess={() => setAddCaptionsOpen(false)}
-      />
-      <TrimVideoToolModal
-        isOpen={trimVideoOpen}
-        onClose={() => setTrimVideoOpen(false)}
-      />
-      <TrimAudioToolModal
-        isOpen={trimAudioOpen}
-        onClose={() => setTrimAudioOpen(false)}
-      />
-      <AudioToLyricsToolModal
-        isOpen={audioToLyricsOpen}
-        onClose={() => setAudioToLyricsOpen(false)}
-      />
-      <VideoUpscalerToolModal
-        isOpen={videoUpscalerOpen}
-        onClose={() => setVideoUpscalerOpen(false)}
-      />
-      <AIVideoEditionToolModal
-        isOpen={aiVideoEditionOpen}
-        onClose={() => setAIVideoEditionOpen(false)}
-      />
-      <VideoBackgroundRemoverToolModal
-        isOpen={videoBgRemoverOpen}
-        onClose={() => setVideoBgRemoverOpen(false)}
-      />
+      <Suspense fallback={null}>
+        <AddCaptionsToolModal
+          isOpen={addCaptionsOpen}
+          onClose={() => setAddCaptionsOpen(false)}
+          onSuccess={() => setAddCaptionsOpen(false)}
+        />
+        <TrimVideoToolModal
+          isOpen={trimVideoOpen}
+          onClose={() => setTrimVideoOpen(false)}
+        />
+        <TrimAudioToolModal
+          isOpen={trimAudioOpen}
+          onClose={() => setTrimAudioOpen(false)}
+        />
+        <AudioToLyricsToolModal
+          isOpen={audioToLyricsOpen}
+          onClose={() => setAudioToLyricsOpen(false)}
+        />
+        <VideoUpscalerToolModal
+          isOpen={videoUpscalerOpen}
+          onClose={() => setVideoUpscalerOpen(false)}
+        />
+        <AIVideoEditionToolModal
+          isOpen={aiVideoEditionOpen}
+          onClose={() => setAIVideoEditionOpen(false)}
+        />
+        <VideoBackgroundRemoverToolModal
+          isOpen={videoBgRemoverOpen}
+          onClose={() => setVideoBgRemoverOpen(false)}
+        />
+      </Suspense>
 
       <Footer />
     </div>

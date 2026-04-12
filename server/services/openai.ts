@@ -866,3 +866,67 @@ MULTI-CHARACTER LIPSYNC (critical when two named characters appear together in t
     throw new Error("Failed to generate story script: " + (error as Error).message);
   }
 }
+
+/**
+ * Generate scene prompts for all-purpose / long format video.
+ * Returns both an image_prompt (for Seedream still generation) and
+ * a video_prompt (for the image-to-video model) per scene.
+ */
+export async function generateAllPurposeScenePrompts(
+  videoDescription: string,
+  numberOfScenes: number,
+  useAudio: boolean,
+): Promise<{ image_prompt: string; video_prompt: string }[]> {
+  try {
+    const audioInstruction = useAudio
+      ? `Each video_prompt MAY include short dialogue or sound-effect cues when it enhances the scene (dialogue MUST be under 9 seconds when spoken aloud). Not every scene needs dialogue — use it only when it adds value.`
+      : `Do NOT include any dialogue or spoken audio cues in the video_prompt. Describe only visual action and camera movement.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You are a creative director for professional video production. You generate scene breakdowns for any type of video — commercials, tutorials, stories, promos, cinematic shorts, etc.
+
+Given a video description, generate exactly ${numberOfScenes} scenes. Each scene will become a ~10 second video clip.
+
+For every scene produce TWO prompts:
+1. image_prompt — a concise (1-2 sentence) description of a STILL IMAGE that serves as the first frame / key-frame of the scene. Include subject, setting, lighting, and composition.
+2. video_prompt — a concise (1-3 sentence) description of the VIDEO MOTION for the scene. Describe what happens, camera movement, and any on-screen action.
+
+Rules:
+- Keep visual style, setting, and characters consistent across all scenes.
+- Create a coherent narrative arc across the scenes.
+- Vary camera angles and shot types (wide, medium, close-up, tracking, etc.) for visual interest.
+- ${audioInstruction}
+
+Respond with JSON: {"scenes": [{"image_prompt": "...", "video_prompt": "..."}, ...]}`,
+        },
+        {
+          role: "user",
+          content: `Generate ${numberOfScenes} scene breakdowns for this video:\n\n"${videoDescription}"`,
+        },
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || "{}");
+    const scenes: { image_prompt: string; video_prompt: string }[] = result.scenes || [];
+
+    if (scenes.length === 0) {
+      throw new Error("OpenAI returned no scenes");
+    }
+
+    // Pad or trim to exactly the requested count
+    while (scenes.length < numberOfScenes) {
+      scenes.push(scenes[scenes.length - 1]);
+    }
+
+    console.log(`[All-Purpose] Generated ${scenes.length} scene prompts (useAudio=${useAudio})`);
+    return scenes.slice(0, numberOfScenes);
+  } catch (error) {
+    console.error("[All-Purpose] Scene prompt generation error:", error);
+    throw new Error("Failed to generate scene prompts: " + (error as Error).message);
+  }
+}

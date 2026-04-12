@@ -18,6 +18,10 @@ import { errorMonitoring } from "./services/errorMonitoring";
 
 const app = express();
 
+// Dynamic JSON API responses must not use weak ETags: browsers send If-None-Match and Express
+// can respond 304 with an empty body, which breaks fetch() + res.json() on the client.
+app.set("etag", false);
+
 // Handle Stripe webhook BEFORE JSON parsing middleware
 // This must come before express.json() to preserve raw body for signature verification
 app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async (req, res) => {

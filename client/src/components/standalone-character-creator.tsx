@@ -16,12 +16,18 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+type CharacterAspectRatio = "1:1" | "16:9" | "9:16" | "4:3" | "3:4";
+
 interface StandaloneCharacterCreatorProps {
   isOpen: boolean;
   onClose: () => void;
   onCharacterGenerated: (result: { imageUrl: string; prompt: string }) => void;
   /** When true, render as full page content instead of a modal (no Dialog wrapper) */
   asPage?: boolean;
+  /** When true, show aspect ratio dropdown and pass it to generate APIs (same behavior as full page). */
+  showAspectRatioPicker?: boolean;
+  /** When opening the modal, sync internal aspect ratio (e.g. match parent video form). */
+  initialAspectRatio?: CharacterAspectRatio;
 }
 
 interface CharacterStyle {
@@ -39,7 +45,18 @@ interface CharacterLimitInfo {
   canCreate: boolean;
 }
 
-export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerated, asPage = false }: StandaloneCharacterCreatorProps) {
+export function StandaloneCharacterCreator({
+  isOpen,
+  onClose,
+  onCharacterGenerated,
+  asPage = false,
+  showAspectRatioPicker = false,
+  initialAspectRatio,
+}: StandaloneCharacterCreatorProps) {
+  const showAspectControls = asPage || showAspectRatioPicker;
+  /** Modal (e.g. All Purpose): no camera angle; primary action is picking the image for the parent flow. */
+  const isModalMode = !asPage;
+  const primaryPickLabel = isModalMode ? "Use This image" : "Save to Library";
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -65,8 +82,13 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
   const [generatedUploadImageUrl, setGeneratedUploadImageUrl] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  // Aspect ratio (only used when asPage - character creator page)
-  const [aspectRatio, setAspectRatio] = useState<"1:1" | "16:9" | "9:16" | "4:3" | "3:4">("1:1");
+  const [aspectRatio, setAspectRatio] = useState<CharacterAspectRatio>("1:1");
+
+  useEffect(() => {
+    if (isOpen && initialAspectRatio) {
+      setAspectRatio(initialAspectRatio);
+    }
+  }, [isOpen, initialAspectRatio]);
 
   // Fetch character styles
   const { data: styles = [] } = useQuery<CharacterStyle[]>({
@@ -116,7 +138,7 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
 
       const response = await apiRequest("POST", `/api/characters/generate-options`, {
         prompt: prompt,
-        aspectRatio: asPage ? aspectRatio : "16:9",
+        aspectRatio: showAspectControls ? aspectRatio : "16:9",
         style: selectedStyle.style_name,
         model: selectedStyle.model,
         promptEnhancer: selectedStyle.prompt_enhancer
@@ -172,7 +194,7 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
         imageUrl: uploadedImageUrl,
         prompt: uploadedImagePrompt || "character",
         promptEnhancer: selectedUploadStyle.prompt_enhancer,
-        aspectRatio: asPage ? aspectRatio : "1:1",
+        aspectRatio: showAspectControls ? aspectRatio : "1:1",
       }, { timeout: 900000 });
 
       clearInterval(progressInterval);
@@ -484,10 +506,10 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                     <p className="text-xs text-muted-foreground mt-1">Be detailed about appearance, style, clothing, and mood</p>
                   </div>
 
-                  {asPage && (
+                  {showAspectControls && (
                     <div className="flex flex-wrap items-center gap-4">
                       <Label className="text-sm font-semibold">Aspect ratio</Label>
-                      <Select value={aspectRatio} onValueChange={(v: "1:1" | "16:9" | "9:16" | "4:3" | "3:4") => setAspectRatio(v)}>
+                      <Select value={aspectRatio} onValueChange={(v: CharacterAspectRatio) => setAspectRatio(v)}>
                         <SelectTrigger className="w-[180px] bg-background border-border">
                           <SelectValue placeholder="Aspect ratio" />
                         </SelectTrigger>
@@ -581,17 +603,19 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                                 data-testid={`save-character-${index}`}
                               >
                                 <Check className="w-4 h-4 mr-1" />
-                                Save to Library
+                                {primaryPickLabel}
                               </Button>
-                              <Button
-                                onClick={() => setCameraAngleImageUrl(imageUrl)}
-                                size="sm"
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
-                                data-testid={`camera-angle-${index}`}
-                              >
-                                <Camera className="w-4 h-4 mr-1" />
-                                Camera angle
-                              </Button>
+                              {asPage && (
+                                <Button
+                                  onClick={() => setCameraAngleImageUrl(imageUrl)}
+                                  size="sm"
+                                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                                  data-testid={`camera-angle-${index}`}
+                                >
+                                  <Camera className="w-4 h-4 mr-1" />
+                                  Camera angle
+                                </Button>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -644,10 +668,10 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                   <p className="text-xs text-muted-foreground mt-1">Be detailed about appearance, style, clothing, and mood</p>
                 </div>
 
-                {asPage && (
+                {showAspectControls && (
                   <div className="flex flex-wrap items-center gap-4">
                     <Label className="text-sm font-semibold">Aspect ratio</Label>
-                    <Select value={aspectRatio} onValueChange={(v: "1:1" | "16:9" | "9:16" | "4:3" | "3:4") => setAspectRatio(v)}>
+                    <Select value={aspectRatio} onValueChange={(v: CharacterAspectRatio) => setAspectRatio(v)}>
                       <SelectTrigger className="w-[180px] bg-background border-border">
                         <SelectValue placeholder="Aspect ratio" />
                       </SelectTrigger>
@@ -741,17 +765,19 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                               data-testid={`save-character-${index}`}
                             >
                               <Check className="w-4 h-4 mr-1" />
-                              Save to Library
+                              {primaryPickLabel}
                             </Button>
-                            <Button
-                              onClick={() => setCameraAngleImageUrl(imageUrl)}
-                              size="sm"
-                              className="bg-blue-600 hover:bg-blue-700 text-white"
-                              data-testid={`camera-angle-${index}`}
-                            >
-                              <Camera className="w-4 h-4 mr-1" />
-                              Camera angle
-                            </Button>
+                            {asPage && (
+                              <Button
+                                onClick={() => setCameraAngleImageUrl(imageUrl)}
+                                size="sm"
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                                data-testid={`camera-angle-${index}`}
+                              >
+                                <Camera className="w-4 h-4 mr-1" />
+                                Camera angle
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -838,10 +864,10 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                       </>
                     ) : (
                       <>
-                        {asPage && (
+                        {showAspectControls && (
                           <div className="flex flex-wrap items-center gap-4">
                             <Label className="text-sm font-semibold">Aspect ratio</Label>
-                            <Select value={aspectRatio} onValueChange={(v: "1:1" | "16:9" | "9:16" | "4:3" | "3:4") => setAspectRatio(v)}>
+                            <Select value={aspectRatio} onValueChange={(v: CharacterAspectRatio) => setAspectRatio(v)}>
                               <SelectTrigger className="w-[180px] bg-background border-border">
                                 <SelectValue placeholder="Aspect ratio" />
                               </SelectTrigger>
@@ -959,7 +985,7 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                             className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                           >
                             <Check className="w-4 h-4 mr-2" />
-                            Save to Library
+                            {primaryPickLabel}
                           </Button>
                           <Button
                             onClick={() => generateImageToImageMutation.mutate()}
@@ -1001,7 +1027,7 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                             className="w-full bg-green-600 hover:bg-green-700 text-white"
                           >
                             <Check className="w-4 h-4 mr-2" />
-                            Save to Library
+                            {primaryPickLabel}
                           </Button>
                         )}
                       </>
@@ -1084,10 +1110,10 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                     </>
                   ) : (
                     <>
-                      {asPage && (
+                      {showAspectControls && (
                         <div className="flex flex-wrap items-center gap-4">
                           <Label className="text-sm font-semibold">Aspect ratio</Label>
-                          <Select value={aspectRatio} onValueChange={(v: "1:1" | "16:9" | "9:16" | "4:3" | "3:4") => setAspectRatio(v)}>
+                          <Select value={aspectRatio} onValueChange={(v: CharacterAspectRatio) => setAspectRatio(v)}>
                             <SelectTrigger className="w-[180px] bg-background border-border">
                               <SelectValue placeholder="Aspect ratio" />
                             </SelectTrigger>
@@ -1205,7 +1231,7 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                           className="w-full bg-green-600 hover:bg-green-700 text-white"
                         >
                           <Check className="w-4 h-4 mr-2" />
-                          Save to Library
+                          {primaryPickLabel}
                         </Button>
                         <Button
                           onClick={() => generateImageToImageMutation.mutate()}
@@ -1247,7 +1273,7 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
                           className="w-full bg-green-600 hover:bg-green-700 text-white"
                         >
                           <Check className="w-4 h-4 mr-2" />
-                          Save to Library
+                          {primaryPickLabel}
                         </Button>
                       )}
                     </>
@@ -1321,7 +1347,7 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="gradient-text">Create Character</DialogTitle>
@@ -1335,14 +1361,6 @@ export function StandaloneCharacterCreator({ isOpen, onClose, onCharacterGenerat
             onClose={() => setShowSaveModal(false)}
             imageUrl={currentCharacterUrl}
             prompt={currentCharacterPrompt}
-          />
-        )}
-        {cameraAngleImageUrl && (
-          <CharacterCameraAngleModal
-            isOpen={!!cameraAngleImageUrl}
-            onClose={() => setCameraAngleImageUrl(null)}
-            imageUrl={cameraAngleImageUrl}
-            onSuccess={(newUrl) => handleCameraAngleSuccess(cameraAngleImageUrl, newUrl)}
           />
         )}
       </Dialog>

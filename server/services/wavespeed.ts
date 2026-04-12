@@ -1333,3 +1333,161 @@ export async function generateInfinitetalkMultiVideoSegment(
     );
   });
 }
+
+// ─── ALL-PURPOSE VIDEO CLIP GENERATION ────────────────────────────────────
+
+export type AllPurposeVideoModel = "seedance-v1.5-pro" | "wan-2.6" | "kling-v2.6-pro";
+
+const ALL_PURPOSE_MODEL_ENDPOINTS: Record<AllPurposeVideoModel, string> = {
+  "seedance-v1.5-pro": "https://api.wavespeed.ai/api/v3/bytedance/seedance-v1.5-pro/image-to-video",
+  "wan-2.6": "https://api.wavespeed.ai/api/v3/alibaba/wan-2.6/image-to-video",
+  "kling-v2.6-pro": "https://api.wavespeed.ai/api/v3/kwaivgi/kling-v2.6-pro/image-to-video",
+};
+
+function buildAllPurposeRequestBody(
+  model: AllPurposeVideoModel,
+  imageUrl: string,
+  prompt: string,
+  resolution: "720p" | "1080p",
+  useAudio: boolean,
+  aspectRatio: string,
+  duration: number,
+): Record<string, unknown> {
+  switch (model) {
+    case "seedance-v1.5-pro":
+      return {
+        aspect_ratio: aspectRatio,
+        camera_fixed: false,
+        duration,
+        generate_audio: useAudio,
+        image: imageUrl,
+        prompt,
+        resolution,
+        seed: -1,
+      };
+    case "wan-2.6":
+      return {
+        duration,
+        enable_prompt_expansion: false,
+        image: imageUrl,
+        prompt,
+        resolution,
+        seed: -1,
+        shot_type: "single",
+      };
+    case "kling-v2.6-pro":
+      return {
+        cfg_scale: 0.5,
+        duration,
+        image: imageUrl,
+        prompt,
+        sound: useAudio,
+        voice_list: [],
+      };
+  }
+}
+
+async function generateAllPurposeVideoClipInternal(
+  imageUrl: string,
+  prompt: string,
+  model: AllPurposeVideoModel,
+  resolution: "720p" | "1080p",
+  useAudio: boolean,
+  aspectRatio: string,
+  duration: number = 10,
+): Promise<string> {
+  const endpoint = ALL_PURPOSE_MODEL_ENDPOINTS[model];
+  const requestBody = buildAllPurposeRequestBody(model, imageUrl, prompt, resolution, useAudio, aspectRatio, duration);
+
+  console.log(`[All-Purpose] Generating clip: model=${model}, resolution=${resolution}, duration=${duration}s`);
+  console.log(`[All-Purpose] Endpoint: ${endpoint}`);
+
+  const response = await fetchWithRetry(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`WaveSpeed API error (${model}): ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  const requestId = result.data?.id || result.id;
+  if (!requestId) {
+    throw new Error(`No request ID from WaveSpeed (${model})`);
+  }
+
+  console.log(`[All-Purpose] Submitted ${model}, requestId=${requestId}`);
+
+  let attempts = 0;
+  const maxAttempts = 60;
+  while (attempts < maxAttempts) {
+    await new Promise((r) => setTimeout(r, 10000));
+
+    const statusResponse = await fetchWithRetry(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      { headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` } },
+    );
+
+    if (!statusResponse.ok) {
+      throw new Error(`Status check failed for ${model}: ${statusResponse.status}`);
+    }
+
+    const statusResult = await statusResponse.json();
+    if (statusResult.data?.status === "completed" && statusResult.data.outputs?.length > 0) {
+      console.log(`[All-Purpose] Clip ready (${model}): ${statusResult.data.outputs[0]}`);
+      return statusResult.data.outputs[0];
+    }
+    if (statusResult.status === "failed" || statusResult.data?.status === "failed") {
+      const errorMsg = statusResult.error || statusResult.data?.error || "Unknown error";
+      throw new Error(`Video generation failed (${model}): ${typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg)}`);
+    }
+
+    attempts++;
+    if (attempts % 6 === 0) {
+      console.log(`[All-Purpose] Still processing ${model}... (${attempts * 10}s elapsed)`);
+    }
+  }
+  throw new Error(`Video generation timed out for ${model}`);
+}
+
+/** Generate a single video clip for all-purpose video using the user-selected model. */
+export async function generateAllPurposeVideoClip(
+  imageUrl: string,
+  prompt: string,
+  model: AllPurposeVideoModel,
+  resolution: "720p" | "1080p",
+  useAudio: boolean,
+  aspectRatio: string,
+  duration: number = 10,
+): Promise<string> {
+  return withGenerationApiRetries(`All-Purpose ${model}`, async () => {
+    let lastError: Error | null = null;
+    let currentPrompt = prompt;
+    for (let attempt = 1; attempt <= MAX_TRANSIENT_RETRIES; attempt++) {
+      try {
+        return await generateAllPurposeVideoClipInternal(
+          imageUrl, currentPrompt, model, resolution, useAudio, aspectRatio, duration,
+        );
+      } catch (error) {
+        const err = error as Error;
+        lastError = err;
+        if (isSensitiveContentError(err)) {
+          currentPrompt = SAFE_FALLBACK_PROMPT;
+          continue;
+        }
+        if (isTransientError(err) && attempt < MAX_TRANSIENT_RETRIES) {
+          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+          continue;
+        }
+        break;
+      }
+    }
+    throw new Error(`Failed ${model} after ${MAX_TRANSIENT_RETRIES} attempts: ${lastError?.message || "unknown"}`);
+  });
+}

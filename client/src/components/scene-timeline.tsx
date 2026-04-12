@@ -25,6 +25,8 @@ interface SceneTimelineProps {
   timelineLayout?: "music" | "story";
   /** When true, mic / speaking indicators are display-only (e.g. story dialogue vs narrator). */
   lipsyncReadOnly?: boolean;
+  /** Hide the dialogue/lyrics row and the audio waveform row (e.g. all-purpose video scene review). */
+  hideDialogueAndAudioTracks?: boolean;
   onReorder: (newOrder: number[]) => void;
   onSceneClick?: (sceneIndex: number) => void;
   onToggleLipsync?: (sceneIndex: number) => void;
@@ -43,6 +45,7 @@ export function SceneTimeline({
   isInstrumental = false,
   timelineLayout = "music",
   lipsyncReadOnly = false,
+  hideDialogueAndAudioTracks = false,
   onReorder,
   onSceneClick,
   onToggleLipsync
@@ -659,38 +662,42 @@ export function SceneTimeline({
                 <span className="text-[10px] text-slate-400 font-medium">Scenes</span>
               </div>
             </div>
-            <div className="h-8 mt-2 flex items-center">
-              <div className="flex items-center gap-1">
-                <Type className="w-3 h-3 text-amber-400" />
-                <span className="text-[10px] text-slate-400 font-medium">
-                  {textOverlaySegments ? "Text Overlay" : timelineLayout === "story" ? "Dialogue" : "Lyrics"}
-                </span>
-              </div>
-            </div>
-            <div className="h-10 mt-2 flex items-center">
-              <div className="flex items-center gap-1">
-                {/* Hide audio play button when video preview is available - playback is controlled via video */}
-                {!hasVideoPreview ? (
-                  <button
-                    onClick={togglePlayback}
-                    disabled={!audioUrl}
-                    className="p-1 rounded-full bg-cyan-500/20 hover:bg-cyan-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    data-testid="audio-play-button"
-                  >
-                    {isPlaying ? (
-                      <Pause className="w-3 h-3 text-cyan-400" />
-                    ) : (
-                      <Play className="w-3 h-3 text-cyan-400" />
-                    )}
-                  </button>
-                ) : (
-                  <div className="p-1 rounded-full bg-slate-700/50">
-                    <Music className="w-3 h-3 text-slate-500" />
+            {!hideDialogueAndAudioTracks && (
+              <>
+                <div className="h-8 mt-2 flex items-center">
+                  <div className="flex items-center gap-1">
+                    <Type className="w-3 h-3 text-amber-400" />
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      {textOverlaySegments ? "Text Overlay" : timelineLayout === "story" ? "Dialogue" : "Lyrics"}
+                    </span>
                   </div>
-                )}
-                <span className="text-[10px] text-slate-400 font-medium">Audio</span>
-              </div>
-            </div>
+                </div>
+                <div className="h-10 mt-2 flex items-center">
+                  <div className="flex items-center gap-1">
+                    {/* Hide audio play button when video preview is available - playback is controlled via video */}
+                    {!hasVideoPreview ? (
+                      <button
+                        onClick={togglePlayback}
+                        disabled={!audioUrl}
+                        className="p-1 rounded-full bg-cyan-500/20 hover:bg-cyan-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        data-testid="audio-play-button"
+                      >
+                        {isPlaying ? (
+                          <Pause className="w-3 h-3 text-cyan-400" />
+                        ) : (
+                          <Play className="w-3 h-3 text-cyan-400" />
+                        )}
+                      </button>
+                    ) : (
+                      <div className="p-1 rounded-full bg-slate-700/50">
+                        <Music className="w-3 h-3 text-slate-500" />
+                      </div>
+                    )}
+                    <span className="text-[10px] text-slate-400 font-medium">Audio</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           
           {/* Scrollable tracks container */}
@@ -857,97 +864,101 @@ export function SceneTimeline({
                 <div className="w-1 h-16 bg-primary rounded-full flex-shrink-0 shadow-[0_0_10px_rgba(168,85,247,0.5)]"></div>
               </div>
               
-              {/* Lyrics track - positioned by timestamp */}
-              <TooltipProvider delayDuration={100}>
-                <div 
-                  className="relative h-8 bg-slate-800/30 rounded-lg"
-                  style={{ width: `${sceneCount * 100 + 4}px` }}
-                  data-testid="lyrics-track"
-                >
-                  {hasTimestampedLyrics && displaySegments ? (
-                    displaySegments.map((segment, index) => {
-                      const leftPercent = (segment.start / audioDuration) * 100;
-                      const duration = segment.end - segment.start;
-                      const widthPercent = Math.max((duration / audioDuration) * 100, 3);
-                      
-                      return (
-                        <Tooltip key={`lyrics-${index}`}>
-                          <TooltipTrigger asChild>
-                            <div
-                              className="absolute top-0 bottom-0 rounded cursor-pointer transition-all duration-200 hover:scale-y-110 bg-gradient-to-r from-amber-500/40 to-amber-600/40 border border-amber-500/50 hover:border-amber-400/70"
-                              style={{ 
-                                left: `${leftPercent}%`, 
-                                width: `${widthPercent}%`,
-                                minWidth: '20px'
-                              }}
-                              data-testid={`lyrics-block-${index + 1}`}
-                            >
-                              <div className="flex items-center justify-center h-full overflow-hidden px-0.5">
-                                <Type className="w-3 h-3 text-amber-400/80 flex-shrink-0" />
-                              </div>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent 
-                            side="top" 
-                            className="max-w-[250px] bg-slate-900 border-slate-700 text-slate-200"
-                          >
-                            <div className="text-xs leading-relaxed">
-                              <span className="text-amber-400 font-mono text-[10px]">{formatDuration(Math.floor(segment.start))}</span>
-                              <span className="mx-1.5 text-slate-500">|</span>
-                              {segment.text}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    })
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-slate-500 text-xs">
-                      {textOverlaySegments ? 'No text overlay' : 'No timestamped lyrics'}
+              {!hideDialogueAndAudioTracks && (
+                <>
+                  {/* Lyrics track - positioned by timestamp */}
+                  <TooltipProvider delayDuration={100}>
+                    <div 
+                      className="relative h-8 bg-slate-800/30 rounded-lg"
+                      style={{ width: `${sceneCount * 100 + 4}px` }}
+                      data-testid="lyrics-track"
+                    >
+                      {hasTimestampedLyrics && displaySegments ? (
+                        displaySegments.map((segment, index) => {
+                          const leftPercent = (segment.start / audioDuration) * 100;
+                          const duration = segment.end - segment.start;
+                          const widthPercent = Math.max((duration / audioDuration) * 100, 3);
+                          
+                          return (
+                            <Tooltip key={`lyrics-${index}`}>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className="absolute top-0 bottom-0 rounded cursor-pointer transition-all duration-200 hover:scale-y-110 bg-gradient-to-r from-amber-500/40 to-amber-600/40 border border-amber-500/50 hover:border-amber-400/70"
+                                  style={{ 
+                                    left: `${leftPercent}%`, 
+                                    width: `${widthPercent}%`,
+                                    minWidth: '20px'
+                                  }}
+                                  data-testid={`lyrics-block-${index + 1}`}
+                                >
+                                  <div className="flex items-center justify-center h-full overflow-hidden px-0.5">
+                                    <Type className="w-3 h-3 text-amber-400/80 flex-shrink-0" />
+                                  </div>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent 
+                                side="top" 
+                                className="max-w-[250px] bg-slate-900 border-slate-700 text-slate-200"
+                              >
+                                <div className="text-xs leading-relaxed">
+                                  <span className="text-amber-400 font-mono text-[10px]">{formatDuration(Math.floor(segment.start))}</span>
+                                  <span className="mx-1.5 text-slate-500">|</span>
+                                  {segment.text}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          );
+                        })
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-slate-500 text-xs">
+                          {textOverlaySegments ? 'No text overlay' : 'No timestamped lyrics'}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </TooltipProvider>
-              
-              {/* Waveform track - same container, scrolls together */}
-              <div 
-                className="relative h-10 bg-slate-800/50 rounded-lg flex items-center overflow-hidden"
-                style={{ width: `${sceneCount * 100 + 4}px` }}
-                data-testid="audio-waveform"
-              >
-                {waveformData.length > 0 ? (
-                  <div className="w-full h-full flex items-center gap-[1px] px-1 py-1">
-                    {waveformData.map((amplitude, index) => (
-                      <div
-                        key={index}
-                        className="flex-1 bg-gradient-to-t from-cyan-500/60 to-cyan-400/80 rounded-sm"
-                        style={{
-                          height: `${Math.max(amplitude * 100, 10)}%`,
-                          minWidth: '2px',
-                        }}
-                      />
-                    ))}
-                  </div>
-                ) : audioUrl ? (
-                  <div className="flex items-center justify-center w-full gap-2 text-slate-500">
-                    <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-xs">Loading waveform...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center w-full">
-                    <span className="text-xs text-slate-500">No audio available</span>
-                  </div>
-                )}
-                <div className="absolute top-0 left-0 w-full h-full pointer-events-none bg-gradient-to-r from-slate-900/20 via-transparent to-slate-900/20 rounded-lg" />
-                
-                {/* Playhead indicator */}
-                {isPlaying && (
+                  </TooltipProvider>
+                  
+                  {/* Waveform track - same container, scrolls together */}
                   <div 
-                    className="absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] z-10 transition-none"
-                    style={{ left: `${playheadPosition}%` }}
-                    data-testid="audio-playhead"
-                  />
-                )}
-              </div>
+                    className="relative h-10 bg-slate-800/50 rounded-lg flex items-center overflow-hidden"
+                    style={{ width: `${sceneCount * 100 + 4}px` }}
+                    data-testid="audio-waveform"
+                  >
+                    {waveformData.length > 0 ? (
+                      <div className="w-full h-full flex items-center gap-[1px] px-1 py-1">
+                        {waveformData.map((amplitude, index) => (
+                          <div
+                            key={index}
+                            className="flex-1 bg-gradient-to-t from-cyan-500/60 to-cyan-400/80 rounded-sm"
+                            style={{
+                              height: `${Math.max(amplitude * 100, 10)}%`,
+                              minWidth: '2px',
+                            }}
+                          />
+                        ))}
+                      </div>
+                    ) : audioUrl ? (
+                      <div className="flex items-center justify-center w-full gap-2 text-slate-500">
+                        <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-xs">Loading waveform...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center w-full">
+                        <span className="text-xs text-slate-500">No audio available</span>
+                      </div>
+                    )}
+                    <div className="absolute top-0 left-0 w-full h-full pointer-events-none bg-gradient-to-r from-slate-900/20 via-transparent to-slate-900/20 rounded-lg" />
+                    
+                    {/* Playhead indicator */}
+                    {isPlaying && (
+                      <div 
+                        className="absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] z-10 transition-none"
+                        style={{ left: `${playheadPosition}%` }}
+                        data-testid="audio-playhead"
+                      />
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -966,10 +977,12 @@ export function SceneTimeline({
       </div>
       
       <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground flex-wrap">
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-primary shadow-[0_0_6px_rgba(168,85,247,0.5)]"></div>
-          <span>Playhead</span>
-        </div>
+        {!hideDialogueAndAudioTracks && (
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-primary shadow-[0_0_6px_rgba(168,85,247,0.5)]"></div>
+            <span>Playhead</span>
+          </div>
+        )}
         <div className="flex items-center gap-1.5">
           <Mic className="w-3 h-3 text-pink-400" />
           <span>{timelineLayout === "story" ? "Single-character lipsync" : "Lipsync scene"}</span>
@@ -984,16 +997,20 @@ export function SceneTimeline({
           <GripVertical className="w-3 h-3 text-slate-400" />
           <span>Drag to reorder</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <Music className="w-3 h-3 text-cyan-400" />
-          <span>Audio waveform</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Type className="w-3 h-3 text-amber-400" />
-          <span>
-            {textOverlaySegments ? "Text Overlay" : timelineLayout === "story" ? "Dialogue" : "Lyrics"} (hover to view)
-          </span>
-        </div>
+        {!hideDialogueAndAudioTracks && (
+          <>
+            <div className="flex items-center gap-1.5">
+              <Music className="w-3 h-3 text-cyan-400" />
+              <span>Audio waveform</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Type className="w-3 h-3 text-amber-400" />
+              <span>
+                {textOverlaySegments ? "Text Overlay" : timelineLayout === "story" ? "Dialogue" : "Lyrics"} (hover to view)
+              </span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
-// Profanity filter utility
+// Profanity filter — keep in sync with server/profanity-filter.ts (word lists and categories)
 const PROFANITY_DATA = {
-  "profanity": [
+  profanity: [
     "fuck",
     "shit",
     "bitch",
@@ -12,9 +12,9 @@ const PROFANITY_DATA = {
     "cunt",
     "motherfucker",
     "whore",
-    "slut"
+    "slut",
   ],
-  "sexual": [
+  sexual: [
     "porn",
     "xxx",
     "blowjob",
@@ -37,19 +37,74 @@ const PROFANITY_DATA = {
     "penis",
     "dick",
     "boner",
-    "rape"
+    "rape",
+    "nude",
+    "naked",
+    "nudity",
+    "bare",
+    "topless",
+    "bottomless",
+    "explicit",
+    "erotic",
+    "sex",
+    "sexual",
+    "sexy",
+    "seductive",
+    "provocative",
+    "lingerie",
+    "underwear",
+    "bra",
+    "panties",
+    "thong",
+    "bikini",
+    "swimsuit",
+    "undressed",
+    "undressing",
+    "stripping",
+    "strip",
+    "nipple",
+    "nipples",
+    "breast",
+    "breasts",
+    "boobs",
+    "tits",
+    "ass",
+    "butt",
+    "buttocks",
+    "genital",
+    "genitals",
+    "pubic",
+    "arousal",
+    "arous",
+    "horny",
+    "lust",
+    "desire",
+    "fetish",
+    "bdsm",
+    "kink",
+    "kinky",
+    "bondage",
+    "domination",
+    "submissive",
+    "slave",
+    "mistress",
+    "orgy",
+    "threesome",
+    "gangbang",
+    "hardcore",
+    "softcore",
+    "hentai",
+    "ecchi",
+    "yuri",
+    "yaoi",
+    "nsfw",
+    "adult content",
+    "18+",
+    "xxx content",
   ],
-  "harassment": [
-    "nazi",
-    "kill yourself",
-    "jew"
-  ],
-  "hate_speech": [
-    "nigga",
-    "nigger",
-    "negro"
-  ],
-  "extreme_prohibited": [
+  harassment: ["nazi", "kill yourself", "jew"],
+  hate_speech: ["nigga", "nigger", "negro"],
+  extreme_prohibited: [
     "pedophile",
     "pedo",
     "incest",
@@ -59,8 +114,40 @@ const PROFANITY_DATA = {
     "necrophilia",
     "child porn",
     "molest",
-    "grooming"
-  ]
+    "grooming",
+  ],
+  violence: [
+    "gore",
+    "gory",
+    "mutilation",
+    "mutilate",
+    "mutilated",
+    "torture",
+    "torturing",
+    "murder",
+    "murdering",
+    "massacre",
+    "massacring",
+    "beheading",
+    "decapitate",
+    "decapitation",
+    "dismember",
+    "dismemberment",
+    "snuff",
+    "genocide",
+    "lynch",
+    "lynching",
+    "bloodbath",
+    "gorefest",
+    "splatter",
+    "brutality",
+    "brutally",
+    "terrorism",
+    "terrorist",
+    "strangulation",
+    "guillotine",
+    "crucifixion",
+  ],
 };
 
 export interface ProfanityCheckResult {
@@ -78,11 +165,9 @@ export function checkProfanity(text: string): ProfanityCheckResult {
   const detectedWords: string[] = [];
   let category: string | null = null;
 
-  // Check each category
   for (const [categoryName, words] of Object.entries(PROFANITY_DATA)) {
     for (const word of words) {
-      // Check for exact word matches (with word boundaries)
-      const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
       if (regex.test(normalizedText)) {
         detectedWords.push(word);
         if (!category) {
@@ -95,23 +180,25 @@ export function checkProfanity(text: string): ProfanityCheckResult {
   return {
     isClean: detectedWords.length === 0,
     detectedWords,
-    category
+    category,
   };
 }
 
 export function getCategoryMessage(category: string): string {
   switch (category) {
-    case 'profanity':
-      return 'Please remove profanity from your lyrics.';
-    case 'sexual':
-      return 'Please remove sexual content from your lyrics.';
-    case 'harassment':
-      return 'Please remove harassment content from your lyrics.';
-    case 'hate_speech':
-      return 'Please remove hate speech from your lyrics.';
-    case 'extreme_prohibited':
-      return 'This content is strictly prohibited. Please revise your lyrics.';
+    case "profanity":
+      return "Content contains profanity.";
+    case "sexual":
+      return "Content contains sexual content.";
+    case "harassment":
+      return "Content contains harassment.";
+    case "hate_speech":
+      return "Content contains hate speech.";
+    case "extreme_prohibited":
+      return "Content is strictly prohibited.";
+    case "violence":
+      return "Content contains graphic violence or related material.";
     default:
-      return 'Please remove inappropriate content from your lyrics.';
+      return "Content contains inappropriate material.";
   }
 }

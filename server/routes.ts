@@ -20,15 +20,20 @@ import {
 } from "@shared/storyConstants";
 import { defaultSubtitleStyle, isSubtitleStyle } from "@shared/subtitleStyles";
 import { defaultGoogleFont, isGoogleFont } from "@shared/googleFonts";
+import {
+  allPurposeMergeVideoDimensions,
+  allPurposeUsePortraitOutro,
+  isAllPurposeAspectRatio,
+} from "@shared/allPurposeAspect";
 import { z } from "zod";
-import { generateLyrics, generateLyricsWithTitle, generateSongTitle, generateScenePrompts, generateInstrumentalScenePrompts, generateLyricVideoScenePrompts, splitLyricsIntoSections, openai, transcribeAudio, generateStoryScript } from "./services/openai";
+import { generateLyrics, generateLyricsWithTitle, generateSongTitle, generateScenePrompts, generateInstrumentalScenePrompts, generateLyricVideoScenePrompts, splitLyricsIntoSections, openai, transcribeAudio, generateStoryScript, generateAllPurposeScenePrompts } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
 import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, generateInstrumentalSong } from "./services/minimax";
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
-import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAlbumCoverSeedreamV5Lite, generateAiImageEdit, collectStoryCharacterReferenceImageUrls } from "./services/fal";
-import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio } from "./services/wavespeed";
+import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAllPurposeWan27TextToImageMany, generateAlbumCoverSeedreamV5Lite, generateAiImageEdit, collectStoryCharacterReferenceImageUrls } from "./services/fal";
+import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio, generateAllPurposeVideoClip } from "./services/wavespeed";
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
@@ -13686,6 +13691,461 @@ Do not add markdown. Return JSON only.`,
       console.error("[SIMPLE-MODE] Error:", error);
       res.status(500).json({
         error: error instanceof Error ? error.message : "Failed to generate simple mode video",
+      });
+    }
+  });
+
+  // ─── ALL-PURPOSE / LONG FORMAT VIDEO ──────────────────────────────────
+  app.options("/api/all-purpose", (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.sendStatus(204);
+  });
+
+  app.post("/api/all-purpose", extractTokenFromUrl, authenticateToken, async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    try {
+      const {
+        prompt,
+        aspectRatio: requestedAspectRatio,
+        duration: requestedDuration,
+        videoModel: requestedVideoModel,
+        resolution: requestedResolution,
+        useAudio: requestedUseAudio,
+        referenceImageUrls: requestedReferenceImageUrls,
+        characterImageUrl: requestedCharacterImageUrl,
+      } = req.body;
+      const userId = req.user!.userId;
+
+      if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
+        return res.status(400).json({ error: "Please provide a prompt describing your video" });
+      }
+
+      const profanityCheck = checkProfanity(prompt.trim());
+      if (!profanityCheck.isClean) {
+        console.log("[ALL-PURPOSE] Blocked inappropriate prompt:", profanityCheck.detectedWords);
+        return res.status(400).json({
+          error: getCategoryMessage(profanityCheck.category || "unknown"),
+          category: profanityCheck.category,
+        });
+      }
+
+      const aspectRatio = isAllPurposeAspectRatio(String(requestedAspectRatio || ""))
+        ? requestedAspectRatio
+        : "9:16";
+      const duration = typeof requestedDuration === "number"
+        ? Math.max(5, Math.min(180, Math.round(requestedDuration / 5) * 5))
+        : 20;
+
+      const validModels = ["seedance-v1.5-pro", "wan-2.6", "kling-v2.6-pro"] as const;
+      const videoModel = validModels.includes(requestedVideoModel) ? requestedVideoModel : "seedance-v1.5-pro";
+      const resolution = requestedResolution === "1080p" ? "1080p" : "720p";
+      const useAudio = requestedUseAudio === true;
+
+      const referenceImageUrls: string[] = Array.isArray(requestedReferenceImageUrls)
+        ? requestedReferenceImageUrls.filter((u: any) => typeof u === "string" && u.trim()).slice(0, 3)
+        : [];
+      const characterImageUrl = typeof requestedCharacterImageUrl === "string" && requestedCharacterImageUrl.trim()
+        ? requestedCharacterImageUrl.trim()
+        : null;
+      const hasReferenceImages = referenceImageUrls.length > 0 || !!characterImageUrl;
+
+      // Credit calculation
+      const modelCosts: Record<string, number> = {
+        "seedance-v1.5-pro": 1000,
+        "wan-2.6": 4000,
+        "kling-v2.6-pro": 4000,
+      };
+      const segments = Math.max(1, Math.ceil(duration / 10));
+      const resolutionMultiplier = resolution === "1080p" ? 2 : 1;
+      const totalCredits = segments * (modelCosts[videoModel] || 1000) * resolutionMultiplier;
+
+      const canAfford = await storage.canUserAffordCredits(userId, totalCredits);
+      if (!canAfford) {
+        const remaining = await storage.getUserCreditsRemaining(userId);
+        return res.status(402).json({
+          error: "Insufficient credits",
+          creditsRequired: totalCredits,
+          creditsRemaining: remaining,
+        });
+      }
+
+      const project = await storage.createProject({
+        userId,
+        title: prompt.substring(0, 60),
+        description: prompt,
+        aspectRatio,
+        currentStep: 1,
+        isInstrumental: true,
+        includeWatermark: false,
+      } as any);
+
+      // Store all-purpose metadata on the project
+      await storage.updateProject(project.id, {
+        audioDuration: duration,
+      } as any);
+
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "project_creation",
+        message: "Setting up your video project...",
+        status: "completed",
+        metadata: { videoModel, resolution, useAudio, duration },
+      });
+
+      res.json({
+        success: true,
+        projectId: project.id,
+        message: "Video generation started!",
+      });
+
+      // Background processing
+      (async () => {
+        try {
+          const isShortVideo = duration <= 10;
+
+          if (isShortVideo) {
+            // ─── SHORT VIDEO PATH (<=10s): single clip, no OpenAI scene splitting ───
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "scene_generation",
+              message: "Creating scene image...",
+              status: "progress",
+              metadata: {},
+            });
+
+            let sceneImageUrl: string;
+            const allRefImages = [...referenceImageUrls];
+            if (characterImageUrl) allRefImages.unshift(characterImageUrl);
+
+            if (allRefImages.length > 0) {
+              const images = await generateSceneImages([prompt], allRefImages, aspectRatio);
+              sceneImageUrl = images[0];
+            } else {
+              const images = await generateAllPurposeWan27TextToImageMany([prompt], aspectRatio);
+              sceneImageUrl = images[0];
+            }
+
+            await storage.updateProject(project.id, {
+              scenePrompts: [prompt],
+              sceneImages: [sceneImageUrl],
+              characterImageUrl: characterImageUrl || undefined,
+              currentStep: 3,
+            } as any);
+
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "scene_generation",
+              message: "Scene image created",
+              status: "completed",
+              metadata: {},
+            });
+
+            // Generate video clip
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "video_generation",
+              message: "Generating video clip...",
+              status: "progress",
+              metadata: {},
+            });
+
+            const videoUrl = await generateAllPurposeVideoClip(
+              sceneImageUrl, prompt, videoModel, resolution, useAudio, aspectRatio, duration,
+            );
+
+            // Save final video directly (no merge needed for single clip)
+            const objectStorageService = new ObjectStorageService();
+            const uploadResult = await objectStorageService.uploadVideoFromUrl(
+              videoUrl,
+              `neonvideo_allpurpose_${Date.now()}.mp4`,
+            );
+
+            await storage.updateProject(project.id, {
+              finalVideoUrl: uploadResult.url,
+              isCompleted: true,
+              currentStep: 5,
+            } as any);
+
+            await storage.deductUserCredits(userId, totalCredits);
+
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "video_generation",
+              message: "Video generated successfully!",
+              status: "completed",
+              metadata: { creditsCharged: totalCredits },
+            });
+          } else {
+            // ─── LONG VIDEO PATH (>10s): OpenAI scenes → images → pause for review ───
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "scene_planning",
+              message: `Planning ${segments} video scenes...`,
+              status: "progress",
+              metadata: {},
+            });
+
+            const sceneData = await generateAllPurposeScenePrompts(prompt, segments, useAudio);
+
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "scene_planning",
+              message: `${sceneData.length} scenes planned`,
+              status: "completed",
+              metadata: { sceneCount: sceneData.length },
+            });
+
+            // Generate scene images
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "scene_generation",
+              message: `Creating ${sceneData.length} scene images...`,
+              status: "progress",
+              metadata: {},
+            });
+
+            const imagePrompts = sceneData.map(s => s.image_prompt);
+            const videoPrompts = sceneData.map(s => s.video_prompt);
+
+            const allRefImages = [...referenceImageUrls];
+            if (characterImageUrl) allRefImages.unshift(characterImageUrl);
+
+            let sceneImages: string[];
+            if (allRefImages.length > 0) {
+              sceneImages = await generateSceneImages(imagePrompts, allRefImages, aspectRatio);
+            } else {
+              sceneImages = await generateAllPurposeWan27TextToImageMany(imagePrompts, aspectRatio);
+            }
+
+            await storage.updateProject(project.id, {
+              scenePrompts: imagePrompts,
+              sceneImages,
+              characterImageUrl: characterImageUrl || undefined,
+              currentStep: 3,
+            } as any);
+
+            // Store video prompts in project metadata via generation log
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "scene_generation",
+              message: "Scene images created — review and continue",
+              status: "completed",
+              metadata: { sceneVideoPrompts: videoPrompts, videoModel, resolution, useAudio, totalCredits },
+            });
+          }
+        } catch (error) {
+          console.error("[ALL-PURPOSE] Background error:", error);
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: `Generation failed: ${(error as Error).message}`,
+            status: "error",
+            metadata: { error: (error as Error).message },
+          });
+        }
+      })();
+    } catch (error) {
+      console.error("[ALL-PURPOSE] Error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to start video generation",
+      });
+    }
+  });
+
+  // Generate video clips after scene review (long videos >10s)
+  app.post("/api/all-purpose/:id/generate-clips", extractTokenFromUrl, authenticateToken, async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    try {
+      const projectId = req.params.id;
+      const userId = req.user!.userId;
+      const { sceneOrder: requestedSceneOrder, scenePrompts: bodyScenePrompts } = req.body;
+
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const sceneImages: string[] = (project as any).sceneImages || [];
+      let scenePrompts: string[] = (project as any).scenePrompts || [];
+
+      // Persist image prompts edited on the review step (same order as scene slots)
+      if (
+        Array.isArray(bodyScenePrompts) &&
+        bodyScenePrompts.length === sceneImages.length &&
+        bodyScenePrompts.every((p: unknown) => typeof p === "string")
+      ) {
+        const profanityCheck = checkProfanity(bodyScenePrompts.join("\n"));
+        if (!profanityCheck.isClean) {
+          return res.status(400).json({
+            error: getCategoryMessage(profanityCheck.category || "unknown"),
+            category: profanityCheck.category,
+          });
+        }
+        await storage.updateProject(projectId, { scenePrompts: bodyScenePrompts } as any);
+        scenePrompts = bodyScenePrompts;
+      }
+      if (sceneImages.length === 0) {
+        return res.status(400).json({ error: "No scene images available" });
+      }
+
+      // Retrieve video prompts and settings from the scene_generation completed log
+      const logs = await storage.getGenerationLogs(projectId);
+      const sceneGenLog = logs.find(
+        (l: any) => l.step === "scene_generation" && l.status === "completed" && l.metadata?.sceneVideoPrompts,
+      );
+      const meta = (sceneGenLog?.metadata || {}) as any;
+      const videoPrompts: string[] = meta.sceneVideoPrompts || scenePrompts;
+      const videoModel = meta.videoModel || "seedance-v1.5-pro";
+      const resolution = meta.resolution || "720p";
+      const useAudio = meta.useAudio || false;
+      const totalCredits = meta.totalCredits || 0;
+
+      // Apply scene order
+      const order: number[] = Array.isArray(requestedSceneOrder) && requestedSceneOrder.length === sceneImages.length
+        ? requestedSceneOrder
+        : sceneImages.map((_: string, i: number) => i);
+
+      const orderedImages = order.map((i: number) => sceneImages[i]);
+      const orderedVideoPrompts = order.map((i: number) => videoPrompts[i]);
+
+      res.json({ success: true, message: "Video clip generation started" });
+
+      // Background: generate clips + merge
+      (async () => {
+        try {
+          const aspectRatio = (project as any).aspectRatio || "9:16";
+
+          await storage.addGenerationLog({
+            projectId,
+            step: "video_generation",
+            message: `Generating ${orderedImages.length} video clips...`,
+            status: "progress",
+            metadata: { clipCount: orderedImages.length },
+          });
+
+          await storage.updateProject(projectId, { currentStep: 4 } as any);
+
+          // Generate all clips in parallel
+          const clipPromises = orderedImages.map((imageUrl: string, index: number) => {
+            const clipPrompt = orderedVideoPrompts[index] || scenePrompts[order[index]] || "cinematic scene";
+            console.log(`[ALL-PURPOSE] Generating clip ${index + 1}/${orderedImages.length}: ${clipPrompt.substring(0, 60)}...`);
+            return generateAllPurposeVideoClip(
+              imageUrl, clipPrompt, videoModel, resolution, useAudio, aspectRatio, 10,
+            );
+          });
+
+          const clipUrls = await Promise.all(clipPromises);
+          console.log(`[ALL-PURPOSE] All ${clipUrls.length} clips generated`);
+
+          await storage.addGenerationLog({
+            projectId,
+            step: "video_generation",
+            message: "All video clips generated, assembling final video...",
+            status: "progress",
+            metadata: { step: "merging" },
+          });
+
+          // Get signed URLs for clips
+          const objectStorageService = new ObjectStorageService();
+          const signedClipUrls = await Promise.all(
+            clipUrls.map(async (url: string) => {
+              if (url.startsWith("/objects/")) {
+                return objectStorageService.getSignedUrlForPath(url, 7200);
+              }
+              return url;
+            }),
+          );
+
+          // Watermark
+          const userWithPlan = await storage.getUserWithPlan(userId);
+          const isPremiumUser = userWithPlan?.plan?.name === "Premium";
+          const shouldIncludeWatermark = isPremiumUser ? ((project as any).includeWatermark !== false) : true;
+          let watermarkUrl: string | undefined;
+          if (shouldIncludeWatermark) {
+            watermarkUrl = await getWatermarkUrl() || undefined;
+          }
+
+          // Outro
+          const isPortrait = allPurposeUsePortraitOutro(aspectRatio);
+          const outroVideoUrl = isPortrait
+            ? "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4"
+            : "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_horizontal.mp4";
+          const dimensions = allPurposeMergeVideoDimensions(aspectRatio);
+
+          const finalVideo = await mergeVideos(
+            signedClipUrls,
+            undefined,
+            undefined,
+            watermarkUrl,
+            outroVideoUrl,
+            dimensions,
+          );
+
+          // Upload merged video
+          let savedFinalVideoUrl: string;
+          try {
+            if (finalVideo.download_url.includes("/api/ffmpeg-local/download/")) {
+              const { OUTPUT_FOLDER } = await import("./services/ffmpegLocal.js");
+              const localFilePath = path.join(OUTPUT_FOLDER, finalVideo.filename);
+              const videoBuffer = fs.readFileSync(localFilePath);
+              const uploadResult = await objectStorageService.uploadVideoBuffer(
+                videoBuffer,
+                `neonvideo_allpurpose_${Date.now()}.mp4`,
+              );
+              savedFinalVideoUrl = uploadResult.url;
+            } else {
+              const uploadResult = await objectStorageService.uploadVideoFromUrl(
+                finalVideo.download_url,
+                `neonvideo_allpurpose_${Date.now()}.mp4`,
+              );
+              savedFinalVideoUrl = uploadResult.url;
+            }
+          } catch (storageError) {
+            console.warn("[ALL-PURPOSE] Storage upload failed, using temp URL:", storageError);
+            savedFinalVideoUrl = finalVideo.download_url;
+          }
+
+          await storage.updateProject(projectId, {
+            finalVideoUrl: savedFinalVideoUrl,
+            isCompleted: true,
+            currentStep: 5,
+          } as any);
+
+          await storage.deductUserCredits(userId, totalCredits);
+
+          await storage.addGenerationLog({
+            projectId,
+            step: "video_generation",
+            message: "Video generated successfully!",
+            status: "completed",
+            metadata: { creditsCharged: totalCredits },
+          });
+        } catch (error) {
+          console.error("[ALL-PURPOSE] Clip generation error:", error);
+          await storage.addGenerationLog({
+            projectId,
+            step: "video_generation",
+            message: `Generation failed: ${(error as Error).message}`,
+            status: "error",
+            metadata: { error: (error as Error).message },
+          });
+        }
+      })();
+    } catch (error) {
+      console.error("[ALL-PURPOSE] generate-clips error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to generate clips",
       });
     }
   });

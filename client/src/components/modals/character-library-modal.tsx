@@ -123,7 +123,7 @@ export function CharacterLibraryModal({ isOpen, onClose, onSelect }: CharacterLi
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-4xl max-h-[85vh] flex flex-col p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-base sm:text-lg">

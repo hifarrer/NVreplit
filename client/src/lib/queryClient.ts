@@ -1,5 +1,8 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+/** Set after QueryClient construction so getQueryFn can resolve 304 without a JSON body. */
+let queryClientSingleton: QueryClient | undefined;
+
 interface ApiError extends Error {
   isLimitError?: boolean;
   status?: number;
@@ -12,7 +15,7 @@ async function throwIfResNotOk(res: Response) {
     
     try {
       const errorData = await res.json();
-      errorMessage = errorData.message || errorData.error || res.statusText;
+      errorMessage = errorData.details || errorData.message || errorData.error || res.statusText;
       isLimitError = errorData.isLimitError === true;
     } catch {
       const text = await res.text().catch(() => res.statusText);
@@ -61,6 +64,7 @@ export async function apiRequest(
       body: data ? (isFormData ? data : JSON.stringify(data)) : undefined,
       credentials: "include",
       signal: controller.signal,
+      cache: "no-store",
     });
 
     clearTimeout(timeoutId);
@@ -76,15 +80,15 @@ export async function apiRequest(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options: {
+
+export function getQueryFn<T>(options: {
   on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
+}): QueryFunction<T> {
+  const { on401: unauthorizedBehavior } = options;
+  return async ({ queryKey }): Promise<T> => {
     const headers: Record<string, string> = {};
-    
-    // Include auth token if available
-    const token = localStorage.getItem('auth_token');
+
+    const token = localStorage.getItem("auth_token");
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
@@ -92,15 +96,23 @@ export const getQueryFn: <T>(options: {
     const res = await fetch(queryKey.join("/") as string, {
       headers,
       credentials: "include",
+      cache: "no-store",
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+      return null as T;
+    }
+
+    // 304 has no body; prefer prior successful cache if present (belt-and-suspenders with etag disabled).
+    if (res.status === 304) {
+      const prev = queryClientSingleton?.getQueryData(queryKey);
+      if (prev !== undefined) return prev as T;
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    return (await res.json()) as T;
   };
+}
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -116,3 +128,5 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+queryClientSingleton = queryClient;
