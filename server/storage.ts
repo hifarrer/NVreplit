@@ -5,6 +5,22 @@ import postgres from "postgres";
 import { eq, asc, desc, sql, and, inArray, ilike } from "drizzle-orm";
 import { withDbRetry } from "./db";
 
+export type AdminSceneSource = "music_video" | "story_video";
+
+export type AdminSceneRow = {
+  projectId: string;
+  userId: string;
+  username: string;
+  email: string;
+  userCreatedAt: Date;
+  projectTitle: string;
+  projectCreatedAt: Date;
+  projectUpdatedAt: Date;
+  imageUrl: string;
+  sceneIndex: number;
+  source: AdminSceneSource;
+};
+
 export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
@@ -129,6 +145,12 @@ export interface IStorage {
     statusFilter?: string;
   }): Promise<{
     videos: Project[];
+    totalCount: number;
+  }>;
+
+  /** Admin moderation: all scene image rows (music + story), newest project activity first. */
+  getAdminScenesPaginated(options: { limit: number; offset: number }): Promise<{
+    scenes: AdminSceneRow[];
     totalCount: number;
   }>;
   
@@ -997,6 +1019,63 @@ export class MemStorage implements IStorage {
     const paginatedVideos = allProjects.slice(offset, offset + limit);
     
     return { videos: paginatedVideos, totalCount };
+  }
+
+  async getAdminScenesPaginated(options: {
+    limit: number;
+    offset: number;
+  }): Promise<{
+    scenes: AdminSceneRow[];
+    totalCount: number;
+  }> {
+    const { limit, offset } = options;
+    const scenes: AdminSceneRow[] = [];
+    for (const p of Array.from(this.projects.values())) {
+      const user = this.users.get(p.userId);
+      if (!user) continue;
+      const music = (p.sceneImages as string[] | null) || [];
+      music.forEach((url, sceneIndex) => {
+        if (url && String(url).trim()) {
+          scenes.push({
+            projectId: p.id,
+            userId: user.id,
+            username: user.username,
+            email: user.email,
+            userCreatedAt: user.createdAt,
+            projectTitle: p.title,
+            projectCreatedAt: p.createdAt,
+            projectUpdatedAt: p.updatedAt,
+            imageUrl: url,
+            sceneIndex,
+            source: "music_video",
+          });
+        }
+      });
+      const story = (p.storySceneImages as string[] | null) || [];
+      story.forEach((url, sceneIndex) => {
+        if (url && String(url).trim()) {
+          scenes.push({
+            projectId: p.id,
+            userId: user.id,
+            username: user.username,
+            email: user.email,
+            userCreatedAt: user.createdAt,
+            projectTitle: p.title,
+            projectCreatedAt: p.createdAt,
+            projectUpdatedAt: p.updatedAt,
+            imageUrl: url,
+            sceneIndex,
+            source: "story_video",
+          });
+        }
+      });
+    }
+    scenes.sort(
+      (a, b) =>
+        new Date(b.projectUpdatedAt).getTime() - new Date(a.projectUpdatedAt).getTime(),
+    );
+    const totalCount = scenes.length;
+    return { scenes: scenes.slice(offset, offset + limit), totalCount };
   }
   
   // App settings methods
@@ -2601,6 +2680,97 @@ export class DbStorage implements IStorage {
       .offset(offset);
     
     return { videos: paginatedVideos, totalCount };
+  }
+
+  async getAdminScenesPaginated(options: {
+    limit: number;
+    offset: number;
+  }): Promise<{
+    scenes: AdminSceneRow[];
+    totalCount: number;
+  }> {
+    const { limit, offset } = options;
+
+    const countResult = await this.db.execute(sql`
+      SELECT COUNT(*)::int AS c FROM (
+        SELECT 1
+        FROM projects p
+        INNER JOIN users u ON u.id = p.user_id
+        CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(p.scene_images, '[]'::jsonb)) WITH ORDINALITY AS t(elem, ord)
+        WHERE t.elem IS NOT NULL AND btrim(t.elem::text) <> ''
+        UNION ALL
+        SELECT 1
+        FROM projects p
+        INNER JOIN users u ON u.id = p.user_id
+        CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(p.story_scene_images, '[]'::jsonb)) WITH ORDINALITY AS t(elem, ord)
+        WHERE t.elem IS NOT NULL AND btrim(t.elem::text) <> ''
+      ) sub
+    `);
+    const countRows = countResult as unknown as { c: number }[];
+    const totalCount = Number(countRows[0]?.c ?? 0);
+
+    const pageResult = await this.db.execute(sql`
+      SELECT * FROM (
+        SELECT
+          p.id AS "projectId",
+          p.user_id AS "userId",
+          u.username AS "username",
+          u.email AS "email",
+          u.created_at AS "userCreatedAt",
+          p.title AS "projectTitle",
+          p.created_at AS "projectCreatedAt",
+          p.updated_at AS "projectUpdatedAt",
+          t.elem AS "imageUrl",
+          (t.ord - 1)::int AS "sceneIndex",
+          'music_video'::text AS "source"
+        FROM projects p
+        INNER JOIN users u ON u.id = p.user_id
+        CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(p.scene_images, '[]'::jsonb)) WITH ORDINALITY AS t(elem, ord)
+        WHERE t.elem IS NOT NULL AND btrim(t.elem::text) <> ''
+        UNION ALL
+        SELECT
+          p.id AS "projectId",
+          p.user_id AS "userId",
+          u.username AS "username",
+          u.email AS "email",
+          u.created_at AS "userCreatedAt",
+          p.title AS "projectTitle",
+          p.created_at AS "projectCreatedAt",
+          p.updated_at AS "projectUpdatedAt",
+          t.elem AS "imageUrl",
+          (t.ord - 1)::int AS "sceneIndex",
+          'story_video'::text AS "source"
+        FROM projects p
+        INNER JOIN users u ON u.id = p.user_id
+        CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(p.story_scene_images, '[]'::jsonb)) WITH ORDINALITY AS t(elem, ord)
+        WHERE t.elem IS NOT NULL AND btrim(t.elem::text) <> ''
+      ) all_scenes
+      ORDER BY "projectUpdatedAt" DESC NULLS LAST, "projectId", "source", "sceneIndex"
+      LIMIT ${limit} OFFSET ${offset}
+    `);
+
+    const list = pageResult as unknown as Record<string, unknown>[];
+
+    const toDate = (v: unknown): Date => {
+      if (v instanceof Date) return v;
+      return new Date(String(v));
+    };
+
+    const scenes: AdminSceneRow[] = list.map((r) => ({
+      projectId: String(r.projectId),
+      userId: String(r.userId),
+      username: String(r.username),
+      email: String(r.email),
+      userCreatedAt: toDate(r.userCreatedAt),
+      projectTitle: String(r.projectTitle),
+      projectCreatedAt: toDate(r.projectCreatedAt),
+      projectUpdatedAt: toDate(r.projectUpdatedAt),
+      imageUrl: String(r.imageUrl),
+      sceneIndex: Number(r.sceneIndex),
+      source: r.source === "story_video" ? "story_video" : "music_video",
+    }));
+
+    return { scenes, totalCount };
   }
   
   // App settings methods

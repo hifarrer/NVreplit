@@ -6,16 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Users, Activity, Settings, LogOut, Shield, Music, Video, CreditCard, MessageCircle, Play, DollarSign, Cpu, ImageIcon, Mic2, Film, Ticket, Zap } from "lucide-react";
+import { Users, Activity, Settings, LogOut, Shield, Music, Video, CreditCard, DollarSign, Cpu, ImageIcon, Mic2, Film, Ticket, Zap, LayoutGrid } from "lucide-react";
 import { UserManagement } from "../components/admin/user-management";
 import { SiteSettings } from "../components/admin/site-settings";
 import { UsageStatistics } from "../components/admin/usage-statistics";
 import { VideoManagement } from "../components/admin/video-management";
 import { AudioManagement } from "../components/admin/audio-management";
-import { CommentManagement } from "../components/admin/comment-management";
-import { MuxManagement } from "../components/admin/mux-management";
 import { CouponManagement } from "../components/admin/coupon-management";
 import { CharacterManagement } from "../components/admin/character-management";
+import { SceneManagement } from "../components/admin/scene-management";
 
 interface AdminUser {
   username: string;
@@ -254,7 +253,7 @@ export default function AdminDashboard() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-11 bg-black/30 border border-purple-500/20">
+          <TabsList className="grid w-full grid-cols-10 bg-black/30 border border-purple-500/20">
             <TabsTrigger value="users" className="data-[state=active]:bg-purple-600">
               <Users className="h-4 w-4 mr-2" />
               Users
@@ -271,13 +270,9 @@ export default function AdminDashboard() {
               <Music className="h-4 w-4 mr-2" />
               Audios
             </TabsTrigger>
-            <TabsTrigger value="comments" className="data-[state=active]:bg-purple-600">
-              <MessageCircle className="h-4 w-4 mr-2" />
-              Comments
-            </TabsTrigger>
-            <TabsTrigger value="mux" className="data-[state=active]:bg-purple-600">
-              <Play className="h-4 w-4 mr-2" />
-              Streaming
+            <TabsTrigger value="scenes" className="data-[state=active]:bg-purple-600">
+              <LayoutGrid className="h-4 w-4 mr-2" />
+              Scenes
             </TabsTrigger>
             <TabsTrigger value="coupons" className="data-[state=active]:bg-purple-600">
               <Ticket className="h-4 w-4 mr-2" />
@@ -317,12 +312,8 @@ export default function AdminDashboard() {
             <AudioManagement />
           </TabsContent>
 
-          <TabsContent value="comments" className="space-y-6">
-            <CommentManagement />
-          </TabsContent>
-
-          <TabsContent value="mux" className="space-y-6">
-            <MuxManagement />
+          <TabsContent value="scenes" className="space-y-6">
+            <SceneManagement />
           </TabsContent>
 
           <TabsContent value="coupons" className="space-y-6">

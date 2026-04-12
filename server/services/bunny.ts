@@ -271,6 +271,53 @@ export function getBunnyPublicUrl(zone: BunnyStorageZone, fileName: string): str
 /**
  * Check if a URL is a Bunny Storage/CDN URL.
  */
+const ALL_STORAGE_ZONES: BunnyStorageZone[] = [
+  "final",
+  "scenes",
+  "characters",
+  "imageScenes",
+  "songs",
+  "audios",
+  "songCovers",
+];
+
+/**
+ * Resolve a public Bunny Storage / CDN URL to a zone and file name for deletion.
+ * Returns null if the URL does not match a known storage folder layout.
+ */
+export function getBunnyZoneAndFileNameFromUrl(url: string): { zone: BunnyStorageZone; fileName: string } | null {
+  try {
+    const u = new URL(url);
+    const path = u.pathname.replace(/^\//, "");
+    for (const zone of ALL_STORAGE_ZONES) {
+      const config = getStorageConfig(zone);
+      const prefix = `${config.folderPath}/`;
+      if (path.startsWith(prefix)) {
+        const rest = path.slice(prefix.length);
+        if (rest && !rest.includes("/")) {
+          return { zone, fileName: decodeURIComponent(rest) };
+        }
+      }
+    }
+  } catch {
+    /* invalid URL */
+  }
+  return null;
+}
+
+/**
+ * Delete a file from Bunny Storage when the URL matches our zones and the zone is configured.
+ */
+export async function deleteBunnyFileByPublicUrlIfConfigured(url: string): Promise<void> {
+  const parsed = getBunnyZoneAndFileNameFromUrl(url);
+  if (!parsed) return;
+  if (!isBunnyConfigured(parsed.zone)) {
+    console.warn(`[Bunny Storage] Skip delete (zone not configured): ${parsed.zone}`);
+    return;
+  }
+  await deleteFromBunnyStorage(parsed.zone, parsed.fileName);
+}
+
 export function isBunnyUrl(url: string): boolean {
   if (!url) return false;
   const config = getStorageConfig("final");

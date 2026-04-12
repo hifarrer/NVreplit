@@ -9,7 +9,7 @@ import fs from "fs";
 import { Readable } from "stream";
 import sharp from "sharp";
 import { storage } from "./storage";
-import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema, insertPlanSchema, insertReferralSchema, type Plan, type InsertPlan } from "@shared/schema";
+import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema, insertPlanSchema, insertReferralSchema, type Plan, type InsertPlan, type Project } from "@shared/schema";
 import {
   STORY_DEFAULT_NARRATOR_VOICE,
   STORY_DEFAULT_CHARACTER_VOICE_POOL,
@@ -38,7 +38,7 @@ import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWaterm
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback } from "./services/imagekit";
-import { isBunnyConfigured, uploadToBunnyStorage, uploadCharacterImage, uploadSceneImage, uploadSongAudio, uploadSongCover, isBunnyUrl, uploadAudio, isBunnyStreamConfigured, fetchVideoToBunnyStream, getBunnyStreamThumbnailUrl, getBunnyStreamEmbedUrl } from "./services/bunny";
+import { isBunnyConfigured, uploadToBunnyStorage, uploadCharacterImage, uploadSceneImage, uploadSongAudio, uploadSongCover, isBunnyUrl, uploadAudio, isBunnyStreamConfigured, fetchVideoToBunnyStream, getBunnyStreamThumbnailUrl, getBunnyStreamEmbedUrl, deleteBunnyFileByPublicUrlIfConfigured } from "./services/bunny";
 import { emailService } from "./services/email";
 import { createMuxAssetForVideo } from "./services/muxJobs";
 import { listStoryVoiceOptions } from "./services/storyVoices";
@@ -568,6 +568,75 @@ function authenticateAdmin(req: any, res: any, next: any) {
     req.admin = decoded;
     next();
   });
+}
+
+function removeSceneFromOrder(sceneOrder: number[] | null | undefined, removedIdx: number): number[] | undefined {
+  if (!sceneOrder || sceneOrder.length === 0) return undefined;
+  const next = sceneOrder
+    .filter((oldIdx) => oldIdx !== removedIdx)
+    .map((oldIdx) => (oldIdx > removedIdx ? oldIdx - 1 : oldIdx));
+  return next.length > 0 ? next : undefined;
+}
+
+function buildMusicVideoSceneRemoval(project: Project, sceneIndex: number): Partial<Project> {
+  const sceneImages = [...((project.sceneImages as string[] | null) || [])];
+  if (sceneIndex < 0 || sceneIndex >= sceneImages.length) {
+    throw new Error("Invalid scene index");
+  }
+  const scenePrompts = [...((project.scenePrompts as string[] | null) || [])];
+  const sceneLipsync = [...((project.sceneLipsyncSettings as (boolean | null)[] | null) || [])];
+  const n = sceneImages.length;
+  sceneImages.splice(sceneIndex, 1);
+  if (scenePrompts.length > sceneIndex) scenePrompts.splice(sceneIndex, 1);
+  if (sceneLipsync.length > sceneIndex) sceneLipsync.splice(sceneIndex, 1);
+
+  const order = project.sceneOrder as number[] | null | undefined;
+  const newOrder = removeSceneFromOrder(order, sceneIndex);
+
+  const updates: Partial<Project> = {
+    sceneImages: sceneImages.length ? sceneImages : null,
+    scenePrompts: scenePrompts.length ? scenePrompts : null,
+    sceneLipsyncSettings: sceneLipsync.length ? sceneLipsync : null,
+    sceneOrder: newOrder ?? null,
+  };
+
+  const audioSeg = project.audioSegments as string[] | null | undefined;
+  if (audioSeg && audioSeg.length === n) {
+    const a = [...audioSeg];
+    a.splice(sceneIndex, 1);
+    updates.audioSegments = a.length ? a : null;
+  }
+  const videoSeg = project.videoSegments as string[] | null | undefined;
+  if (videoSeg && videoSeg.length === n) {
+    const v = [...videoSeg];
+    v.splice(sceneIndex, 1);
+    updates.videoSegments = v.length ? v : null;
+  }
+  return updates;
+}
+
+function buildStoryVideoSceneRemoval(project: Project, sceneIndex: number): Partial<Project> {
+  const sceneImages = [...((project.storySceneImages as string[] | null) || [])];
+  if (sceneIndex < 0 || sceneIndex >= sceneImages.length) {
+    throw new Error("Invalid scene index");
+  }
+  const scenePrompts = [...((project.storyScenePrompts as string[] | null) || [])];
+  const script = [...((project.storyScript as unknown[] | null) || [])];
+  const audioUrls = [...((project.storyAudioUrls as string[] | null) || [])];
+  const audioUrlsRight = [...((project.storyAudioUrlsRight as string[] | null) || [])];
+  sceneImages.splice(sceneIndex, 1);
+  if (scenePrompts.length > sceneIndex) scenePrompts.splice(sceneIndex, 1);
+  if (script.length > sceneIndex) script.splice(sceneIndex, 1);
+  if (audioUrls.length > sceneIndex) audioUrls.splice(sceneIndex, 1);
+  if (audioUrlsRight.length > sceneIndex) audioUrlsRight.splice(sceneIndex, 1);
+
+  return {
+    storySceneImages: sceneImages.length ? sceneImages : null,
+    storyScenePrompts: scenePrompts.length ? scenePrompts : null,
+    storyScript: script.length ? (script as Project["storyScript"]) : null,
+    storyAudioUrls: audioUrls.length ? audioUrls : null,
+    storyAudioUrlsRight: audioUrlsRight.length ? audioUrlsRight : null,
+  } as Partial<Project>;
 }
 
 // Configure Google OAuth Strategy
@@ -3476,6 +3545,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Admin delete comment error:", error);
       res.status(500).json({ error: "Failed to delete comment" });
+    }
+  });
+
+  // Admin list scene images (music + story projects), newest project activity first
+  app.get("/api/admin/scenes", authenticateAdmin, async (req, res) => {
+    try {
+      const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit || "48"), 10) || 48));
+      const offset = Math.max(0, parseInt(String(req.query.offset || "0"), 10) || 0);
+      const { scenes, totalCount } = await storage.getAdminScenesPaginated({ limit, offset });
+      res.json({ scenes, totalCount, limit, offset });
+    } catch (error) {
+      console.error("Admin get scenes error:", error);
+      res.status(500).json({ error: "Failed to get scenes" });
+    }
+  });
+
+  // Admin delete one scene image (Bunny file + project JSON)
+  app.delete("/api/admin/scenes", authenticateAdmin, async (req, res) => {
+    try {
+      const projectId = req.body?.projectId as string | undefined;
+      const source = req.body?.source as "music_video" | "story_video" | undefined;
+      const sceneIndex = req.body?.sceneIndex;
+      if (!projectId || typeof projectId !== "string") {
+        return res.status(400).json({ error: "projectId required" });
+      }
+      if (source !== "music_video" && source !== "story_video") {
+        return res.status(400).json({ error: "source must be music_video or story_video" });
+      }
+      if (typeof sceneIndex !== "number" || !Number.isInteger(sceneIndex) || sceneIndex < 0) {
+        return res.status(400).json({ error: "sceneIndex must be a non-negative integer" });
+      }
+
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      let imageUrl: string | undefined;
+      if (source === "music_video") {
+        const arr = (project.sceneImages as string[] | null) || [];
+        imageUrl = arr[sceneIndex];
+      } else {
+        const arr = (project.storySceneImages as string[] | null) || [];
+        imageUrl = arr[sceneIndex];
+      }
+      if (!imageUrl || !String(imageUrl).trim()) {
+        return res.status(404).json({ error: "Scene not found at index" });
+      }
+
+      try {
+        await deleteBunnyFileByPublicUrlIfConfigured(imageUrl);
+      } catch (e) {
+        console.error("[Admin] Bunny delete scene image:", e);
+      }
+
+      const updates =
+        source === "music_video"
+          ? buildMusicVideoSceneRemoval(project, sceneIndex)
+          : buildStoryVideoSceneRemoval(project, sceneIndex);
+      await storage.updateProject(projectId, updates);
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Admin delete scene error:", error);
+      const msg = error instanceof Error ? error.message : "Failed to delete scene";
+      if (msg.includes("Invalid scene")) {
+        return res.status(400).json({ error: msg });
+      }
+      res.status(500).json({ error: "Failed to delete scene" });
     }
   });
 
