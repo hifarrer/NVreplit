@@ -273,7 +273,7 @@ export default function CreateSelect() {
             >
               <div className="relative aspect-[4/3] overflow-hidden bg-muted">
                 <img
-                  src="https://neonvideo.b-cdn.net/logos/neonmusic.png"
+                  src="https://neonvideo.b-cdn.net/logos/neonmusic.jpg"
                   alt="Neon Music"
                   className="w-full h-full object-cover"
                 />
