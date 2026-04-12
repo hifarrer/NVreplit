@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Share2, Images, Film, Clock, Mic, Type, Play, Pause, Music, Upload, Sparkles, Download, Eye, EyeOff } from "lucide-react";
+import { Trash2, Edit, Video, Search, Filter, User, Calendar, ExternalLink, Star, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Share2, Images, Film, Clock, Mic, Type, Play, Pause, Music, Upload, Sparkles, Download, Eye, EyeOff, HardDrive } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Project } from "@shared/schema";
@@ -646,6 +646,24 @@ export function VideoManagement() {
                             title="Download song audio"
                           >
                             <Download className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {video.finalVideoUrl && (
+                          <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            className="border-amber-500/30 text-amber-300 hover:bg-amber-600/20"
+                            title="Open full video from storage (final_video_url / Bunny)"
+                          >
+                            <a
+                              href={video.finalVideoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              data-testid={`open-storage-video-${video.id}`}
+                            >
+                              <HardDrive className="h-4 w-4" />
+                            </a>
                           </Button>
                         )}
                         {parseSceneData(video).length > 0 && (
