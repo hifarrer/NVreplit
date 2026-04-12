@@ -1,7 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -13,10 +22,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Trash2, ChevronLeft, ChevronRight, User, Mail, Calendar, Film } from "lucide-react";
+import { Loader2, Trash2, ChevronLeft, ChevronRight, User, Mail, Calendar, Film, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type SceneSource = "music_video" | "story_video";
+
+type SceneSortBy = "project_updated" | "user_created" | "project_created";
 
 interface AdminScene {
   projectId: string;
@@ -56,17 +67,31 @@ export function SceneManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [offset, setOffset] = useState(0);
+  const [sortBy, setSortBy] = useState<SceneSortBy>("project_updated");
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [preview, setPreview] = useState<AdminScene | null>(null);
   const [toDelete, setToDelete] = useState<AdminScene | null>(null);
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 350);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setOffset(0);
+  }, [sortBy, debouncedSearch]);
+
   const { data, isLoading, isFetching } = useQuery<ScenesResponse>({
-    queryKey: ["/api/admin/scenes", offset, PAGE_SIZE],
+    queryKey: ["/api/admin/scenes", offset, PAGE_SIZE, sortBy, debouncedSearch],
     queryFn: async () => {
       const token = localStorage.getItem("adminToken");
       const params = new URLSearchParams({
         limit: String(PAGE_SIZE),
         offset: String(offset),
+        sortBy,
       });
+      if (debouncedSearch) params.set("search", debouncedSearch);
       const res = await fetch(`/api/admin/scenes?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -121,13 +146,43 @@ export function SceneManagement() {
                 Scenes
               </CardTitle>
               <CardDescription className="text-gray-400">
-                Video scene images from all users (music and story projects), newest first. Click a thumbnail to
-                inspect; delete removes the file from Bunny storage and updates the user&apos;s project.
+                Video scene images from all users (music and story projects). Order and filter below. Click a
+                thumbnail to inspect; delete removes the file from Bunny storage and updates the user&apos;s project.
               </CardDescription>
             </div>
             <Badge variant="outline" className="bg-purple-600/20 text-purple-300 border-purple-500/30 w-fit">
               {totalCount} scene{totalCount === 1 ? "" : "s"}
             </Badge>
+          </div>
+          <div className="flex flex-col gap-4 pt-2 sm:flex-row sm:flex-wrap sm:items-end">
+            <div className="space-y-2 min-w-[220px] flex-1 sm:max-w-xs">
+              <Label className="text-gray-300 text-xs">Order by (newest first)</Label>
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SceneSortBy)}>
+                <SelectTrigger className="bg-black/40 border-purple-500/30 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="project_updated">Project last updated</SelectItem>
+                  <SelectItem value="project_created">Project created</SelectItem>
+                  <SelectItem value="user_created">User account created</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 flex-1 min-w-[200px] sm:max-w-md">
+              <Label htmlFor="admin-scenes-search" className="text-gray-300 text-xs">
+                Filter by username or email
+              </Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                <Input
+                  id="admin-scenes-search"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Partial match…"
+                  className="pl-9 bg-black/40 border-purple-500/30 text-white placeholder:text-gray-500"
+                />
+              </div>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -138,7 +193,11 @@ export function SceneManagement() {
           )}
 
           {!isLoading && !isFetching && scenes.length === 0 && (
-            <p className="text-center text-gray-400 py-12">No scene images found.</p>
+            <p className="text-center text-gray-400 py-12">
+              {debouncedSearch
+                ? "No scene images match this username or email filter."
+                : "No scene images found."}
+            </p>
           )}
 
           {!isLoading && scenes.length > 0 && (

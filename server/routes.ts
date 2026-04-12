@@ -3548,13 +3548,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin list scene images (music + story projects), newest project activity first
+  // Admin list scene images (music + story projects)
   app.get("/api/admin/scenes", authenticateAdmin, async (req, res) => {
     try {
       const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit || "48"), 10) || 48));
       const offset = Math.max(0, parseInt(String(req.query.offset || "0"), 10) || 0);
-      const { scenes, totalCount } = await storage.getAdminScenesPaginated({ limit, offset });
-      res.json({ scenes, totalCount, limit, offset });
+      const sortRaw = String(req.query.sortBy || "project_updated").toLowerCase().replace(/-/g, "_");
+      const sortBy =
+        sortRaw === "user_created"
+          ? "user_created"
+          : sortRaw === "project_created"
+            ? "project_created"
+            : "project_updated";
+      const userSearch =
+        typeof req.query.search === "string" && req.query.search.trim()
+          ? req.query.search.trim()
+          : undefined;
+      const { scenes, totalCount } = await storage.getAdminScenesPaginated({
+        limit,
+        offset,
+        sortBy,
+        userSearch,
+      });
+      res.json({ scenes, totalCount, limit, offset, sortBy, search: userSearch ?? null });
     } catch (error) {
       console.error("Admin get scenes error:", error);
       res.status(500).json({ error: "Failed to get scenes" });

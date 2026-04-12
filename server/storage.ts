@@ -7,6 +7,9 @@ import { withDbRetry } from "./db";
 
 export type AdminSceneSource = "music_video" | "story_video";
 
+/** How to order flattened scene rows (newest first for dates). */
+export type AdminSceneSortBy = "project_updated" | "user_created" | "project_created";
+
 export type AdminSceneRow = {
   projectId: string;
   userId: string;
@@ -177,8 +180,13 @@ export interface IStorage {
     totalCount: number;
   }>;
 
-  /** Admin moderation: all scene image rows (music + story), newest project activity first. */
-  getAdminScenesPaginated(options: { limit: number; offset: number }): Promise<{
+  /** Admin moderation: all scene image rows (music + story). */
+  getAdminScenesPaginated(options: {
+    limit: number;
+    offset: number;
+    sortBy?: AdminSceneSortBy;
+    userSearch?: string;
+  }): Promise<{
     scenes: AdminSceneRow[];
     totalCount: number;
   }>;
@@ -1053,15 +1061,23 @@ export class MemStorage implements IStorage {
   async getAdminScenesPaginated(options: {
     limit: number;
     offset: number;
+    sortBy?: AdminSceneSortBy;
+    userSearch?: string;
   }): Promise<{
     scenes: AdminSceneRow[];
     totalCount: number;
   }> {
-    const { limit, offset } = options;
+    const { limit, offset, sortBy = "project_updated", userSearch } = options;
+    const searchLower = userSearch?.trim().toLowerCase() || "";
     const scenes: AdminSceneRow[] = [];
     for (const p of Array.from(this.projects.values())) {
       const user = this.users.get(p.userId);
       if (!user) continue;
+      if (searchLower) {
+        const u = user.username.toLowerCase();
+        const e = user.email.toLowerCase();
+        if (!u.includes(searchLower) && !e.includes(searchLower)) continue;
+      }
       const music = extractSceneImageUrlsFromJsonb(p.sceneImages);
       music.forEach((imageUrl, sceneIndex) => {
         scenes.push({
@@ -1095,10 +1111,18 @@ export class MemStorage implements IStorage {
         });
       });
     }
-    scenes.sort(
-      (a, b) =>
-        new Date(b.projectUpdatedAt).getTime() - new Date(a.projectUpdatedAt).getTime(),
-    );
+    const sortKey = (row: AdminSceneRow): number => {
+      if (sortBy === "user_created") return new Date(row.userCreatedAt).getTime();
+      if (sortBy === "project_created") return new Date(row.projectCreatedAt).getTime();
+      return new Date(row.projectUpdatedAt).getTime();
+    };
+    scenes.sort((a, b) => {
+      const dt = sortKey(b) - sortKey(a);
+      if (dt !== 0) return dt;
+      if (a.projectId !== b.projectId) return a.projectId.localeCompare(b.projectId);
+      if (a.source !== b.source) return a.source.localeCompare(b.source);
+      return a.sceneIndex - b.sceneIndex;
+    });
     const totalCount = scenes.length;
     return { scenes: scenes.slice(offset, offset + limit), totalCount };
   }
@@ -2710,15 +2734,32 @@ export class DbStorage implements IStorage {
   async getAdminScenesPaginated(options: {
     limit: number;
     offset: number;
+    sortBy?: AdminSceneSortBy;
+    userSearch?: string;
   }): Promise<{
     scenes: AdminSceneRow[];
     totalCount: number;
   }> {
-    const { limit, offset } = options;
+    const { limit, offset, sortBy = "project_updated", userSearch } = options;
 
-    // Use Drizzle select + JS flatten (same shapes as the rest of the app). Raw sql`execute` with
-    // postgres-js was not reliably returning row objects, and jsonb_array_elements_text fails if any
-    // row stores non-array JSON in scene_images.
+    const sceneColumns = or(isNotNull(projects.sceneImages), isNotNull(projects.storySceneImages));
+    const searchTrim = userSearch?.trim();
+    const userFilter =
+      searchTrim && searchTrim.length > 0
+        ? or(
+            ilike(users.username, `%${searchTrim}%`),
+            ilike(users.email, `%${searchTrim}%`),
+          )
+        : undefined;
+    const whereClause = userFilter ? and(sceneColumns, userFilter) : sceneColumns;
+
+    const orderColumn =
+      sortBy === "user_created"
+        ? users.createdAt
+        : sortBy === "project_created"
+          ? projects.createdAt
+          : projects.updatedAt;
+
     const rows = await this.db
       .select({
         projectId: projects.id,
@@ -2734,8 +2775,8 @@ export class DbStorage implements IStorage {
       })
       .from(projects)
       .innerJoin(users, eq(projects.userId, users.id))
-      .where(or(isNotNull(projects.sceneImages), isNotNull(projects.storySceneImages)))
-      .orderBy(desc(projects.updatedAt));
+      .where(whereClause)
+      .orderBy(desc(orderColumn));
 
     const scenes: AdminSceneRow[] = [];
     for (const row of rows) {
@@ -2773,8 +2814,13 @@ export class DbStorage implements IStorage {
       });
     }
 
+    const sortTime = (row: AdminSceneRow): number => {
+      if (sortBy === "user_created") return row.userCreatedAt.getTime();
+      if (sortBy === "project_created") return row.projectCreatedAt.getTime();
+      return row.projectUpdatedAt.getTime();
+    };
     scenes.sort((a, b) => {
-      const dt = b.projectUpdatedAt.getTime() - a.projectUpdatedAt.getTime();
+      const dt = sortTime(b) - sortTime(a);
       if (dt !== 0) return dt;
       if (a.projectId !== b.projectId) return a.projectId.localeCompare(b.projectId);
       if (a.source !== b.source) return a.source.localeCompare(b.source);
