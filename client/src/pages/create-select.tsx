@@ -91,7 +91,7 @@ export default function CreateSelect() {
       description: "Single Prompt",
       explanation: "Create videos instantly with a single prompt - no character customization needed",
       videoUrl:
-        "https://stream.mux.com/u638PRcN00EcX6vmTPe94qHjO69l01XGPEKBUI4mxeUcI.m3u8?redundant_streams=true",
+        "https://stream.mux.com/YUySwDdTQVQwqJdhVd02nfOq8Hk00lP9ARJ300wOWyKsJM.m3u8?redundant_streams=true",
       route: "/create/single-prompt",
       available: true,
     },
