@@ -378,17 +378,22 @@ export async function generateCharacterImageWavespeed(
   }
 }
 
-/** Normalize to a single "front shot of a ..." prefix and collapse repeated wording. */
-function normalizeCharacterPrompt(prompt: string): string {
+/** Normalize to a single "{shotType} of a ..." prefix and collapse repeated wording. */
+function normalizeCharacterPrompt(prompt: string, shotType: string = "front shot"): string {
   const raw = (prompt || "").trim().replace(/\s+/g, " ");
   const withoutDuplicateFrontShot = raw
     .replace(/^(front shot of a\s+){2,}/i, "front shot of a ")
-    .replace(/^(front shot of an\s+){2,}/i, "front shot of an ");
+    .replace(/^(front shot of an\s+){2,}/i, "front shot of an ")
+    .replace(/^(full body shot of a\s+){2,}/i, "full body shot of a ")
+    .replace(/^(full body shot of an\s+){2,}/i, "full body shot of an ");
 
-  if (/^front shot of (a|an)\s+/i.test(withoutDuplicateFrontShot)) {
-    return withoutDuplicateFrontShot;
+  const shotPatterns = ["front shot", "full body shot"];
+  for (const sp of shotPatterns) {
+    if (new RegExp(`^${sp} of (a|an)\\s+`, "i").test(withoutDuplicateFrontShot)) {
+      return withoutDuplicateFrontShot;
+    }
   }
-  return `front shot of a ${withoutDuplicateFrontShot}`;
+  return `${shotType} of a ${withoutDuplicateFrontShot}`;
 }
 
 /**
@@ -1089,14 +1094,14 @@ async function generateCharacterImageWithModel(
   model: string,
   promptEnhancer: string | null,
   aspectRatio: string = "16:9",
+  shotType: string = "front shot",
 ): Promise<string> {
   const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
   if (!WAVESPEED_API_KEY) {
     throw new Error("WAVESPEED_API_KEY environment variable is required");
   }
 
-  // Build enhanced prompt: "front shot of a " + user_prompt + prompt_enhancer
-  let enhancedPrompt = `front shot of a ${prompt}`;
+  let enhancedPrompt = `${shotType} of a ${prompt}`;
   if (promptEnhancer) {
     enhancedPrompt += `, ${promptEnhancer}`;
   }
@@ -1247,6 +1252,7 @@ export async function generateCharacterImageToImage(
   prompt: string,
   promptEnhancer: string | null,
   aspectRatio: string = "1:1",
+  shotType: string = "front shot",
 ): Promise<string> {
   const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
   if (!WAVESPEED_API_KEY) {
@@ -1257,8 +1263,7 @@ export async function generateCharacterImageToImage(
   const publicImageUrl = await ensurePublicImageUrl(imageUrl, 86400);
   console.log(`✓ Using validated image URL for Wavespeed API`);
 
-  // Build enhanced prompt: "front shot of a " + user_prompt + prompt_enhancer
-  let enhancedPrompt = `front shot of a ${prompt}`;
+  let enhancedPrompt = `${shotType} of a ${prompt}`;
   if (promptEnhancer) {
     enhancedPrompt += `, ${promptEnhancer}`;
   }
@@ -1392,6 +1397,7 @@ export async function generateCharacterImages(
   style: string = "3d",
   model?: string,
   promptEnhancer?: string | null,
+  shotType: string = "front shot",
 ): Promise<string[]> {
   // If model and promptEnhancer are provided, use the new style-based approach
   if (model !== undefined) {
@@ -1401,6 +1407,7 @@ export async function generateCharacterImages(
       model,
       promptEnhancer || null,
       aspectRatio,
+      shotType,
     );
     return [imageUrl];
   }

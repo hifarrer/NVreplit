@@ -38,6 +38,7 @@ import CreateCharacterCreatorPage from "@/pages/create-character-creator";
 import CreateAiImageEditPage from "@/pages/create-ai-image-edit";
 import CreateStoryVideo from "@/pages/create-story-video";
 import CreateAllPurpose from "@/pages/create-all-purpose";
+import CreateMotionControl from "@/pages/create-motion-control";
 import BlogPage from "@/pages/blog";
 import BestAIMusicGenerator2025 from "@/pages/blog-post-best-ai-music-generator";
 import Version201Release from "@/pages/blog-post-version-2-0-1";
@@ -114,6 +115,7 @@ function AppRouter() {
         <Route path="/create/ai-image-edit" component={() => <ProtectedRoute component={CreateAiImageEditPage} />} />
         <Route path="/create/story-video" component={() => <ProtectedRoute component={CreateStoryVideo} />} />
         <Route path="/create/all-purpose" component={() => <ProtectedRoute component={CreateAllPurpose} />} />
+        <Route path="/create/motion-control" component={() => <ProtectedRoute component={CreateMotionControl} />} />
         <Route path="/create" component={() => <ProtectedRoute component={CreateSelect} />} />
         <Route path="/my-songs" component={() => <ProtectedRoute component={MySongsPage} />} />
         <Route path="/my-videos" component={() => <ProtectedRoute component={MyVideosPage} />} />

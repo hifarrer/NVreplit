@@ -28,6 +28,10 @@ interface StandaloneCharacterCreatorProps {
   showAspectRatioPicker?: boolean;
   /** When opening the modal, sync internal aspect ratio (e.g. match parent video form). */
   initialAspectRatio?: CharacterAspectRatio;
+  /** Shot type prefix for character prompts (default: "front shot"). Use "full body shot" for motion control. */
+  shotType?: string;
+  /** Hint text shown below the prompt field. */
+  promptHint?: string;
 }
 
 interface CharacterStyle {
@@ -52,6 +56,8 @@ export function StandaloneCharacterCreator({
   asPage = false,
   showAspectRatioPicker = false,
   initialAspectRatio,
+  shotType = "front shot",
+  promptHint,
 }: StandaloneCharacterCreatorProps) {
   const showAspectControls = asPage || showAspectRatioPicker;
   /** Modal (e.g. All Purpose): no camera angle; primary action is picking the image for the parent flow. */
@@ -141,7 +147,8 @@ export function StandaloneCharacterCreator({
         aspectRatio: showAspectControls ? aspectRatio : "16:9",
         style: selectedStyle.style_name,
         model: selectedStyle.model,
-        promptEnhancer: selectedStyle.prompt_enhancer
+        promptEnhancer: selectedStyle.prompt_enhancer,
+        shotType,
       }, { timeout: 900000 });
 
       clearInterval(progressInterval);
@@ -195,6 +202,7 @@ export function StandaloneCharacterCreator({
         prompt: uploadedImagePrompt || "character",
         promptEnhancer: selectedUploadStyle.prompt_enhancer,
         aspectRatio: showAspectControls ? aspectRatio : "1:1",
+        shotType,
       }, { timeout: 900000 });
 
       clearInterval(progressInterval);
@@ -503,7 +511,7 @@ export function StandaloneCharacterCreator({
                       rows={3}
                       className="resize-none"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Be detailed about appearance, style, clothing, and mood</p>
+                    <p className="text-xs text-muted-foreground mt-1">{promptHint || "Be detailed about appearance, style, clothing, and mood"}</p>
                   </div>
 
                   {showAspectControls && (
@@ -665,7 +673,7 @@ export function StandaloneCharacterCreator({
                     rows={3}
                     className="resize-none"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Be detailed about appearance, style, clothing, and mood</p>
+                  <p className="text-xs text-muted-foreground mt-1">{promptHint || "Be detailed about appearance, style, clothing, and mood"}</p>
                 </div>
 
                 {showAspectControls && (

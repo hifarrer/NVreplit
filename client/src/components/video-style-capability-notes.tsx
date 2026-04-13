@@ -83,6 +83,20 @@ const NOTES = {
       "Can't edit",
     ],
   },
+  "motion-control": {
+    pros: [
+      "Transfer motion from any video to an image",
+      "Supports YouTube links and direct .mp4 URLs",
+      "Select from character library or upload image",
+      "Keeps original video sound",
+    ],
+    cons: [
+      "Maximum 14 seconds",
+      "No character singing",
+      "No scene customization",
+      "Can't edit after generation",
+    ],
+  },
 } as const;
 
 export type VideoStyleCapabilityVariant = keyof typeof NOTES;

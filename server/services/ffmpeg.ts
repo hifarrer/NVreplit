@@ -468,10 +468,21 @@ async function mergeVideosInternal(
   const useRemoteMergeNoOutro = !outroUrl && (videoUrls.length >= 2 || !!audioUrl);
 
   if (useNeonvideoApi) {
+    // neonvideo_merge requires at least 2 video_urls OR 1 video + audio_url.
+    // Music flows pass multiple scene URLs + outro_url. Single-clip flows (e.g. motion control)
+    // must send [main, outro] in video_urls and omit outro_url so the outro is not appended twice.
+    let neonVideoUrls = [...videoUrls];
+    let neonOutroUrl: string | undefined = outroUrl;
+    if (videoUrls.length === 1 && outroUrl) {
+      neonVideoUrls = [videoUrls[0], outroUrl];
+      neonOutroUrl = undefined;
+      console.log("[FFMPEG] Single main clip + outro: sending both in video_urls (outro_url omitted to satisfy API + avoid duplicate outro)");
+    }
+
     console.log("=== FFMPEG NEONVIDEO MERGE (remote API) ===");
     console.log("Endpoint:", NEONVIDEO_MERGE_URL);
-    console.log("Number of scene videos:", videoUrls.length);
-    console.log("Outro URL:", outroUrl);
+    console.log("Number of scene videos:", neonVideoUrls.length);
+    console.log("Outro URL (separate field):", neonOutroUrl || "(concatenated in video_urls)");
     console.log("Audio URL:", audioUrl || "Not provided");
     console.log("Subtitle URL:", subtitleUrl || "Not provided");
     console.log("Watermark URL:", watermarkUrl || "Not provided");
@@ -479,14 +490,16 @@ async function mergeVideosInternal(
 
     try {
       const body: Record<string, unknown> = {
-        video_urls: videoUrls,
+        video_urls: neonVideoUrls,
         audio_url: audioUrl ?? "",
-        outro_url: outroUrl,
         subtitle_url: subtitleUrl ?? undefined,
         watermark_url: watermarkUrl ?? undefined,
         dimensions: dimensions ?? undefined,
         async: false,
       };
+      if (neonOutroUrl) {
+        body.outro_url = neonOutroUrl;
+      }
       const response = await fetchWithRetry(NEONVIDEO_MERGE_URL, {
         method: "POST",
         headers: {
@@ -588,6 +601,90 @@ async function mergeVideosInternal(
     console.error("Local video merging error:", error);
     throw new Error("Failed to merge videos locally: " + (error as Error).message);
   }
+}
+
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || "";
+const RAPIDAPI_YT_HOST = "youtube-info-download-api.p.rapidapi.com";
+
+export interface YouTubeToMp4Result {
+  success: boolean;
+  download_url: string;
+  title: string;
+}
+
+export async function youtubeToMp4(youtubeUrl: string): Promise<YouTubeToMp4Result> {
+  if (!RAPIDAPI_KEY) {
+    throw new Error("RAPIDAPI_KEY is not configured");
+  }
+
+  console.log(`[YOUTUBE] Converting YouTube to MP4 via RapidAPI: ${youtubeUrl}`);
+
+  const params = new URLSearchParams({
+    format: "1080",
+    add_info: "0",
+    url: youtubeUrl,
+    audio_quality: "128",
+    allow_extended_duration: "false",
+    no_merge: "false",
+    audio_language: "en",
+  });
+
+  const submitResponse = await fetchWithRetry(
+    `https://${RAPIDAPI_YT_HOST}/ajax/download.php?${params.toString()}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "x-rapidapi-host": RAPIDAPI_YT_HOST,
+        "x-rapidapi-key": RAPIDAPI_KEY,
+      },
+    },
+  );
+
+  if (!submitResponse.ok) {
+    const errorText = await submitResponse.text();
+    throw new Error(`YouTube download API error: ${submitResponse.status} - ${errorText}`);
+  }
+
+  const submitResult = await submitResponse.json();
+  if (!submitResult.success) {
+    throw new Error(submitResult.message || "YouTube download submission failed");
+  }
+
+  const progressUrl = submitResult.progress_url;
+  if (!progressUrl) {
+    throw new Error("No progress_url returned from YouTube download API");
+  }
+
+  const title = submitResult.title || "YouTube Video";
+  console.log(`[YOUTUBE] Submitted, polling progress: ${progressUrl}`);
+
+  // Poll progress_url every 5 seconds until download_url appears
+  const maxAttempts = 60; // 5 minutes max
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    await new Promise((r) => setTimeout(r, 5000));
+
+    const progressResponse = await fetch(progressUrl);
+    if (!progressResponse.ok) {
+      console.warn(`[YOUTUBE] Progress poll ${attempt + 1} returned ${progressResponse.status}, retrying...`);
+      continue;
+    }
+
+    const progressResult = await progressResponse.json();
+    console.log(`[YOUTUBE] Poll ${attempt + 1}: progress=${progressResult.progress}, success=${progressResult.success}`);
+
+    if (progressResult.success === 1 && progressResult.download_url) {
+      const downloadUrl = progressResult.download_url;
+      console.log(`[YOUTUBE] Conversion complete: ${downloadUrl}`);
+      return { success: true, download_url: downloadUrl, title };
+    }
+
+    if (progressResult.error) {
+      throw new Error(progressResult.error || "YouTube conversion failed");
+    }
+  }
+
+  throw new Error("YouTube to MP4 conversion timed out");
 }
 
 export async function mergeVideos(

@@ -33,8 +33,8 @@ import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, ge
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
 import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAllPurposeWan27TextToImageMany, generateAlbumCoverSeedreamV5Lite, generateAiImageEdit, collectStoryCharacterReferenceImageUrls } from "./services/fal";
-import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio, generateAllPurposeVideoClip } from "./services/wavespeed";
-import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop } from "./services/ffmpeg";
+import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio, generateAllPurposeVideoClip, generateMotionControlVideo } from "./services/wavespeed";
+import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop, trimVideo, youtubeToMp4 } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback } from "./services/imagekit";
@@ -330,6 +330,22 @@ const videoToolUpload = multer({
       cb(null, true);
     } else {
       cb(new Error('Invalid file type. Only MP4, MOV, AVI, and WebM videos are allowed.'));
+    }
+  }
+});
+
+// Configure multer for motion control video uploads; 250MB limit
+const motionControlVideoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 250 * 1024 * 1024,
+  },
+  fileFilter: (req: any, file: any, cb: any) => {
+    const allowedTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
+    if (allowedTypes.includes(file.mimetype) || file.originalname?.match(/\.(mp4|mov|webm)$/i)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only MP4, MOV, and WebM videos are allowed.'));
     }
   }
 });
@@ -10310,12 +10326,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/characters/generate-options", authenticateToken, async (req, res) => {
     try {
       console.log("Standalone character options generation route called with body:", req.body);
-      const { prompt, aspectRatio = "16:9", style = "3d", model, promptEnhancer } = req.body;
+      const { prompt, aspectRatio = "16:9", style = "3d", model, promptEnhancer, shotType = "front shot" } = req.body;
       console.log("Extracted prompt:", prompt);
       console.log("Aspect ratio:", aspectRatio);
       console.log("Style:", style);
       console.log("Model:", model);
       console.log("Prompt enhancer:", promptEnhancer);
+      console.log("Shot type:", shotType);
 
       if (!prompt || !prompt.trim()) {
         throw new Error("No prompt provided");
@@ -10328,10 +10345,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let imageUrls: string[];
       if (model !== undefined) {
         console.log("About to call generateCharacterImages with model:", model, "and prompt enhancer:", promptEnhancer);
-        imageUrls = await generateCharacterImages(prompt, aspectRatio, style, model, promptEnhancer);
+        imageUrls = await generateCharacterImages(prompt, aspectRatio, style, model, promptEnhancer, shotType);
       } else {
         console.log("About to call generateCharacterImages with aspect ratio:", aspectRatio, "and style:", style);
-        imageUrls = await generateCharacterImages(prompt, aspectRatio, style);
+        imageUrls = await generateCharacterImages(prompt, aspectRatio, style, undefined, undefined, shotType);
       }
       console.log("generateCharacterImages returned:", imageUrls);
 
@@ -10347,11 +10364,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/characters/generate-image-to-image", authenticateToken, async (req, res) => {
     try {
       console.log("Standalone character image-to-image generation route called with body:", req.body);
-      const { imageUrl, prompt, promptEnhancer, aspectRatio = "1:1" } = req.body;
+      const { imageUrl, prompt, promptEnhancer, aspectRatio = "1:1", shotType = "front shot" } = req.body;
       console.log("Image URL:", imageUrl);
       console.log("Prompt:", prompt);
       console.log("Prompt enhancer:", promptEnhancer);
       console.log("Aspect ratio:", aspectRatio);
+      console.log("Shot type:", shotType);
 
       if (!imageUrl || !prompt || !prompt.trim()) {
         throw new Error("Image URL and prompt are required");
@@ -10365,7 +10383,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         imageUrl,
         prompt,
         promptEnhancer || null,
-        aspectRatio
+        aspectRatio,
+        shotType
       );
       console.log("generateCharacterImageToImage returned:", resultImageUrl);
 
@@ -14635,6 +14654,328 @@ Do not add markdown. Return JSON only.`,
       console.error("[VIDEO-SHORTS] Error:", error);
       res.status(500).json({
         error: error instanceof Error ? error.message : "Failed to generate video short",
+      });
+    }
+  });
+
+  // ─── MOTION CONTROL ──────────────────────────────────────────────────
+
+  // Upload a video file for motion control (stores to Bunny, returns URL)
+  app.post("/api/motion-control/upload-video", authenticateToken, motionControlVideoUpload.single("video"), async (req, res) => {
+    try {
+      if (!req.file || !req.file.buffer) {
+        return res.status(400).json({ error: "No video file provided." });
+      }
+
+      const fileName = `mc_${Date.now()}_${(req.file.originalname || "video.mp4").replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { url } = await uploadToBunnyStorage("scenes", fileName, req.file.buffer);
+      console.log(`[MOTION-CONTROL] Uploaded video to Bunny: ${url.substring(0, 60)}...`);
+
+      res.json({ success: true, videoUrl: url });
+    } catch (error) {
+      console.error("[MOTION-CONTROL] Video upload error:", error);
+      if ((error as any)?.code === "LIMIT_FILE_SIZE") {
+        return res.status(413).json({ error: "Video file exceeds 250MB limit. Please use a video URL instead." });
+      }
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to upload video",
+      });
+    }
+  });
+
+  app.post("/api/tools/youtube-to-mp4", authenticateToken, async (req, res) => {
+    try {
+      const { youtubeUrl } = req.body;
+      if (!youtubeUrl || typeof youtubeUrl !== "string") {
+        return res.status(400).json({ error: "Please provide a valid YouTube URL" });
+      }
+      console.log(`[YOUTUBE-TO-MP4] Converting: ${youtubeUrl}`);
+      const result = await youtubeToMp4(youtubeUrl.trim());
+      res.json({ success: true, download_url: result.download_url, title: result.title });
+    } catch (error) {
+      console.error("[YOUTUBE-TO-MP4] Error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to convert YouTube to MP4",
+      });
+    }
+  });
+
+  app.options("/api/motion-control", (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.sendStatus(204);
+  });
+
+  app.post("/api/motion-control", extractTokenFromUrl, authenticateToken, async (req, res) => {
+    console.log("[MOTION-CONTROL] Route handler invoked");
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    try {
+      const {
+        videoUrl,
+        imageUrl,
+        prompt,
+        startTime,
+        endTime,
+        includeWatermark: includeWatermarkBody,
+      } = req.body;
+      const userId = req.user!.userId;
+
+      const userWithPlan = await storage.getUserWithPlan(userId);
+      const isPremiumUser = userWithPlan?.plan?.name === "Premium";
+      const includeWatermarkForProject = !isPremiumUser ? true : includeWatermarkBody !== false;
+
+      if (!videoUrl || typeof videoUrl !== "string" || videoUrl.trim().length === 0) {
+        return res.status(400).json({ error: "Please provide a direct .mp4 video URL" });
+      }
+      if (!imageUrl || typeof imageUrl !== "string" || imageUrl.trim().length === 0) {
+        return res.status(400).json({ error: "Please provide a reference image" });
+      }
+      if (typeof startTime !== "number" || typeof endTime !== "number" || endTime <= startTime) {
+        return res.status(400).json({ error: "Invalid start/end time range" });
+      }
+      if (endTime - startTime > 14.5) {
+        return res.status(400).json({ error: "Selected range cannot exceed 14 seconds" });
+      }
+
+      const CREDITS_PER_7S = 2000;
+      const trimDuration = endTime - startTime;
+      const MOTION_CONTROL_CREDITS = Math.ceil(trimDuration / 7) * CREDITS_PER_7S;
+      console.log(`[MOTION-CONTROL] Trim duration: ${trimDuration.toFixed(1)}s → ${MOTION_CONTROL_CREDITS} credits`);
+      const canAfford = await storage.canUserAffordCredits(userId, MOTION_CONTROL_CREDITS);
+      if (!canAfford) {
+        const remaining = await storage.getUserCreditsRemaining(userId);
+        return res.status(402).json({
+          error: "Insufficient credits for Motion Control generation",
+          creditsRequired: MOTION_CONTROL_CREDITS,
+          creditsRemaining: remaining,
+        });
+      }
+
+      const project = await storage.createProject({
+        userId,
+        title: (prompt || "Motion Control Video").substring(0, 60),
+        description: prompt || "Motion Control Video",
+        aspectRatio: "9:16",
+        currentStep: 1,
+        isInstrumental: true,
+        includeWatermark: includeWatermarkForProject,
+      } as any);
+
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "project_creation",
+        message: "Setting up your Motion Control video...",
+        status: "completed",
+        metadata: {},
+      });
+
+      res.json({
+        success: true,
+        projectId: project.id,
+        message: "Motion Control video generation started!",
+      });
+
+      // Background pipeline
+      (async () => {
+        console.log(`[MOTION-CONTROL] Background pipeline started for project ${project.id}`);
+        try {
+          const mp4Url = videoUrl.trim();
+
+          // Step 1: Trim video
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_trim",
+            message: "Trimming video to selected range...",
+            status: "progress",
+            metadata: {},
+          });
+
+          await storage.updateProject(project.id, { currentStep: 2 } as any);
+
+          const trimResult = await trimVideo(mp4Url, startTime, endTime);
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_trim",
+            message: "Video trimmed successfully",
+            status: "completed",
+            metadata: { trimmedUrl: trimResult.download_url },
+          });
+
+          // Step 3: Generate motion control video via Kling v2.6
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: "Generating motion control video with AI — this can take up to 30 minutes...",
+            status: "progress",
+            metadata: {},
+          });
+
+          await storage.updateProject(project.id, { currentStep: 3 } as any);
+
+          const generationStartTime = Date.now();
+          const progressTimer = setInterval(async () => {
+            const elapsedMin = Math.round((Date.now() - generationStartTime) / 60000);
+            try {
+              await storage.addGenerationLog({
+                projectId: project.id,
+                step: "video_generation",
+                message: `AI is generating your video... (${elapsedMin} min elapsed)`,
+                status: "progress",
+                metadata: {},
+              });
+            } catch {}
+          }, 60000);
+
+          let resultVideoUrl: string;
+          try {
+            resultVideoUrl = await generateMotionControlVideo(
+              trimResult.download_url,
+              imageUrl.trim(),
+              prompt?.trim(),
+            );
+          } finally {
+            clearInterval(progressTimer);
+          }
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: "Motion control video generated successfully",
+            status: "completed",
+            metadata: { videoUrl: resultVideoUrl },
+          });
+
+          // Post-process: neonvideo_merge (ffmpegapi) — vertical outro + optional watermark
+          const outroVideoUrl = "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4";
+          const mergeDimensions = "1080x1920";
+          let mergeSourceUrl = resultVideoUrl;
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_postprocess",
+            message: includeWatermarkForProject
+              ? "Adding watermark and outro..."
+              : "Adding outro...",
+            status: "progress",
+            metadata: {},
+          });
+
+          try {
+            let watermarkUrl: string | undefined;
+            if (includeWatermarkForProject) {
+              watermarkUrl = (await getWatermarkUrl()) || undefined;
+            }
+            const mergeResult = await mergeVideos(
+              [resultVideoUrl],
+              undefined,
+              undefined,
+              watermarkUrl,
+              outroVideoUrl,
+              mergeDimensions,
+            );
+            mergeSourceUrl = mergeResult.download_url;
+            console.log("[MOTION-CONTROL] Post-process merge complete:", mergeSourceUrl.substring(0, 80) + "...");
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "video_postprocess",
+              message: includeWatermarkForProject
+                ? "Watermark and outro applied"
+                : "Outro applied",
+              status: "completed",
+              metadata: { mergedUrl: mergeSourceUrl },
+            });
+          } catch (mergeErr) {
+            console.error("[MOTION-CONTROL] Post-process merge failed, using raw AI output:", mergeErr);
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "video_postprocess",
+              message: `Post-process skipped: ${(mergeErr as Error).message}`,
+              status: "completed",
+              metadata: { usedRawOutput: true },
+            });
+          }
+
+          // Step: Upload to Bunny storage
+          let savedFinalVideoUrl = mergeSourceUrl;
+          const objectStorageService = new ObjectStorageService();
+
+          if (isBunnyConfigured("scenes")) {
+            console.log("[MOTION-CONTROL] Persisting to Bunny...");
+            try {
+              const videoResp = await fetch(mergeSourceUrl);
+              if (!videoResp.ok) throw new Error(`Failed to fetch result video: ${videoResp.status}`);
+              const videoBuffer = Buffer.from(await videoResp.arrayBuffer());
+              const { url: bunnyVideoUrl } = await uploadToBunnyStorage(
+                "scenes",
+                `motion_${project.id}_${Date.now()}.mp4`,
+                videoBuffer,
+              );
+              savedFinalVideoUrl = bunnyVideoUrl;
+              console.log("[MOTION-CONTROL] Video persisted to Bunny:", bunnyVideoUrl.substring(0, 60) + "...");
+            } catch (persistErr) {
+              console.error("[MOTION-CONTROL] Failed to persist to Bunny, using original URL:", persistErr);
+            }
+          }
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "upload",
+            message: "Video saved successfully",
+            status: "completed",
+            metadata: { finalVideoUrl: savedFinalVideoUrl },
+          });
+
+          await storage.updateProject(project.id, {
+            finalVideoUrl: savedFinalVideoUrl,
+            isCompleted: true,
+            currentStep: 4,
+            generationStatus: "completed" as any,
+          });
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: "Motion Control video completed!",
+            status: "completed",
+            metadata: { finalVideoUrl: savedFinalVideoUrl },
+          });
+
+          const creditDeducted = await storage.deductUserCredits(userId, MOTION_CONTROL_CREDITS);
+          if (!creditDeducted) {
+            console.error("[MOTION-CONTROL] Failed to deduct credits, but video was generated");
+          } else {
+            console.log(`[MOTION-CONTROL] Deducted ${MOTION_CONTROL_CREDITS} credits from user ${userId}`);
+          }
+
+          try {
+            await createMuxAssetForVideo(project.id, savedFinalVideoUrl);
+          } catch (muxError) {
+            console.error("[MOTION-CONTROL] Failed to create Mux asset:", muxError);
+          }
+        } catch (error) {
+          const errMsg = (error as Error).message;
+          console.error("[MOTION-CONTROL] Error:", error);
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: `Generation failed: ${errMsg}`,
+            status: "error",
+            metadata: { error: errMsg },
+          });
+          await storage.updateProject(project.id, {
+            generationStatus: "failed" as any,
+          });
+        }
+      })();
+    } catch (error) {
+      console.error("[MOTION-CONTROL] Error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to generate motion control video",
       });
     }
   });

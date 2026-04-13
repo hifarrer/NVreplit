@@ -1,0 +1,247 @@
+import { useState, useRef, useEffect, useCallback } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import * as SliderPrimitive from "@radix-ui/react-slider";
+import { Loader2, Scissors } from "lucide-react";
+
+const MAX_WINDOW = 14;
+
+interface MotionControlTrimModalProps {
+  isOpen: boolean;
+  videoUrl: string;
+  onClose: () => void;
+  onConfirm: (startTime: number, endTime: number) => void;
+  isLoading?: boolean;
+}
+
+function formatTime(seconds: number) {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  const ms = Math.round((seconds % 1) * 10);
+  return `${m}:${s.toString().padStart(2, "0")}.${ms}`;
+}
+
+export function MotionControlTrimModal({
+  isOpen,
+  videoUrl,
+  onClose,
+  onConfirm,
+  isLoading,
+}: MotionControlTrimModalProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const [duration, setDuration] = useState(0);
+  const [startTime, setStartTime] = useState(0);
+  const [endTime, setEndTime] = useState(0);
+  const [durationError, setDurationError] = useState<string | null>(null);
+
+  const windowSize = Math.min(MAX_WINDOW, duration || MAX_WINDOW);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setDuration(0);
+      setStartTime(0);
+      setEndTime(0);
+      setDurationError(null);
+    }
+  }, [isOpen]);
+
+  const applyDuration = useCallback((d: number) => {
+    if (Number.isFinite(d) && d > 0) {
+      setDuration(d);
+      setStartTime(0);
+      setEndTime(Math.min(MAX_WINDOW, d));
+      setDurationError(null);
+    } else {
+      setDuration(0);
+      setDurationError("Could not determine video length. Please enter start/end times manually.");
+    }
+  }, []);
+
+  const handleVideoLoaded = useCallback(() => {
+    const video = videoRef.current;
+    if (video) applyDuration(video.duration);
+  }, [applyDuration]);
+
+  const handleVideoError = useCallback(() => {
+    setDuration(0);
+    setDurationError("Video failed to load. Please enter start/end times manually.");
+  }, []);
+
+  // Fallback timeout: if metadata hasn't loaded within 15s, show manual inputs
+  useEffect(() => {
+    if (!isOpen || !videoUrl || duration > 0 || durationError) return;
+    const timeout = setTimeout(() => {
+      if (duration === 0 && !durationError) {
+        setDurationError("Could not load video metadata. Please enter start/end times manually.");
+      }
+    }, 15000);
+    return () => clearTimeout(timeout);
+  }, [isOpen, videoUrl, duration, durationError]);
+
+  const handleSliderChange = useCallback(
+    ([newStart, newEnd]: number[]) => {
+      const newLen = newEnd - newStart;
+      if (newLen > MAX_WINDOW) {
+        if (newStart !== startTime) {
+          setStartTime(newStart);
+          setEndTime(Math.min(newStart + windowSize, duration));
+        } else {
+          setEndTime(Math.min(startTime + MAX_WINDOW, duration));
+        }
+      } else if (newLen < 0.5) {
+        if (newStart !== startTime) {
+          setStartTime(Math.max(0, newEnd - 0.5));
+        } else {
+          setEndTime(Math.min(duration, newStart + 0.5));
+        }
+      } else {
+        setStartTime(newStart);
+        setEndTime(newEnd);
+      }
+    },
+    [startTime, windowSize, duration],
+  );
+
+  // Sync video preview to startTime
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video && duration > 0 && Number.isFinite(startTime)) {
+      video.currentTime = startTime;
+    }
+  }, [startTime, duration]);
+
+  const selectionDuration = Math.max(0, endTime - startTime);
+  const canConfirm = selectionDuration >= 0.5 && selectionDuration <= MAX_WINDOW + 0.1 && !isLoading;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !isLoading && onClose()}>
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="space-y-1.5">
+          <DialogTitle className="flex items-center gap-2">
+            <Scissors className="h-5 w-5 shrink-0" />
+            Select Video Range
+          </DialogTitle>
+          <DialogDescription className="text-balance break-words pr-2">
+            Choose up to {MAX_WINDOW} seconds of the video. Drag the selection
+            window or adjust start/end handles.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2 min-w-0 overflow-hidden">
+          <video
+            ref={videoRef}
+            key={videoUrl}
+            src={videoUrl}
+            className="w-full rounded-md max-h-48 bg-black"
+            preload="auto"
+            controls
+            muted
+            onLoadedMetadata={handleVideoLoaded}
+            onError={handleVideoError}
+          />
+
+          {durationError && (
+            <p className="text-sm text-amber-600">{durationError}</p>
+          )}
+
+          {duration > 0 ? (
+            <div className="min-w-0">
+              <Label className="text-sm font-semibold mb-2 block">
+                Timeline — drag to select up to {MAX_WINDOW}s
+              </Label>
+              <SliderPrimitive.Root
+                className="relative flex w-full touch-none select-none items-center"
+                value={[startTime, endTime]}
+                min={0}
+                max={duration}
+                step={0.5}
+                onValueChange={handleSliderChange}
+              >
+                <SliderPrimitive.Track className="relative h-3 w-full grow overflow-hidden rounded-full bg-secondary">
+                  <SliderPrimitive.Range className="absolute h-full bg-primary" />
+                </SliderPrimitive.Track>
+                <SliderPrimitive.Thumb className="block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-grab active:cursor-grabbing" />
+                <SliderPrimitive.Thumb className="block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-grab active:cursor-grabbing" />
+              </SliderPrimitive.Root>
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                <span>{formatTime(startTime)}</span>
+                <span>{formatTime(endTime)}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Selected: {formatTime(selectionDuration)} / {MAX_WINDOW}s max
+                (total video: {formatTime(duration)})
+              </p>
+            </div>
+          ) : !durationError ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading video metadata...
+            </div>
+          ) : (
+            <div className="flex gap-2 items-center">
+              <div className="flex-1">
+                <Label className="text-xs">Start (seconds)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={startTime}
+                  onChange={(e) => {
+                    const v = Number(e.target.value) || 0;
+                    setStartTime(v);
+                    if (endTime - v > MAX_WINDOW) setEndTime(v + MAX_WINDOW);
+                    if (endTime <= v) setEndTime(v + 1);
+                  }}
+                />
+              </div>
+              <div className="flex-1">
+                <Label className="text-xs">End (seconds)</Label>
+                <Input
+                  type="number"
+                  min={startTime + 0.5}
+                  step={0.5}
+                  value={endTime}
+                  onChange={(e) => {
+                    const v = Number(e.target.value) || startTime + 1;
+                    if (v - startTime > MAX_WINDOW) return;
+                    setEndTime(v);
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="flex-row gap-2 sm:gap-0">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={() => onConfirm(startTime, endTime)}
+            disabled={!canConfirm}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              `Confirm (${formatTime(selectionDuration)})`
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -90,7 +90,8 @@ export default function CreateSelect() {
       title: "Single Prompt",
       description: "Single Prompt",
       explanation: "Create videos instantly with a single prompt - no character customization needed",
-      imageUrl: "https://res.cloudinary.com/dqemas8ht/image/upload/v1771192705/singleprompt4_tnwfln.jpg",
+      videoUrl:
+        "https://stream.mux.com/u638PRcN00EcX6vmTPe94qHjO69l01XGPEKBUI4mxeUcI.m3u8?redundant_streams=true",
       route: "/create/single-prompt",
       available: true,
     },
@@ -119,6 +120,16 @@ export default function CreateSelect() {
       explanation: "Create stunning 12-second video shorts from a single prompt",
       videoUrl: "https://stream.mux.com/009H5uoHfflL1Y00PQkW3w8FvrTUxYXbsmIrHh13i00800s.m3u8?redundant_streams=true",
       route: "/create/video-shorts",
+      available: true,
+    },
+    {
+      id: "motion-control",
+      title: "Motion Control",
+      description: "Motion Control",
+      explanation: "Transfer motion from any video onto a reference image using AI",
+      videoUrl:
+        "https://stream.mux.com/2ua9QjUuceMjbGEllBVj402Ol2RDrPhaW97IF00ptYQgo.m3u8?redundant_streams=true",
+      route: "/create/motion-control",
       available: true,
     },
   ];
