@@ -137,7 +137,8 @@ export default function CreateSelect() {
       title: "Swap",
       description: "Swap",
       explanation: "Replace a person, object, or background in a video using a reference image",
-      imageUrl: "https://neonvideo.b-cdn.net/logos/catswap.jpg",
+      videoUrl:
+        "https://stream.mux.com/9FGp02kBSRA7dLzzkXUZAkZiHCMQvyobpLILTQOfOBfU.m3u8?redundant_streams=true",
       route: "/create/swap",
       available: true,
     },

@@ -39,6 +39,7 @@ import { Progress } from "@/components/ui/progress";
 import { MotionControlTrimModal } from "@/components/modals/motion-control-trim-modal";
 import { CharacterLibraryModal } from "@/components/modals/character-library-modal";
 import { StandaloneCharacterCreator } from "@/components/standalone-character-creator";
+import { VideoStylePreview } from "@/components/video-style-preview";
 
 type SwapMode = "person" | "object" | "background";
 
@@ -394,12 +395,16 @@ export default function CreateSwap() {
           </div>
 
           <div className="mb-6 flex justify-center px-2">
-            <img
-              src="https://neonvideo.b-cdn.net/logos/catswap.jpg"
-              alt="Swap: combine a character image with motion from a reference video to produce the final output"
-              className="w-full max-w-3xl rounded-lg border border-border shadow-sm"
-              loading="lazy"
-            />
+            <div
+              className="relative w-full max-w-md aspect-[9/16] overflow-hidden rounded-lg border border-border shadow-sm bg-muted"
+              role="img"
+              aria-label="Swap: combine a character image with motion from a reference video to produce the final output"
+            >
+              <VideoStylePreview
+                hlsUrl="https://stream.mux.com/9FGp02kBSRA7dLzzkXUZAkZiHCMQvyobpLILTQOfOBfU.m3u8?redundant_streams=true"
+                className="absolute inset-0"
+              />
+            </div>
           </div>
 
           <VideoStyleCapabilityNotes variant="swap" className="mb-6" />
