@@ -1551,6 +1551,100 @@ export async function generateMotionControlVideo(
   throw new Error("Motion-control video generation timed out after 45 minutes");
 }
 
+export type PixverseSwapMode = "person" | "object" | "background";
+
+/** Replace person, object, or background in a video using a reference image (Pixverse swap via WaveSpeed). */
+export async function generatePixverseSwapVideo(
+  videoUrl: string,
+  imageUrl: string,
+  mode: PixverseSwapMode,
+): Promise<string> {
+  console.log("=== GENERATING PIXVERSE SWAP VIDEO ===");
+  console.log("Video URL:", videoUrl);
+  console.log("Image URL:", imageUrl);
+  console.log("Mode:", mode);
+
+  const requestBody = {
+    image: imageUrl,
+    mode,
+    resolution: "540p",
+    video: videoUrl,
+    model_id: "pixverse/swap",
+  };
+
+  const response = await fetchWithRetry("https://api.wavespeed.ai/api/v3/pixverse/swap", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Wavespeed pixverse/swap API error: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  const requestId = result.data?.id || result.id;
+
+  if (!requestId) {
+    console.error("Wavespeed pixverse/swap response:", JSON.stringify(result, null, 2));
+    throw new Error("No request ID received from Wavespeed pixverse/swap API");
+  }
+
+  console.log(`Pixverse swap submitted, request ID: ${requestId}`);
+
+  let attempts = 0;
+  const maxAttempts = 270;
+  const POLL_INTERVAL_MS = 10000;
+
+  while (attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+    let statusResponse;
+    try {
+      statusResponse = await fetchWithRetry(
+        `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+        { headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` } },
+      );
+    } catch (fetchErr) {
+      console.warn(`Pixverse swap poll attempt ${attempts + 1}: network error, retrying...`, (fetchErr as Error).message);
+      attempts++;
+      continue;
+    }
+
+    if (!statusResponse.ok) {
+      console.warn(`Pixverse swap poll attempt ${attempts + 1}: HTTP ${statusResponse.status}, retrying...`);
+      attempts++;
+      continue;
+    }
+
+    const statusResult = await statusResponse.json();
+    const elapsedMin = ((attempts + 1) * POLL_INTERVAL_MS / 60000).toFixed(1);
+    console.log(`Pixverse swap poll attempt ${attempts + 1} (${elapsedMin}m): status = ${statusResult.data?.status}`);
+
+    if (
+      statusResult.data?.status === "completed" &&
+      statusResult.data.outputs &&
+      statusResult.data.outputs.length > 0
+    ) {
+      console.log("Pixverse swap completed:", statusResult.data.outputs[0]);
+      return statusResult.data.outputs[0];
+    } else if (statusResult.data?.status === "failed" || statusResult.status === "failed") {
+      const errorDetails = statusResult.data?.error || statusResult.error || "Unknown error";
+      throw new Error(
+        `Pixverse swap generation failed: ${typeof errorDetails === "string" ? errorDetails : JSON.stringify(errorDetails)}`,
+      );
+    }
+
+    attempts++;
+  }
+
+  throw new Error("Pixverse swap video generation timed out after 45 minutes");
+}
+
 /** Generate a single video clip for all-purpose video using the user-selected model. */
 export async function generateAllPurposeVideoClip(
   imageUrl: string,

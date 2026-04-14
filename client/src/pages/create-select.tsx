@@ -56,6 +56,16 @@ export default function CreateSelect() {
     route: "/create/all-purpose",
     available: true,
   } as const;
+  const motionControlMode = {
+    id: "motion-control",
+    title: "Motion Control",
+    description: "Motion Control",
+    explanation: "Transfer motion from any video onto a reference image using AI",
+    videoUrl:
+      "https://stream.mux.com/2ua9QjUuceMjbGEllBVj402Ol2RDrPhaW97IF00ptYQgo.m3u8?redundant_streams=true",
+    route: "/create/motion-control",
+    available: true,
+  } as const;
 
   const videoModes = [
     {
@@ -123,13 +133,12 @@ export default function CreateSelect() {
       available: true,
     },
     {
-      id: "motion-control",
-      title: "Motion Control",
-      description: "Motion Control",
-      explanation: "Transfer motion from any video onto a reference image using AI",
-      videoUrl:
-        "https://stream.mux.com/2ua9QjUuceMjbGEllBVj402Ol2RDrPhaW97IF00ptYQgo.m3u8?redundant_streams=true",
-      route: "/create/motion-control",
+      id: "swap",
+      title: "Swap",
+      description: "Swap",
+      explanation: "Replace a person, object, or background in a video using a reference image",
+      imageUrl: "https://neonvideo.b-cdn.net/logos/catswap.jpg",
+      route: "/create/swap",
       available: true,
     },
   ];
@@ -244,34 +253,37 @@ export default function CreateSelect() {
             All Purpose Video
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
-            <Card
-              className={`overflow-hidden border transition-all ${
-                allPurposeMode.available
-                  ? "border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer"
-                  : "border-border/50 opacity-60 cursor-not-allowed"
-              }`}
-              onClick={() => handleModeClick(allPurposeMode)}
-            >
-              <div className="relative aspect-[3/4] overflow-hidden bg-muted">
-                <VideoStylePreview
-                  hlsUrl={allPurposeMode.videoUrl}
-                  className="absolute inset-0"
-                />
-                {!allPurposeMode.available && (
-                  <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-                    <span className="text-muted-foreground text-sm font-medium">Coming Soon</span>
-                  </div>
-                )}
-              </div>
-              <div className="px-4 sm:px-6 pt-3 pb-2">
-                <p className="text-center text-pink-500 text-xs sm:text-sm">{allPurposeMode.explanation}</p>
-              </div>
-              <CardContent className="p-4 sm:p-6 pt-2">
-                <p className="text-center text-foreground text-sm sm:text-base font-medium">
-                  {allPurposeMode.description}
-                </p>
-              </CardContent>
-            </Card>
+            {[allPurposeMode, motionControlMode].map((mode) => (
+              <Card
+                key={mode.id}
+                className={`overflow-hidden border transition-all ${
+                  mode.available
+                    ? "border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer"
+                    : "border-border/50 opacity-60 cursor-not-allowed"
+                }`}
+                onClick={() => handleModeClick(mode)}
+              >
+                <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+                  <VideoStylePreview
+                    hlsUrl={mode.videoUrl}
+                    className="absolute inset-0"
+                  />
+                  {!mode.available && (
+                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                      <span className="text-muted-foreground text-sm font-medium">Coming Soon</span>
+                    </div>
+                  )}
+                </div>
+                <div className="px-4 sm:px-6 pt-3 pb-2">
+                  <p className="text-center text-pink-500 text-xs sm:text-sm">{mode.explanation}</p>
+                </div>
+                <CardContent className="p-4 sm:p-6 pt-2">
+                  <p className="text-center text-foreground text-sm sm:text-base font-medium">
+                    {mode.description}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-16 mb-6">

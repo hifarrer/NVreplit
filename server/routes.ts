@@ -33,7 +33,7 @@ import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, ge
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
 import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAllPurposeWan27TextToImageMany, generateAlbumCoverSeedreamV5Lite, generateAiImageEdit, collectStoryCharacterReferenceImageUrls } from "./services/fal";
-import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio, generateAllPurposeVideoClip, generateMotionControlVideo } from "./services/wavespeed";
+import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio, generateAllPurposeVideoClip, generateMotionControlVideo, generatePixverseSwapVideo, type PixverseSwapMode } from "./services/wavespeed";
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop, trimVideo, youtubeToMp4 } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
@@ -14976,6 +14976,311 @@ Do not add markdown. Return JSON only.`,
       console.error("[MOTION-CONTROL] Error:", error);
       res.status(500).json({
         error: error instanceof Error ? error.message : "Failed to generate motion control video",
+      });
+    }
+  });
+
+  // ─── PIXVERSE SWAP ─────────────────────────────────────────────────────
+
+  app.post("/api/swap/upload-video", authenticateToken, motionControlVideoUpload.single("video"), async (req, res) => {
+    try {
+      if (!req.file || !req.file.buffer) {
+        return res.status(400).json({ error: "No video file provided." });
+      }
+
+      const fileName = `swap_${Date.now()}_${(req.file.originalname || "video.mp4").replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { url } = await uploadToBunnyStorage("scenes", fileName, req.file.buffer);
+      console.log(`[SWAP] Uploaded video to Bunny: ${url.substring(0, 60)}...`);
+
+      res.json({ success: true, videoUrl: url });
+    } catch (error) {
+      console.error("[SWAP] Video upload error:", error);
+      if ((error as any)?.code === "LIMIT_FILE_SIZE") {
+        return res.status(413).json({ error: "Video file exceeds 250MB limit. Please use a video URL instead." });
+      }
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to upload video",
+      });
+    }
+  });
+
+  app.options("/api/swap", (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.sendStatus(204);
+  });
+
+  app.post("/api/swap", extractTokenFromUrl, authenticateToken, async (req, res) => {
+    console.log("[SWAP] Route handler invoked");
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    const SWAP_MODES: PixverseSwapMode[] = ["person", "object", "background"];
+
+    try {
+      const {
+        videoUrl,
+        imageUrl,
+        prompt,
+        startTime,
+        endTime,
+        includeWatermark: includeWatermarkBody,
+        mode: modeRaw,
+      } = req.body;
+      const userId = req.user!.userId;
+
+      const userWithPlan = await storage.getUserWithPlan(userId);
+      const isPremiumUser = userWithPlan?.plan?.name === "Premium";
+      const includeWatermarkForProject = !isPremiumUser ? true : includeWatermarkBody !== false;
+
+      const mode =
+        typeof modeRaw === "string" && SWAP_MODES.includes(modeRaw as PixverseSwapMode)
+          ? (modeRaw as PixverseSwapMode)
+          : null;
+      if (!mode) {
+        return res.status(400).json({ error: "Invalid mode. Use person, object, or background." });
+      }
+
+      if (!videoUrl || typeof videoUrl !== "string" || videoUrl.trim().length === 0) {
+        return res.status(400).json({ error: "Please provide a direct .mp4 video URL" });
+      }
+      if (!imageUrl || typeof imageUrl !== "string" || imageUrl.trim().length === 0) {
+        return res.status(400).json({ error: "Please provide a reference image" });
+      }
+      if (typeof startTime !== "number" || typeof endTime !== "number" || endTime <= startTime) {
+        return res.status(400).json({ error: "Invalid start/end time range" });
+      }
+      if (endTime - startTime > 14.5) {
+        return res.status(400).json({ error: "Selected range cannot exceed 14 seconds" });
+      }
+
+      const CREDITS_PER_7S = 2000;
+      const trimDuration = endTime - startTime;
+      const SWAP_CREDITS = Math.ceil(trimDuration / 7) * CREDITS_PER_7S;
+      console.log(`[SWAP] Trim duration: ${trimDuration.toFixed(1)}s → ${SWAP_CREDITS} credits`);
+      const canAfford = await storage.canUserAffordCredits(userId, SWAP_CREDITS);
+      if (!canAfford) {
+        const remaining = await storage.getUserCreditsRemaining(userId);
+        return res.status(402).json({
+          error: "Insufficient credits for Swap generation",
+          creditsRequired: SWAP_CREDITS,
+          creditsRemaining: remaining,
+        });
+      }
+
+      const project = await storage.createProject({
+        userId,
+        title: (prompt || "Swap Video").substring(0, 60),
+        description: prompt || "Swap Video",
+        aspectRatio: "9:16",
+        currentStep: 1,
+        isInstrumental: true,
+        includeWatermark: includeWatermarkForProject,
+      } as any);
+
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "project_creation",
+        message: "Setting up your Swap video...",
+        status: "completed",
+        metadata: {},
+      });
+
+      res.json({
+        success: true,
+        projectId: project.id,
+        message: "Swap video generation started!",
+      });
+
+      (async () => {
+        console.log(`[SWAP] Background pipeline started for project ${project.id}`);
+        try {
+          const mp4Url = videoUrl.trim();
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_trim",
+            message: "Trimming video to selected range...",
+            status: "progress",
+            metadata: {},
+          });
+
+          await storage.updateProject(project.id, { currentStep: 2 } as any);
+
+          const trimResult = await trimVideo(mp4Url, startTime, endTime);
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_trim",
+            message: "Video trimmed successfully",
+            status: "completed",
+            metadata: { trimmedUrl: trimResult.download_url },
+          });
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: "Generating swap video with AI — this can take up to 30 minutes...",
+            status: "progress",
+            metadata: {},
+          });
+
+          await storage.updateProject(project.id, { currentStep: 3 } as any);
+
+          const generationStartTime = Date.now();
+          const progressTimer = setInterval(async () => {
+            const elapsedMin = Math.round((Date.now() - generationStartTime) / 60000);
+            try {
+              await storage.addGenerationLog({
+                projectId: project.id,
+                step: "video_generation",
+                message: `AI is generating your video... (${elapsedMin} min elapsed)`,
+                status: "progress",
+                metadata: {},
+              });
+            } catch {}
+          }, 60000);
+
+          let resultVideoUrl: string;
+          try {
+            resultVideoUrl = await generatePixverseSwapVideo(trimResult.download_url, imageUrl.trim(), mode);
+          } finally {
+            clearInterval(progressTimer);
+          }
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: "Swap video generated successfully",
+            status: "completed",
+            metadata: { videoUrl: resultVideoUrl },
+          });
+
+          const outroVideoUrl = "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4";
+          const mergeDimensions = "1080x1920";
+          let mergeSourceUrl = resultVideoUrl;
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_postprocess",
+            message: includeWatermarkForProject
+              ? "Adding watermark and outro..."
+              : "Adding outro...",
+            status: "progress",
+            metadata: {},
+          });
+
+          try {
+            let watermarkUrl: string | undefined;
+            if (includeWatermarkForProject) {
+              watermarkUrl = (await getWatermarkUrl()) || undefined;
+            }
+            const mergeResult = await mergeVideos(
+              [resultVideoUrl],
+              undefined,
+              undefined,
+              watermarkUrl,
+              outroVideoUrl,
+              mergeDimensions,
+            );
+            mergeSourceUrl = mergeResult.download_url;
+            console.log("[SWAP] Post-process merge complete:", mergeSourceUrl.substring(0, 80) + "...");
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "video_postprocess",
+              message: includeWatermarkForProject
+                ? "Watermark and outro applied"
+                : "Outro applied",
+              status: "completed",
+              metadata: { mergedUrl: mergeSourceUrl },
+            });
+          } catch (mergeErr) {
+            console.error("[SWAP] Post-process merge failed, using raw AI output:", mergeErr);
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "video_postprocess",
+              message: `Post-process skipped: ${(mergeErr as Error).message}`,
+              status: "completed",
+              metadata: { usedRawOutput: true },
+            });
+          }
+
+          let savedFinalVideoUrl = mergeSourceUrl;
+
+          if (isBunnyConfigured("scenes")) {
+            console.log("[SWAP] Persisting to Bunny...");
+            try {
+              const videoResp = await fetch(mergeSourceUrl);
+              if (!videoResp.ok) throw new Error(`Failed to fetch result video: ${videoResp.status}`);
+              const videoBuffer = Buffer.from(await videoResp.arrayBuffer());
+              const { url: bunnyVideoUrl } = await uploadToBunnyStorage(
+                "scenes",
+                `swap_${project.id}_${Date.now()}.mp4`,
+                videoBuffer,
+              );
+              savedFinalVideoUrl = bunnyVideoUrl;
+              console.log("[SWAP] Video persisted to Bunny:", bunnyVideoUrl.substring(0, 60) + "...");
+            } catch (persistErr) {
+              console.error("[SWAP] Failed to persist to Bunny, using original URL:", persistErr);
+            }
+          }
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "upload",
+            message: "Video saved successfully",
+            status: "completed",
+            metadata: { finalVideoUrl: savedFinalVideoUrl },
+          });
+
+          await storage.updateProject(project.id, {
+            finalVideoUrl: savedFinalVideoUrl,
+            isCompleted: true,
+            currentStep: 4,
+            generationStatus: "completed" as any,
+          });
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: "Swap video completed!",
+            status: "completed",
+            metadata: { finalVideoUrl: savedFinalVideoUrl },
+          });
+
+          const creditDeducted = await storage.deductUserCredits(userId, SWAP_CREDITS);
+          if (!creditDeducted) {
+            console.error("[SWAP] Failed to deduct credits, but video was generated");
+          } else {
+            console.log(`[SWAP] Deducted ${SWAP_CREDITS} credits from user ${userId}`);
+          }
+
+          try {
+            await createMuxAssetForVideo(project.id, savedFinalVideoUrl);
+          } catch (muxError) {
+            console.error("[SWAP] Failed to create Mux asset:", muxError);
+          }
+        } catch (error) {
+          const errMsg = (error as Error).message;
+          console.error("[SWAP] Error:", error);
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: `Generation failed: ${errMsg}`,
+            status: "error",
+            metadata: { error: errMsg },
+          });
+          await storage.updateProject(project.id, {
+            generationStatus: "failed" as any,
+          });
+        }
+      })();
+    } catch (error) {
+      console.error("[SWAP] Error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to generate swap video",
       });
     }
   });

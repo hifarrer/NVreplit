@@ -97,6 +97,21 @@ const NOTES = {
       "Can't edit after generation",
     ],
   },
+  swap: {
+    pros: [
+      "Replace a person, object, or background using a reference image",
+      "Supports YouTube links and direct .mp4 URLs",
+      "Select from character library or upload image",
+      "Person, object, or background swap modes",
+    ],
+    cons: [
+      "Maximum 14 seconds",
+      "No character singing",
+      "No scene customization",
+      "Can't edit after generation",
+      "Generation can take a long time",
+    ],
+  },
 } as const;
 
 export type VideoStyleCapabilityVariant = keyof typeof NOTES;
