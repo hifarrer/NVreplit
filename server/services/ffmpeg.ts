@@ -1,6 +1,9 @@
 import { withGenerationApiRetries } from "./generationRetry";
+import { execFile } from "child_process";
+import { promisify } from "util";
 
 const FFMPEG_API_KEY = process.env.FFMPEG_API_KEY || "ffmpeg_KfTAf98EY9OCuriwBtLT34ZtWZLJtnXX";
+const execFileAsync = promisify(execFile);
 
 const RETRYABLE_ERROR_CODES = new Set(["EAI_AGAIN", "ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT"]);
 
@@ -446,6 +449,31 @@ export async function convertToTiktokPortrait(
   return withGenerationApiRetries("convertToTiktokPortrait", () =>
     convertToTiktokPortraitInternal(videoUrl, watermarkUrl),
   );
+}
+
+export async function getVideoAspectFromUrl(
+  videoUrl: string,
+): Promise<"landscape" | "portrait" | "square" | "unknown"> {
+  try {
+    const { stdout } = await execFileAsync("ffprobe", [
+      "-v", "error",
+      "-select_streams", "v:0",
+      "-show_entries", "stream=width,height",
+      "-of", "json",
+      videoUrl,
+    ], { timeout: 30000 });
+
+    const data = JSON.parse(stdout);
+    const stream = data?.streams?.[0];
+    const width = Number(stream?.width || 0);
+    const height = Number(stream?.height || 0);
+    if (!width || !height) return "unknown";
+    if (Math.abs(width - height) <= 2) return "square";
+    return width > height ? "landscape" : "portrait";
+  } catch (error) {
+    console.warn("[FFMPEG] Could not determine video aspect via ffprobe:", (error as Error).message);
+    return "unknown";
+  }
 }
 
 // Base URL for frame extraction (get first/last frame). Override with FFMPEG_API_BASE if your deployment uses different hosts.

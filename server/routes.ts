@@ -34,7 +34,7 @@ import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimes
 import { nanoid } from "nanoid";
 import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAllPurposeWan27TextToImageMany, generateAlbumCoverSeedreamV5Lite, generateAiImageEdit, collectStoryCharacterReferenceImageUrls } from "./services/fal";
 import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio, generateAllPurposeVideoClip, generateMotionControlVideo, generatePixverseSwapVideo, generateLucyRestyleVideo, type PixverseSwapMode } from "./services/wavespeed";
-import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop, trimVideo, youtubeToMp4, extractAudioMp3, convertToTiktokPortrait } from "./services/ffmpeg";
+import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop, trimVideo, youtubeToMp4, extractAudioMp3, convertToTiktokPortrait, getVideoAspectFromUrl } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback } from "./services/imagekit";
@@ -15376,6 +15376,7 @@ Do not add markdown. Return JSON only.`,
         console.log(`[REIMAGINE] Background pipeline started for project ${project.id}`);
         try {
           const mp4Url = videoUrl.trim();
+          let effectiveInputVideoAspect = inputVideoAspect;
 
           // Step 1: Trim video
           await storage.addGenerationLog({
@@ -15389,6 +15390,10 @@ Do not add markdown. Return JSON only.`,
           await storage.updateProject(project.id, { currentStep: 2 } as any);
 
           const trimResult = await trimVideo(mp4Url, startTime, endTime);
+          if (effectiveInputVideoAspect === "unknown") {
+            effectiveInputVideoAspect = await getVideoAspectFromUrl(trimResult.download_url);
+            console.log(`[REIMAGINE] Server-side detected input video aspect: ${effectiveInputVideoAspect}`);
+          }
 
           await storage.addGenerationLog({
             projectId: project.id,
@@ -15458,15 +15463,10 @@ Do not add markdown. Return JSON only.`,
           });
 
           // Step 4: Merge restyled video + extracted audio + outro + watermark
-          const outroVideoUrl = outputAspectRatio === "16:9"
+          const outroVideoUrl = effectiveInputVideoAspect === "landscape"
             ? "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_horizontal.mp4"
             : "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4";
-          const mergeDimensions =
-            outputAspectRatio === "16:9"
-              ? "1920x1080"
-              : outputAspectRatio === "1:1"
-                ? "1080x1080"
-                : "1080x1920";
+          const mergeDimensions: string | undefined = undefined;
           let mergeSourceUrl = resultVideoUrl;
 
           await storage.addGenerationLog({
@@ -15495,7 +15495,7 @@ Do not add markdown. Return JSON only.`,
             mergeSourceUrl = mergeResult.download_url;
 
             // If user wants portrait output but source is landscape, run TikTok portrait conversion after merge.
-            if (outputAspectRatio === "9:16" && inputVideoAspect === "landscape") {
+            if (outputAspectRatio === "9:16" && effectiveInputVideoAspect === "landscape") {
               await storage.addGenerationLog({
                 projectId: project.id,
                 step: "video_postprocess",
