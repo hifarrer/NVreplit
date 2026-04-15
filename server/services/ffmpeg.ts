@@ -1,6 +1,10 @@
 import { withGenerationApiRetries } from "./generationRetry";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import os from "os";
+import path from "path";
+import fs from "fs";
+import { randomUUID } from "crypto";
 
 const FFMPEG_API_KEY = process.env.FFMPEG_API_KEY || "ffmpeg_KfTAf98EY9OCuriwBtLT34ZtWZLJtnXX";
 const execFileAsync = promisify(execFile);
@@ -454,6 +458,16 @@ export async function convertToTiktokPortrait(
 export async function getVideoAspectFromUrl(
   videoUrl: string,
 ): Promise<"landscape" | "portrait" | "square" | "unknown"> {
+  const getAspectFromProbeStdout = (stdout: string): "landscape" | "portrait" | "square" | "unknown" => {
+    const data = JSON.parse(stdout);
+    const stream = data?.streams?.[0];
+    const width = Number(stream?.width || 0);
+    const height = Number(stream?.height || 0);
+    if (!width || !height) return "unknown";
+    if (Math.abs(width - height) <= 2) return "square";
+    return width > height ? "landscape" : "portrait";
+  };
+
   try {
     const { stdout } = await execFileAsync("ffprobe", [
       "-v", "error",
@@ -463,16 +477,38 @@ export async function getVideoAspectFromUrl(
       videoUrl,
     ], { timeout: 30000 });
 
-    const data = JSON.parse(stdout);
-    const stream = data?.streams?.[0];
-    const width = Number(stream?.width || 0);
-    const height = Number(stream?.height || 0);
-    if (!width || !height) return "unknown";
-    if (Math.abs(width - height) <= 2) return "square";
-    return width > height ? "landscape" : "portrait";
-  } catch (error) {
-    console.warn("[FFMPEG] Could not determine video aspect via ffprobe:", (error as Error).message);
+    return getAspectFromProbeStdout(stdout);
+  } catch (remoteProbeError) {
+    console.warn("[FFMPEG] Could not determine video aspect from URL directly; falling back to local temp file:", (remoteProbeError as Error).message);
+  }
+
+  const tempFile = path.join(os.tmpdir(), `video-aspect-${randomUUID()}.mp4`);
+  try {
+    const response = await fetchWithRetry(videoUrl, { method: "GET" }, 2);
+    if (!response.ok) {
+      throw new Error(`Failed to download video for aspect detection: ${response.status} ${response.statusText}`);
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    fs.writeFileSync(tempFile, buffer);
+
+    const { stdout } = await execFileAsync("ffprobe", [
+      "-v", "error",
+      "-select_streams", "v:0",
+      "-show_entries", "stream=width,height",
+      "-of", "json",
+      tempFile,
+    ], { timeout: 30000 });
+
+    return getAspectFromProbeStdout(stdout);
+  } catch (fallbackError) {
+    console.warn("[FFMPEG] Could not determine video aspect via local fallback:", (fallbackError as Error).message);
     return "unknown";
+  } finally {
+    try {
+      if (fs.existsSync(tempFile)) {
+        fs.unlinkSync(tempFile);
+      }
+    } catch {}
   }
 }
 
@@ -725,6 +761,7 @@ export interface YouTubeToMp4Result {
   success: boolean;
   download_url: string;
   title: string;
+  thumbnail_url?: string;
 }
 
 export async function youtubeToMp4(youtubeUrl: string): Promise<YouTubeToMp4Result> {
@@ -772,6 +809,7 @@ export async function youtubeToMp4(youtubeUrl: string): Promise<YouTubeToMp4Resu
   }
 
   const title = submitResult.title || "YouTube Video";
+  const thumbnailUrl = submitResult?.info?.image || submitResult?.image;
   console.log(`[YOUTUBE] Submitted, polling progress: ${progressUrl}`);
 
   // Poll progress_url every 5 seconds until download_url appears
@@ -791,7 +829,7 @@ export async function youtubeToMp4(youtubeUrl: string): Promise<YouTubeToMp4Resu
     if (progressResult.success === 1 && progressResult.download_url) {
       const downloadUrl = progressResult.download_url;
       console.log(`[YOUTUBE] Conversion complete: ${downloadUrl}`);
-      return { success: true, download_url: downloadUrl, title };
+      return { success: true, download_url: downloadUrl, title, thumbnail_url: thumbnailUrl };
     }
 
     if (progressResult.error) {

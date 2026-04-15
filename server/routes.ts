@@ -14691,7 +14691,12 @@ Do not add markdown. Return JSON only.`,
       }
       console.log(`[YOUTUBE-TO-MP4] Converting: ${youtubeUrl}`);
       const result = await youtubeToMp4(youtubeUrl.trim());
-      res.json({ success: true, download_url: result.download_url, title: result.title });
+      res.json({
+        success: true,
+        download_url: result.download_url,
+        title: result.title,
+        thumbnail_url: result.thumbnail_url,
+      });
     } catch (error) {
       console.error("[YOUTUBE-TO-MP4] Error:", error);
       res.status(500).json({
@@ -15468,13 +15473,18 @@ Do not add markdown. Return JSON only.`,
             : "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4";
           const mergeDimensions: string | undefined = undefined;
           let mergeSourceUrl = resultVideoUrl;
+          const shouldConvertToTiktokPortrait =
+            outputAspectRatio === "9:16" &&
+            (effectiveInputVideoAspect === "landscape" || effectiveInputVideoAspect === "unknown");
 
           await storage.addGenerationLog({
             projectId: project.id,
             step: "video_postprocess",
-            message: includeWatermarkForProject
-              ? "Merging audio, adding watermark and outro..."
-              : "Merging audio and adding outro...",
+            message: shouldConvertToTiktokPortrait
+              ? "Merging audio and outro before TikTok portrait conversion..."
+              : includeWatermarkForProject
+                ? "Merging audio, adding watermark and outro..."
+                : "Merging audio and adding outro...",
             status: "progress",
             metadata: {},
           });
@@ -15484,18 +15494,19 @@ Do not add markdown. Return JSON only.`,
             if (includeWatermarkForProject) {
               watermarkUrl = (await getWatermarkUrl()) || undefined;
             }
+            const watermarkForMerge = shouldConvertToTiktokPortrait ? undefined : watermarkUrl;
             const mergeResult = await mergeVideos(
               [resultVideoUrl],
               audioResult.download_url,
               undefined,
-              watermarkUrl,
+              watermarkForMerge,
               outroVideoUrl,
               mergeDimensions,
             );
             mergeSourceUrl = mergeResult.download_url;
 
             // If user wants portrait output but source is landscape, run TikTok portrait conversion after merge.
-            if (outputAspectRatio === "9:16" && effectiveInputVideoAspect === "landscape") {
+            if (shouldConvertToTiktokPortrait) {
               await storage.addGenerationLog({
                 projectId: project.id,
                 step: "video_postprocess",

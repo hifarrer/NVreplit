@@ -286,7 +286,10 @@ export default function CreateReimagine() {
         }
         setConvertedYoutubeUrl(data.download_url);
         setTrimVideoUrl(data.download_url);
-        const detectedAspect = await detectInputVideoAspect(data.download_url);
+        let detectedAspect = await detectInputVideoAspect(data.download_url);
+        if (detectedAspect === "unknown" && data.thumbnail_url) {
+          detectedAspect = await detectAspectFromImageUrl(data.thumbnail_url);
+        }
         setInputVideoAspect(detectedAspect);
         setShowTrimModal(true);
         toast({ title: "YouTube Converted", description: "Video ready — select your range." });
@@ -812,5 +815,30 @@ async function detectInputVideoAspect(videoUrl: string): Promise<InputVideoAspec
     };
     video.onerror = () => finish("unknown");
     video.src = videoUrl;
+  });
+}
+
+async function detectAspectFromImageUrl(imageUrl: string): Promise<InputVideoAspect> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    let settled = false;
+
+    const finish = (aspect: InputVideoAspect) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(aspect);
+    };
+
+    const timeout = window.setTimeout(() => finish("unknown"), 6000);
+    img.onload = () => {
+      const width = img.naturalWidth || 0;
+      const height = img.naturalHeight || 0;
+      if (!width || !height) return finish("unknown");
+      if (Math.abs(width - height) <= 2) return finish("square");
+      return finish(width > height ? "landscape" : "portrait");
+    };
+    img.onerror = () => finish("unknown");
+    img.src = imageUrl;
   });
 }
