@@ -15468,14 +15468,17 @@ Do not add markdown. Return JSON only.`,
           });
 
           // Step 4: Merge restyled video + extracted audio + outro + watermark
-          const outroVideoUrl = effectiveInputVideoAspect === "landscape"
-            ? "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_horizontal.mp4"
-            : "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4";
-          const mergeDimensions: string | undefined = undefined;
-          let mergeSourceUrl = resultVideoUrl;
           const shouldConvertToTiktokPortrait =
             outputAspectRatio === "9:16" &&
             (effectiveInputVideoAspect === "landscape" || effectiveInputVideoAspect === "unknown");
+          // Outro orientation: use vertical when the final output will be portrait (either directly or via TikTok conversion).
+          // Use horizontal only when input is landscape AND no portrait conversion is happening.
+          const outroVideoUrl = (!shouldConvertToTiktokPortrait && effectiveInputVideoAspect === "landscape")
+            ? "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_horizontal.mp4"
+            : "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4";
+          console.log(`[REIMAGINE] outroVideoUrl: ${outroVideoUrl}`);
+          const mergeDimensions: string | undefined = undefined;
+          let mergeSourceUrl = resultVideoUrl;
 
           await storage.addGenerationLog({
             projectId: project.id,
@@ -15495,12 +15498,15 @@ Do not add markdown. Return JSON only.`,
               watermarkUrl = (await getWatermarkUrl()) || undefined;
             }
             const watermarkForMerge = shouldConvertToTiktokPortrait ? undefined : watermarkUrl;
+            // Keep merge behavior explicit: send main + outro as two video URLs.
+            // This mirrors the music-video flow expectation and avoids relying on helper remapping.
+            const mergeVideoUrls = [resultVideoUrl, outroVideoUrl];
             const mergeResult = await mergeVideos(
-              [resultVideoUrl],
+              mergeVideoUrls,
               audioResult.download_url,
               undefined,
               watermarkForMerge,
-              outroVideoUrl,
+              undefined,
               mergeDimensions,
             );
             mergeSourceUrl = mergeResult.download_url;
