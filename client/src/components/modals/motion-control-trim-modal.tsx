@@ -44,7 +44,8 @@ export function MotionControlTrimModal({
   const [endTime, setEndTime] = useState(0);
   const [durationError, setDurationError] = useState<string | null>(null);
 
-  const windowSize = Math.min(MAX_WINDOW, duration || MAX_WINDOW);
+  const maxSelectableLength = Math.min(MAX_WINDOW, duration || MAX_WINDOW);
+  const clipLength = Math.max(0.5, endTime - startTime || maxSelectableLength);
 
   useEffect(() => {
     if (!isOpen) {
@@ -57,9 +58,10 @@ export function MotionControlTrimModal({
 
   const applyDuration = useCallback((d: number) => {
     if (Number.isFinite(d) && d > 0) {
+      const initialLength = Math.min(MAX_WINDOW, d);
       setDuration(d);
       setStartTime(0);
-      setEndTime(Math.min(MAX_WINDOW, d));
+      setEndTime(initialLength);
       setDurationError(null);
     } else {
       setDuration(0);
@@ -88,28 +90,27 @@ export function MotionControlTrimModal({
     return () => clearTimeout(timeout);
   }, [isOpen, videoUrl, duration, durationError]);
 
-  const handleSliderChange = useCallback(
-    ([newStart, newEnd]: number[]) => {
-      const newLen = newEnd - newStart;
-      if (newLen > MAX_WINDOW) {
-        if (newStart !== startTime) {
-          setStartTime(newStart);
-          setEndTime(Math.min(newStart + windowSize, duration));
-        } else {
-          setEndTime(Math.min(startTime + MAX_WINDOW, duration));
-        }
-      } else if (newLen < 0.5) {
-        if (newStart !== startTime) {
-          setStartTime(Math.max(0, newEnd - 0.5));
-        } else {
-          setEndTime(Math.min(duration, newStart + 0.5));
-        }
-      } else {
-        setStartTime(newStart);
-        setEndTime(newEnd);
-      }
+  const handleWindowMove = useCallback(
+    ([newStart]: number[]) => {
+      if (!Number.isFinite(newStart)) return;
+      const maxStart = Math.max(0, duration - clipLength);
+      const clampedStart = Math.min(Math.max(0, newStart), maxStart);
+      setStartTime(clampedStart);
+      setEndTime(clampedStart + clipLength);
     },
-    [startTime, windowSize, duration],
+    [clipLength, duration],
+  );
+
+  const handleClipLengthChange = useCallback(
+    ([nextLength]: number[]) => {
+      if (!Number.isFinite(nextLength)) return;
+      const clampedLength = Math.min(Math.max(0.5, nextLength), maxSelectableLength);
+      const maxStart = Math.max(0, duration - clampedLength);
+      const adjustedStart = Math.min(startTime, maxStart);
+      setStartTime(adjustedStart);
+      setEndTime(adjustedStart + clampedLength);
+    },
+    [duration, maxSelectableLength, startTime],
   );
 
   // Sync video preview to startTime
@@ -132,8 +133,7 @@ export function MotionControlTrimModal({
             Select Video Range
           </DialogTitle>
           <DialogDescription className="text-balance break-words pr-2">
-            Choose up to {MAX_WINDOW} seconds of the video. Drag the selection
-            window or adjust start/end handles.
+            Choose up to {MAX_WINDOW} seconds of the video. Drag one selection bar across the timeline, then optionally shorten the clip length.
           </DialogDescription>
         </DialogHeader>
 
@@ -157,21 +157,43 @@ export function MotionControlTrimModal({
           {duration > 0 ? (
             <div className="min-w-0">
               <Label className="text-sm font-semibold mb-2 block">
-                Timeline — drag to select up to {MAX_WINDOW}s
+                Timeline — drag the selection bar
               </Label>
               <SliderPrimitive.Root
                 className="relative flex w-full touch-none select-none items-center"
-                value={[startTime, endTime]}
+                value={[startTime]}
                 min={0}
-                max={duration}
+                max={Math.max(0, duration - clipLength)}
                 step={0.5}
-                onValueChange={handleSliderChange}
+                onValueChange={handleWindowMove}
               >
                 <SliderPrimitive.Track className="relative h-3 w-full grow overflow-hidden rounded-full bg-secondary">
-                  <SliderPrimitive.Range className="absolute h-full bg-primary" />
+                  <div
+                    className="absolute top-0 h-full rounded-full bg-primary"
+                    style={{
+                      left: `${duration > 0 ? (startTime / duration) * 100 : 0}%`,
+                      width: `${duration > 0 ? (clipLength / duration) * 100 : 0}%`,
+                    }}
+                  />
                 </SliderPrimitive.Track>
                 <SliderPrimitive.Thumb className="block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-grab active:cursor-grabbing" />
-                <SliderPrimitive.Thumb className="block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-grab active:cursor-grabbing" />
+              </SliderPrimitive.Root>
+
+              <Label className="text-xs font-medium mt-4 mb-2 block">
+                Clip length: {formatTime(clipLength)}
+              </Label>
+              <SliderPrimitive.Root
+                className="relative flex w-full touch-none select-none items-center"
+                value={[clipLength]}
+                min={0.5}
+                max={maxSelectableLength}
+                step={0.5}
+                onValueChange={handleClipLengthChange}
+              >
+                <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-secondary">
+                  <SliderPrimitive.Range className="absolute h-full bg-primary" />
+                </SliderPrimitive.Track>
+                <SliderPrimitive.Thumb className="block h-4 w-4 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-grab active:cursor-grabbing" />
               </SliderPrimitive.Root>
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
                 <span>{formatTime(startTime)}</span>
