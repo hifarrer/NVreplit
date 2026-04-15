@@ -15500,7 +15500,9 @@ Do not add markdown. Return JSON only.`,
             const watermarkForMerge = shouldConvertToTiktokPortrait ? undefined : watermarkUrl;
             // Keep merge behavior explicit: send main + outro as two video URLs.
             // This mirrors the music-video flow expectation and avoids relying on helper remapping.
-            const mergeVideoUrls = [resultVideoUrl, outroVideoUrl];
+            const mergeVideoUrls = shouldConvertToTiktokPortrait
+              ? [resultVideoUrl]
+              : [resultVideoUrl, outroVideoUrl];
             const mergeResult = await mergeVideos(
               mergeVideoUrls,
               audioResult.download_url,
@@ -15520,7 +15522,11 @@ Do not add markdown. Return JSON only.`,
                 status: "progress",
                 metadata: {},
               });
-              const tiktokResult = await convertToTiktokPortrait(mergeSourceUrl, watermarkUrl);
+              const tiktokResult = await convertToTiktokPortrait(
+                mergeSourceUrl,
+                watermarkUrl,
+                outroVideoUrl,
+              );
               mergeSourceUrl = tiktokResult.download_url;
               await storage.addGenerationLog({
                 projectId: project.id,

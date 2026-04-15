@@ -22,6 +22,7 @@ interface MotionControlTrimModalProps {
   onConfirm: (startTime: number, endTime: number) => void;
   isLoading?: boolean;
   maxWindow?: number;
+  defaultSelectionLength?: number;
 }
 
 function formatTime(seconds: number) {
@@ -38,8 +39,10 @@ export function MotionControlTrimModal({
   onConfirm,
   isLoading,
   maxWindow,
+  defaultSelectionLength,
 }: MotionControlTrimModalProps) {
   const effectiveMaxWindow = maxWindow ?? DEFAULT_MAX_WINDOW;
+  const effectiveDefaultSelectionLength = defaultSelectionLength ?? effectiveMaxWindow;
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const [duration, setDuration] = useState(0);
@@ -61,7 +64,7 @@ export function MotionControlTrimModal({
 
   const applyDuration = useCallback((d: number) => {
     if (Number.isFinite(d) && d > 0) {
-      const initialLength = Math.min(effectiveMaxWindow, d);
+      const initialLength = Math.min(effectiveDefaultSelectionLength, effectiveMaxWindow, d);
       setDuration(d);
       setStartTime(0);
       setEndTime(initialLength);
@@ -70,7 +73,7 @@ export function MotionControlTrimModal({
       setDuration(0);
       setDurationError("Could not determine video length. Please enter start/end times manually.");
     }
-  }, [effectiveMaxWindow]);
+  }, [effectiveDefaultSelectionLength, effectiveMaxWindow]);
 
   const handleVideoLoaded = useCallback(() => {
     const video = videoRef.current;

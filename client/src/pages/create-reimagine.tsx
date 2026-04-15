@@ -35,7 +35,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const MAX_TRIM_SECONDS = 30;
+const DEFAULT_TRIM_SECONDS = 30;
+const MAX_TRIM_SECONDS = 120;
 type OutputAspectRatio = "9:16" | "16:9" | "1:1";
 type InputVideoAspect = "landscape" | "portrait" | "square" | "unknown";
 
@@ -477,9 +478,9 @@ export default function CreateReimagine() {
                     ) : trimRange ? (
                       "Re-select Range"
                     ) : isYouTubeUrl(videoUrl) && !convertedYoutubeUrl ? (
-                      `Convert & Select Range (up to ${MAX_TRIM_SECONDS}s)`
+                      "Convert & Select Range (up to 2m)"
                     ) : (
-                      `Select Range (up to ${MAX_TRIM_SECONDS}s)`
+                      "Select Range (up to 2m)"
                     )}
                   </Button>
                 )}
@@ -778,6 +779,7 @@ export default function CreateReimagine() {
         onClose={() => setShowTrimModal(false)}
         onConfirm={handleTrimConfirm}
         maxWindow={MAX_TRIM_SECONDS}
+        defaultSelectionLength={DEFAULT_TRIM_SECONDS}
       />
     </div>
   );

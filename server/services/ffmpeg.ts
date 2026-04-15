@@ -413,14 +413,19 @@ export async function extractAudioMp3(
 async function convertToTiktokPortraitInternal(
   videoUrl: string,
   watermarkUrl?: string,
+  outroVideoUrl?: string,
 ): Promise<{ download_url: string }> {
   console.log("=== FFMPEG CONVERT TO TIKTOK PORTRAIT ===");
   console.log("Video URL:", videoUrl);
   console.log("Watermark URL:", watermarkUrl || "(none)");
+  console.log("Outro URL:", outroVideoUrl || "(none)");
 
   const body: Record<string, string> = { video_url: videoUrl };
   if (watermarkUrl) {
     body.watermark_url = watermarkUrl;
+  }
+  if (outroVideoUrl) {
+    body.outro_video_url = outroVideoUrl;
   }
 
   const response = await fetchWithRetry("https://www.ffmpegapi.net/api/convert_to_tiktok_portrait", {
@@ -449,9 +454,10 @@ async function convertToTiktokPortraitInternal(
 export async function convertToTiktokPortrait(
   videoUrl: string,
   watermarkUrl?: string,
+  outroVideoUrl?: string,
 ): Promise<{ download_url: string }> {
   return withGenerationApiRetries("convertToTiktokPortrait", () =>
-    convertToTiktokPortraitInternal(videoUrl, watermarkUrl),
+    convertToTiktokPortraitInternal(videoUrl, watermarkUrl, outroVideoUrl),
   );
 }
 
