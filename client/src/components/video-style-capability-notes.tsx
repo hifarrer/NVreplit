@@ -112,6 +112,19 @@ const NOTES = {
       "Generation can take a long time",
     ],
   },
+  reimagine: {
+    pros: [
+      "Transform video style with an AI prompt",
+      "Supports YouTube links and direct .mp4 URLs",
+      "Up to 30 seconds",
+      "Keeps original audio",
+    ],
+    cons: [
+      "No character customization",
+      "No character singing",
+      "Can't edit after generation",
+    ],
+  },
 } as const;
 
 export type VideoStyleCapabilityVariant = keyof typeof NOTES;

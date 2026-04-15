@@ -66,6 +66,16 @@ export default function CreateSelect() {
     route: "/create/motion-control",
     available: true,
   } as const;
+  const reimagineMode = {
+    id: "reimagine",
+    title: "Reimagine",
+    description: "Reimagine",
+    explanation: "Transform any video into a new artistic style using AI",
+    videoUrl:
+      "https://stream.mux.com/EKxrmGqpPpw1MaJtSnabDq7023eSDqQIl301mgkxEeWis.m3u8?redundant_streams=true",
+    route: "/create/reimagine",
+    available: true,
+  } as const;
 
   const videoModes = [
     {
@@ -174,7 +184,7 @@ export default function CreateSelect() {
           )}
 
           <h1 className="text-3xl sm:text-4xl font-bold text-foreground mt-8 sm:mt-12 mb-8 sm:mb-12">
-            Music Video Style
+            Music Videos
           </h1>
 
           <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
@@ -254,7 +264,7 @@ export default function CreateSelect() {
             All Purpose Video
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
-            {[allPurposeMode, motionControlMode].map((mode) => (
+            {[allPurposeMode, motionControlMode, reimagineMode].map((mode) => (
               <Card
                 key={mode.id}
                 className={`overflow-hidden border transition-all ${

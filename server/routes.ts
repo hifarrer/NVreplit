@@ -33,8 +33,8 @@ import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, ge
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
 import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAllPurposeWan27TextToImageMany, generateAlbumCoverSeedreamV5Lite, generateAiImageEdit, collectStoryCharacterReferenceImageUrls } from "./services/fal";
-import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio, generateAllPurposeVideoClip, generateMotionControlVideo, generatePixverseSwapVideo, type PixverseSwapMode } from "./services/wavespeed";
-import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop, trimVideo, youtubeToMp4 } from "./services/ffmpeg";
+import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio, generateAllPurposeVideoClip, generateMotionControlVideo, generatePixverseSwapVideo, generateLucyRestyleVideo, type PixverseSwapMode } from "./services/wavespeed";
+import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop, trimVideo, youtubeToMp4, extractAudioMp3 } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback } from "./services/imagekit";
@@ -15281,6 +15281,293 @@ Do not add markdown. Return JSON only.`,
       console.error("[SWAP] Error:", error);
       res.status(500).json({
         error: error instanceof Error ? error.message : "Failed to generate swap video",
+      });
+    }
+  });
+
+  // ─── REIMAGINE (Lucy Restyle) ─────────────────────────────────────────
+
+  app.post("/api/reimagine", extractTokenFromUrl, authenticateToken, async (req, res) => {
+    console.log("[REIMAGINE] Route handler invoked");
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    try {
+      const {
+        videoUrl,
+        prompt,
+        startTime,
+        endTime,
+        includeWatermark: includeWatermarkBody,
+      } = req.body;
+      const userId = req.user!.userId;
+
+      const userWithPlan = await storage.getUserWithPlan(userId);
+      const isPremiumUser = userWithPlan?.plan?.name === "Premium";
+      const includeWatermarkForProject = !isPremiumUser ? true : includeWatermarkBody !== false;
+
+      if (!videoUrl || typeof videoUrl !== "string" || videoUrl.trim().length === 0) {
+        return res.status(400).json({ error: "Please provide a direct .mp4 video URL" });
+      }
+      if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
+        return res.status(400).json({ error: "Please provide a style prompt" });
+      }
+      if (typeof startTime !== "number" || typeof endTime !== "number" || endTime <= startTime) {
+        return res.status(400).json({ error: "Invalid start/end time range" });
+      }
+      if (endTime - startTime > 120.5) {
+        return res.status(400).json({ error: "Selected range cannot exceed 120 seconds" });
+      }
+
+      const CREDITS_PER_15S = 1000;
+      const trimDuration = endTime - startTime;
+      const REIMAGINE_CREDITS = Math.ceil(trimDuration / 15) * CREDITS_PER_15S;
+      console.log(`[REIMAGINE] Trim duration: ${trimDuration.toFixed(1)}s → ${REIMAGINE_CREDITS} credits`);
+      const canAfford = await storage.canUserAffordCredits(userId, REIMAGINE_CREDITS);
+      if (!canAfford) {
+        const remaining = await storage.getUserCreditsRemaining(userId);
+        return res.status(402).json({
+          error: "Insufficient credits for Reimagine generation",
+          creditsRequired: REIMAGINE_CREDITS,
+          creditsRemaining: remaining,
+        });
+      }
+
+      const project = await storage.createProject({
+        userId,
+        title: (prompt || "Reimagine Video").substring(0, 60),
+        description: prompt || "Reimagine Video",
+        aspectRatio: "9:16",
+        currentStep: 1,
+        isInstrumental: true,
+        includeWatermark: includeWatermarkForProject,
+      } as any);
+
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "project_creation",
+        message: "Setting up your Reimagine video...",
+        status: "completed",
+        metadata: {},
+      });
+
+      res.json({
+        success: true,
+        projectId: project.id,
+        message: "Reimagine video generation started!",
+      });
+
+      (async () => {
+        console.log(`[REIMAGINE] Background pipeline started for project ${project.id}`);
+        try {
+          const mp4Url = videoUrl.trim();
+
+          // Step 1: Trim video
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_trim",
+            message: "Trimming video to selected range...",
+            status: "progress",
+            metadata: {},
+          });
+
+          await storage.updateProject(project.id, { currentStep: 2 } as any);
+
+          const trimResult = await trimVideo(mp4Url, startTime, endTime);
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_trim",
+            message: "Video trimmed successfully",
+            status: "completed",
+            metadata: { trimmedUrl: trimResult.download_url },
+          });
+
+          // Step 2: Extract audio from trimmed video
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "audio_extraction",
+            message: "Extracting audio from video...",
+            status: "progress",
+            metadata: {},
+          });
+
+          const audioResult = await extractAudioMp3(trimResult.download_url);
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "audio_extraction",
+            message: "Audio extracted successfully",
+            status: "completed",
+            metadata: { audioUrl: audioResult.download_url },
+          });
+
+          // Step 3: Generate restyled video via Lucy
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: "Generating restyled video with AI — this can take several minutes...",
+            status: "progress",
+            metadata: {},
+          });
+
+          await storage.updateProject(project.id, { currentStep: 3 } as any);
+
+          const generationStartTime = Date.now();
+          const progressTimer = setInterval(async () => {
+            const elapsedMin = Math.round((Date.now() - generationStartTime) / 60000);
+            try {
+              await storage.addGenerationLog({
+                projectId: project.id,
+                step: "video_generation",
+                message: `AI is generating your video... (${elapsedMin} min elapsed)`,
+                status: "progress",
+                metadata: {},
+              });
+            } catch {}
+          }, 60000);
+
+          let resultVideoUrl: string;
+          try {
+            resultVideoUrl = await generateLucyRestyleVideo(prompt.trim(), trimResult.download_url);
+          } finally {
+            clearInterval(progressTimer);
+          }
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: "Restyled video generated successfully",
+            status: "completed",
+            metadata: { videoUrl: resultVideoUrl },
+          });
+
+          // Step 4: Merge restyled video + extracted audio + outro + watermark
+          const outroVideoUrl = "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4";
+          const mergeDimensions = "1080x1920";
+          let mergeSourceUrl = resultVideoUrl;
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_postprocess",
+            message: includeWatermarkForProject
+              ? "Merging audio, adding watermark and outro..."
+              : "Merging audio and adding outro...",
+            status: "progress",
+            metadata: {},
+          });
+
+          try {
+            let watermarkUrl: string | undefined;
+            if (includeWatermarkForProject) {
+              watermarkUrl = (await getWatermarkUrl()) || undefined;
+            }
+            const mergeResult = await mergeVideos(
+              [resultVideoUrl],
+              audioResult.download_url,
+              undefined,
+              watermarkUrl,
+              outroVideoUrl,
+              mergeDimensions,
+            );
+            mergeSourceUrl = mergeResult.download_url;
+            console.log("[REIMAGINE] Post-process merge complete:", mergeSourceUrl.substring(0, 80) + "...");
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "video_postprocess",
+              message: includeWatermarkForProject
+                ? "Audio merged, watermark and outro applied"
+                : "Audio merged and outro applied",
+              status: "completed",
+              metadata: { mergedUrl: mergeSourceUrl },
+            });
+          } catch (mergeErr) {
+            console.error("[REIMAGINE] Post-process merge failed, using raw AI output:", mergeErr);
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "video_postprocess",
+              message: `Post-process skipped: ${(mergeErr as Error).message}`,
+              status: "completed",
+              metadata: { usedRawOutput: true },
+            });
+          }
+
+          // Step 5: Persist and finalize
+          let savedFinalVideoUrl = mergeSourceUrl;
+
+          if (isBunnyConfigured("scenes")) {
+            console.log("[REIMAGINE] Persisting to Bunny...");
+            try {
+              const videoResp = await fetch(mergeSourceUrl);
+              if (!videoResp.ok) throw new Error(`Failed to fetch result video: ${videoResp.status}`);
+              const videoBuffer = Buffer.from(await videoResp.arrayBuffer());
+              const { url: bunnyVideoUrl } = await uploadToBunnyStorage(
+                "scenes",
+                `reimagine_${project.id}_${Date.now()}.mp4`,
+                videoBuffer,
+              );
+              savedFinalVideoUrl = bunnyVideoUrl;
+              console.log("[REIMAGINE] Video persisted to Bunny:", bunnyVideoUrl.substring(0, 60) + "...");
+            } catch (persistErr) {
+              console.error("[REIMAGINE] Failed to persist to Bunny, using original URL:", persistErr);
+            }
+          }
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "upload",
+            message: "Video saved successfully",
+            status: "completed",
+            metadata: { finalVideoUrl: savedFinalVideoUrl },
+          });
+
+          await storage.updateProject(project.id, {
+            finalVideoUrl: savedFinalVideoUrl,
+            isCompleted: true,
+            currentStep: 4,
+            generationStatus: "completed" as any,
+          });
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: "Reimagine video completed!",
+            status: "completed",
+            metadata: { finalVideoUrl: savedFinalVideoUrl },
+          });
+
+          const creditDeducted = await storage.deductUserCredits(userId, REIMAGINE_CREDITS);
+          if (!creditDeducted) {
+            console.error("[REIMAGINE] Failed to deduct credits, but video was generated");
+          } else {
+            console.log(`[REIMAGINE] Deducted ${REIMAGINE_CREDITS} credits from user ${userId}`);
+          }
+
+          try {
+            await createMuxAssetForVideo(project.id, savedFinalVideoUrl);
+          } catch (muxError) {
+            console.error("[REIMAGINE] Failed to create Mux asset:", muxError);
+          }
+        } catch (error) {
+          const errMsg = (error as Error).message;
+          console.error("[REIMAGINE] Error:", error);
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "video_generation",
+            message: `Generation failed: ${errMsg}`,
+            status: "error",
+            metadata: { error: errMsg },
+          });
+          await storage.updateProject(project.id, {
+            generationStatus: "failed" as any,
+          });
+        }
+      })();
+    } catch (error) {
+      console.error("[REIMAGINE] Error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to generate reimagine video",
       });
     }
   });

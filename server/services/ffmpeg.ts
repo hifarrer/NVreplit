@@ -361,6 +361,47 @@ export async function pictureInPicture(mainVideoUrl: string, pipVideoUrl: string
   }
 }
 
+/** Extract audio from a video as MP3 via ffmpegapi.net. */
+async function extractAudioMp3Internal(
+  videoUrl: string,
+  bitrate: string = "192k",
+): Promise<{ download_url: string }> {
+  console.log("=== FFMPEG EXTRACT AUDIO MP3 ===");
+  console.log("Video URL:", videoUrl);
+  console.log("Bitrate:", bitrate);
+
+  const response = await fetchWithRetry("https://www.ffmpegapi.net/api/extract_audio_mp3", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": FFMPEG_API_KEY,
+    },
+    body: JSON.stringify({ video_url: videoUrl, bitrate }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Extract audio MP3 API error: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  if (!result.success && !result.download_url) {
+    throw new Error(`Extract audio MP3 failed: ${result.message || "Unknown error"}`);
+  }
+
+  console.log("Extract audio MP3 complete:", result.download_url);
+  return { download_url: result.download_url };
+}
+
+export async function extractAudioMp3(
+  videoUrl: string,
+  bitrate: string = "192k",
+): Promise<{ download_url: string }> {
+  return withGenerationApiRetries("extractAudioMp3", () =>
+    extractAudioMp3Internal(videoUrl, bitrate),
+  );
+}
+
 // Base URL for frame extraction (get first/last frame). Override with FFMPEG_API_BASE if your deployment uses different hosts.
 const FFMPEG_API_BASE = process.env.FFMPEG_API_BASE || "https://ffmpegapi-production.up.railway.app";
 

@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import { Loader2, Scissors } from "lucide-react";
 
-const MAX_WINDOW = 14;
+const DEFAULT_MAX_WINDOW = 14;
 
 interface MotionControlTrimModalProps {
   isOpen: boolean;
@@ -21,6 +21,7 @@ interface MotionControlTrimModalProps {
   onClose: () => void;
   onConfirm: (startTime: number, endTime: number) => void;
   isLoading?: boolean;
+  maxWindow?: number;
 }
 
 function formatTime(seconds: number) {
@@ -36,7 +37,9 @@ export function MotionControlTrimModal({
   onClose,
   onConfirm,
   isLoading,
+  maxWindow,
 }: MotionControlTrimModalProps) {
+  const effectiveMaxWindow = maxWindow ?? DEFAULT_MAX_WINDOW;
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const [duration, setDuration] = useState(0);
@@ -44,7 +47,7 @@ export function MotionControlTrimModal({
   const [endTime, setEndTime] = useState(0);
   const [durationError, setDurationError] = useState<string | null>(null);
 
-  const maxSelectableLength = Math.min(MAX_WINDOW, duration || MAX_WINDOW);
+  const maxSelectableLength = Math.min(effectiveMaxWindow, duration || effectiveMaxWindow);
   const clipLength = Math.max(0.5, endTime - startTime || maxSelectableLength);
 
   useEffect(() => {
@@ -58,7 +61,7 @@ export function MotionControlTrimModal({
 
   const applyDuration = useCallback((d: number) => {
     if (Number.isFinite(d) && d > 0) {
-      const initialLength = Math.min(MAX_WINDOW, d);
+      const initialLength = Math.min(effectiveMaxWindow, d);
       setDuration(d);
       setStartTime(0);
       setEndTime(initialLength);
@@ -67,7 +70,7 @@ export function MotionControlTrimModal({
       setDuration(0);
       setDurationError("Could not determine video length. Please enter start/end times manually.");
     }
-  }, []);
+  }, [effectiveMaxWindow]);
 
   const handleVideoLoaded = useCallback(() => {
     const video = videoRef.current;
@@ -122,7 +125,7 @@ export function MotionControlTrimModal({
   }, [startTime, duration]);
 
   const selectionDuration = Math.max(0, endTime - startTime);
-  const canConfirm = selectionDuration >= 0.5 && selectionDuration <= MAX_WINDOW + 0.1 && !isLoading;
+  const canConfirm = selectionDuration >= 0.5 && selectionDuration <= effectiveMaxWindow + 0.1 && !isLoading;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isLoading && onClose()}>
@@ -133,7 +136,7 @@ export function MotionControlTrimModal({
             Select Video Range
           </DialogTitle>
           <DialogDescription className="text-balance break-words pr-2">
-            Choose up to {MAX_WINDOW} seconds of the video. Drag one selection bar across the timeline, then optionally shorten the clip length.
+            Choose up to {effectiveMaxWindow} seconds of the video. Drag one selection bar across the timeline, then optionally shorten the clip length.
           </DialogDescription>
         </DialogHeader>
 
@@ -200,7 +203,7 @@ export function MotionControlTrimModal({
                 <span>{formatTime(endTime)}</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Selected: {formatTime(selectionDuration)} / {MAX_WINDOW}s max
+                Selected: {formatTime(selectionDuration)} / {effectiveMaxWindow}s max
                 (total video: {formatTime(duration)})
               </p>
             </div>
@@ -221,7 +224,7 @@ export function MotionControlTrimModal({
                   onChange={(e) => {
                     const v = Number(e.target.value) || 0;
                     setStartTime(v);
-                    if (endTime - v > MAX_WINDOW) setEndTime(v + MAX_WINDOW);
+                    if (endTime - v > effectiveMaxWindow) setEndTime(v + effectiveMaxWindow);
                     if (endTime <= v) setEndTime(v + 1);
                   }}
                 />
@@ -235,7 +238,7 @@ export function MotionControlTrimModal({
                   value={endTime}
                   onChange={(e) => {
                     const v = Number(e.target.value) || startTime + 1;
-                    if (v - startTime > MAX_WINDOW) return;
+                    if (v - startTime > effectiveMaxWindow) return;
                     setEndTime(v);
                   }}
                 />
