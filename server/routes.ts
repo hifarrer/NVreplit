@@ -34,7 +34,7 @@ import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimes
 import { nanoid } from "nanoid";
 import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAllPurposeWan27TextToImageMany, generateAlbumCoverSeedreamV5Lite, generateAiImageEdit, collectStoryCharacterReferenceImageUrls } from "./services/fal";
 import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio, generateAllPurposeVideoClip, generateMotionControlVideo, generatePixverseSwapVideo, generateLucyRestyleVideo, type PixverseSwapMode } from "./services/wavespeed";
-import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop, trimVideo, youtubeToMp4, extractAudioMp3 } from "./services/ffmpeg";
+import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop, trimVideo, youtubeToMp4, extractAudioMp3, convertToTiktokPortrait } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback } from "./services/imagekit";
@@ -15299,6 +15299,8 @@ Do not add markdown. Return JSON only.`,
         prompt,
         startTime,
         endTime,
+        aspectRatio: aspectRatioRaw,
+        inputVideoAspect: inputVideoAspectRaw,
         includeWatermark: includeWatermarkBody,
       } = req.body;
       const userId = req.user!.userId;
@@ -15320,6 +15322,18 @@ Do not add markdown. Return JSON only.`,
         return res.status(400).json({ error: "Selected range cannot exceed 120 seconds" });
       }
 
+      const allowedAspectRatios = new Set(["9:16", "16:9", "1:1"]);
+      const outputAspectRatio =
+        typeof aspectRatioRaw === "string" && allowedAspectRatios.has(aspectRatioRaw)
+          ? aspectRatioRaw
+          : "9:16";
+      const inputVideoAspect =
+        inputVideoAspectRaw === "landscape" ||
+        inputVideoAspectRaw === "portrait" ||
+        inputVideoAspectRaw === "square"
+          ? inputVideoAspectRaw
+          : "unknown";
+
       const CREDITS_PER_15S = 1000;
       const trimDuration = endTime - startTime;
       const REIMAGINE_CREDITS = Math.ceil(trimDuration / 15) * CREDITS_PER_15S;
@@ -15338,7 +15352,7 @@ Do not add markdown. Return JSON only.`,
         userId,
         title: (prompt || "Reimagine Video").substring(0, 60),
         description: prompt || "Reimagine Video",
-        aspectRatio: "9:16",
+        aspectRatio: outputAspectRatio,
         currentStep: 1,
         isInstrumental: true,
         includeWatermark: includeWatermarkForProject,
@@ -15349,7 +15363,7 @@ Do not add markdown. Return JSON only.`,
         step: "project_creation",
         message: "Setting up your Reimagine video...",
         status: "completed",
-        metadata: {},
+        metadata: { aspectRatio: outputAspectRatio, inputVideoAspect },
       });
 
       res.json({
@@ -15444,8 +15458,15 @@ Do not add markdown. Return JSON only.`,
           });
 
           // Step 4: Merge restyled video + extracted audio + outro + watermark
-          const outroVideoUrl = "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4";
-          const mergeDimensions = "1080x1920";
+          const outroVideoUrl = outputAspectRatio === "16:9"
+            ? "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_horizontal.mp4"
+            : "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4";
+          const mergeDimensions =
+            outputAspectRatio === "16:9"
+              ? "1920x1080"
+              : outputAspectRatio === "1:1"
+                ? "1080x1080"
+                : "1080x1920";
           let mergeSourceUrl = resultVideoUrl;
 
           await storage.addGenerationLog({
@@ -15472,6 +15493,27 @@ Do not add markdown. Return JSON only.`,
               mergeDimensions,
             );
             mergeSourceUrl = mergeResult.download_url;
+
+            // If user wants portrait output but source is landscape, run TikTok portrait conversion after merge.
+            if (outputAspectRatio === "9:16" && inputVideoAspect === "landscape") {
+              await storage.addGenerationLog({
+                projectId: project.id,
+                step: "video_postprocess",
+                message: "Converting merged video to TikTok portrait framing...",
+                status: "progress",
+                metadata: {},
+              });
+              const tiktokResult = await convertToTiktokPortrait(mergeSourceUrl, watermarkUrl);
+              mergeSourceUrl = tiktokResult.download_url;
+              await storage.addGenerationLog({
+                projectId: project.id,
+                step: "video_postprocess",
+                message: "TikTok portrait conversion complete",
+                status: "progress",
+                metadata: { tiktokPortraitUrl: mergeSourceUrl },
+              });
+            }
+
             console.log("[REIMAGINE] Post-process merge complete:", mergeSourceUrl.substring(0, 80) + "...");
             await storage.addGenerationLog({
               projectId: project.id,

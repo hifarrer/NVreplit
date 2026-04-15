@@ -402,6 +402,52 @@ export async function extractAudioMp3(
   );
 }
 
+/** Convert a landscape video to TikTok portrait framing via ffmpegapi.net. */
+async function convertToTiktokPortraitInternal(
+  videoUrl: string,
+  watermarkUrl?: string,
+): Promise<{ download_url: string }> {
+  console.log("=== FFMPEG CONVERT TO TIKTOK PORTRAIT ===");
+  console.log("Video URL:", videoUrl);
+  console.log("Watermark URL:", watermarkUrl || "(none)");
+
+  const body: Record<string, string> = { video_url: videoUrl };
+  if (watermarkUrl) {
+    body.watermark_url = watermarkUrl;
+  }
+
+  const response = await fetchWithRetry("https://www.ffmpegapi.net/api/convert_to_tiktok_portrait", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": FFMPEG_API_KEY,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Convert to TikTok portrait API error: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  if (!result.success && !result.download_url) {
+    throw new Error(`Convert to TikTok portrait failed: ${result.message || "Unknown error"}`);
+  }
+
+  console.log("Convert to TikTok portrait complete:", result.download_url);
+  return { download_url: result.download_url };
+}
+
+export async function convertToTiktokPortrait(
+  videoUrl: string,
+  watermarkUrl?: string,
+): Promise<{ download_url: string }> {
+  return withGenerationApiRetries("convertToTiktokPortrait", () =>
+    convertToTiktokPortraitInternal(videoUrl, watermarkUrl),
+  );
+}
+
 // Base URL for frame extraction (get first/last frame). Override with FFMPEG_API_BASE if your deployment uses different hosts.
 const FFMPEG_API_BASE = process.env.FFMPEG_API_BASE || "https://ffmpegapi-production.up.railway.app";
 

@@ -27,8 +27,17 @@ import { isFreePlanUser } from "@/lib/plan-utils";
 import { FreePlanVideoUpsellParagraph } from "@/components/free-plan-video-upsell";
 import { Progress } from "@/components/ui/progress";
 import { MotionControlTrimModal } from "@/components/modals/motion-control-trim-modal";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const MAX_TRIM_SECONDS = 30;
+type OutputAspectRatio = "9:16" | "16:9" | "1:1";
+type InputVideoAspect = "landscape" | "portrait" | "square" | "unknown";
 
 const STYLE_IDEAS = [
   { name: "Realistic Cinematic", thumbnail: "https://neonvideo.b-cdn.net/characterpublic/realistic1.jpg", prompt: "ultra-realistic portrait, photorealistic skin texture, natural facial proportions, cinematic film style, cinematic dslr photography style, stylized as a full video look" },
@@ -68,6 +77,8 @@ export default function CreateReimagine() {
   const [convertedYoutubeUrl, setConvertedYoutubeUrl] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [selectedStyleName, setSelectedStyleName] = useState<string | null>(null);
+  const [outputAspectRatio, setOutputAspectRatio] = useState<OutputAspectRatio>("9:16");
+  const [inputVideoAspect, setInputVideoAspect] = useState<InputVideoAspect>("unknown");
 
   const [showTrimModal, setShowTrimModal] = useState(false);
   const [trimVideoUrl, setTrimVideoUrl] = useState("");
@@ -114,6 +125,8 @@ export default function CreateReimagine() {
         prompt: prompt.trim(),
         startTime: trimRange.start,
         endTime: trimRange.end,
+        aspectRatio: outputAspectRatio,
+        inputVideoAspect,
         includeWatermark: isPremiumUser ? includeWatermark : true,
       });
       const contentType = response.headers.get("content-type") || "";
@@ -236,6 +249,8 @@ export default function CreateReimagine() {
       }
       setUploadedVideoUrl(data.videoUrl);
       setTrimVideoUrl(data.videoUrl);
+      const detectedAspect = await detectInputVideoAspect(data.videoUrl);
+      setInputVideoAspect(detectedAspect);
       setShowTrimModal(true);
     } catch (error: any) {
       toast({
@@ -254,6 +269,7 @@ export default function CreateReimagine() {
     setVideoFile(null);
     setUploadedVideoUrl(null);
     setTrimRange(null);
+    setInputVideoAspect("unknown");
     if (videoInputRef.current) videoInputRef.current.value = "";
   };
 
@@ -270,6 +286,8 @@ export default function CreateReimagine() {
         }
         setConvertedYoutubeUrl(data.download_url);
         setTrimVideoUrl(data.download_url);
+        const detectedAspect = await detectInputVideoAspect(data.download_url);
+        setInputVideoAspect(detectedAspect);
         setShowTrimModal(true);
         toast({ title: "YouTube Converted", description: "Video ready — select your range." });
       } catch (error: any) {
@@ -294,6 +312,8 @@ export default function CreateReimagine() {
       return;
     }
     setTrimVideoUrl(url);
+    const detectedAspect = await detectInputVideoAspect(url);
+    setInputVideoAspect(detectedAspect);
     setShowTrimModal(true);
   };
 
@@ -532,6 +552,26 @@ export default function CreateReimagine() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label className="text-foreground">Output Aspect Ratio</Label>
+                <p className="text-xs text-muted-foreground">
+                  Controls final export framing during post-processing merge.
+                </p>
+                <Select
+                  value={outputAspectRatio}
+                  onValueChange={(value) => setOutputAspectRatio(value as OutputAspectRatio)}
+                >
+                  <SelectTrigger className="w-full max-w-xs bg-background border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="9:16">9:16 (Portrait)</SelectItem>
+                    <SelectItem value="16:9">16:9 (Landscape)</SelectItem>
+                    <SelectItem value="1:1">1:1 (Square)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="flex flex-wrap items-center gap-6 py-3 px-4 bg-muted/30 rounded-lg">
                 <div className="flex items-center space-x-2">
                   <Switch
@@ -744,4 +784,33 @@ function formatTimeShort(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+async function detectInputVideoAspect(videoUrl: string): Promise<InputVideoAspect> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    let settled = false;
+
+    const finish = (aspect: InputVideoAspect) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      video.removeAttribute("src");
+      video.load();
+      resolve(aspect);
+    };
+
+    const timeout = window.setTimeout(() => finish("unknown"), 6000);
+    video.preload = "metadata";
+    video.crossOrigin = "anonymous";
+    video.onloadedmetadata = () => {
+      const width = video.videoWidth || 0;
+      const height = video.videoHeight || 0;
+      if (!width || !height) return finish("unknown");
+      if (Math.abs(width - height) <= 2) return finish("square");
+      return finish(width > height ? "landscape" : "portrait");
+    };
+    video.onerror = () => finish("unknown");
+    video.src = videoUrl;
+  });
 }
