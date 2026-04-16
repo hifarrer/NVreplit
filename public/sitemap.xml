@@ -59,9 +59,17 @@
   <!-- Blog Section -->
   <url>
     <loc>https://neonvideo.ai/blog</loc>
-    <lastmod>2026-04-07</lastmod>
+    <lastmod>2026-04-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
+  </url>
+
+  <!-- Blog Post: Version 3.0 Release -->
+  <url>
+    <loc>https://neonvideo.ai/version-3-0-release</loc>
+    <lastmod>2026-04-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
   </url>
 
   <!-- Blog Post: Version 2.9 Release -->

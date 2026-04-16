@@ -17,6 +17,15 @@ interface BlogPost {
 
 const blogPosts: BlogPost[] = [
   {
+    title: "Version 3.0 Released: Reimagine Video Style",
+    slug: "/version-3-0-release",
+    excerpt:
+      "NeonVideo.ai version 3.0 introduces Reimagine—transform existing video with an AI style prompt (YouTube or .mp4), up to 30 seconds, while keeping the original audio. Watch the showcase and try it from Create.",
+    date: "April 15, 2026",
+    category: "Product Update",
+    readTime: "4 min read"
+  },
+  {
     title: "Version 2.9 Released: Story Videos, UI Polish & Video Style Guide",
     slug: "/version-2-9-release",
     excerpt:

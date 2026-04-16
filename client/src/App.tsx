@@ -52,6 +52,7 @@ import Version251Release from "@/pages/blog-post-version-2-5-1";
 import Version271Release from "@/pages/blog-post-version-2-7-1";
 import Version280Release from "@/pages/blog-post-version-2-8";
 import Version290Release from "@/pages/blog-post-version-2-9";
+import Version300Release, { Version210ReleaseRedirect } from "@/pages/blog-post-version-3-0";
 import ChristmasPostcardBlogPost from "@/pages/blog-post-christmas-postcard";
 import NeonVideoVsVidMuseVsAivideo from "@/pages/blog-post-neonvideo-vs-vidmuse-vs-aivideo";
 import BestAIToolsIndependentMusicians from "@/pages/blog-post-best-ai-tools-independent-musicians";
@@ -148,6 +149,8 @@ function AppRouter() {
         <Route path="/version-2-7-1-release" component={Version271Release} />
         <Route path="/version-2-8-release" component={Version280Release} />
         <Route path="/version-2-9-release" component={Version290Release} />
+        <Route path="/version-3-0-release" component={Version300Release} />
+        <Route path="/version-2-10-release" component={Version210ReleaseRedirect} />
         <Route path="/christmas-postcard-video" component={ChristmasPostcardBlogPost} />
         <Route path="/neonvideo-vs-vidmuse-vs-aivideo" component={NeonVideoVsVidMuseVsAivideo} />
         <Route path="/best-ai-tools-independent-musicians" component={BestAIToolsIndependentMusicians} />
