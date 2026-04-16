@@ -57,6 +57,82 @@ const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
 
 /** Free users can have at most this many songs in their library; paid users have no limit. */
 const FREE_USER_SONG_LIBRARY_LIMIT = 10;
+const YOUTUBE_TO_MP4_CACHE_KEY = "youtube_to_mp4_cache_v1";
+const YOUTUBE_TO_MP4_CACHE_MAX_ENTRIES = 1000;
+
+type YoutubeToMp4CacheEntry = {
+  youtubeUrl: string;
+  videoId: string;
+  downloadUrl: string;
+  title?: string;
+  thumbnailUrl?: string;
+  createdAt: string;
+  lastUsedAt: string;
+};
+
+function normalizeYoutubeUrl(rawUrl: string): string {
+  return rawUrl.trim();
+}
+
+function extractYoutubeVideoId(youtubeUrl: string): string | null {
+  const trimmed = youtubeUrl.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed);
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    if (host === "youtu.be") {
+      const id = parsed.pathname.replace(/^\/+/, "").split("/")[0];
+      return id || null;
+    }
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      if (parsed.pathname === "/watch") {
+        return parsed.searchParams.get("v");
+      }
+      if (parsed.pathname.startsWith("/shorts/") || parsed.pathname.startsWith("/embed/")) {
+        const id = parsed.pathname.split("/")[2];
+        return id || null;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeYoutubeToMp4Cache(raw: string | null): Record<string, YoutubeToMp4CacheEntry> {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as Record<string, Partial<YoutubeToMp4CacheEntry>>;
+    const normalized: Record<string, YoutubeToMp4CacheEntry> = {};
+    for (const [videoId, value] of Object.entries(parsed)) {
+      if (!value || typeof value.downloadUrl !== "string" || !value.downloadUrl.trim()) continue;
+      normalized[videoId] = {
+        youtubeUrl: typeof value.youtubeUrl === "string" ? value.youtubeUrl : "",
+        videoId: typeof value.videoId === "string" && value.videoId ? value.videoId : videoId,
+        downloadUrl: value.downloadUrl,
+        title: typeof value.title === "string" ? value.title : undefined,
+        thumbnailUrl: typeof value.thumbnailUrl === "string" ? value.thumbnailUrl : undefined,
+        createdAt: typeof value.createdAt === "string" ? value.createdAt : new Date().toISOString(),
+        lastUsedAt: typeof value.lastUsedAt === "string" ? value.lastUsedAt : new Date().toISOString(),
+      };
+    }
+    return normalized;
+  } catch (error) {
+    console.warn("[YOUTUBE-TO-MP4] Failed to parse cache, resetting:", error);
+    return {};
+  }
+}
+
+function trimYoutubeToMp4Cache(cache: Record<string, YoutubeToMp4CacheEntry>): Record<string, YoutubeToMp4CacheEntry> {
+  const entries = Object.entries(cache);
+  if (entries.length <= YOUTUBE_TO_MP4_CACHE_MAX_ENTRIES) {
+    return cache;
+  }
+  entries.sort(
+    (a, b) => new Date(b[1].lastUsedAt).getTime() - new Date(a[1].lastUsedAt).getTime(),
+  );
+  return Object.fromEntries(entries.slice(0, YOUTUBE_TO_MP4_CACHE_MAX_ENTRIES));
+}
 
 function getClientIpAddress(req: any): string | null {
   const forwardedFor = req.headers["x-forwarded-for"];
@@ -14689,13 +14765,53 @@ Do not add markdown. Return JSON only.`,
       if (!youtubeUrl || typeof youtubeUrl !== "string") {
         return res.status(400).json({ error: "Please provide a valid YouTube URL" });
       }
-      console.log(`[YOUTUBE-TO-MP4] Converting: ${youtubeUrl}`);
-      const result = await youtubeToMp4(youtubeUrl.trim());
+      const normalizedYoutubeUrl = normalizeYoutubeUrl(youtubeUrl);
+      const videoId = extractYoutubeVideoId(normalizedYoutubeUrl);
+      if (!videoId) {
+        return res.status(400).json({ error: "Could not extract a valid YouTube video id from the URL" });
+      }
+
+      const rawCache = await storage.getSetting(YOUTUBE_TO_MP4_CACHE_KEY);
+      const cache = sanitizeYoutubeToMp4Cache(rawCache);
+      const cachedEntry = cache[videoId];
+      if (cachedEntry?.downloadUrl) {
+        const now = new Date().toISOString();
+        cache[videoId] = {
+          ...cachedEntry,
+          youtubeUrl: normalizedYoutubeUrl,
+          lastUsedAt: now,
+        };
+        await storage.setSetting(YOUTUBE_TO_MP4_CACHE_KEY, JSON.stringify(trimYoutubeToMp4Cache(cache)), false);
+        console.log(`[YOUTUBE-TO-MP4] Cache hit for video id: ${videoId}`);
+        return res.json({
+          success: true,
+          download_url: cachedEntry.downloadUrl,
+          title: cachedEntry.title,
+          thumbnail_url: cachedEntry.thumbnailUrl,
+          cached: true,
+        });
+      }
+
+      console.log(`[YOUTUBE-TO-MP4] Converting via RapidAPI: ${normalizedYoutubeUrl}`);
+      const result = await youtubeToMp4(normalizedYoutubeUrl);
+      const now = new Date().toISOString();
+      cache[videoId] = {
+        youtubeUrl: normalizedYoutubeUrl,
+        videoId,
+        downloadUrl: result.download_url,
+        title: result.title,
+        thumbnailUrl: result.thumbnail_url,
+        createdAt: now,
+        lastUsedAt: now,
+      };
+      await storage.setSetting(YOUTUBE_TO_MP4_CACHE_KEY, JSON.stringify(trimYoutubeToMp4Cache(cache)), false);
+
       res.json({
         success: true,
         download_url: result.download_url,
         title: result.title,
         thumbnail_url: result.thumbnail_url,
+        cached: false,
       });
     } catch (error) {
       console.error("[YOUTUBE-TO-MP4] Error:", error);
@@ -14789,6 +14905,7 @@ Do not add markdown. Return JSON only.`,
         console.log(`[MOTION-CONTROL] Background pipeline started for project ${project.id}`);
         try {
           const mp4Url = videoUrl.trim();
+          let effectiveInputVideoAspect: "landscape" | "portrait" | "square" | "unknown" = "unknown";
 
           // Step 1: Trim video
           await storage.addGenerationLog({
@@ -14802,6 +14919,10 @@ Do not add markdown. Return JSON only.`,
           await storage.updateProject(project.id, { currentStep: 2 } as any);
 
           const trimResult = await trimVideo(mp4Url, startTime, endTime);
+          effectiveInputVideoAspect = await getVideoAspectFromUrl(trimResult.download_url);
+          console.log(
+            `[MOTION-CONTROL] Server-side detected input video aspect: ${effectiveInputVideoAspect}`,
+          );
 
           await storage.addGenerationLog({
             projectId: project.id,
@@ -14855,17 +14976,21 @@ Do not add markdown. Return JSON only.`,
             metadata: { videoUrl: resultVideoUrl },
           });
 
-          // Post-process: neonvideo_merge (ffmpegapi) — vertical outro + optional watermark
+          // Post-process: standard merge for portrait/square input; TikTok portrait conversion for landscape/unknown input.
           const outroVideoUrl = "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4";
           const mergeDimensions = "1080x1920";
+          const shouldConvertToTiktokPortrait =
+            effectiveInputVideoAspect === "landscape" || effectiveInputVideoAspect === "unknown";
           let mergeSourceUrl = resultVideoUrl;
 
           await storage.addGenerationLog({
             projectId: project.id,
             step: "video_postprocess",
-            message: includeWatermarkForProject
-              ? "Adding watermark and outro..."
-              : "Adding outro...",
+            message: shouldConvertToTiktokPortrait
+              ? "Converting to TikTok portrait framing..."
+              : includeWatermarkForProject
+                ? "Adding watermark and outro..."
+                : "Adding outro...",
             status: "progress",
             metadata: {},
           });
@@ -14875,22 +15000,42 @@ Do not add markdown. Return JSON only.`,
             if (includeWatermarkForProject) {
               watermarkUrl = (await getWatermarkUrl()) || undefined;
             }
-            const mergeResult = await mergeVideos(
-              [resultVideoUrl],
-              undefined,
-              undefined,
-              watermarkUrl,
-              outroVideoUrl,
-              mergeDimensions,
-            );
-            mergeSourceUrl = mergeResult.download_url;
+            if (shouldConvertToTiktokPortrait) {
+              const tiktokResult = await convertToTiktokPortrait(
+                resultVideoUrl,
+                watermarkUrl,
+                outroVideoUrl,
+              );
+              mergeSourceUrl = tiktokResult.download_url;
+              await storage.addGenerationLog({
+                projectId: project.id,
+                step: "video_postprocess",
+                message: "TikTok portrait conversion complete",
+                status: "progress",
+                metadata: { tiktokPortraitUrl: mergeSourceUrl },
+              });
+            } else {
+              const mergeResult = await mergeVideos(
+                [resultVideoUrl],
+                undefined,
+                undefined,
+                watermarkUrl,
+                outroVideoUrl,
+                mergeDimensions,
+              );
+              mergeSourceUrl = mergeResult.download_url;
+            }
             console.log("[MOTION-CONTROL] Post-process merge complete:", mergeSourceUrl.substring(0, 80) + "...");
             await storage.addGenerationLog({
               projectId: project.id,
               step: "video_postprocess",
-              message: includeWatermarkForProject
-                ? "Watermark and outro applied"
-                : "Outro applied",
+              message: shouldConvertToTiktokPortrait
+                ? includeWatermarkForProject
+                  ? "TikTok portrait conversion, watermark, and outro applied"
+                  : "TikTok portrait conversion and outro applied"
+                : includeWatermarkForProject
+                  ? "Watermark and outro applied"
+                  : "Outro applied",
               status: "completed",
               metadata: { mergedUrl: mergeSourceUrl },
             });
@@ -15103,6 +15248,7 @@ Do not add markdown. Return JSON only.`,
         console.log(`[SWAP] Background pipeline started for project ${project.id}`);
         try {
           const mp4Url = videoUrl.trim();
+          let effectiveInputVideoAspect: "landscape" | "portrait" | "square" | "unknown" = "unknown";
 
           await storage.addGenerationLog({
             projectId: project.id,
@@ -15115,6 +15261,8 @@ Do not add markdown. Return JSON only.`,
           await storage.updateProject(project.id, { currentStep: 2 } as any);
 
           const trimResult = await trimVideo(mp4Url, startTime, endTime);
+          effectiveInputVideoAspect = await getVideoAspectFromUrl(trimResult.download_url);
+          console.log(`[SWAP] Server-side detected input video aspect: ${effectiveInputVideoAspect}`);
 
           await storage.addGenerationLog({
             projectId: project.id,
@@ -15165,14 +15313,18 @@ Do not add markdown. Return JSON only.`,
 
           const outroVideoUrl = "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4";
           const mergeDimensions = "1080x1920";
+          const shouldConvertToTiktokPortrait =
+            effectiveInputVideoAspect === "landscape" || effectiveInputVideoAspect === "unknown";
           let mergeSourceUrl = resultVideoUrl;
 
           await storage.addGenerationLog({
             projectId: project.id,
             step: "video_postprocess",
-            message: includeWatermarkForProject
-              ? "Adding watermark and outro..."
-              : "Adding outro...",
+            message: shouldConvertToTiktokPortrait
+              ? "Converting to TikTok portrait framing..."
+              : includeWatermarkForProject
+                ? "Adding watermark and outro..."
+                : "Adding outro...",
             status: "progress",
             metadata: {},
           });
@@ -15182,22 +15334,42 @@ Do not add markdown. Return JSON only.`,
             if (includeWatermarkForProject) {
               watermarkUrl = (await getWatermarkUrl()) || undefined;
             }
-            const mergeResult = await mergeVideos(
-              [resultVideoUrl],
-              undefined,
-              undefined,
-              watermarkUrl,
-              outroVideoUrl,
-              mergeDimensions,
-            );
-            mergeSourceUrl = mergeResult.download_url;
+            if (shouldConvertToTiktokPortrait) {
+              const tiktokResult = await convertToTiktokPortrait(
+                resultVideoUrl,
+                watermarkUrl,
+                outroVideoUrl,
+              );
+              mergeSourceUrl = tiktokResult.download_url;
+              await storage.addGenerationLog({
+                projectId: project.id,
+                step: "video_postprocess",
+                message: "TikTok portrait conversion complete",
+                status: "progress",
+                metadata: { tiktokPortraitUrl: mergeSourceUrl },
+              });
+            } else {
+              const mergeResult = await mergeVideos(
+                [resultVideoUrl],
+                undefined,
+                undefined,
+                watermarkUrl,
+                outroVideoUrl,
+                mergeDimensions,
+              );
+              mergeSourceUrl = mergeResult.download_url;
+            }
             console.log("[SWAP] Post-process merge complete:", mergeSourceUrl.substring(0, 80) + "...");
             await storage.addGenerationLog({
               projectId: project.id,
               step: "video_postprocess",
-              message: includeWatermarkForProject
-                ? "Watermark and outro applied"
-                : "Outro applied",
+              message: shouldConvertToTiktokPortrait
+                ? includeWatermarkForProject
+                  ? "TikTok portrait conversion, watermark, and outro applied"
+                  : "TikTok portrait conversion and outro applied"
+                : includeWatermarkForProject
+                  ? "Watermark and outro applied"
+                  : "Outro applied",
               status: "completed",
               metadata: { mergedUrl: mergeSourceUrl },
             });
