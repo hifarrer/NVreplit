@@ -72,7 +72,7 @@ export default function CreateSelect() {
     description: "Reimagine",
     explanation: "Transform any video into a new artistic style using AI",
     videoUrl:
-      "https://stream.mux.com/EKxrmGqpPpw1MaJtSnabDq7023eSDqQIl301mgkxEeWis.m3u8?redundant_streams=true",
+      "https://stream.mux.com/53p6minSfhQVS00m2Aw8brdeURvQbyQEXsglXxMrkRgs.m3u8?redundant_streams=true",
     route: "/create/reimagine",
     available: true,
   } as const;

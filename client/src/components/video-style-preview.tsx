@@ -35,15 +35,19 @@ interface VideoStylePreviewProps {
   className?: string;
   /** When true (default), only initializes Hls after the preview scrolls near the viewport. */
   lazy?: boolean;
+  /** When true (default), video is muted — required for autoplay on most create-hub tiles. */
+  muted?: boolean;
 }
 
 function VideoStylePreviewPlayer({
   hlsUrl,
   className = "",
+  muted = true,
   onInitialLoadComplete,
 }: {
   hlsUrl: string;
   className?: string;
+  muted?: boolean;
   onInitialLoadComplete: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -117,7 +121,8 @@ function VideoStylePreviewPlayer({
       <video
         ref={videoRef}
         className={`w-full h-full object-cover transition-opacity duration-500 ${isLoaded ? "opacity-100" : "opacity-0"}`}
-        muted
+        muted={muted}
+        controls={!muted}
         loop
         playsInline
         preload="metadata"
@@ -132,7 +137,7 @@ function VideoStylePreviewPlayer({
   );
 }
 
-export function VideoStylePreview({ hlsUrl, className = "", lazy = true }: VideoStylePreviewProps) {
+export function VideoStylePreview({ hlsUrl, className = "", lazy = true, muted = true }: VideoStylePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [shouldLoad, setShouldLoad] = useState(!lazy);
   const [slotGranted, setSlotGranted] = useState(!lazy);
@@ -201,7 +206,11 @@ export function VideoStylePreview({ hlsUrl, className = "", lazy = true }: Video
   return (
     <div ref={containerRef} className={`relative h-full w-full overflow-hidden bg-muted ${className}`}>
       {showPlayer ? (
-        <VideoStylePreviewPlayer hlsUrl={hlsUrl} onInitialLoadComplete={handleInitialLoadComplete} />
+        <VideoStylePreviewPlayer
+          hlsUrl={hlsUrl}
+          muted={muted}
+          onInitialLoadComplete={handleInitialLoadComplete}
+        />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-pink-500/40 border-t-transparent" />

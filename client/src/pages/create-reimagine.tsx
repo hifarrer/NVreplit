@@ -27,6 +27,10 @@ import { isFreePlanUser } from "@/lib/plan-utils";
 import { FreePlanVideoUpsellParagraph } from "@/components/free-plan-video-upsell";
 import { Progress } from "@/components/ui/progress";
 import { MotionControlTrimModal } from "@/components/modals/motion-control-trim-modal";
+import { VideoStylePreview } from "@/components/video-style-preview";
+
+const REIMAGINE_EXAMPLE_HLS =
+  "https://stream.mux.com/53p6minSfhQVS00m2Aw8brdeURvQbyQEXsglXxMrkRgs.m3u8?redundant_streams=true";
 import {
   Select,
   SelectContent,
@@ -373,6 +377,17 @@ export default function CreateReimagine() {
             <p className="text-muted-foreground">
               Transform the style of any video using an AI prompt — the original audio is preserved
             </p>
+            <div className="mt-6 flex justify-center">
+              <div className="w-[140px] sm:w-[180px] max-w-[40vw] aspect-[9/16] rounded-lg overflow-hidden border border-border shadow-sm bg-muted">
+                <VideoStylePreview
+                  hlsUrl={REIMAGINE_EXAMPLE_HLS}
+                  className="h-full w-full"
+                  lazy={false}
+                  muted={false}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">Example output style</p>
           </div>
 
           <VideoStyleCapabilityNotes variant="reimagine" className="mb-6" />
