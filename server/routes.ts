@@ -134,6 +134,30 @@ function trimYoutubeToMp4Cache(cache: Record<string, YoutubeToMp4CacheEntry>): R
   return Object.fromEntries(entries.slice(0, YOUTUBE_TO_MP4_CACHE_MAX_ENTRIES));
 }
 
+async function isUsableVideoUrl(url: string): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { Range: "bytes=0-1" },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!response.ok) return false;
+    const contentType = (response.headers.get("content-type") || "").toLowerCase();
+    if (!contentType) return true;
+    return (
+      contentType.includes("video/") ||
+      contentType.includes("application/octet-stream") ||
+      contentType.includes("binary/")
+    );
+  } catch (error) {
+    console.warn("[YOUTUBE-TO-MP4] Cached URL validation failed:", error);
+    return false;
+  }
+}
+
 function getClientIpAddress(req: any): string | null {
   const forwardedFor = req.headers["x-forwarded-for"];
   const realIp = req.headers["x-real-ip"];
@@ -14775,21 +14799,27 @@ Do not add markdown. Return JSON only.`,
       const cache = sanitizeYoutubeToMp4Cache(rawCache);
       const cachedEntry = cache[videoId];
       if (cachedEntry?.downloadUrl) {
-        const now = new Date().toISOString();
-        cache[videoId] = {
-          ...cachedEntry,
-          youtubeUrl: normalizedYoutubeUrl,
-          lastUsedAt: now,
-        };
-        await storage.setSetting(YOUTUBE_TO_MP4_CACHE_KEY, JSON.stringify(trimYoutubeToMp4Cache(cache)), false);
-        console.log(`[YOUTUBE-TO-MP4] Cache hit for video id: ${videoId}`);
-        return res.json({
-          success: true,
-          download_url: cachedEntry.downloadUrl,
-          title: cachedEntry.title,
-          thumbnail_url: cachedEntry.thumbnailUrl,
-          cached: true,
-        });
+        const cachedUrlIsUsable = await isUsableVideoUrl(cachedEntry.downloadUrl);
+        if (cachedUrlIsUsable) {
+          const now = new Date().toISOString();
+          cache[videoId] = {
+            ...cachedEntry,
+            youtubeUrl: normalizedYoutubeUrl,
+            lastUsedAt: now,
+          };
+          await storage.setSetting(YOUTUBE_TO_MP4_CACHE_KEY, JSON.stringify(trimYoutubeToMp4Cache(cache)), false);
+          console.log(`[YOUTUBE-TO-MP4] Cache hit for video id: ${videoId}`);
+          return res.json({
+            success: true,
+            download_url: cachedEntry.downloadUrl,
+            title: cachedEntry.title,
+            thumbnail_url: cachedEntry.thumbnailUrl,
+            cached: true,
+          });
+        }
+
+        console.log(`[YOUTUBE-TO-MP4] Cache entry expired for video id: ${videoId}, refreshing conversion`);
+        delete cache[videoId];
       }
 
       console.log(`[YOUTUBE-TO-MP4] Converting via RapidAPI: ${normalizedYoutubeUrl}`);
