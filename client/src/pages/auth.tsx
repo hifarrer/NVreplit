@@ -95,9 +95,7 @@ export default function AuthPage() {
             localStorage.removeItem('pending_redirect_url');
             window.location.href = pendingRedirect;
           } else {
-            // Redirect free-plan users to plans page to prompt trial signup
-            const isFreePlan = !userData?.plan || userData?.plan?.name?.toLowerCase() === 'free';
-            setLocation(isFreePlan ? '/plans?trial=1' : '/');
+            setLocation('/create');
           }
         }).catch((err: any) => {
           console.error('Failed to load user data after OAuth:', err);
@@ -129,9 +127,7 @@ export default function AuthPage() {
         localStorage.removeItem('pending_redirect_url');
         window.location.href = pendingRedirect;
       } else {
-        // Redirect free-plan users to plans page to prompt trial signup
-        const isFreePlan = !user.plan || user.plan.name?.toLowerCase() === 'free';
-        setLocation(isFreePlan ? '/plans?trial=1' : '/create');
+        setLocation('/create');
       }
     }
   }, [user, setLocation]);

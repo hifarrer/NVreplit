@@ -3122,14 +3122,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const users = await storage.getAllUsers();
       const allProjects = await Promise.all(users.map(user => storage.getUserProjects(user.id)));
-      const allSongs = await Promise.all(users.map(user => storage.getSongs(user.id)));
-
       const projects = allProjects.flat();
-      const songs = allSongs.flat();
 
       // Calculate stats
       const totalUsers = users.length;
-      const totalSongs = songs.length;
       const completedProjects = projects.filter(p => p.isCompleted).length;
 
       // Calculate monthly revenue - get all users with their plans
@@ -3139,13 +3135,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId: user.id,
           planId: userWithPlan?.planId,
           planName: userWithPlan?.plan?.name || "Free",
-          monthlyPrice: userWithPlan?.plan?.monthlyPrice || 0
+          monthlyPrice: userWithPlan?.plan?.monthlyPrice || 0,
+          yearlyPrice: userWithPlan?.plan?.yearlyPrice || 0,
+          planIsActive: userWithPlan?.plan?.isActive ?? false,
         };
       }));
 
-      // Sum up monthly revenue from all users with paid plans
+      const subscribedUsers = usersWithPlans.filter((user) => {
+        const isFreeByName = user.planName.toLowerCase() === "free";
+        const isFreeByPrice = user.monthlyPrice === 0;
+        return !(isFreeByName || isFreeByPrice);
+      }).length;
+
+      const usersByPlanMap = usersWithPlans.reduce((acc, user) => {
+        const planName = user.planName || "Free";
+        acc[planName] = (acc[planName] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const usersByPlan = Object.entries(usersByPlanMap).map(([planName, userCount]) => ({
+        planName,
+        userCount,
+      }));
+
+      // Estimate monthly revenue from users on active paid plans.
+      // For yearly-only plans, approximate monthly value as yearly/12.
       const monthlyRevenue = usersWithPlans.reduce((total, user) => {
-        return total + (user.monthlyPrice / 100); // Convert cents to dollars
+        const isPaidPlan = user.monthlyPrice > 0 || user.yearlyPrice > 0;
+        if (!user.planIsActive || !isPaidPlan) {
+          return total;
+        }
+
+        const monthlyEquivalentCents = user.monthlyPrice > 0
+          ? user.monthlyPrice
+          : Math.round(user.yearlyPrice / 12);
+
+        return total + (monthlyEquivalentCents / 100);
       }, 0);
 
       // Group by creation date for charts
@@ -3165,9 +3190,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         overview: {
           totalUsers,
           monthlyRevenue,
-          totalSongs,
+          subscribedUsers,
           completedProjects
         },
+        usersByPlan,
         charts: {
           userSignups: Object.entries(userSignupsByDay).map(([date, count]) => ({ date, count })),
           projectCreations: Object.entries(projectsByDay).map(([date, count]) => ({ date, count }))

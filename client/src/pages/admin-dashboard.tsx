@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Users, Activity, Settings, LogOut, Shield, Music, Video, CreditCard, DollarSign, Cpu, ImageIcon, Mic2, Film, Ticket, Zap, LayoutGrid } from "lucide-react";
+import { Users, Activity, Settings, LogOut, Shield, Music, Video, CreditCard, DollarSign, ImageIcon, Ticket, Zap, LayoutGrid } from "lucide-react";
 import { UserManagement } from "../components/admin/user-management";
 import { SiteSettings } from "../components/admin/site-settings";
 import { UsageStatistics } from "../components/admin/usage-statistics";
@@ -23,8 +23,13 @@ interface AdminUser {
 interface StatsOverview {
   totalUsers: number;
   monthlyRevenue: number;
-  totalSongs: number;
+  subscribedUsers: number;
   completedProjects: number;
+}
+
+interface UsersByPlan {
+  planName: string;
+  userCount: number;
 }
 
 function PostToSocialsButton() {
@@ -87,7 +92,7 @@ export default function AdminDashboard() {
   }, [setLocation]);
 
   // Fetch admin stats with auth header
-  const { data: stats, isLoading } = useQuery<{ overview: StatsOverview }>({
+  const { data: stats, isLoading } = useQuery<{ overview: StatsOverview; usersByPlan: UsersByPlan[] }>({
     queryKey: ["/api/admin/stats"],
     queryFn: async () => {
       const token = localStorage.getItem("adminToken");
@@ -111,6 +116,8 @@ export default function AdminDashboard() {
   if (!adminUser) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
+
+  const sortedUsersByPlan = [...(stats?.usersByPlan ?? [])].sort((a, b) => b.userCount - a.userCount);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
@@ -179,11 +186,11 @@ export default function AdminDashboard() {
 
             <Card className="bg-black/30 border-purple-500/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-300">Total Songs</CardTitle>
-                <Music className="h-4 w-4 text-purple-400" />
+                <CardTitle className="text-sm font-medium text-gray-300">Subscribed Users</CardTitle>
+                <Users className="h-4 w-4 text-purple-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-white">{stats.overview.totalSongs}</div>
+                <div className="text-2xl font-bold text-white">{stats.overview.subscribedUsers}</div>
               </CardContent>
             </Card>
 
@@ -199,55 +206,29 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* AI Models Information */}
         <Card className="bg-black/30 border-purple-500/20 mb-8">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Cpu className="h-5 w-5 text-purple-400" />
-              Current AI Models
-            </CardTitle>
+            <CardTitle className="text-white">Users by plan</CardTitle>
             <CardDescription className="text-gray-400">
-              Models currently in use for generation
+              Breakdown of users grouped by their current plan
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-black/20 rounded-lg p-4 border border-purple-500/10">
-                <div className="flex items-center gap-2 mb-2">
-                  <ImageIcon className="h-4 w-4 text-blue-400" />
-                  <span className="text-sm font-medium text-gray-300">Character Image</span>
-                </div>
-                <p className="text-white font-mono text-sm">bytedance/seedream-v4</p>
-                <p className="text-xs text-gray-500 mt-1">via Wavespeed.ai</p>
+            {sortedUsersByPlan.length === 0 ? (
+              <p className="text-gray-400">No plan data</p>
+            ) : (
+              <div className="space-y-3">
+                {sortedUsersByPlan.map((plan) => (
+                  <div
+                    key={plan.planName}
+                    className="flex items-center justify-between rounded-lg border border-purple-500/10 bg-black/20 px-4 py-3"
+                  >
+                    <span className="text-sm font-medium text-gray-200">{plan.planName}</span>
+                    <span className="text-sm text-gray-300">{plan.userCount} users</span>
+                  </div>
+                ))}
               </div>
-
-              <div className="bg-black/20 rounded-lg p-4 border border-purple-500/10">
-                <div className="flex items-center gap-2 mb-2">
-                  <ImageIcon className="h-4 w-4 text-green-400" />
-                  <span className="text-sm font-medium text-gray-300">Scene Image</span>
-                </div>
-                <p className="text-white font-mono text-sm">google/nano-banana</p>
-                <p className="text-xs text-gray-500 mt-1">Fallback: alibaba/wan-2.5</p>
-              </div>
-
-              <div className="bg-black/20 rounded-lg p-4 border border-purple-500/10">
-                <div className="flex items-center gap-2 mb-2">
-                  <Mic2 className="h-4 w-4 text-yellow-400" />
-                  <span className="text-sm font-medium text-gray-300">Song Generation</span>
-                </div>
-                <p className="text-white font-mono text-sm">ElevenLabs</p>
-                <p className="text-xs text-gray-500 mt-1">Music generation API</p>
-              </div>
-
-              <div className="bg-black/20 rounded-lg p-4 border border-purple-500/10">
-                <div className="flex items-center gap-2 mb-2">
-                  <Film className="h-4 w-4 text-red-400" />
-                  <span className="text-sm font-medium text-gray-300">Video Generation</span>
-                </div>
-                <p className="text-white font-mono text-sm">seedance-v1.5-pro</p>
-                <p className="text-xs text-gray-500 mt-1">Lipsync: wavespeed-ai/infinitetalk-fast</p>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
