@@ -11,9 +11,9 @@ import { useAuth } from "@/hooks/use-auth";
 import { SiTiktok, SiFacebook, SiYoutube } from "react-icons/si";
 
 const heroVideoHlsUrl =
-  "https://vz-ec5a04eb-243.b-cdn.net/1ab0f28a-f568-466b-a309-c5573c2569a3/playlist.m3u8";
+  "https://vz-ec5a04eb-243.b-cdn.net/8938b165-4976-4c71-b56d-ef1d834fb568/playlist.m3u8";
 const heroVideoPoster =
-  "https://vz-ec5a04eb-243.b-cdn.net/1ab0f28a-f568-466b-a309-c5573c2569a3/thumbnail.jpg";
+  "https://vz-ec5a04eb-243.b-cdn.net/8938b165-4976-4c71-b56d-ef1d834fb568/thumbnail.jpg";
 
 interface FeaturedVideo {
   id: string;
