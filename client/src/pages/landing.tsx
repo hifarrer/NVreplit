@@ -192,7 +192,7 @@ export default function LandingPage() {
                 />
                 {/* Sound toggle overlay */}
                 <button
-                  className="absolute bottom-4 right-4 bg-black/50 hover:bg-black/70 transition-colors p-3 rounded-full backdrop-blur-sm"
+                  className="absolute bottom-4 left-4 bg-black/50 hover:bg-black/70 transition-colors p-3 rounded-full backdrop-blur-sm"
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsMuted(!isMuted);
