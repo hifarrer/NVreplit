@@ -39,6 +39,30 @@ interface LyricSegment {
   text: string;
 }
 
+type AdminVideoPageItem = number | "ellipsis";
+
+/** Page numbers with ellipses for admin video list pagination (skip pages without listing every page). */
+function getAdminVideoPaginationItems(
+  current: number,
+  totalPages: number,
+  delta = 2
+): AdminVideoPageItem[] {
+  if (totalPages <= 1) return [1];
+  // Few enough pages to show every number (avoids "1 2 3 … 7" when all fit).
+  const showAllThreshold = Math.max(9, delta * 2 + 5);
+  if (totalPages <= showAllThreshold) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  const left = Math.max(2, current - delta);
+  const right = Math.min(totalPages - 1, current + delta);
+  const items: AdminVideoPageItem[] = [1];
+  if (left > 2) items.push("ellipsis");
+  for (let i = left; i <= right; i++) items.push(i);
+  if (right < totalPages - 1) items.push("ellipsis");
+  items.push(totalPages);
+  return items;
+}
+
 export function VideoManagement() {
   const VIDEOS_PER_ROW = 5;
   const ROWS_PER_PAGE = 10;
@@ -769,7 +793,7 @@ export function VideoManagement() {
               Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.totalCount)} of {pagination.totalCount} videos
             </div>
             
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -793,11 +817,44 @@ export function VideoManagement() {
                 <ChevronLeft className="h-4 w-4" />
                 Previous
               </Button>
-              
-              <span className="text-sm text-gray-300 px-2">
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
-              
+
+              <div
+                className="flex flex-wrap items-center gap-1"
+                role="group"
+                aria-label="Jump to page"
+              >
+                {getAdminVideoPaginationItems(pagination.page, pagination.totalPages).map(
+                  (item, idx) =>
+                    item === "ellipsis" ? (
+                      <span
+                        key={`ellipsis-${idx}`}
+                        className="px-1 text-sm text-gray-500 select-none"
+                        aria-hidden
+                      >
+                        …
+                      </span>
+                    ) : (
+                      <Button
+                        key={item}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(item)}
+                        disabled={item === pagination.page}
+                        className={
+                          item === pagination.page
+                            ? "min-w-9 border-purple-500/60 bg-purple-600/40 text-white hover:bg-purple-600/50 hover:text-white disabled:opacity-100"
+                            : "min-w-9 border-gray-600 text-gray-300 hover:bg-gray-800"
+                        }
+                        data-testid={`button-page-${item}`}
+                        aria-label={`Page ${item}`}
+                        aria-current={item === pagination.page ? "page" : undefined}
+                      >
+                        {item}
+                      </Button>
+                    )
+                )}
+              </div>
+
               <Button
                 variant="outline"
                 size="sm"
