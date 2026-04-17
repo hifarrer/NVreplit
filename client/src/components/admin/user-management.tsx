@@ -58,6 +58,7 @@ interface UserProject {
   id: string;
   title: string;
   description: string | null;
+  toolUsed?: string | null;
   currentStep: number;
   audioUrl: string | null;
   audioType: string | null;
@@ -120,6 +121,27 @@ export function UserManagement() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>("");
   const [viewingProjectsUser, setViewingProjectsUser] = useState<UserWithStats | null>(null);
   const [selectedProject, setSelectedProject] = useState<UserProject | null>(null);
+
+  const getToolLabel = (toolUsed?: string | null) => {
+    switch (toolUsed) {
+      case "pro_video_mode":
+        return "Pro video mode";
+      case "single_prompt":
+        return "Single prompt";
+      case "reimagine":
+        return "Reimagine";
+      case "swap":
+        return "Swap";
+      case "ai_stories":
+        return "AI stories";
+      case "motion_control":
+        return "Motion control";
+      case "loop_video":
+        return "Loop video";
+      default:
+        return "Unknown";
+    }
+  };
 
   // Debounce search query - only update after user stops typing for 500ms
   useEffect(() => {
@@ -1342,6 +1364,9 @@ export function UserManagement() {
                             <h4 className="text-white font-medium">{project.title || 'Untitled Project'}</h4>
                             <Badge className={getStatusColor(project)}>
                               {getStatusText(project)}
+                            </Badge>
+                            <Badge variant="outline" className="border-blue-500/30 bg-blue-500/10 text-blue-300">
+                              {getToolLabel(project.toolUsed)}
                             </Badge>
                           </div>
                           

@@ -106,6 +106,7 @@ export const projects = pgTable("projects", {
   generationTimeoutAt: timestamp("generation_timeout_at"), // 30 minutes from start
   // Story video fields
   projectType: text("project_type").default("music_video"), // 'music_video' | 'story_video'
+  toolUsed: text("tool_used"), // Source tool used to create project (e.g. pro_video_mode, swap, reimagine)
   storyPrompt: text("story_prompt"),
   storyDuration: integer("story_duration"), // Duration in seconds (30-300)
   storyNarrator: boolean("story_narrator").default(false),

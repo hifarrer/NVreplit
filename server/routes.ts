@@ -3427,6 +3427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: project.id,
         title: project.title,
         description: project.description,
+        toolUsed: project.toolUsed,
         currentStep: project.currentStep,
         audioUrl: project.audioUrl,
         audioType: project.audioType,
@@ -4323,7 +4324,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req as any).user.userId;
       const projectData = {
         ...req.body,
-        userId // Use authenticated user ID
+        userId, // Use authenticated user ID
+        toolUsed: req.body?.toolUsed ?? "pro_video_mode",
       };
 
       console.log("Creating project with data:", projectData);
@@ -13339,7 +13341,8 @@ Keep the response under 150 words. Be vivid, specific, and visually dramatic.`
         addSubtitles: addSubtitles,
         subtitleStyle: subtitleStyle,
         fontFamily: fontFamily,
-        captionPosition: addSubtitles ? captionPosition : undefined
+        captionPosition: addSubtitles ? captionPosition : undefined,
+        toolUsed: "single_prompt",
       } as any);
       console.log(`[NEON-SINGLE-PROMPT-CUSTOM] Created project ${project.id}`);
 
@@ -14940,6 +14943,7 @@ Do not add markdown. Return JSON only.`,
         currentStep: 1,
         isInstrumental: true,
         includeWatermark: includeWatermarkForProject,
+        toolUsed: "motion_control",
       } as any);
 
       await storage.addGenerationLog({
@@ -15284,6 +15288,7 @@ Do not add markdown. Return JSON only.`,
         currentStep: 1,
         isInstrumental: true,
         includeWatermark: includeWatermarkForProject,
+        toolUsed: "swap",
       } as any);
 
       await storage.addGenerationLog({
@@ -15589,6 +15594,7 @@ Do not add markdown. Return JSON only.`,
         currentStep: 1,
         isInstrumental: true,
         includeWatermark: includeWatermarkForProject,
+        toolUsed: "reimagine",
       } as any);
 
       await storage.addGenerationLog({
@@ -16140,6 +16146,7 @@ Do not add markdown. Return JSON only.`,
         currentStep: 1,
         addSubtitles: false,
         isInstrumental: true,
+        toolUsed: "loop_video",
       } as any);
 
       await storage.addGenerationLog({
@@ -16216,6 +16223,7 @@ Do not add markdown. Return JSON only.`,
         currentStep: 1,
         addSubtitles: false,
         isInstrumental: true,
+        toolUsed: "loop_video",
       } as any);
 
       await storage.addGenerationLog({
@@ -17072,6 +17080,7 @@ Do not add markdown. Return JSON only.`,
         title: storyPrompt.substring(0, 80),
         description: storyPrompt,
         projectType: "story_video",
+        toolUsed: "ai_stories",
         storyPrompt,
         storyDuration: durationSec,
         storyNarrator: !!narrator,
