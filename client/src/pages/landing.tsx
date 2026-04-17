@@ -146,11 +146,11 @@ export default function LandingPage() {
             {/* Left side - Text content */}
             <div className="text-center lg:text-left">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent">
-                The Best AI Video platform.
+                The Best AI Video platform, period.
               </h1>
               <p className="text-lg md:text-xl lg:text-2xl text-muted-foreground mb-8">
-                Transform your ideas into stunning music videos with the power of AI. 
-                Generate songs, create characters, and produce professional videos effortlessly.
+                Transform your ideas into stunning videos with the power of AI. 
+                Generate songs, create characters, and produce professional videos in a few minutes.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start items-center mb-12">
                 <Button 
