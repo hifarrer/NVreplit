@@ -1,5 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import Hls from "hls.js";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -9,7 +10,10 @@ import logoImage from "@assets/neonlogo_1756693683433.png";
 import { useAuth } from "@/hooks/use-auth";
 import { SiTiktok, SiFacebook, SiYoutube } from "react-icons/si";
 
-const heroVideo = "https://res.cloudinary.com/dqemas8ht/video/upload/v1769200552/hero_video-BLAd97Wv_urt68e.mp4";
+const heroVideoHlsUrl =
+  "https://vz-ec5a04eb-243.b-cdn.net/1ab0f28a-f568-466b-a309-c5573c2569a3/playlist.m3u8";
+const heroVideoPoster =
+  "https://vz-ec5a04eb-243.b-cdn.net/1ab0f28a-f568-466b-a309-c5573c2569a3/thumbnail.jpg";
 
 interface FeaturedVideo {
   id: string;
@@ -29,6 +33,27 @@ export default function LandingPage() {
   const heroVideoRef = useRef<HTMLVideoElement>(null);
   const VIDEOS_PER_ROW = 5;
   const ROWS_PER_BATCH = 5;
+
+  useEffect(() => {
+    const video = heroVideoRef.current;
+    if (!video) return;
+
+    if (Hls.isSupported()) {
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+      });
+      hls.loadSource(heroVideoHlsUrl);
+      hls.attachMedia(video);
+      return () => {
+        hls.destroy();
+      };
+    }
+
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = heroVideoHlsUrl;
+    }
+  }, []);
 
   const { data: featuredVideos = [], isLoading: isFeaturedVideosLoading } = useQuery<FeaturedVideo[]>({
     queryKey: ["/api/trending-videos", "featured-landing"],
@@ -121,7 +146,7 @@ export default function LandingPage() {
             {/* Left side - Text content */}
             <div className="text-center lg:text-left">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent">
-                Create AI Music Videos in Minutes
+                The Best Music Video Platform
               </h1>
               <p className="text-lg md:text-xl lg:text-2xl text-muted-foreground mb-8">
                 Transform your ideas into stunning music videos with the power of AI. 
@@ -147,12 +172,12 @@ export default function LandingPage() {
             </div>
 
             {/* Right side - Video */}
-            <div className="relative mx-auto lg:mx-0 w-full max-w-[300px] sm:max-w-[350px] md:max-w-[400px]">
-              <div className="relative overflow-hidden rounded-xl shadow-2xl aspect-[3/4]">
+            <div className="relative mx-auto lg:mx-0 lg:ml-6 xl:ml-10 w-full max-w-[220px] sm:max-w-[260px] md:max-w-[280px] lg:max-w-[300px]">
+              <div className="relative overflow-hidden rounded-xl shadow-2xl aspect-[9/16]">
                 <video
                   ref={heroVideoRef}
                   className="absolute inset-0 w-full h-full object-cover"
-                  src={heroVideo}
+                  poster={heroVideoPoster}
                   autoPlay
                   loop
                   muted
