@@ -146,7 +146,7 @@ export default function LandingPage() {
             {/* Left side - Text content */}
             <div className="text-center lg:text-left">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent">
-                The Best Music Video Platform
+                The Best AI Video platform.
               </h1>
               <p className="text-lg md:text-xl lg:text-2xl text-muted-foreground mb-8">
                 Transform your ideas into stunning music videos with the power of AI. 
