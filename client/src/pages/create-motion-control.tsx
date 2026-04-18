@@ -516,9 +516,9 @@ export default function CreateMotionControl() {
                     ) : trimRange ? (
                       "Re-select Range"
                     ) : isYouTubeUrl(videoUrl) && !convertedYoutubeUrl ? (
-                      "Convert & Select Range (up to 30s)"
+                      "Convert & Select Range (up to 28s)"
                     ) : (
-                      "Select Range (up to 30s)"
+                      "Select Range (up to 28s)"
                     )}
                   </Button>
                 )}
@@ -888,7 +888,7 @@ export default function CreateMotionControl() {
         videoUrl={trimVideoUrl}
         onClose={() => setShowTrimModal(false)}
         onConfirm={handleTrimConfirm}
-        maxWindow={30}
+        maxWindow={28}
       />
 
       {/* Character Creator Modal */}

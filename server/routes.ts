@@ -14921,8 +14921,8 @@ Do not add markdown. Return JSON only.`,
       if (typeof startTime !== "number" || typeof endTime !== "number" || endTime <= startTime) {
         return res.status(400).json({ error: "Invalid start/end time range" });
       }
-      if (endTime - startTime > 30.5) {
-        return res.status(400).json({ error: "Selected range cannot exceed 30 seconds" });
+      if (endTime - startTime > 28.5) {
+        return res.status(400).json({ error: "Selected range cannot exceed 28 seconds" });
       }
 
       const CREDITS_PER_7S = 2000;
