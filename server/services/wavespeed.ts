@@ -44,6 +44,50 @@ async function fetchWithRetry(
   throw new Error("fetchWithRetry: unreachable");
 }
 
+/** Normalize WaveSpeed `/predictions/:id/result` JSON (envelope + nested `data` shapes). */
+function parseWavespeedPredictionPollPayload(json: unknown): {
+  status?: string;
+  error?: string;
+  outputs?: unknown[];
+  code?: number;
+} {
+  if (!json || typeof json !== "object") {
+    return {};
+  }
+  const root = json as Record<string, unknown>;
+  const data = root.data;
+  const inner =
+    data && typeof data === "object" ? (data as Record<string, unknown>) : undefined;
+  const nested =
+    inner?.data && typeof inner.data === "object"
+      ? (inner.data as Record<string, unknown>)
+      : undefined;
+
+  const pickErr = (v: unknown): string | undefined => {
+    if (typeof v === "string") return v;
+    if (v != null && typeof v === "object") return JSON.stringify(v);
+    return undefined;
+  };
+
+  const sources = [nested, inner, root].filter(Boolean) as Record<string, unknown>[];
+  let status: string | undefined;
+  let error: string | undefined;
+  let outputs: unknown[] | undefined;
+  let code: number | undefined;
+  for (const s of sources) {
+    if (status == null && typeof s.status === "string") status = s.status;
+    if (error == null && s.error != null) error = pickErr(s.error);
+    if (outputs == null && Array.isArray(s.outputs)) outputs = s.outputs;
+    if (code == null && typeof s.code === "number") code = s.code;
+  }
+  return {
+    status: status?.toLowerCase(),
+    error,
+    outputs,
+    code,
+  };
+}
+
 // Interface for timestamped words from subtitles
 interface TimestampedWord {
   start: number; // Start time in seconds
@@ -1536,25 +1580,69 @@ export async function generateMotionControlVideo(
     }
 
     if (!statusResponse.ok) {
+      const errBody = await statusResponse.text();
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(errBody);
+      } catch {
+        parsed = null;
+      }
+      const pollErr = parseWavespeedPredictionPollPayload(parsed);
+      if (pollErr.status === "failed" || pollErr.error) {
+        const suffix = pollErr.code != null ? ` (code ${pollErr.code})` : "";
+        throw new Error(
+          `Motion-control generation failed: ${pollErr.error || errBody.slice(0, 400)}${suffix}`,
+        );
+      }
+      if (statusResponse.status >= 400 && statusResponse.status < 500) {
+        throw new Error(
+          `Motion-control poll failed (${statusResponse.status}): ${errBody.slice(0, 500)}`,
+        );
+      }
       console.warn(`Motion-control poll attempt ${attempts + 1}: HTTP ${statusResponse.status}, retrying...`);
       attempts++;
       continue;
     }
 
     const statusResult = await statusResponse.json();
+    const poll = parseWavespeedPredictionPollPayload(statusResult);
     const elapsedMin = ((attempts + 1) * POLL_INTERVAL_MS / 60000).toFixed(1);
-    console.log(`Motion-control poll attempt ${attempts + 1} (${elapsedMin}m): status = ${statusResult.data?.status}`);
+    console.log(`Motion-control poll attempt ${attempts + 1} (${elapsedMin}m): status = ${poll.status}`);
+
+    if (poll.status === "completed" && poll.outputs && poll.outputs.length > 0) {
+      console.log("Motion-control completed:", poll.outputs[0]);
+      return poll.outputs[0] as string;
+    }
+
+    const inProgress =
+      poll.status === "pending" ||
+      poll.status === "processing" ||
+      poll.status === "starting" ||
+      poll.status === "queued" ||
+      poll.status === "running" ||
+      poll.status === "created" ||
+      poll.status === "waiting";
 
     if (
-      statusResult.data?.status === "completed" &&
-      statusResult.data.outputs &&
-      statusResult.data.outputs.length > 0
+      poll.status === "failed" ||
+      poll.status === "error" ||
+      poll.status === "canceled" ||
+      poll.status === "cancelled" ||
+      (!inProgress && poll.error && poll.code != null && poll.code >= 400)
     ) {
-      console.log("Motion-control completed:", statusResult.data.outputs[0]);
-      return statusResult.data.outputs[0];
-    } else if (statusResult.data?.status === "failed" || statusResult.status === "failed") {
-      const errorDetails = statusResult.data?.error || statusResult.error || "Unknown error";
-      throw new Error(`Motion-control generation failed: ${typeof errorDetails === "string" ? errorDetails : JSON.stringify(errorDetails)}`);
+      const codePart = poll.code != null ? ` (code ${poll.code})` : "";
+      throw new Error(
+        `Motion-control generation failed: ${poll.error || "Unknown error"}${codePart}`,
+      );
+    }
+
+    if (
+      poll.status === "completed" &&
+      (!poll.outputs || poll.outputs.length === 0)
+    ) {
+      throw new Error(
+        `Motion-control generation failed: completed with no video output${poll.error ? ` — ${poll.error}` : ""}`,
+      );
     }
 
     attempts++;

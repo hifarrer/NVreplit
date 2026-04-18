@@ -49,6 +49,8 @@ export interface Project {
   videoSegments?: string[];
   finalVideoUrl?: string;
   isCompleted: boolean;
+  /** Present on some flows (e.g. motion control, swap): idle | generating | completed | failed */
+  generationStatus?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

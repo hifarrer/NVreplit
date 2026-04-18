@@ -18,6 +18,7 @@ import {
   Library,
   User,
   Sparkles,
+  AlertCircle,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { downloadFileFromUrl } from "@/lib/utils";
@@ -30,6 +31,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { isFreePlanUser } from "@/lib/plan-utils";
 import { FreePlanVideoUpsellParagraph } from "@/components/free-plan-video-upsell";
 import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -75,6 +77,7 @@ export default function CreateMotionControl() {
 
   const isPremiumUser = user?.plan?.name === "Premium";
 
+  const motionControlFailToastShownRef = useRef(false);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -183,6 +186,36 @@ export default function CreateMotionControl() {
   const currentStep = sortedLogs
     .filter((log) => log.status === "progress")
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+  const latestErrorLog = sortedLogs.filter((log) => log.status === "error").at(-1);
+  const isGenerationFailed = project?.generationStatus === "failed";
+
+  useEffect(() => {
+    motionControlFailToastShownRef.current = false;
+  }, [generatedProjectId]);
+
+  useEffect(() => {
+    if (!generatedProjectId || project?.generationStatus !== "failed") {
+      return;
+    }
+    if (motionControlFailToastShownRef.current) {
+      return;
+    }
+    const errLogs = (generationLogs || []).filter((l) => l.status === "error");
+    const lastErr = errLogs
+      .slice()
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      .at(-1);
+    const description =
+      lastErr?.message ||
+      "Motion control generation failed. See the error details on this page.";
+    motionControlFailToastShownRef.current = true;
+    toast({
+      title: "Motion control failed",
+      description,
+      variant: "destructive",
+    });
+  }, [generatedProjectId, project?.generationStatus, generationLogs, toast]);
 
   const totalSteps = 5;
   const progressPercentage = project?.isCompleted
@@ -335,6 +368,7 @@ export default function CreateMotionControl() {
     try {
       const formData = new FormData();
       formData.append("image", file);
+      formData.append("preserveAspectRatio", "true");
       const response = await apiRequest("POST", "/api/characters/upload", formData);
       const data = await response.json();
       setImageUrl(data.imageUrl);
@@ -622,7 +656,7 @@ export default function CreateMotionControl() {
                       <img
                         src={imageUrl}
                         alt="Character"
-                        className="h-16 w-16 rounded-lg object-cover border border-border"
+                        className="max-h-36 max-w-[10rem] w-auto h-auto rounded-lg object-contain border border-border bg-muted/40"
                       />
                       <button
                         type="button"
@@ -785,7 +819,18 @@ export default function CreateMotionControl() {
                   </div>
                 ) : project ? (
                   <div className="space-y-4">
-                    {!project.isCompleted && (
+                    {isGenerationFailed && (
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Generation failed</AlertTitle>
+                        <AlertDescription className="text-destructive/90">
+                          {latestErrorLog?.message ||
+                            "The AI provider reported an error. Try a shorter clip (max 28s), a different source video, or try again later."}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {!project.isCompleted && !isGenerationFailed && (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">Progress</span>
@@ -828,6 +873,8 @@ export default function CreateMotionControl() {
                         <span className="font-semibold">Status:</span>{" "}
                         {project.isCompleted ? (
                           <span className="text-green-400">Completed</span>
+                        ) : isGenerationFailed ? (
+                          <span className="text-destructive">Failed</span>
                         ) : (
                           <span className="text-yellow-400">Processing</span>
                         )}

@@ -10549,14 +10549,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "File too large. Please upload images under 5MB." });
       }
 
-      // Process the image with sharp (resize to square for character images)
+      const preserveAspectRatio =
+        String(req.body?.preserveAspectRatio ?? "").toLowerCase() === "true" ||
+        String(req.query?.preserveAspectRatio ?? "").toLowerCase() === "true";
+
+      // Process with sharp: default square crop for character avatars; optional preserve aspect (motion control / swap reference)
       let processedBuffer: Buffer;
       try {
-        processedBuffer = await sharp(file.buffer)
-          .resize(1024, 1024, { fit: 'cover', position: 'center' })
-          .jpeg({ quality: 90 })
-          .toBuffer();
-        console.log(`Image processed to 1024x1024`);
+        if (preserveAspectRatio) {
+          processedBuffer = await sharp(file.buffer)
+            .rotate()
+            .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
+            .jpeg({ quality: 90 })
+            .toBuffer();
+          console.log(`Image processed preserving aspect ratio (max edge 2048, fit inside)`);
+        } else {
+          processedBuffer = await sharp(file.buffer)
+            .rotate()
+            .resize(1024, 1024, { fit: "cover", position: "center" })
+            .jpeg({ quality: 90 })
+            .toBuffer();
+          console.log(`Image processed to 1024x1024`);
+        }
       } catch (sharpError) {
         console.error("Error processing image with sharp:", sharpError);
         // If sharp processing fails, use original buffer

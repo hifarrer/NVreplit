@@ -329,6 +329,7 @@ export default function CreateSwap() {
     try {
       const formData = new FormData();
       formData.append("image", file);
+      formData.append("preserveAspectRatio", "true");
       const response = await apiRequest("POST", "/api/characters/upload", formData);
       const data = await response.json();
       setImageUrl(data.imageUrl);
@@ -626,7 +627,7 @@ export default function CreateSwap() {
                       <img
                         src={imageUrl}
                         alt="Reference"
-                        className="h-16 w-16 rounded-lg object-cover border border-border"
+                        className="max-h-36 max-w-[10rem] w-auto h-auto rounded-lg object-contain border border-border bg-muted/40"
                       />
                       <button
                         type="button"
