@@ -33,7 +33,7 @@ import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, ge
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
 import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAllPurposeWan27TextToImageMany, generateAlbumCoverSeedreamV5Lite, generateAiImageEdit, collectStoryCharacterReferenceImageUrls } from "./services/fal";
-import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio, generateAllPurposeVideoClip, generateMotionControlVideo, generatePixverseSwapVideo, generateLucyRestyleVideo, type PixverseSwapMode } from "./services/wavespeed";
+import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio, generateAllPurposeVideoClip, generateMotionControlVideo, generatePixverseSwapVideo, generateLucyRestyleVideo, type PixverseSwapMode, type MotionControlKlingTier } from "./services/wavespeed";
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop, trimVideo, youtubeToMp4, extractAudioMp3, convertToTiktokPortrait, getVideoAspectFromUrl } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
@@ -14901,8 +14901,12 @@ Do not add markdown. Return JSON only.`,
         startTime,
         endTime,
         includeWatermark: includeWatermarkBody,
+        motionControlModel: motionControlModelRaw,
       } = req.body;
       const userId = req.user!.userId;
+
+      const motionControlModel: MotionControlKlingTier =
+        motionControlModelRaw === "pro" ? "pro" : "standard";
 
       const userWithPlan = await storage.getUserWithPlan(userId);
       const isPremiumUser = userWithPlan?.plan?.name === "Premium";
@@ -14923,8 +14927,12 @@ Do not add markdown. Return JSON only.`,
 
       const CREDITS_PER_7S = 2000;
       const trimDuration = endTime - startTime;
-      const MOTION_CONTROL_CREDITS = Math.ceil(trimDuration / 7) * CREDITS_PER_7S;
-      console.log(`[MOTION-CONTROL] Trim duration: ${trimDuration.toFixed(1)}s → ${MOTION_CONTROL_CREDITS} credits`);
+      const baseMotionCredits = Math.ceil(trimDuration / 7) * CREDITS_PER_7S;
+      const MOTION_CONTROL_CREDITS =
+        motionControlModel === "pro" ? baseMotionCredits * 2 : baseMotionCredits;
+      console.log(
+        `[MOTION-CONTROL] Model: ${motionControlModel}, trim: ${trimDuration.toFixed(1)}s → ${MOTION_CONTROL_CREDITS} credits`,
+      );
       const canAfford = await storage.canUserAffordCredits(userId, MOTION_CONTROL_CREDITS);
       if (!canAfford) {
         const remaining = await storage.getUserCreditsRemaining(userId);
@@ -14996,9 +15004,12 @@ Do not add markdown. Return JSON only.`,
           await storage.addGenerationLog({
             projectId: project.id,
             step: "video_generation",
-            message: "Generating motion control video with AI — this can take up to 30 minutes...",
+            message:
+              motionControlModel === "pro"
+                ? "Generating motion control video (Kling Pro) — this often takes 30–60+ minutes..."
+                : "Generating motion control video with AI — this often takes 30–60+ minutes...",
             status: "progress",
-            metadata: {},
+            metadata: { motionControlModel },
           });
 
           await storage.updateProject(project.id, { currentStep: 3 } as any);
@@ -15023,6 +15034,7 @@ Do not add markdown. Return JSON only.`,
               trimResult.download_url,
               imageUrl.trim(),
               prompt?.trim(),
+              motionControlModel,
             );
           } finally {
             clearInterval(progressTimer);

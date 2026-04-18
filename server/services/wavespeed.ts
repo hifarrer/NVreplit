@@ -1456,13 +1456,23 @@ async function generateAllPurposeVideoClipInternal(
   throw new Error(`Video generation timed out for ${model}`);
 }
 
+export type MotionControlKlingTier = "standard" | "pro";
+
+const KLING_MOTION_CONTROL_URL: Record<MotionControlKlingTier, string> = {
+  standard: "https://api.wavespeed.ai/api/v3/kwaivgi/kling-v2.6-std/motion-control",
+  pro: "https://api.wavespeed.ai/api/v3/kwaivgi/kling-v2.6-pro/motion-control",
+};
+
 /** Generate a motion-control video via Kling v2.6 (transfers motion from a reference video onto an image). */
 export async function generateMotionControlVideo(
   videoUrl: string,
   imageUrl: string,
   prompt?: string,
+  tier: MotionControlKlingTier = "standard",
 ): Promise<string> {
-  console.log("=== GENERATING MOTION CONTROL VIDEO (kling-v2.6-std) ===");
+  const endpoint = KLING_MOTION_CONTROL_URL[tier];
+  console.log(`=== GENERATING MOTION CONTROL VIDEO (kling-v2.6-${tier}) ===`);
+  console.log("Endpoint:", endpoint);
   console.log("Video URL:", videoUrl);
   console.log("Image URL:", imageUrl);
   console.log("Prompt:", prompt || "(none)");
@@ -1478,7 +1488,7 @@ export async function generateMotionControlVideo(
   }
 
   const response = await fetchWithRetry(
-    "https://api.wavespeed.ai/api/v3/kwaivgi/kling-v2.6-std/motion-control",
+    endpoint,
     {
       method: "POST",
       headers: {
@@ -1505,8 +1515,10 @@ export async function generateMotionControlVideo(
   console.log(`Motion-control submitted, request ID: ${requestId}`);
 
   let attempts = 0;
-  const maxAttempts = 270; // ~45 minutes (270 × 10s) — motion control can take 30+ minutes
+  /** Wall-clock cap for polling (motion control often 30–45m; can exceed 40m on busy queues). */
   const POLL_INTERVAL_MS = 10000;
+  const MAX_POLL_WALL_MINUTES = 150;
+  const maxAttempts = Math.ceil((MAX_POLL_WALL_MINUTES * 60_000) / POLL_INTERVAL_MS);
 
   while (attempts < maxAttempts) {
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
@@ -1548,7 +1560,9 @@ export async function generateMotionControlVideo(
     attempts++;
   }
 
-  throw new Error("Motion-control video generation timed out after 45 minutes");
+  throw new Error(
+    `Motion-control video generation timed out after ${MAX_POLL_WALL_MINUTES} minutes of polling`,
+  );
 }
 
 export type PixverseSwapMode = "person" | "object" | "background";

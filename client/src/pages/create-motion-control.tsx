@@ -30,9 +30,18 @@ import { useAuth } from "@/hooks/use-auth";
 import { isFreePlanUser } from "@/lib/plan-utils";
 import { FreePlanVideoUpsellParagraph } from "@/components/free-plan-video-upsell";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { MotionControlTrimModal } from "@/components/modals/motion-control-trim-modal";
 import { CharacterLibraryModal } from "@/components/modals/character-library-modal";
 import { StandaloneCharacterCreator } from "@/components/standalone-character-creator";
+
+type MotionControlKlingModel = "standard" | "pro";
 
 export default function CreateMotionControl() {
   const { toast } = useToast();
@@ -62,6 +71,7 @@ export default function CreateMotionControl() {
   // Generation state
   const [generatedProjectId, setGeneratedProjectId] = useState<string | null>(null);
   const [includeWatermark, setIncludeWatermark] = useState(true);
+  const [motionControlModel, setMotionControlModel] = useState<MotionControlKlingModel>("standard");
 
   const isPremiumUser = user?.plan?.name === "Premium";
 
@@ -109,6 +119,7 @@ export default function CreateMotionControl() {
         startTime: trimRange.start,
         endTime: trimRange.end,
         includeWatermark: isPremiumUser ? includeWatermark : true,
+        motionControlModel,
       });
       const contentType = response.headers.get("content-type") || "";
       if (!contentType.includes("application/json")) {
@@ -142,7 +153,9 @@ export default function CreateMotionControl() {
 
   const CREDITS_PER_7S = 2000;
   const trimDuration = trimRange ? trimRange.end - trimRange.start : 0;
-  const creditCost = trimRange ? Math.ceil(trimDuration / 7) * CREDITS_PER_7S : CREDITS_PER_7S;
+  const baseCreditCost = trimRange ? Math.ceil(trimDuration / 7) * CREDITS_PER_7S : CREDITS_PER_7S;
+  const creditCost =
+    motionControlModel === "pro" ? baseCreditCost * 2 : baseCreditCost;
   const userCreditsRemaining = user?.creditsRemaining || 0;
   const hasEnoughCredits = userCreditsRemaining >= creditCost;
 
@@ -648,6 +661,27 @@ export default function CreateMotionControl() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label className="text-foreground" htmlFor="motion-control-model">
+                  AI model
+                </Label>
+                <Select
+                  value={motionControlModel}
+                  onValueChange={(v) => setMotionControlModel(v as MotionControlKlingModel)}
+                >
+                  <SelectTrigger id="motion-control-model" className="w-full max-w-md bg-background">
+                    <SelectValue placeholder="Choose model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="standard">Standard (Kling v2.6)</SelectItem>
+                    <SelectItem value="pro">Pro (Kling v2.6) — 2× credits</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Pro uses the Kling motion-control Pro endpoint for higher quality; credit cost is double the Standard rate for the same clip length.
+                </p>
+              </div>
+
               {/* Watermark + outro (server uses ffmpegapi neonvideo merge after AI output) */}
               <div className="flex flex-wrap items-center gap-6 py-3 px-4 bg-muted/30 rounded-lg">
                 <div className="flex items-center space-x-2">
@@ -676,7 +710,7 @@ export default function CreateMotionControl() {
 
               {/* Generation time note */}
               <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-muted-foreground">
-                <span className="font-medium text-amber-500">Note:</span> Motion control generation typically takes <span className="font-semibold text-foreground">15–30 minutes</span>.
+                <span className="font-medium text-amber-500">Note:</span> Motion control generation often takes <span className="font-semibold text-foreground">30–60 minutes</span> and can run longer when queues are busy.
                 You can leave this page and come back — your video will be ready in your projects.
               </div>
 
@@ -784,7 +818,7 @@ export default function CreateMotionControl() {
                           </div>
                         )}
                         <p className="text-xs text-muted-foreground mt-2 italic">
-                          Motion control can take 15–30 minutes. You can leave and come back — your video will appear in your projects when ready.
+                          Motion control can take an hour or more on busy days. You can leave and come back — your video will appear in your projects when ready.
                         </p>
                       </div>
                     )}
