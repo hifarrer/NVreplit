@@ -14,6 +14,7 @@ const heroVideoHlsUrl =
   "https://vz-ec5a04eb-243.b-cdn.net/8938b165-4976-4c71-b56d-ef1d834fb568/playlist.m3u8";
 const heroVideoPoster =
   "https://vz-ec5a04eb-243.b-cdn.net/8938b165-4976-4c71-b56d-ef1d834fb568/thumbnail.jpg";
+const heroBackgroundMp4Url = "https://neonvideo.b-cdn.net/neonvideooutros/HeroBg.mp4";
 
 interface FeaturedVideo {
   id: string;
@@ -140,9 +141,23 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 opacity-50"></div>
-        <div className="container mx-auto px-4 py-16 md:py-24 relative">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center max-w-7xl mx-auto">
+        <video
+          className="absolute inset-0 z-0 h-full w-full object-cover pointer-events-none"
+          src={heroBackgroundMp4Url}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          aria-hidden="true"
+        />
+        <div className="absolute inset-0 z-[1] bg-background/75 backdrop-blur-[1px]" aria-hidden="true" />
+        <div
+          className="absolute inset-0 z-[2] bg-gradient-to-br from-primary/10 via-transparent to-accent/10 opacity-50 pointer-events-none"
+          aria-hidden="true"
+        />
+        <div className="container mx-auto px-4 py-16 md:py-24 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center max-w-7xl mx-auto rounded-2xl border border-white/10 bg-black/45 px-6 py-8 sm:px-8 sm:py-10 backdrop-blur-sm">
             {/* Left side - Text content */}
             <div className="text-center lg:text-left">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent">

@@ -91,7 +91,7 @@ const NOTES = {
       "Keeps original video sound",
     ],
     cons: [
-      "Maximum 14 seconds",
+      "Maximum 30 seconds",
       "No character singing",
       "No scene customization",
       "Can't edit after generation",
