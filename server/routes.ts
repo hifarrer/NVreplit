@@ -8181,21 +8181,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create a prompt based on what we have
       let audioPrompt = "";
 
-      // For uploaded audio, prioritize the user's description (stored in audioPrompt)
-      if (project.audioType === 'uploaded' && project.audioPrompt) {
-        // User provided a description of what the video should be about
-        audioPrompt = project.audioPrompt;
-        console.log("Using uploaded audio description:", audioPrompt);
+      // Always prioritize the user's typed prompt/description when available.
+      // Lyrics are useful context, but should never override the user's intent.
+      if (project.audioPrompt && project.audioPrompt.trim()) {
+        audioPrompt = project.audioPrompt.trim();
+        if (project.audioLyrics && project.audioLyrics.trim()) {
+          const lyricsPreview = project.audioLyrics.substring(0, 200);
+          audioPrompt = `${audioPrompt}. Supporting lyrics context: ${lyricsPreview}`;
+          console.log("Using user prompt + lyrics context:", audioPrompt);
+        } else {
+          console.log("Using user prompt:", audioPrompt);
+        }
       } else if (project.audioLyrics) {
-        // For generated audio, use the lyrics to create more relevant scenes
+        // If no user prompt exists, fall back to lyrics-only guidance.
         const tags = project.audioTags || "music";
         const lyricsPreview = project.audioLyrics.substring(0, 200);
         audioPrompt = `${tags} music video based on these lyrics: ${lyricsPreview}`;
-        console.log("Using lyrics-based prompt:", audioPrompt);
-      } else if (project.audioPrompt) {
-        // Fall back to audio generation prompt if available
-        audioPrompt = project.audioPrompt;
-        console.log("Using audio prompt:", audioPrompt);
+        console.log("Using lyrics-based prompt (no user prompt found):", audioPrompt);
       } else if (project.audioType === 'uploaded') {
         // Last resort for uploaded audio without description
         audioPrompt = "Create a music video with dramatic scenes";

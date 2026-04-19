@@ -1456,6 +1456,37 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
                 </Label>
               </div>
 
+              {/* Captions Toggle */}
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="add-subtitles"
+                  checked={addSubtitles}
+                  onCheckedChange={setAddSubtitles}
+                  data-testid="subtitles-toggle"
+                  disabled={!isPremiumUser}
+                />
+                <Label htmlFor="add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => isPremiumUser && setAddSubtitles(!addSubtitles)}>
+                  Captions
+                </Label>
+                {addSubtitles && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCaptionStyles(!showCaptionStyles)}
+                    className={`h-8 px-2 text-xs ml-2 transition-all ${
+                      addSubtitles && !showCaptionStyles
+                        ? 'shadow-[0_0_10px_rgba(236,72,153,0.5),0_0_20px_rgba(236,72,153,0.3),0_0_30px_rgba(236,72,153,0.2)] border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.7),0_0_25px_rgba(236,72,153,0.5),0_0_35px_rgba(236,72,153,0.3)]' 
+                        : ''
+                    }`}
+                    data-testid="caption-styles-button"
+                  >
+                    Styles
+                    <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showCaptionStyles ? 'rotate-180' : ''}`} />
+                  </Button>
+                )}
+              </div>
+
             </div>
             {!isPremiumUser && (
               <p className="text-sm text-pink-500 mt-2">
@@ -1463,92 +1494,61 @@ export function AudioCreationStep({ projectId, audioUrl, aspectRatio, projectAdd
               </p>
             )}
 
-            {/* Captions Section - Separate like instrumental page */}
+            {/* Captions controls */}
             <div className="mt-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="add-subtitles"
-                    checked={addSubtitles}
-                    onCheckedChange={setAddSubtitles}
-                    data-testid="subtitles-toggle"
-                    disabled={!isPremiumUser}
-                  />
-                  <Label htmlFor="add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => isPremiumUser && setAddSubtitles(!addSubtitles)}>
-                    Captions
-                  </Label>
-                  {addSubtitles && (
+              {addSubtitles && showCaptionStyles && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex gap-2">
                     <Button
                       type="button"
-                      variant="outline"
+                      variant={textPosition === "top" ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setShowCaptionStyles(!showCaptionStyles)}
-                      className={`h-8 px-2 text-xs ml-2 transition-all ${
-                        addSubtitles && !showCaptionStyles
-                          ? 'shadow-[0_0_10px_rgba(236,72,153,0.5),0_0_20px_rgba(236,72,153,0.3),0_0_30px_rgba(236,72,153,0.2)] border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.7),0_0_25px_rgba(236,72,153,0.5),0_0_35px_rgba(236,72,153,0.3)]' 
-                          : ''
-                      }`}
-                      data-testid="caption-styles-button"
+                      onClick={() => setTextPosition("top")}
+                      className={`h-8 w-8 p-0 ${textPosition === "top" ? "bg-primary" : ""}`}
+                      title="Top"
                     >
-                      Styles
-                      <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showCaptionStyles ? 'rotate-180' : ''}`} />
+                      <ArrowUp className="h-4 w-4" />
                     </Button>
-                  )}
-                </div>
-                {addSubtitles && showCaptionStyles && (
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant={textPosition === "top" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setTextPosition("top")}
-                        className={`h-8 w-8 p-0 ${textPosition === "top" ? "bg-primary" : ""}`}
-                        title="Top"
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={textPosition === "center" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setTextPosition("center")}
-                        className={`h-8 w-8 p-0 ${textPosition === "center" ? "bg-primary" : ""}`}
-                        title="Center"
-                      >
-                        <AlignVerticalSpaceAround className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={textPosition === "bottom" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setTextPosition("bottom")}
-                        className={`h-8 w-8 p-0 ${textPosition === "bottom" ? "bg-primary" : ""}`}
-                        title="Bottom"
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <Select value={fontFamily} onValueChange={(value) => isGoogleFont(value) && setFontFamily(value)}>
-                      <SelectTrigger className="bg-background border-border text-foreground h-8 w-[180px] text-xs">
-                        <SelectValue placeholder="Select font" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-card border-border max-h-[300px]">
-                        {popularGoogleFonts.map((font) => (
-                          <SelectItem 
-                            key={font.value} 
-                            value={font.value} 
-                            className="text-foreground"
-                            style={{ fontFamily: font.value }}
-                          >
-                            {font.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Button
+                      type="button"
+                      variant={textPosition === "center" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setTextPosition("center")}
+                      className={`h-8 w-8 p-0 ${textPosition === "center" ? "bg-primary" : ""}`}
+                      title="Center"
+                    >
+                      <AlignVerticalSpaceAround className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={textPosition === "bottom" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setTextPosition("bottom")}
+                      className={`h-8 w-8 p-0 ${textPosition === "bottom" ? "bg-primary" : ""}`}
+                      title="Bottom"
+                    >
+                      <ArrowDown className="h-4 w-4" />
+                    </Button>
                   </div>
-                )}
-              </div>
+                  <Select value={fontFamily} onValueChange={(value) => isGoogleFont(value) && setFontFamily(value)}>
+                    <SelectTrigger className="bg-background border-border text-foreground h-8 w-[180px] text-xs">
+                      <SelectValue placeholder="Select font" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border max-h-[300px]">
+                      {popularGoogleFonts.map((font) => (
+                        <SelectItem 
+                          key={font.value} 
+                          value={font.value} 
+                          className="text-foreground"
+                          style={{ fontFamily: font.value }}
+                        >
+                          {font.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               {!isPremiumUser && (
                 <p className="text-sm text-pink-500">
                   Captions are only available for paid users.
@@ -2028,6 +2028,37 @@ Chasing after dreams as big as the sea."
                 </Label>
               </div>
 
+              {/* Captions Toggle */}
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="upload-add-subtitles"
+                  checked={uploadAddSubtitles}
+                  onCheckedChange={setUploadAddSubtitles}
+                  data-testid="upload-subtitles-toggle"
+                  disabled={!isPremiumUser}
+                />
+                <Label htmlFor="upload-add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => isPremiumUser && setUploadAddSubtitles(!uploadAddSubtitles)}>
+                  Captions
+                </Label>
+                {uploadAddSubtitles && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowUploadCaptionStyles(!showUploadCaptionStyles)}
+                    className={`h-8 px-2 text-xs ml-2 transition-all ${
+                      uploadAddSubtitles && !showUploadCaptionStyles
+                        ? 'shadow-[0_0_10px_rgba(236,72,153,0.5),0_0_20px_rgba(236,72,153,0.3),0_0_30px_rgba(236,72,153,0.2)] border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.7),0_0_25px_rgba(236,72,153,0.5),0_0_35px_rgba(236,72,153,0.3)]' 
+                        : ''
+                    }`}
+                    data-testid="upload-caption-styles-button"
+                  >
+                    Styles
+                    <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showUploadCaptionStyles ? 'rotate-180' : ''}`} />
+                  </Button>
+                )}
+              </div>
+
             </div>
             {!isPremiumUser && (
               <p className="text-sm text-pink-500 mt-2">
@@ -2035,92 +2066,61 @@ Chasing after dreams as big as the sea."
               </p>
             )}
 
-            {/* Captions Section - Separate like instrumental page */}
+            {/* Captions controls */}
             <div className="mt-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="upload-add-subtitles"
-                    checked={uploadAddSubtitles}
-                    onCheckedChange={setUploadAddSubtitles}
-                    data-testid="upload-subtitles-toggle"
-                    disabled={!isPremiumUser}
-                  />
-                  <Label htmlFor="upload-add-subtitles" className="text-sm font-medium cursor-pointer" onClick={() => isPremiumUser && setUploadAddSubtitles(!uploadAddSubtitles)}>
-                    Captions
-                  </Label>
-                  {uploadAddSubtitles && (
+              {uploadAddSubtitles && showUploadCaptionStyles && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex gap-2">
                     <Button
                       type="button"
-                      variant="outline"
+                      variant={textPosition === "top" ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setShowUploadCaptionStyles(!showUploadCaptionStyles)}
-                      className={`h-8 px-2 text-xs ml-2 transition-all ${
-                        uploadAddSubtitles && !showUploadCaptionStyles
-                          ? 'shadow-[0_0_10px_rgba(236,72,153,0.5),0_0_20px_rgba(236,72,153,0.3),0_0_30px_rgba(236,72,153,0.2)] border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.7),0_0_25px_rgba(236,72,153,0.5),0_0_35px_rgba(236,72,153,0.3)]' 
-                          : ''
-                      }`}
-                      data-testid="upload-caption-styles-button"
+                      onClick={() => setTextPosition("top")}
+                      className={`h-8 w-8 p-0 ${textPosition === "top" ? "bg-primary" : ""}`}
+                      title="Top"
                     >
-                      Styles
-                      <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showUploadCaptionStyles ? 'rotate-180' : ''}`} />
+                      <ArrowUp className="h-4 w-4" />
                     </Button>
-                  )}
-                </div>
-                {uploadAddSubtitles && showUploadCaptionStyles && (
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant={textPosition === "top" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setTextPosition("top")}
-                        className={`h-8 w-8 p-0 ${textPosition === "top" ? "bg-primary" : ""}`}
-                        title="Top"
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={textPosition === "center" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setTextPosition("center")}
-                        className={`h-8 w-8 p-0 ${textPosition === "center" ? "bg-primary" : ""}`}
-                        title="Center"
-                      >
-                        <AlignVerticalSpaceAround className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={textPosition === "bottom" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setTextPosition("bottom")}
-                        className={`h-8 w-8 p-0 ${textPosition === "bottom" ? "bg-primary" : ""}`}
-                        title="Bottom"
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <Select value={fontFamily} onValueChange={(value) => isGoogleFont(value) && setFontFamily(value)}>
-                      <SelectTrigger className="bg-background border-border text-foreground h-8 w-[180px] text-xs">
-                        <SelectValue placeholder="Select font" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-card border-border max-h-[300px]">
-                        {popularGoogleFonts.map((font) => (
-                          <SelectItem 
-                            key={font.value} 
-                            value={font.value} 
-                            className="text-foreground"
-                            style={{ fontFamily: font.value }}
-                          >
-                            {font.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Button
+                      type="button"
+                      variant={textPosition === "center" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setTextPosition("center")}
+                      className={`h-8 w-8 p-0 ${textPosition === "center" ? "bg-primary" : ""}`}
+                      title="Center"
+                    >
+                      <AlignVerticalSpaceAround className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={textPosition === "bottom" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setTextPosition("bottom")}
+                      className={`h-8 w-8 p-0 ${textPosition === "bottom" ? "bg-primary" : ""}`}
+                      title="Bottom"
+                    >
+                      <ArrowDown className="h-4 w-4" />
+                    </Button>
                   </div>
-                )}
-              </div>
+                  <Select value={fontFamily} onValueChange={(value) => isGoogleFont(value) && setFontFamily(value)}>
+                    <SelectTrigger className="bg-background border-border text-foreground h-8 w-[180px] text-xs">
+                      <SelectValue placeholder="Select font" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border max-h-[300px]">
+                      {popularGoogleFonts.map((font) => (
+                        <SelectItem 
+                          key={font.value} 
+                          value={font.value} 
+                          className="text-foreground"
+                          style={{ fontFamily: font.value }}
+                        >
+                          {font.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               {!isPremiumUser && (
                 <p className="text-sm text-pink-500">
                   Captions are only available for paid users.

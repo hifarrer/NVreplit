@@ -328,6 +328,8 @@ General Requirements:
 - Each prompt must include appropriate CAMERA positioning
 - Keep prompts simple and focused
 - Character must be present in ALL scenes
+- Anchor every scene to the user's description. Do NOT introduce a different main subject, location, or story unless the user description implies it.
+- The example scenes below are style references only. NEVER copy them literally.
 
 Example REGULAR scene: "Character dancing on rooftop with city skyline. Camera dollies back revealing full scene."
 Example LIPSYNC scene: "Closeup of character's face singing emotionally. Camera slowly pans to the right revealing her profile."`;
@@ -379,6 +381,7 @@ CRITICAL: Follow the REGULAR vs LIPSYNC pattern exactly as specified.
 - LIPSYNC scenes: CLOSEUPS only, minimal camera movement, face clearly visible, background description should match the background description in the other scenes.
 Each prompt must include a specific character action and appropriate camera positioning.
 Keep them simple and focused for video generation.
+Treat the provided user description as the source of truth. Do not replace it with unrelated themes or locations.
 Respond with JSON in this format: {"prompts": [${Array(
             numberOfScenes,
           )
