@@ -105,7 +105,7 @@ const NOTES = {
       "Person, object, or background swap modes",
     ],
     cons: [
-      "Maximum 14 seconds",
+      "Maximum 28 seconds",
       "No character singing",
       "No scene customization",
       "Can't edit after generation",
