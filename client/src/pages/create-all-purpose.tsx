@@ -664,7 +664,7 @@ export default function CreateAllPurpose() {
                     !hasPrompt
                       ? "Add a prompt to enable"
                       : !promptContentAllowed
-                        ? "Remove disallowed content from your prompt to generate"
+                        ? "Remove disallowed content from your prompt to generate scenes"
                         : isAuthLoading
                           ? "Loading..."
                           : !hasEnoughCredits
@@ -675,12 +675,12 @@ export default function CreateAllPurpose() {
                   {generateMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating...
+                      Generating scenes...
                     </>
                   ) : (
                     <>
                       <Video className="mr-2 h-4 w-4" />
-                      Generate Video
+                      Generate Scenes
                       <span className="ml-2 text-xs opacity-90">
                         ({creditCost.toLocaleString()} credits)
                       </span>

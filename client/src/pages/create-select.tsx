@@ -76,6 +76,16 @@ export default function CreateSelect() {
     route: "/create/reimagine",
     available: true,
   } as const;
+  const sceneGuidedMode = {
+    id: "scene-guided",
+    title: "Scene Guided",
+    description: "Scene Guided",
+    explanation: "Build videos scene-by-scene with full control over every frame",
+    videoUrl:
+      "https://stream.mux.com/GvjcXt02DGxzt01Po019pMH95UR01vA00jTuQSKA01xw5kQZQ.m3u8?redundant_streams=true",
+    route: "/create/scene-guided",
+    available: true,
+  } as const;
 
   const videoModes = [
     {
@@ -264,7 +274,7 @@ export default function CreateSelect() {
             All Purpose Video
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
-            {[allPurposeMode, motionControlMode, reimagineMode].map((mode) => (
+            {[allPurposeMode, sceneGuidedMode, motionControlMode, reimagineMode].map((mode) => (
               <Card
                 key={mode.id}
                 className={`overflow-hidden border transition-all ${

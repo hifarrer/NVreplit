@@ -1500,6 +1500,194 @@ async function generateAllPurposeVideoClipInternal(
   throw new Error(`Video generation timed out for ${model}`);
 }
 
+// ─── SCENE GUIDED VIDEO STYLE ────────────────────────────────────────────
+// Scene-by-scene guided generation: nano-banana-2/edit for frame images,
+// kling-v2.6-pro/image-to-video for clips (optionally with end_image).
+
+/**
+ * Edit/compose an image via google/nano-banana-2/edit (Scene Guided scene frames).
+ * Supply one or more reference images in `images` and a textual prompt.
+ */
+export async function editImageNanoBanana2(
+  prompt: string,
+  aspectRatio: string,
+  images: string[],
+): Promise<string> {
+  console.log("=== GENERATING IMAGE (nano-banana-2/edit) ===");
+  console.log("Prompt:", prompt);
+  console.log("Aspect Ratio:", aspectRatio);
+  console.log("Images:", images);
+
+  const response = await fetchWithRetry(
+    "https://api.wavespeed.ai/api/v3/google/nano-banana-2/edit",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+      },
+      body: JSON.stringify({
+        aspect_ratio: aspectRatio,
+        enable_base64_output: false,
+        enable_image_search: false,
+        enable_sync_mode: false,
+        enable_web_search: false,
+        images,
+        output_format: "png",
+        prompt,
+        resolution: "1k",
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Wavespeed nano-banana-2/edit API error: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  const requestId = result.data?.id || result.id;
+  if (!requestId) {
+    console.error("Wavespeed nano-banana-2/edit response:", JSON.stringify(result, null, 2));
+    throw new Error("No request ID received from Wavespeed nano-banana-2/edit API");
+  }
+
+  console.log(`nano-banana-2/edit submitted, request ID: ${requestId}`);
+
+  let attempts = 0;
+  const maxAttempts = 60;
+
+  while (attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    const statusResponse = await fetchWithRetry(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      { headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` } },
+    );
+
+    if (!statusResponse.ok) {
+      throw new Error(`nano-banana-2/edit status check failed: ${statusResponse.status}`);
+    }
+
+    const statusResult = await statusResponse.json();
+    console.log(`nano-banana-2/edit poll attempt ${attempts + 1}: status = ${statusResult.data?.status}`);
+
+    if (statusResult.data?.status === "completed") {
+      let imageUrl: string | undefined;
+      if (statusResult.data.outputs && statusResult.data.outputs.length > 0) {
+        imageUrl = statusResult.data.outputs[0];
+      } else if (statusResult.data.output) {
+        imageUrl = Array.isArray(statusResult.data.output)
+          ? statusResult.data.output[0]
+          : statusResult.data.output;
+      } else if (statusResult.data.image) {
+        imageUrl = statusResult.data.image;
+      }
+
+      if (imageUrl) {
+        console.log("nano-banana-2/edit completed:", imageUrl);
+        return imageUrl;
+      }
+    } else if (statusResult.data?.status === "failed" || statusResult.status === "failed") {
+      const errorDetails = statusResult.data?.error || statusResult.error || "Unknown error";
+      throw new Error(`nano-banana-2/edit failed: ${typeof errorDetails === "string" ? errorDetails : JSON.stringify(errorDetails)}`);
+    }
+
+    attempts++;
+  }
+
+  throw new Error("nano-banana-2/edit generation timed out");
+}
+
+export interface SceneGuidedVideoClipParams {
+  imageUrl: string;
+  endImageUrl?: string;
+  prompt: string;
+  duration: 5 | 10;
+}
+
+/**
+ * Generate a scene-guided video clip via kwaivgi/kling-v2.6-pro/image-to-video.
+ * Scene 1 omits `endImageUrl`; subsequent scenes pass it to bridge to the next scene's frame.
+ */
+export async function generateSceneGuidedVideoClip(
+  params: SceneGuidedVideoClipParams,
+): Promise<string> {
+  const { imageUrl, endImageUrl, prompt, duration } = params;
+  const endpoint = "https://api.wavespeed.ai/api/v3/kwaivgi/kling-v2.6-pro/image-to-video";
+
+  console.log("=== GENERATING SCENE GUIDED CLIP (kling-v2.6-pro) ===");
+  console.log("Start image:", imageUrl);
+  console.log("End image:", endImageUrl || "(none)");
+  console.log("Duration:", duration);
+  console.log("Prompt:", prompt);
+
+  const requestBody: Record<string, unknown> = {
+    cfg_scale: 0.5,
+    duration,
+    image: imageUrl,
+    prompt,
+    sound: false,
+    voice_list: [],
+  };
+  if (endImageUrl) {
+    requestBody.end_image = endImageUrl;
+  }
+
+  const response = await fetchWithRetry(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`WaveSpeed kling-v2.6-pro API error: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  const requestId = result.data?.id || result.id;
+  if (!requestId) {
+    throw new Error("No request ID from WaveSpeed (kling-v2.6-pro scene-guided)");
+  }
+
+  console.log(`[Scene Guided] Submitted kling-v2.6-pro, requestId=${requestId}`);
+
+  let attempts = 0;
+  const maxAttempts = 60;
+  while (attempts < maxAttempts) {
+    await new Promise((r) => setTimeout(r, 10000));
+
+    const statusResponse = await fetchWithRetry(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      { headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` } },
+    );
+
+    if (!statusResponse.ok) {
+      throw new Error(`Status check failed for scene-guided clip: ${statusResponse.status}`);
+    }
+
+    const statusResult = await statusResponse.json();
+    if (statusResult.data?.status === "completed" && statusResult.data.outputs?.length > 0) {
+      console.log(`[Scene Guided] Clip ready: ${statusResult.data.outputs[0]}`);
+      return statusResult.data.outputs[0];
+    }
+    if (statusResult.status === "failed" || statusResult.data?.status === "failed") {
+      const errorMsg = statusResult.error || statusResult.data?.error || "Unknown error";
+      throw new Error(`Scene-guided video generation failed: ${typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg)}`);
+    }
+
+    attempts++;
+    if (attempts % 6 === 0) {
+      console.log(`[Scene Guided] Still processing... (${attempts * 10}s elapsed)`);
+    }
+  }
+  throw new Error("Scene-guided video generation timed out");
+}
+
 export type MotionControlKlingTier = "standard" | "pro";
 
 const KLING_MOTION_CONTROL_URL: Record<MotionControlKlingTier, string> = {

@@ -33,7 +33,7 @@ import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, ge
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
 import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAllPurposeWan27TextToImageMany, generateAlbumCoverSeedreamV5Lite, generateAiImageEdit, collectStoryCharacterReferenceImageUrls } from "./services/fal";
-import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio, generateAllPurposeVideoClip, generateMotionControlVideo, generatePixverseSwapVideo, generateLucyRestyleVideo, type PixverseSwapMode, type MotionControlKlingTier } from "./services/wavespeed";
+import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio, generateAllPurposeVideoClip, generateMotionControlVideo, generatePixverseSwapVideo, generateLucyRestyleVideo, editImageNanoBanana2, generateSceneGuidedVideoClip, type PixverseSwapMode, type MotionControlKlingTier } from "./services/wavespeed";
 import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop, trimVideo, youtubeToMp4, extractAudioMp3, convertToTiktokPortrait, getVideoAspectFromUrl } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
@@ -14467,6 +14467,490 @@ Do not add markdown. Return JSON only.`,
       });
     }
   });
+
+  // ─── SCENE GUIDED ─────────────────────────────────────────────────────
+  // Scene-by-scene interactive video builder:
+  //   1) /api/scene-guided/generate-image  → nano-banana-2 edit/text-to-image
+  //   2) /api/scene-guided/generate-video  → kling-v2.6-pro image-to-video (+ optional end_image),
+  //                                           then extracts the last frame for the next scene
+  //   3) /api/scene-guided/finalize        → merges all clips (optional watermark + outro)
+
+  const SCENE_GUIDED_ASPECT_RATIOS = ["9:16", "16:9"] as const;
+  type SceneGuidedAspectRatio = (typeof SCENE_GUIDED_ASPECT_RATIOS)[number];
+
+  const isSceneGuidedAspectRatio = (v: unknown): v is SceneGuidedAspectRatio =>
+    typeof v === "string" && (SCENE_GUIDED_ASPECT_RATIOS as readonly string[]).includes(v);
+
+  const sceneGuidedCreditsForDuration = (duration: number): number => {
+    // Kling v2.6 Pro is 4000 credits per 10s.
+    const normalized = duration === 10 ? 10 : 5;
+    return (normalized / 10) * 4000;
+  };
+
+  /** Build a tiny PCM WAV with silence for the requested duration. */
+  const createSilentWavBuffer = (durationSeconds: number, sampleRate: number = 16000): Buffer => {
+    const safeDuration = Math.max(1, Math.ceil(durationSeconds));
+    const channels = 1;
+    const bitsPerSample = 16;
+    const blockAlign = channels * (bitsPerSample / 8);
+    const byteRate = sampleRate * blockAlign;
+    const samples = safeDuration * sampleRate;
+    const dataSize = samples * blockAlign;
+    const buffer = Buffer.alloc(44 + dataSize, 0);
+
+    // RIFF header
+    buffer.write("RIFF", 0);
+    buffer.writeUInt32LE(36 + dataSize, 4);
+    buffer.write("WAVE", 8);
+    // fmt chunk
+    buffer.write("fmt ", 12);
+    buffer.writeUInt32LE(16, 16); // PCM chunk size
+    buffer.writeUInt16LE(1, 20); // PCM format
+    buffer.writeUInt16LE(channels, 22);
+    buffer.writeUInt32LE(sampleRate, 24);
+    buffer.writeUInt32LE(byteRate, 28);
+    buffer.writeUInt16LE(blockAlign, 32);
+    buffer.writeUInt16LE(bitsPerSample, 34);
+    // data chunk
+    buffer.write("data", 36);
+    buffer.writeUInt32LE(dataSize, 40);
+
+    return buffer;
+  };
+
+  app.options("/api/scene-guided/generate-image", (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.sendStatus(204);
+  });
+
+  app.post(
+    "/api/scene-guided/generate-image",
+    extractTokenFromUrl,
+    authenticateToken,
+    async (req, res) => {
+      res.header("Access-Control-Allow-Origin", "*");
+      res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+      try {
+        const {
+          prompt,
+          aspectRatio: requestedAspectRatio,
+          attachedImageUrl: requestedAttachedImageUrl,
+          referenceImageUrl: requestedReferenceImageUrl,
+        } = req.body as {
+          prompt?: string;
+          aspectRatio?: string;
+          attachedImageUrl?: string;
+          referenceImageUrl?: string;
+        };
+
+        if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
+          return res
+            .status(400)
+            .json({ error: "Please provide a prompt describing the scene image" });
+        }
+
+        const profanityCheck = checkProfanity(prompt.trim());
+        if (!profanityCheck.isClean) {
+          return res.status(400).json({
+            error: getCategoryMessage(profanityCheck.category || "unknown"),
+            category: profanityCheck.category,
+          });
+        }
+
+        const aspectRatio: SceneGuidedAspectRatio = isSceneGuidedAspectRatio(requestedAspectRatio)
+          ? requestedAspectRatio
+          : "9:16";
+
+        const attachedImageUrl =
+          typeof requestedAttachedImageUrl === "string" && requestedAttachedImageUrl.trim()
+            ? requestedAttachedImageUrl.trim()
+            : null;
+        const referenceImageUrl =
+          typeof requestedReferenceImageUrl === "string" && requestedReferenceImageUrl.trim()
+            ? requestedReferenceImageUrl.trim()
+            : null;
+
+        // nano-banana-2/edit requires at least one image; if none is provided, use text-to-image.
+        const images: string[] = [];
+        if (referenceImageUrl) images.push(referenceImageUrl);
+        if (attachedImageUrl) images.push(attachedImageUrl);
+
+        let imageUrl: string;
+        if (images.length > 0) {
+          imageUrl = await editImageNanoBanana2(prompt.trim(), aspectRatio, images);
+        } else {
+          imageUrl = await generateImageFromText(prompt.trim(), aspectRatio);
+        }
+
+        return res.json({ imageUrl });
+      } catch (error) {
+        console.error("[SCENE-GUIDED] generate-image error:", error);
+        return res.status(500).json({
+          error: error instanceof Error ? error.message : "Failed to generate image",
+        });
+      }
+    },
+  );
+
+  app.options("/api/scene-guided/generate-video", (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.sendStatus(204);
+  });
+
+  app.post(
+    "/api/scene-guided/generate-video",
+    extractTokenFromUrl,
+    authenticateToken,
+    async (req, res) => {
+      res.header("Access-Control-Allow-Origin", "*");
+      res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+      try {
+        const userId = req.user!.userId;
+        const {
+          startImageUrl: requestedStartImageUrl,
+          endImageUrl: requestedEndImageUrl,
+          prompt: requestedPrompt,
+          duration: requestedDuration,
+        } = req.body as {
+          startImageUrl?: string;
+          endImageUrl?: string;
+          prompt?: string;
+          duration?: number;
+        };
+
+        const startImageUrl =
+          typeof requestedStartImageUrl === "string" && requestedStartImageUrl.trim()
+            ? requestedStartImageUrl.trim()
+            : null;
+        if (!startImageUrl) {
+          return res.status(400).json({ error: "startImageUrl is required" });
+        }
+
+        const prompt = typeof requestedPrompt === "string" ? requestedPrompt.trim() : "";
+        if (!prompt) {
+          return res.status(400).json({ error: "Please provide a video prompt" });
+        }
+
+        const profanityCheck = checkProfanity(prompt);
+        if (!profanityCheck.isClean) {
+          return res.status(400).json({
+            error: getCategoryMessage(profanityCheck.category || "unknown"),
+            category: profanityCheck.category,
+          });
+        }
+
+        const duration: 5 | 10 = requestedDuration === 10 ? 10 : 5;
+        const endImageUrl =
+          typeof requestedEndImageUrl === "string" && requestedEndImageUrl.trim()
+            ? requestedEndImageUrl.trim()
+            : undefined;
+
+        const creditCost = sceneGuidedCreditsForDuration(duration);
+        const canAfford = await storage.canUserAffordCredits(userId, creditCost);
+        if (!canAfford) {
+          const remaining = await storage.getUserCreditsRemaining(userId);
+          return res.status(402).json({
+            error: "Insufficient credits",
+            creditsRequired: creditCost,
+            creditsRemaining: remaining,
+          });
+        }
+
+        const videoUrl = await generateSceneGuidedVideoClip({
+          imageUrl: startImageUrl,
+          endImageUrl,
+          prompt,
+          duration,
+        });
+
+        let lastFrameUrl: string | null = null;
+        try {
+          const frame = await getLastFrameImage(videoUrl);
+          lastFrameUrl = frame.image_url;
+        } catch (frameError) {
+          console.warn(
+            "[SCENE-GUIDED] Failed to extract last frame (continuing):",
+            (frameError as Error).message,
+          );
+        }
+
+        const deducted = await storage.deductUserCredits(userId, creditCost);
+        if (!deducted) {
+          console.warn(
+            "[SCENE-GUIDED] Failed to deduct credits after successful generation (user may have spent concurrently)",
+          );
+        }
+
+        const creditsRemaining = await storage.getUserCreditsRemaining(userId);
+
+        return res.json({
+          videoUrl,
+          lastFrameUrl,
+          creditsCharged: creditCost,
+          creditsRemaining,
+        });
+      } catch (error) {
+        console.error("[SCENE-GUIDED] generate-video error:", error);
+        return res.status(500).json({
+          error: error instanceof Error ? error.message : "Failed to generate video",
+        });
+      }
+    },
+  );
+
+  app.options("/api/scene-guided/finalize", (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.sendStatus(204);
+  });
+
+  app.post(
+    "/api/scene-guided/finalize",
+    extractTokenFromUrl,
+    authenticateToken,
+    async (req, res) => {
+      res.header("Access-Control-Allow-Origin", "*");
+      res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+      try {
+        const userId = req.user!.userId;
+        const {
+          title: requestedTitle,
+          videoUrls: requestedVideoUrls,
+          aspectRatio: requestedAspectRatio,
+          includeWatermark: requestedIncludeWatermark,
+          sceneDuration: requestedSceneDuration,
+          scenePrompts: requestedScenePrompts,
+        } = req.body as {
+          title?: string;
+          videoUrls?: unknown;
+          aspectRatio?: string;
+          includeWatermark?: boolean;
+          sceneDuration?: number;
+          scenePrompts?: unknown;
+        };
+
+        const videoUrls: string[] = Array.isArray(requestedVideoUrls)
+          ? requestedVideoUrls
+              .filter((u): u is string => typeof u === "string" && u.trim().length > 0)
+              .map((u) => u.trim())
+          : [];
+        if (videoUrls.length === 0) {
+          return res.status(400).json({ error: "No scene videos to merge" });
+        }
+
+        const aspectRatio: SceneGuidedAspectRatio = isSceneGuidedAspectRatio(requestedAspectRatio)
+          ? requestedAspectRatio
+          : "9:16";
+        const sceneDuration: 5 | 10 = requestedSceneDuration === 10 ? 10 : 5;
+        const includeWatermark = requestedIncludeWatermark !== false;
+        const scenePrompts: string[] = Array.isArray(requestedScenePrompts)
+          ? requestedScenePrompts.map((p) => (typeof p === "string" ? p : ""))
+          : [];
+
+        const rawTitle =
+          typeof requestedTitle === "string" && requestedTitle.trim()
+            ? requestedTitle.trim()
+            : "Scene Guided Video";
+        const title = rawTitle.substring(0, 120);
+
+        // Create project record first (appears in user's library once completed).
+        const project = await storage.createProject({
+          userId,
+          title,
+          description: scenePrompts.filter(Boolean).join(" | ") || title,
+          aspectRatio,
+          currentStep: 1,
+          isInstrumental: true,
+          includeWatermark,
+          projectType: "music_video",
+          toolUsed: "scene_guided",
+          scenePrompts: scenePrompts as any,
+          videoSegments: videoUrls as any,
+          audioDuration: videoUrls.length * sceneDuration,
+        } as any);
+
+        await storage.addGenerationLog({
+          projectId: project.id,
+          step: "project_creation",
+          message: "Merging scene videos...",
+          status: "progress",
+          metadata: { sceneCount: videoUrls.length, sceneDuration, aspectRatio },
+        });
+
+        res.json({
+          success: true,
+          projectId: project.id,
+          message: "Final video generation started",
+        });
+
+        // Background: merge + watermark + outro, persist final video.
+        (async () => {
+          try {
+            const userWithPlan = await storage.getUserWithPlan(userId);
+            const isPremiumUser = userWithPlan?.plan?.name === "Premium";
+            const shouldIncludeWatermark = isPremiumUser ? includeWatermark : true;
+
+            let watermarkUrl: string | undefined;
+            if (shouldIncludeWatermark) {
+              watermarkUrl = (await getWatermarkUrl()) || undefined;
+            }
+
+            const isPortrait = allPurposeUsePortraitOutro(aspectRatio);
+            const outroVideoUrl = isPortrait
+              ? "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4"
+              : "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_horizontal.mp4";
+            const dimensions = allPurposeMergeVideoDimensions(aspectRatio);
+
+            const objectStorageService = new ObjectStorageService();
+
+            // Sign object-storage URLs if any were passed in.
+            const signedVideoUrls = await Promise.all(
+              videoUrls.map(async (url) => {
+                if (url.startsWith("/objects/")) {
+                  return objectStorageService.getSignedUrlForPath(url, 7200);
+                }
+                return url;
+              }),
+            );
+
+            // Re-host each clip on Bunny (public CDN) so ffmpegapi can download them.
+            // WaveSpeed / signed app URLs are often not reachable from ffmpegapi or fail in local dev.
+            let mergeInputUrls = signedVideoUrls;
+            if (isBunnyConfigured("scenes")) {
+              mergeInputUrls = await Promise.all(
+                signedVideoUrls.map(async (url, i) => {
+                  if (isBunnyUrl(url)) {
+                    return url;
+                  }
+                  try {
+                    const clipResponse = await fetch(url);
+                    if (!clipResponse.ok) {
+                      console.warn(
+                        `[SCENE-GUIDED] Could not fetch clip ${i + 1} for Bunny upload (${clipResponse.status}), using original URL`,
+                      );
+                      return url;
+                    }
+                    const buffer = Buffer.from(await clipResponse.arrayBuffer());
+                    const fileName = `scene-guided-${project.id}-clip-${i + 1}-${Date.now()}.mp4`;
+                    const { url: bunnyUrl } = await uploadToBunnyStorage("scenes", fileName, buffer);
+                    console.log(
+                      `[SCENE-GUIDED] Re-hosted clip ${i + 1}/${signedVideoUrls.length} on Bunny`,
+                    );
+                    return bunnyUrl;
+                  } catch (bunnyErr) {
+                    console.warn(
+                      `[SCENE-GUIDED] Bunny upload failed for clip ${i + 1}, using original URL:`,
+                      bunnyErr,
+                    );
+                    return url;
+                  }
+                }),
+              );
+            } else {
+              console.warn(
+                "[SCENE-GUIDED] Bunny storage not configured; merge uses original clip URLs (may fail for remote ffmpeg if URLs are not public).",
+              );
+            }
+
+            // Scene-guided clips are usually silent, but neonvideo outro merge expects
+            // an audio stream on the merged main track. Build/upload a silent WAV to
+            // align this flow with other styles that provide audio_url.
+            let silentAudioUrl: string | undefined;
+            try {
+              const totalDurationSeconds = Math.max(1, Math.ceil(videoUrls.length * sceneDuration));
+              const silentAudioBuffer = createSilentWavBuffer(totalDurationSeconds + 1);
+              const uploadedSilentAudio = await objectStorageService.uploadAudioBuffer(
+                silentAudioBuffer,
+                `scene-guided/silent_${project.id}_${Date.now()}.wav`,
+              );
+              silentAudioUrl = uploadedSilentAudio.startsWith("/objects/")
+                ? await objectStorageService.getSignedUrlForPath(uploadedSilentAudio, 7200)
+                : uploadedSilentAudio;
+            } catch (silentAudioError) {
+              console.warn(
+                "[SCENE-GUIDED] Failed to provision silent audio track; merge will continue without audio_url:",
+                silentAudioError,
+              );
+            }
+
+            const finalVideo = await mergeVideos(
+              mergeInputUrls,
+              silentAudioUrl,
+              undefined,
+              watermarkUrl,
+              outroVideoUrl,
+              dimensions,
+            );
+
+            let savedFinalVideoUrl: string;
+            try {
+              if (finalVideo.download_url.includes("/api/ffmpeg-local/download/")) {
+                const { OUTPUT_FOLDER } = await import("./services/ffmpegLocal.js");
+                const localFilePath = path.join(OUTPUT_FOLDER, finalVideo.filename);
+                const videoBuffer = fs.readFileSync(localFilePath);
+                const uploadResult = await objectStorageService.uploadVideoBuffer(
+                  videoBuffer,
+                  `neonvideo_sceneguided_${Date.now()}.mp4`,
+                );
+                savedFinalVideoUrl = uploadResult.url;
+              } else {
+                const uploadResult = await objectStorageService.uploadVideoFromUrl(
+                  finalVideo.download_url,
+                  `neonvideo_sceneguided_${Date.now()}.mp4`,
+                );
+                savedFinalVideoUrl = uploadResult.url;
+              }
+            } catch (storageError) {
+              console.warn(
+                "[SCENE-GUIDED] Storage upload failed, using temp URL:",
+                storageError,
+              );
+              savedFinalVideoUrl = finalVideo.download_url;
+            }
+
+            await storage.updateProject(project.id, {
+              finalVideoUrl: savedFinalVideoUrl,
+              isCompleted: true,
+              currentStep: 5,
+            } as any);
+
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "video_generation",
+              message: "Final video ready!",
+              status: "completed",
+              metadata: { finalVideoUrl: savedFinalVideoUrl },
+            });
+          } catch (error) {
+            console.error("[SCENE-GUIDED] finalize merge error:", error);
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "video_generation",
+              message: `Final merge failed: ${(error as Error).message}`,
+              status: "error",
+              metadata: { error: (error as Error).message },
+            });
+          }
+        })();
+      } catch (error) {
+        console.error("[SCENE-GUIDED] finalize error:", error);
+        return res.status(500).json({
+          error: error instanceof Error ? error.message : "Failed to finalize video",
+        });
+      }
+    },
+  );
 
   // ─── VIDEO SHORTS ─────────────────────────────────────────────────────
   app.options("/api/video-shorts", (req, res) => {
