@@ -52,6 +52,8 @@ export async function getAudioDurationFromFile(filePath: string): Promise<number
 }
 
 const FFMPEG_TRIM_VIDEO_URL = process.env.FFMPEG_TRIM_VIDEO_URL || "https://ffmpegapi-production.up.railway.app/api/trim_video";
+/** If "true", requests fast lossless cuts via stream copy (keyframes only; file duration can exceed end−start by several seconds). If "false" or unset, send stream_copy: false to ffmpegapi for frame-accurate re-encoded segments. */
+const FFMPEG_TRIM_STREAM_COPY = process.env.FFMPEG_TRIM_STREAM_COPY;
 
 export interface TrimVideoResult {
   success: boolean;
@@ -63,17 +65,26 @@ export async function trimVideo(videoUrl: string, startTime: number, endTime: nu
   try {
     console.log(`[FFMPEG] Trimming video: ${startTime}s - ${endTime}s`);
 
+    const useStreamCopy = FFMPEG_TRIM_STREAM_COPY === "true";
+    const requestBody: Record<string, string | number | boolean> = {
+      video_url: videoUrl,
+      start_time: startTime,
+      end_time: endTime,
+    };
+    if (!useStreamCopy) {
+      requestBody.stream_copy = false;
+    }
+    console.log(
+      `[FFMPEG] trim_video: stream_copy=${useStreamCopy} (set FFMPEG_TRIM_STREAM_COPY=true to omit re-encode hint; legacy keyframe-only)`,
+    );
+
     const response = await fetchWithRetry(FFMPEG_TRIM_VIDEO_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-API-Key": FFMPEG_API_KEY,
       },
-      body: JSON.stringify({
-        video_url: videoUrl,
-        start_time: startTime,
-        end_time: endTime,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
