@@ -284,23 +284,57 @@ function inferCharacterVocalGender(
 }
 
 interface ContentModerationResult {
-  harassment: boolean;
-  hate: boolean;
-  sexual: boolean;
-  "sexual/minors": boolean;
-  violence: boolean;
+  harassment?: boolean;
+  hate?: boolean;
+  sexual?: boolean;
+  "sexual/minors"?: boolean;
+  violence?: boolean;
 }
 
-interface WaveSpeedAPIResponse {
-  code: number;
-  message: string;
-  data: {
-    id: string;
-    model: string;
-    outputs: ContentModerationResult[];
-    status: string;
-    error: string;
-  };
+const CONTENT_MODERATOR_IMAGE_ENDPOINT =
+  "https://api.wavespeed.ai/api/v3/wavespeed-ai/content-moderator/image";
+const CONTENT_MODERATOR_POLL_BASE = "https://api.wavespeed.ai/api/v3/predictions";
+
+function collectCategoryViolations(moderationResult: ContentModerationResult): string[] {
+  const violations: string[] = [];
+  if (moderationResult.harassment) violations.push("harassment");
+  if (moderationResult.hate) violations.push("hate");
+  if (moderationResult.sexual) violations.push("sexual content");
+  if (moderationResult["sexual/minors"]) violations.push("sexual content involving minors");
+  if (moderationResult.violence) violations.push("violence");
+  return violations;
+}
+
+/** Parse WaveSpeed content-moderator/image result payload (outputs + optional has_nsfw_contents). */
+function violationsFromModerationData(data: {
+  has_nsfw_contents?: boolean[] | null;
+  outputs?: unknown;
+}): string[] {
+  const violations: string[] = [];
+  if (data.has_nsfw_contents?.some((x) => x === true)) {
+    violations.push("nsfw or inappropriate content");
+  }
+
+  const raw = data.outputs;
+  if (raw == null) {
+    return violations;
+  }
+
+  const first =
+    Array.isArray(raw) ? raw[0] : typeof raw === "object" && raw !== null && !Array.isArray(raw) ? raw : null;
+  if (first == null) {
+    return violations;
+  }
+  if (typeof first === "string") {
+    if (violations.length === 0) {
+      console.warn("[Content Moderation] outputs[0] is a string URL; expected an object. Relying on has_nsfw only.");
+    }
+    return violations;
+  }
+  if (typeof first === "object" && !Array.isArray(first)) {
+    violations.push(...collectCategoryViolations(first as ContentModerationResult));
+  }
+  return [...new Set(violations)];
 }
 
 async function moderateImageContent(imageUrl: string): Promise<{ safe: boolean; violations: string[]; error?: string }> {
@@ -312,14 +346,14 @@ async function moderateImageContent(imageUrl: string): Promise<{ safe: boolean; 
   try {
     console.log(`[Content Moderation] Checking image: ${imageUrl.substring(0, 100)}...`);
 
-    const response = await fetch("https://api.wavespeed.ai/api/v3/wavespeed-ai/molmo2/image-content-moderator", {
+    const response = await fetch(CONTENT_MODERATOR_IMAGE_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${WAVESPEED_API_KEY}`
       },
       body: JSON.stringify({
-        enable_sync_mode: true,
+        enable_sync_mode: false,
         image: imageUrl
       })
     });
@@ -330,37 +364,65 @@ async function moderateImageContent(imageUrl: string): Promise<{ safe: boolean; 
       return { safe: false, violations: [], error: "Content moderation check failed. Please try again." };
     }
 
-    const apiResponse: WaveSpeedAPIResponse = await response.json();
-    console.log(`[Content Moderation] API Response:`, JSON.stringify(apiResponse, null, 2));
+    const submitJson: { code?: number; message?: string; data?: { id?: string; status?: string; outputs?: unknown; has_nsfw_contents?: boolean[]; error?: string } } = await response.json();
+    console.log(`[Content Moderation] Submit response:`, JSON.stringify(submitJson, null, 2));
 
-    // Check if API call was successful
-    if (apiResponse.code !== 200 || apiResponse.data?.status !== 'completed') {
-      console.error(`[Content Moderation] API returned error status: ${apiResponse.message}`);
+    if (submitJson.code !== 200 || !submitJson.data) {
+      console.error(`[Content Moderation] API returned error: ${submitJson.message ?? "unknown"}`);
       return { safe: false, violations: [], error: "Content moderation check failed. Please try again." };
     }
 
-    // Extract the moderation result from outputs array
-    const moderationResult = apiResponse.data?.outputs?.[0];
-    if (!moderationResult) {
-      console.error(`[Content Moderation] No moderation result in outputs`);
+    let data = submitJson.data;
+
+    if (data.status === "failed") {
+      const errMsg = typeof data.error === "string" ? data.error : JSON.stringify(data.error);
+      console.error(`[Content Moderation] Task failed: ${errMsg}`);
       return { safe: false, violations: [], error: "Content moderation check failed. Please try again." };
     }
 
-    console.log(`[Content Moderation] Moderation flags:`, moderationResult);
+    if (data.status === "completed") {
+      const violations = violationsFromModerationData(data);
+      console.log(`[Content Moderation] Violations: ${violations.length ? violations.join(", ") : "none"}`);
+      return { safe: violations.length === 0, violations };
+    }
 
-    const violations: string[] = [];
-    if (moderationResult.harassment) violations.push("harassment");
-    if (moderationResult.hate) violations.push("hate");
-    if (moderationResult.sexual) violations.push("sexual content");
-    if (moderationResult["sexual/minors"]) violations.push("sexual content involving minors");
-    if (moderationResult.violence) violations.push("violence");
+    const requestId = data.id;
+    if (!requestId) {
+      console.error(`[Content Moderation] No task id to poll and status is ${data.status}`);
+      return { safe: false, violations: [], error: "Content moderation check failed. Please try again." };
+    }
 
-    console.log(`[Content Moderation] Violations found: ${violations.length > 0 ? violations.join(', ') : 'none'}`);
+    const maxAttempts = 60;
+    const delayMs = 2000;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await new Promise((r) => setTimeout(r, delayMs));
+      const statusResponse = await fetch(`${CONTENT_MODERATOR_POLL_BASE}/${requestId}/result`, {
+        headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` }
+      });
+      if (!statusResponse.ok) {
+        const t = await statusResponse.text();
+        console.error(`[Content Moderation] Poll error: ${statusResponse.status} - ${t}`);
+        return { safe: false, violations: [], error: "Content moderation check failed. Please try again." };
+      }
+      const pollJson: { code?: number; data?: { status?: string; outputs?: unknown; has_nsfw_contents?: boolean[]; error?: string } } = await statusResponse.json();
+      const polled = pollJson.data;
+      if (!polled) {
+        continue;
+      }
+      if (polled.status === "failed") {
+        const errMsg = typeof polled.error === "string" ? polled.error : JSON.stringify(polled.error);
+        console.error(`[Content Moderation] Task failed: ${errMsg}`);
+        return { safe: false, violations: [], error: "Content moderation check failed. Please try again." };
+      }
+      if (polled.status === "completed") {
+        const violations = violationsFromModerationData(polled);
+        console.log(`[Content Moderation] Violations: ${violations.length ? violations.join(", ") : "none"}`);
+        return { safe: violations.length === 0, violations };
+      }
+    }
 
-    return {
-      safe: violations.length === 0,
-      violations
-    };
+    console.error("[Content Moderation] Timed out waiting for moderation result");
+    return { safe: false, violations: [], error: "Content moderation check timed out. Please try again." };
   } catch (error) {
     console.error("[Content Moderation] Error:", error);
     return { safe: false, violations: [], error: "Content moderation check failed. Please try again." };
