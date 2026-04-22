@@ -506,9 +506,9 @@ export default function CreateSwap() {
                     ) : trimRange ? (
                       "Re-select Range"
                     ) : isYouTubeUrl(videoUrl) && !convertedYoutubeUrl ? (
-                      "Convert & Select Range (up to 28s)"
+                      "Convert & Select Range (up to 26s)"
                     ) : (
-                      "Select Range (up to 28s)"
+                      "Select Range (up to 26s)"
                     )}
                   </Button>
                 )}
@@ -867,7 +867,7 @@ export default function CreateSwap() {
         videoUrl={trimVideoUrl}
         onClose={() => setShowTrimModal(false)}
         onConfirm={handleTrimConfirm}
-        maxWindow={28}
+        maxWindow={26}
       />
 
       <StandaloneCharacterCreator

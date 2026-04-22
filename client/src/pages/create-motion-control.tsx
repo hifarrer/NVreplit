@@ -550,9 +550,9 @@ export default function CreateMotionControl() {
                     ) : trimRange ? (
                       "Re-select Range"
                     ) : isYouTubeUrl(videoUrl) && !convertedYoutubeUrl ? (
-                      "Convert & Select Range (up to 28s)"
+                      "Convert & Select Range (up to 26s)"
                     ) : (
-                      "Select Range (up to 28s)"
+                      "Select Range (up to 26s)"
                     )}
                   </Button>
                 )}
@@ -825,7 +825,7 @@ export default function CreateMotionControl() {
                         <AlertTitle>Generation failed</AlertTitle>
                         <AlertDescription className="text-destructive/90">
                           {latestErrorLog?.message ||
-                            "The AI provider reported an error. Try a shorter clip (max 28s), a different source video, or try again later."}
+                            "The AI provider reported an error. Try a shorter clip (max 26s), a different source video, or try again later."}
                         </AlertDescription>
                       </Alert>
                     )}
@@ -935,7 +935,7 @@ export default function CreateMotionControl() {
         videoUrl={trimVideoUrl}
         onClose={() => setShowTrimModal(false)}
         onConfirm={handleTrimConfirm}
-        maxWindow={28}
+        maxWindow={26}
       />
 
       {/* Character Creator Modal */}

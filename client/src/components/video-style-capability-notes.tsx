@@ -91,7 +91,7 @@ const NOTES = {
       "Keeps original video sound",
     ],
     cons: [
-      "Maximum 28 seconds",
+      "Maximum 26 seconds",
       "No character singing",
       "No scene customization",
       "Can't edit after generation",
@@ -105,7 +105,7 @@ const NOTES = {
       "Person, object, or background swap modes",
     ],
     cons: [
-      "Maximum 28 seconds",
+      "Maximum 26 seconds",
       "No character singing",
       "No scene customization",
       "Can't edit after generation",
