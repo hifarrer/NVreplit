@@ -622,7 +622,12 @@ async function mergeVideosInternal(
   dimensions?: string,
 ): Promise<{ download_url: string; filename: string }> {
   const useNeonvideoApi = !!outroUrl;
-  const useRemoteMergeNoOutro = !outroUrl && (videoUrls.length >= 2 || !!audioUrl);
+  // Single-clip + watermark (no outro) must use remote merge — otherwise we incorrectly fall back to local merge.
+  const useRemoteMergeNoOutro =
+    !outroUrl &&
+    (videoUrls.length >= 2 ||
+      !!audioUrl ||
+      (videoUrls.length === 1 && (!!watermarkUrl || !!subtitleUrl)));
 
   if (useNeonvideoApi) {
     // neonvideo_merge requires at least 2 video_urls OR 1 video + audio_url.

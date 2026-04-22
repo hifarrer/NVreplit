@@ -15649,8 +15649,7 @@ Do not add markdown. Return JSON only.`,
             metadata: { videoUrl: resultVideoUrl },
           });
 
-          // Post-process: standard merge for portrait/square input; TikTok portrait conversion for landscape/unknown input.
-          const outroVideoUrl = "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4";
+          // Post-process: optional watermark; TikTok portrait conversion for landscape/unknown input. No outro — final length matches the AI result (which follows the trim).
           const mergeDimensions = "1080x1920";
           const shouldConvertToTiktokPortrait =
             effectiveInputVideoAspect === "landscape" || effectiveInputVideoAspect === "unknown";
@@ -15662,8 +15661,8 @@ Do not add markdown. Return JSON only.`,
             message: shouldConvertToTiktokPortrait
               ? "Converting to TikTok portrait framing..."
               : includeWatermarkForProject
-                ? "Adding watermark and outro..."
-                : "Adding outro...",
+                ? "Adding watermark..."
+                : "Finalizing video...",
             status: "progress",
             metadata: {},
           });
@@ -15677,7 +15676,7 @@ Do not add markdown. Return JSON only.`,
               const tiktokResult = await convertToTiktokPortrait(
                 resultVideoUrl,
                 watermarkUrl,
-                outroVideoUrl,
+                undefined,
               );
               mergeSourceUrl = tiktokResult.download_url;
               await storage.addGenerationLog({
@@ -15687,28 +15686,30 @@ Do not add markdown. Return JSON only.`,
                 status: "progress",
                 metadata: { tiktokPortraitUrl: mergeSourceUrl },
               });
-            } else {
+            } else if (includeWatermarkForProject) {
               const mergeResult = await mergeVideos(
                 [resultVideoUrl],
                 undefined,
                 undefined,
                 watermarkUrl,
-                outroVideoUrl,
+                undefined,
                 mergeDimensions,
               );
               mergeSourceUrl = mergeResult.download_url;
+            } else {
+              mergeSourceUrl = resultVideoUrl;
             }
-            console.log("[MOTION-CONTROL] Post-process merge complete:", mergeSourceUrl.substring(0, 80) + "...");
+            console.log("[MOTION-CONTROL] Post-process complete:", mergeSourceUrl.substring(0, 80) + "...");
             await storage.addGenerationLog({
               projectId: project.id,
               step: "video_postprocess",
               message: shouldConvertToTiktokPortrait
                 ? includeWatermarkForProject
-                  ? "TikTok portrait conversion, watermark, and outro applied"
-                  : "TikTok portrait conversion and outro applied"
+                  ? "TikTok portrait conversion and watermark applied"
+                  : "TikTok portrait conversion applied"
                 : includeWatermarkForProject
-                  ? "Watermark and outro applied"
-                  : "Outro applied",
+                  ? "Watermark applied"
+                  : "No post-process (trim length preserved)",
               status: "completed",
               metadata: { mergedUrl: mergeSourceUrl },
             });
