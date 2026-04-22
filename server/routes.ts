@@ -295,6 +295,46 @@ const CONTENT_MODERATOR_IMAGE_ENDPOINT =
   "https://api.wavespeed.ai/api/v3/wavespeed-ai/content-moderator/image";
 const CONTENT_MODERATOR_POLL_BASE = "https://api.wavespeed.ai/api/v3/predictions";
 
+/** Task shape returned by content-moderator (may be wrapped in [] or { data }). */
+type ContentModerationTask = {
+  id?: string;
+  model?: string;
+  outputs?: unknown;
+  has_nsfw_contents?: boolean[] | null;
+  status?: string;
+  error?: string;
+  code?: number;
+  urls?: { get?: string };
+};
+
+function isRecord(x: unknown): x is Record<string, unknown> {
+  return typeof x === "object" && x !== null;
+}
+
+/**
+ * WaveSpeed may return `{ code, message, data }`, a top-level array `[{ id, status, outputs, ... }]`,
+ * or a bare task object. This extracts the task payload in all cases.
+ */
+function extractContentModerationTask(raw: unknown): ContentModerationTask | null {
+  if (raw == null) {
+    return null;
+  }
+  if (Array.isArray(raw) && raw.length > 0 && isRecord(raw[0])) {
+    return raw[0] as ContentModerationTask;
+  }
+  if (isRecord(raw) && "data" in raw) {
+    const d = (raw as { data: unknown }).data;
+    if (isRecord(d)) {
+      return d as ContentModerationTask;
+    }
+  }
+  if (isRecord(raw) && (raw.id != null || raw.status != null || raw.outputs != null)) {
+    return raw as ContentModerationTask;
+  }
+  return null;
+}
+
+
 function collectCategoryViolations(moderationResult: ContentModerationResult): string[] {
   const violations: string[] = [];
   if (moderationResult.harassment) violations.push("harassment");
@@ -364,15 +404,14 @@ async function moderateImageContent(imageUrl: string): Promise<{ safe: boolean; 
       return { safe: false, violations: [], error: "Content moderation check failed. Please try again." };
     }
 
-    const submitJson: { code?: number; message?: string; data?: { id?: string; status?: string; outputs?: unknown; has_nsfw_contents?: boolean[]; error?: string } } = await response.json();
-    console.log(`[Content Moderation] Submit response:`, JSON.stringify(submitJson, null, 2));
+    const submitRaw: unknown = await response.json();
+    console.log(`[Content Moderation] Submit response:`, JSON.stringify(submitRaw, null, 2));
 
-    if (submitJson.code !== 200 || !submitJson.data) {
-      console.error(`[Content Moderation] API returned error: ${submitJson.message ?? "unknown"}`);
+    const data = extractContentModerationTask(submitRaw);
+    if (!data) {
+      console.error(`[Content Moderation] Could not parse task from response`);
       return { safe: false, violations: [], error: "Content moderation check failed. Please try again." };
     }
-
-    let data = submitJson.data;
 
     if (data.status === "failed") {
       const errMsg = typeof data.error === "string" ? data.error : JSON.stringify(data.error);
@@ -404,8 +443,8 @@ async function moderateImageContent(imageUrl: string): Promise<{ safe: boolean; 
         console.error(`[Content Moderation] Poll error: ${statusResponse.status} - ${t}`);
         return { safe: false, violations: [], error: "Content moderation check failed. Please try again." };
       }
-      const pollJson: { code?: number; data?: { status?: string; outputs?: unknown; has_nsfw_contents?: boolean[]; error?: string } } = await statusResponse.json();
-      const polled = pollJson.data;
+      const pollRaw: unknown = await statusResponse.json();
+      const polled = extractContentModerationTask(pollRaw);
       if (!polled) {
         continue;
       }
