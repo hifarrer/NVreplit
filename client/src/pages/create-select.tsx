@@ -4,7 +4,7 @@ import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { VideoStylePreview } from "@/components/video-style-preview";
+import { MuxAnimatedPreview } from "@/components/mux-animated-preview";
 import { useAuth } from "@/hooks/use-auth";
 import { Sparkles } from "lucide-react";
 
@@ -216,9 +216,10 @@ export default function CreateSelect() {
                       className="absolute inset-0 w-full h-full object-cover"
                     />
                   ) : "videoUrl" in mode && mode.videoUrl ? (
-                    <VideoStylePreview
+                    <MuxAnimatedPreview
                       hlsUrl={mode.videoUrl}
                       className="absolute inset-0"
+                      alt={mode.title}
                     />
                   ) : null}
                   {!mode.available && (
@@ -252,9 +253,10 @@ export default function CreateSelect() {
               onClick={() => navigate("/create/story-video")}
             >
               <div className="relative aspect-[3/4] overflow-hidden bg-muted">
-                <VideoStylePreview
+                <MuxAnimatedPreview
                   hlsUrl="https://stream.mux.com/UyR7Y01LqlVFKJzYcXHAvHl2OCHM4FUZyKpHTxz7BSNs.m3u8?redundant_streams=true"
                   className="absolute inset-0"
+                  alt="Story Video"
                 />
               </div>
               <div className="px-4 sm:px-6 pt-3 pb-2">
@@ -285,9 +287,10 @@ export default function CreateSelect() {
                 onClick={() => handleModeClick(mode)}
               >
                 <div className="relative aspect-[3/4] overflow-hidden bg-muted">
-                  <VideoStylePreview
+                  <MuxAnimatedPreview
                     hlsUrl={mode.videoUrl}
                     className="absolute inset-0"
+                    alt={mode.title}
                   />
                   {!mode.available && (
                     <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
