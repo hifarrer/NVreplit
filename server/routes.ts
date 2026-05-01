@@ -10310,15 +10310,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let finalVideo;
           let savedFinalVideoUrl: string;
           try {
-            // Get watermark URL for branding (only Premium users can disable it)
-            const userWithPlan = await storage.getUserWithPlan(project.userId);
-            const isPremiumUser = userWithPlan?.plan?.name === "Premium";
-            const shouldIncludeWatermark = isPremiumUser ? (project.includeWatermark !== false) : true;
-
-            let watermarkUrl: string | undefined;
-            if (shouldIncludeWatermark) {
-              watermarkUrl = await getWatermarkUrl() || undefined;
-            }
+            // Auto-generated videos are posted to social channels; skip watermark overlays.
+            const watermarkUrl: string | undefined = undefined;
 
             console.log("=== VIDEO MERGE CONFIG ===");
             console.log("Captions will be added via ffmpegapi after upload (not during merge)");
@@ -16644,8 +16637,7 @@ Do not add markdown. Return JSON only.`,
         metadata: {},
       });
 
-      const watermarkUrl = await getWatermarkUrl();
-      const loopResult = await videoLoop(mergedVideoUrl, audioUrl.trim(), watermarkUrl);
+      const loopResult = await videoLoop(mergedVideoUrl, audioUrl.trim(), undefined);
 
       await storage.addGenerationLog({
         projectId,
@@ -19280,13 +19272,11 @@ Pick voices that best match each character's personality, age, and gender.`,
 
       const outroVideoUrl = "https://neonvideo.b-cdn.net/neonvideooutros/neonvideo_vertical.mp4";
 
-      const storyWatermarkUrl = (await getWatermarkUrl()) || undefined;
-
       const mergeResult = await mergeVideos(
         videoSegmentUrls,
         undefined,
         undefined,
-        storyWatermarkUrl,
+        undefined,
         outroVideoUrl,
         dimensions,
       );
