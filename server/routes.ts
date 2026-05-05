@@ -16801,7 +16801,7 @@ Do not add markdown. Return JSON only.`,
 
     try {
       const userId = req.user!.userId;
-      const { aspectRatio: requestedAspectRatio, songDuration: requestedSongDuration, style: requestedStyle } = req.query;
+      const { aspectRatio: requestedAspectRatio, songDuration: requestedSongDuration, style: requestedStyle, musicProvider: requestedMusicProvider } = req.query;
 
       const selectedTheme = resolveLoopVideoTheme(requestedStyle as string | undefined);
 
@@ -16810,6 +16810,7 @@ Do not add markdown. Return JSON only.`,
       const songDuration = typeof requestedSongDuration !== "undefined"
         ? Math.max(30, Math.min(120, parseInt(String(requestedSongDuration), 10) || 30))
         : 30;
+      const musicProvider = (requestedMusicProvider as string)?.toLowerCase() === "elevenlabs" ? "elevenlabs" : "minimax";
 
       const canAfford = await storage.canUserAffordCredits(userId, LOOP_VIDEO_CREDITS);
       if (!canAfford) {
@@ -16850,13 +16851,14 @@ Do not add markdown. Return JSON only.`,
         projectUrl: `${baseUrl}/v/${project.id}`,
         style: selectedTheme.id,
         styleName: selectedTheme.name,
+        musicProvider,
       });
 
       (async () => {
         let projectId = project.id;
         const theme = selectedTheme;
         try {
-          console.log("[AUTO-GENERATE-LOOP] Theme:", theme.id);
+          console.log("[AUTO-GENERATE-LOOP] Theme:", theme.id, "| Music provider:", musicProvider);
 
           // Step 1: Song and video description (OpenAI)
           console.log("[AUTO-GENERATE-LOOP] Step 1: Generating song and video description...");
@@ -16865,12 +16867,12 @@ Do not add markdown. Return JSON only.`,
             messages: [
               {
                 role: "system",
-                content: `You are a creative assistant. Generate a short "what is your song about" song description and a matching short video description. Topics must be one of: ${theme.topics}. Keep each 1-2 sentences. Respond ONLY with valid JSON: { "song_description": "...", "video_description": "..." }`,
+                content: `You are a creative music director. Generate a vivid, specific "what is your song about" song description and a matching short video description. The song description should be emotionally specific — mention a character, a conflict, or a feeling (not generic). Topics must relate to: ${theme.topics}. Keep each 1-2 sentences. Respond ONLY with valid JSON: { "song_description": "...", "video_description": "..." }`,
               },
-              { role: "user", content: `Generate a song and video description (${theme.name} theme).` },
+              { role: "user", content: `Generate a unique, emotionally compelling song concept and video description (${theme.name} theme). Be specific and creative — avoid generic phrases like "a song about the future" or "a love story". Give it a narrative angle.` },
             ],
             response_format: { type: "json_object" },
-            max_tokens: 200,
+            max_tokens: 250,
           });
           const descContent = descResponse.choices[0]?.message?.content || "{}";
           const descriptions = JSON.parse(descContent) as { song_description?: string; video_description?: string };
@@ -16883,27 +16885,41 @@ Do not add markdown. Return JSON only.`,
           const { lyrics, title: lyricsTitle } = await generateLyricsWithTitle(songDescription, songDuration);
           console.log("[AUTO-GENERATE-LOOP] Lyrics generated, title:", lyricsTitle);
 
-          // Step 2b: Song prompt for Minimax (theme-specific music style)
+          // Step 2b: Song prompt for Minimax (theme-specific music style with varied production tags)
           console.log("[AUTO-GENERATE-LOOP] Step 2b: Generating song prompt for Minimax...");
+          const vocalTypes = ["male singer", "female singer", "male rapper", "female vocalist", "deep male voice", "ethereal female voice", "raspy male vocal", "powerful female belting"];
+          const randomVocal = vocalTypes[Math.floor(Math.random() * vocalTypes.length)];
+          const energyLevels = ["high energy", "moody and atmospheric", "aggressive", "dreamy", "intense build-up", "laid-back groove"];
+          const randomEnergy = energyLevels[Math.floor(Math.random() * energyLevels.length)];
           const songPromptResponse = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
               {
                 role: "system",
-                content: `You write short music prompts for an AI music API. The prompt must describe: ${theme.musicGuide} One sentence only, no JSON.`,
+                content: `You write detailed music production prompts for an AI music generation API. Include genre, instruments, vocal style, energy, and tempo. Style reference: ${theme.musicGuide} Write a single comma-separated tag list (no sentences, no JSON). Example format: "hip-hop, male rapper, heavy 808 bass, trap hi-hats, dark synth pads, aggressive, 140 BPM"`,
               },
-              { role: "user", content: `Write a single-sentence music prompt for a song about: ${songDescription}. Style/mood: ${theme.name}.` },
+              { role: "user", content: `Write music production tags for a song about: ${songDescription}. Must include: ${randomVocal}, ${randomEnergy}. Theme: ${theme.name}.` },
             ],
-            max_tokens: 150,
+            max_tokens: 200,
           });
-          const songPrompt = (songPromptResponse.choices[0]?.message?.content || `${theme.name} mood.`).trim();
+          const songPrompt = (songPromptResponse.choices[0]?.message?.content || `${theme.name}, ${randomVocal}, ${randomEnergy}, drums, synth`).trim();
           console.log("[AUTO-GENERATE-LOOP] Song prompt:", songPrompt);
 
-          // Step 3: Generate song (Minimax)
-          console.log("[AUTO-GENERATE-LOOP] Step 3: Generating song with Minimax...");
-          const songResult = await generateSingleSong(songPrompt, lyrics, "", 1);
-          const audioUrl = songResult.audioUrl;
-          console.log("[AUTO-GENERATE-LOOP] Song generated, duration:", songResult.duration);
+          // Step 3: Generate song (Minimax or ElevenLabs)
+          let audioUrl: string;
+          let songResultDuration: number;
+          if (musicProvider === "elevenlabs") {
+            console.log("[AUTO-GENERATE-LOOP] Step 3: Generating song with ElevenLabs...");
+            const elResult = await generateSongWithElevenLabs(songPrompt, lyrics, songDuration * 1000);
+            audioUrl = elResult.audioUrl;
+            songResultDuration = elResult.duration;
+          } else {
+            console.log("[AUTO-GENERATE-LOOP] Step 3: Generating song with Minimax...");
+            const mmResult = await generateSingleSong(songPrompt, lyrics, "", 1);
+            audioUrl = mmResult.audioUrl;
+            songResultDuration = mmResult.duration;
+          }
+          console.log("[AUTO-GENERATE-LOOP] Song generated, duration:", songResultDuration);
 
           // Step 4: Video prompt for 12s loop (OpenAI) — vary visual style: realistic, cartoon, or anime
           const videoStyles = ["hyper realistic", "cartoon", "anime"] as const;
