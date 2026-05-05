@@ -16808,8 +16808,8 @@ Do not add markdown. Return JSON only.`,
       const validAspectRatios = ["3:4", "9:16", "16:9"];
       const aspectRatio = validAspectRatios.includes(requestedAspectRatio as string) ? (requestedAspectRatio as string) : "3:4";
       const songDuration = typeof requestedSongDuration !== "undefined"
-        ? Math.max(30, Math.min(120, parseInt(String(requestedSongDuration), 10) || 30))
-        : 30;
+        ? Math.max(30, Math.min(180, parseInt(String(requestedSongDuration), 10) || 120))
+        : 120;
       const musicProvider = (requestedMusicProvider as string)?.toLowerCase() === "elevenlabs" ? "elevenlabs" : "minimax";
 
       const canAfford = await storage.canUserAffordCredits(userId, LOOP_VIDEO_CREDITS);
