@@ -61,6 +61,20 @@ export const LOOP_VIDEO_THEMES: LoopVideoTheme[] = [
     musicGuide: "epic orchestral metal, dark fantasy, cinematic aggression. Instruments: double-kick drums, distorted electric guitar, symphonic strings, war horns, epic choir, thundering toms, bass drops. Tempo: 130-160 BPM.",
     visualGuide: "Warriors wielding blood-red magic, dark castles, demonic summonings, brooding anti-heroes, crimson moons, crumbling empires.",
   },
+  {
+    id: "synthwave-electronic",
+    name: "Synthwave / Electronic",
+    topics: "synthwave, pure electronic, retrowave, sunset grids, analog synth leads, tape saturation, neon highways, Miami Vice aesthetic, arpeggiators, sidechain pump",
+    musicGuide: "synthwave, electronic, retrowave. Instruments: supersaw leads, analog-style bass, gated reverb snare, rolling hi-hats, arpeggiated sequences, warm pads, tape wow and flutter. Tempo: 100-128 BPM.",
+    visualGuide: "Infinite sunset grid, chrome sports cars, neon highways, palm silhouettes, laser grids, VHS scanlines, magenta and cyan gradients, retro-futuristic skyline.",
+  },
+  {
+    id: "electronic-hiphop",
+    name: "Electronic / Hip-Hop",
+    topics: "electronic hip-hop, trap-influenced beats, 808 bass, synth stabs, urban nightlife, warehouse raves, graffiti, subway tunnels, LED strips, street fashion",
+    musicGuide: "electronic hip-hop, hybrid trap. Instruments: heavy 808 sub, crisp claps, layered hi-hats, pitch-bent 808 slides, dark synth stabs, vocal chops, sparse piano or Rhodes hits. Tempo: 130-150 BPM.",
+    visualGuide: "Urban neon at night, graffiti walls, subway tunnels with LED strips, warehouse party silhouettes, streetwear, rain on asphalt, holographic shop signs.",
+  },
 ];
 
 /**
