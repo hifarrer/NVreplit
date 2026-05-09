@@ -11928,7 +11928,7 @@ Format your response as JSON:
       .sort(() => Math.random() - 0.5)
       .slice(0, 5)
       .join(" ");
-    const tiktokContent = `Create your Music Videos Now! 🤩\n\n${tiktokHashtags}`;
+    const tiktokContent = `Create your Videos Now! 🤩\n\n${tiktokHashtags}`;
 
     console.log(`[POSTIZ] Posting to Facebook, YouTube, and TikTok for project: ${project.title}`);
     console.log(`[POSTIZ] Video URL for upload: ${fullVideoUrl}`);
