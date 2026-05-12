@@ -11777,9 +11777,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  const ALL_CHANNELS = ["facebook", "youtube", "tiktok", "reddit"] as const;
+  type PostChannel = typeof ALL_CHANNELS[number];
+
   // Helper function to post a video to Postiz
-  async function postVideoToPostiz(projectId: string) {
-    console.log(`[POSTIZ] Starting post for project ${projectId}`);
+  // channels: array of channel names to post to. If empty/undefined, posts to all channels.
+  async function postVideoToPostiz(projectId: string, channels?: PostChannel[]) {
+    const targetChannels = channels && channels.length > 0 ? channels : [...ALL_CHANNELS];
+    console.log(`[POSTIZ] Starting post for project ${projectId} to channels: ${targetChannels.join(", ")}`);
 
     const project = await storage.getProject(projectId);
     if (!project) {
@@ -11790,10 +11795,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       throw new Error("Video must be completed with a final video URL");
     }
 
-    // Check if already posted
     const existingPost = await storage.getPostizPostByProjectId(projectId);
-    if (existingPost && existingPost.postedFacebook && existingPost.postedYoutube && existingPost.postedTiktok && existingPost.postedReddit) {
-      throw new Error("Video has already been posted to Facebook, YouTube, TikTok, and Reddit");
+
+    // Check if already posted to all *requested* channels
+    if (existingPost) {
+      const allRequestedAlreadyPosted = targetChannels.every(ch => {
+        if (ch === "facebook") return !!existingPost.postedFacebook;
+        if (ch === "youtube") return !!existingPost.postedYoutube;
+        if (ch === "tiktok") return !!existingPost.postedTiktok;
+        if (ch === "reddit") return !!existingPost.postedReddit;
+        return false;
+      });
+      if (allRequestedAlreadyPosted) {
+        throw new Error(`Video has already been posted to: ${targetChannels.join(", ")}`);
+      }
     }
 
     const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY;
@@ -11807,13 +11822,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       throw new Error("POSTIZ_API_KEY not configured");
     }
 
-    // Prepare video URL and content
     const videoUrl = project.finalVideoUrl;
     const hashtags = "#ai #aivideo #musicvideo #neonvideo";
     const shareableLink = `https://neonvideo.ai/v/${projectId}`;
 
-    // Generate AI description for Reddit using OpenAI
-    // Build context from project data
     const projectContext = {
       title: project.title,
       characterPrompt: project.characterPrompt || "",
@@ -11821,31 +11833,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       description: project.description || "",
     };
 
-    console.log(`[POSTIZ] Generating AI description for Reddit...`);
+    // Generate AI description for Reddit (only if reddit is a target channel)
     let redditTitle = `AI Music Video: ${project.title}`;
     let redditDescription = `Check out this AI-generated music video created with NeonVideo.ai - the best AI music video generator!`;
 
-    // Only attempt AI generation if OPENAI_API_KEY is available
-    if (process.env.OPENAI_API_KEY) {
-      try {
-        const OpenAI = (await import("openai")).default;
-        const openaiClient = new OpenAI({
-          apiKey: process.env.OPENAI_API_KEY,
-        });
+    if (targetChannels.includes("reddit")) {
+      console.log(`[POSTIZ] Generating AI description for Reddit...`);
+      if (process.env.OPENAI_API_KEY) {
+        try {
+          const OpenAI = (await import("openai")).default;
+          const openaiClient = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+          });
 
-        const aiResponse = await openaiClient.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [
-            {
-              role: "system",
-              content: `You are a social media content creator writing Reddit posts for AI-generated music videos. 
+          const aiResponse = await openaiClient.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "system",
+                content: `You are a social media content creator writing Reddit posts for AI-generated music videos. 
 Write in natural, conversational human language. Be enthusiastic but not over-the-top.
 Include SEO keywords naturally: "AI music video", "music video", "music video generator", "AI video generator".
 Keep it brief and engaging - around 2-3 sentences for the description.`
-            },
-            {
-              role: "user",
-              content: `Create a Reddit post title and description for this AI music video:
+              },
+              {
+                role: "user",
+                content: `Create a Reddit post title and description for this AI music video:
 
 Title: ${projectContext.title}
 Character: ${projectContext.characterPrompt}
@@ -11857,70 +11870,63 @@ Format your response as JSON:
   "title": "short catchy title with 'AI Music Video' included",
   "description": "2-3 sentence description in natural language"
 }`
-            }
-          ],
-          response_format: { type: "json_object" },
-          temperature: 0.8,
-          max_tokens: 200
-        });
+              }
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.8,
+            max_tokens: 200
+          });
 
-        // Safely parse AI response with defensive guards
-        const messageContent = aiResponse?.choices?.[0]?.message?.content;
-        if (messageContent) {
-          const aiContent = JSON.parse(messageContent);
-          if (aiContent.title) redditTitle = aiContent.title;
-          if (aiContent.description) redditDescription = aiContent.description;
-          console.log(`[POSTIZ] AI generated title: ${redditTitle}`);
-          console.log(`[POSTIZ] AI generated description: ${redditDescription}`);
-        } else {
-          console.log(`[POSTIZ] AI response was empty, using default description`);
+          const messageContent = aiResponse?.choices?.[0]?.message?.content;
+          if (messageContent) {
+            const aiContent = JSON.parse(messageContent);
+            if (aiContent.title) redditTitle = aiContent.title;
+            if (aiContent.description) redditDescription = aiContent.description;
+            console.log(`[POSTIZ] AI generated title: ${redditTitle}`);
+            console.log(`[POSTIZ] AI generated description: ${redditDescription}`);
+          } else {
+            console.log(`[POSTIZ] AI response was empty, using default description`);
+          }
+        } catch (aiError) {
+          console.error(`[POSTIZ] AI description generation failed, using default:`, aiError);
         }
-      } catch (aiError) {
-        console.error(`[POSTIZ] AI description generation failed, using default:`, aiError);
+      } else {
+        console.log(`[POSTIZ] OPENAI_API_KEY not configured, using default description`);
       }
-    } else {
-      console.log(`[POSTIZ] OPENAI_API_KEY not configured, using default description`);
     }
 
-    // Build full Reddit content with link
     const redditContent = `${redditDescription}\n\nWatch the full video: ${shareableLink}`;
 
-    // Resolve video URL - use ImageKit URL if available, otherwise get signed URL
+    // Resolve video URL
     const { resolveUrlWithImageKitFallback } = await import('./services/imagekit.js');
     const { ObjectStorageService } = await import('./objectStorage.js');
     const objStorage = new ObjectStorageService();
     let fullVideoUrl: string;
 
     try {
-      // First try to resolve ImageKit URL from backup (if video was uploaded to ImageKit)
       const resolvedUrl = await resolveUrlWithImageKitFallback(videoUrl, storage);
 
       if (resolvedUrl && resolvedUrl.startsWith('http')) {
-        // It's already an ImageKit URL or full URL, use it directly
         fullVideoUrl = resolvedUrl;
         console.log(`[POSTIZ] Using ImageKit URL for video: ${fullVideoUrl.substring(0, 50)}...`);
       } else {
-        // Try to get signed URL from object storage (fallback for local storage)
         try {
           fullVideoUrl = await objStorage.getSignedUrlForPath(videoUrl, 3600);
           console.log(`[POSTIZ] Generated signed URL for video`);
         } catch (signedUrlError) {
           console.error(`[POSTIZ] Failed to generate signed URL:`, signedUrlError);
-          // Final fallback to direct URL
           const baseUrl = "https://neonvideo.ai";
           fullVideoUrl = videoUrl.startsWith('http') ? videoUrl : `${baseUrl}${videoUrl}`;
         }
       }
     } catch (error) {
       console.error(`[POSTIZ] Failed to resolve video URL:`, error);
-      // Fallback to direct URL (might not work but better than failing)
       const baseUrl = "https://neonvideo.ai";
       fullVideoUrl = videoUrl.startsWith('http') ? videoUrl : `${baseUrl}${videoUrl}`;
     }
 
     const content = `Create your own AI Music Videos Now! 🤩\n\n${hashtags}`;
 
-    // TikTok only: different caption and max 5 hashtags from allowed pool (TikTok limit)
     const TIKTOK_HASHTAG_POOL = [
       "#aimusic", "#newmusic", "#aimusicvideo", "#fypsounds", "#fyp",
       "#aigeneratedart", "#aivideo", "#viralsong", "#musicdiscovery", "#newmusicalert"
@@ -11931,10 +11937,10 @@ Format your response as JSON:
       .join(" ");
     const tiktokContent = `Create your Videos Now! 🤩\n\n${tiktokHashtags}`;
 
-    console.log(`[POSTIZ] Posting to Facebook, YouTube, and TikTok for project: ${project.title}`);
+    console.log(`[POSTIZ] Posting to [${targetChannels.join(", ")}] for project: ${project.title}`);
     console.log(`[POSTIZ] Video URL for upload: ${fullVideoUrl}`);
 
-    // Step 1: Download video from object storage
+    // Download video from object storage
     console.log(`[POSTIZ] Downloading video from object storage...`);
     const videoResponse = await fetch(fullVideoUrl);
     if (!videoResponse.ok) {
@@ -11943,7 +11949,7 @@ Format your response as JSON:
     const videoBuffer = await videoResponse.arrayBuffer();
     console.log(`[POSTIZ] Downloaded video (${videoBuffer.byteLength} bytes)`);
 
-    // Step 2: Upload video to Postiz as multipart form data
+    // Upload video to Postiz
     console.log(`[POSTIZ] Uploading video to Postiz...`);
     const FormData = (await import('form-data')).default;
     const nodeFetch = (await import('node-fetch')).default;
@@ -11974,235 +11980,188 @@ Format your response as JSON:
     const uploadResult = JSON.parse(uploadResponseText);
     console.log(`[POSTIZ] Video uploaded successfully. Response:`, uploadResult);
 
-    // Step 2: Create post with uploaded video for both Facebook and YouTube
-    const groupId = `neonvideo-${Date.now()}`;
-    const postBody = {
-      type: "now",
-      date: new Date().toISOString(),
-      shortLink: false,
-      tags: [],
-      posts: [
-        {
-          integration: { id: FACEBOOK_CHANNEL_ID },
-          value: [
-            {
-              content: content,
-              image: [
-                {
-                  id: uploadResult.id,
-                  path: uploadResult.path || uploadResult.url
-                }
-              ]
-            }
-          ],
-          group: groupId
-        },
-        {
-          integration: { id: YOUTUBE_CHANNEL_ID },
-          value: [
-            {
-              content: content,
-              image: [
-                {
-                  id: uploadResult.id,
-                  path: uploadResult.path || uploadResult.url
-                }
-              ]
-            }
-          ],
-          settings: {
-            title: "Create your own AI Music Video now with NeonVideo.AI",
-            type: "public"
-          },
-          group: groupId
-        },
-        {
-          integration: { id: TIKTOK_CHANNEL_ID },
-          value: [
-            {
-              content: tiktokContent,
-              image: [
-                {
-                  id: uploadResult.id,
-                  path: uploadResult.path || uploadResult.url
-                }
-              ]
-            }
-          ],
-          settings: {
-            privacy_level: "PUBLIC_TO_EVERYONE",
-            duet: true,
-            stitch: true,
-            comment: true,
-            autoAddMusic: "no",
-            brand_content_toggle: false,
-            brand_organic_toggle: false,
-            content_posting_method: "DIRECT_POST"
-          },
-          group: groupId
-        },
-      ]
+    // Post to each channel independently so a failure on one doesn't block others
+    const results: Record<string, { success: boolean; postId: string | null; error?: string }> = {};
+
+    const postToChannel = async (channel: PostChannel): Promise<void> => {
+      // Skip if already posted to this channel
+      if (existingPost) {
+        if (channel === "facebook" && existingPost.postedFacebook) { results[channel] = { success: true, postId: existingPost.facebookPostId }; return; }
+        if (channel === "youtube" && existingPost.postedYoutube) { results[channel] = { success: true, postId: existingPost.youtubePostId }; return; }
+        if (channel === "tiktok" && existingPost.postedTiktok) { results[channel] = { success: true, postId: existingPost.tiktokPostId }; return; }
+        if (channel === "reddit" && existingPost.postedReddit) { results[channel] = { success: true, postId: existingPost.redditPostId }; return; }
+      }
+
+      try {
+        let postBody: any;
+        const groupId = `neonvideo-${channel}-${Date.now()}`;
+
+        if (channel === "facebook") {
+          postBody = {
+            type: "now", date: new Date().toISOString(), shortLink: false, tags: [],
+            posts: [{
+              integration: { id: FACEBOOK_CHANNEL_ID },
+              value: [{ content, image: [{ id: uploadResult.id, path: uploadResult.path || uploadResult.url }] }],
+              group: groupId
+            }]
+          };
+        } else if (channel === "youtube") {
+          postBody = {
+            type: "now", date: new Date().toISOString(), shortLink: false, tags: [],
+            posts: [{
+              integration: { id: YOUTUBE_CHANNEL_ID },
+              value: [{ content, image: [{ id: uploadResult.id, path: uploadResult.path || uploadResult.url }] }],
+              settings: { title: "Create your own AI Music Video now with NeonVideo.AI", type: "public" },
+              group: groupId
+            }]
+          };
+        } else if (channel === "tiktok") {
+          postBody = {
+            type: "now", date: new Date().toISOString(), shortLink: false, tags: [],
+            posts: [{
+              integration: { id: TIKTOK_CHANNEL_ID },
+              value: [{ content: tiktokContent, image: [{ id: uploadResult.id, path: uploadResult.path || uploadResult.url }] }],
+              settings: {
+                privacy_level: "PUBLIC_TO_EVERYONE", duet: true, stitch: true, comment: true,
+                autoAddMusic: "no", brand_content_toggle: false, brand_organic_toggle: false,
+                content_posting_method: "DIRECT_POST"
+              },
+              group: groupId
+            }]
+          };
+        } else if (channel === "reddit") {
+          const REDDIT_SUBREDDIT = process.env.REDDIT_SUBREDDIT || "videos";
+          postBody = {
+            type: "now", date: new Date().toISOString(), shortLink: false, tags: [],
+            posts: [{
+              integration: { id: REDDIT_CHANNEL_ID },
+              value: [{ content: redditContent, image: [{ id: uploadResult.id, path: uploadResult.path || uploadResult.url }] }],
+              settings: {
+                "__type": "reddit",
+                "subreddit": [{ "value": { "subreddit": REDDIT_SUBREDDIT, "title": redditTitle, "type": "video", "url": "", "is_flair_required": false, "flair": null } }]
+              },
+              group: groupId
+            }]
+          };
+        }
+
+        console.log(`[POSTIZ] Posting to ${channel}...`);
+        const response = await fetch(`${POSTIZ_HOST_URL}/public/v1/posts`, {
+          method: "POST",
+          headers: { "Authorization": POSTIZ_API_KEY, "Content-Type": "application/json" },
+          body: JSON.stringify(postBody)
+        });
+
+        const responseText = await response.text();
+        console.log(`[POSTIZ] ${channel} response status: ${response.status}`);
+        console.log(`[POSTIZ] ${channel} response:`, responseText);
+
+        if (response.ok) {
+          const result = JSON.parse(responseText);
+          const postId = result.id || result.data?.id || null;
+          results[channel] = { success: true, postId };
+          console.log(`[POSTIZ] ✅ Successfully posted to ${channel}. Post ID: ${postId}`);
+        } else {
+          results[channel] = { success: false, postId: null, error: `${response.status}: ${responseText}` };
+          console.error(`[POSTIZ] ⚠️ ${channel} post failed (${response.status}): ${responseText}`);
+        }
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        results[channel] = { success: false, postId: null, error: errorMsg };
+        console.error(`[POSTIZ] ⚠️ ${channel} post error (isolated):`, err);
+      }
     };
 
-    console.log(`[POSTIZ] Creating post for Facebook, YouTube, TikTok...`);
-    console.log(`[POSTIZ] Post body:`, JSON.stringify(postBody, null, 2));
-
-    const postResponse = await fetch(`${POSTIZ_HOST_URL}/public/v1/posts`, {
-      method: "POST",
-      headers: {
-        "Authorization": POSTIZ_API_KEY,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(postBody)
-    });
-
-    const postResponseText = await postResponse.text();
-    console.log(`[POSTIZ] Post response status: ${postResponse.status}`);
-    console.log(`[POSTIZ] Post response:`, postResponseText);
-
-    if (!postResponse.ok) {
-      throw new Error(`Postiz API error (${postResponse.status}): ${postResponseText}`);
+    // Post to each target channel sequentially (to avoid Postiz rate limits), but isolated
+    for (const channel of targetChannels) {
+      await postToChannel(channel);
     }
 
-    const postResult = JSON.parse(postResponseText);
-    const postId = postResult.id || postResult.data?.id || null;
-
-    console.log(`[POSTIZ] Successfully posted to Facebook, YouTube, and TikTok. Post ID: ${postId}`);
-
-    // Post to Reddit separately to isolate failures
-    let redditPostId: string | null = null;
-    let redditPostedTime: Date | null = null;
-
-    try {
-      console.log(`[POSTIZ] Creating separate Reddit post...`);
-
-      // Get subreddit from environment variable or use default
-      const REDDIT_SUBREDDIT = process.env.REDDIT_SUBREDDIT || "videos";
-
-      const redditPostBody = {
-        type: "now",
-        date: new Date().toISOString(),
-        shortLink: false,
-        tags: [],
-        posts: [
-          {
-            integration: { id: REDDIT_CHANNEL_ID },
-            value: [
-              {
-                content: redditContent,
-                image: [
-                  {
-                    id: uploadResult.id,
-                    path: uploadResult.path || uploadResult.url
-                  }
-                ]
-              }
-            ],
-            settings: {
-              "__type": "reddit",
-              "subreddit": [
-                {
-                  "value": {
-                    "subreddit": REDDIT_SUBREDDIT,
-                    "title": redditTitle,
-                    "type": "video",
-                    "url": "",
-                    "is_flair_required": false,
-                    "flair": null
-                  }
-                }
-              ]
-            },
-            group: `neonvideo-reddit-${Date.now()}`
-          }
-        ]
-      };
-
-      console.log(`[POSTIZ] Reddit post body:`, JSON.stringify(redditPostBody, null, 2));
-
-      const redditResponse = await fetch(`${POSTIZ_HOST_URL}/public/v1/posts`, {
-        method: "POST",
-        headers: {
-          "Authorization": POSTIZ_API_KEY,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(redditPostBody)
-      });
-
-      const redditResponseText = await redditResponse.text();
-      console.log(`[POSTIZ] Reddit post response status: ${redditResponse.status}`);
-      console.log(`[POSTIZ] Reddit post response:`, redditResponseText);
-
-      if (redditResponse.ok) {
-        const redditResult = JSON.parse(redditResponseText);
-        redditPostId = redditResult.id || redditResult.data?.id || null;
-        redditPostedTime = new Date();
-        console.log(`[POSTIZ] ✅ Successfully posted to Reddit. Post ID: ${redditPostId}`);
-      } else {
-        console.error(`[POSTIZ] ⚠️ Reddit post failed (${redditResponse.status}): ${redditResponseText}`);
-      }
-    } catch (redditError) {
-      console.error(`[POSTIZ] ⚠️ Reddit post error (isolated, other platforms succeeded):`, redditError);
-    }
-
-    // Record the post in database
+    // Record/update the post in the database (only update channels that succeeded this run)
+    const dbUpdate: any = {};
     const now = new Date();
-    if (existingPost) {
-      await storage.updatePostizPost(projectId, {
-        postedFacebook: now,
-        postedYoutube: now,
-        postedTiktok: now,
-        postedReddit: redditPostedTime,
-        facebookPostId: postId,
-        youtubePostId: postId,
-        tiktokPostId: postId,
-        redditPostId: redditPostId
-      });
-      console.log(`[POSTIZ] ✅ Updated post record for project ${projectId} - marked as posted to all platforms at ${now.toISOString()}`);
-    } else {
-      await storage.createPostizPost({
-        projectId: projectId,
-        postedFacebook: now,
-        postedYoutube: now,
-        postedTiktok: now,
-        postedReddit: redditPostedTime,
-        facebookPostId: postId,
-        youtubePostId: postId,
-        tiktokPostId: postId,
-        redditPostId: redditPostId
-      });
-      console.log(`[POSTIZ] ✅ Created post record for project ${projectId} - marked as posted to all platforms at ${now.toISOString()}`);
+    if (results.facebook?.success) { dbUpdate.postedFacebook = now; dbUpdate.facebookPostId = results.facebook.postId; }
+    if (results.youtube?.success) { dbUpdate.postedYoutube = now; dbUpdate.youtubePostId = results.youtube.postId; }
+    if (results.tiktok?.success) { dbUpdate.postedTiktok = now; dbUpdate.tiktokPostId = results.tiktok.postId; }
+    if (results.reddit?.success) { dbUpdate.postedReddit = now; dbUpdate.redditPostId = results.reddit.postId; }
+
+    if (Object.keys(dbUpdate).length > 0) {
+      if (existingPost) {
+        await storage.updatePostizPost(projectId, dbUpdate);
+        console.log(`[POSTIZ] ✅ Updated post record for project ${projectId}`);
+      } else {
+        await storage.createPostizPost({ projectId, ...dbUpdate });
+        console.log(`[POSTIZ] ✅ Created post record for project ${projectId}`);
+      }
     }
 
-    return { postId, projectTitle: project.title, videoUrl: project.finalVideoUrl };
+    const succeeded = Object.entries(results).filter(([, r]) => r.success).map(([ch]) => ch);
+    const failed = Object.entries(results).filter(([, r]) => !r.success).map(([ch, r]) => `${ch}: ${r.error}`);
+
+    if (succeeded.length === 0) {
+      throw new Error(`All channel posts failed: ${failed.join("; ")}`);
+    }
+
+    if (failed.length > 0) {
+      console.warn(`[POSTIZ] ⚠️ Some channels failed: ${failed.join("; ")}`);
+    }
+
+    const firstPostId = Object.values(results).find(r => r.success)?.postId || null;
+    return {
+      postId: firstPostId,
+      projectTitle: project.title,
+      videoUrl: project.finalVideoUrl,
+      channelResults: results,
+      succeeded,
+      failed
+    };
   }
 
   // Admin endpoint to post a specific video to social media
+  // Accepts optional query param ?channels=facebook,youtube (comma-separated)
   app.post("/api/admin/videos/:id/post-to-social", authenticateAdmin, async (req, res) => {
     try {
       const { id } = req.params;
 
-      // Check if already posted to all platforms
+      const channelsParam = (req.query.channels as string | undefined);
+      const targetChannels: PostChannel[] | undefined = channelsParam
+        ? channelsParam.split(",").map(c => c.trim().toLowerCase()).filter(c => ALL_CHANNELS.includes(c as PostChannel)) as PostChannel[]
+        : undefined;
+
+      // Check if already posted to all requested platforms
+      const channelsToCheck = targetChannels && targetChannels.length > 0 ? targetChannels : [...ALL_CHANNELS];
       const postRecord = await storage.getPostizPostByProjectId(id);
-      if (postRecord && postRecord.postedFacebook && postRecord.postedYoutube && postRecord.postedTiktok && postRecord.postedReddit) {
-        return res.status(400).json({
-          success: false,
-          error: "This video has already been posted to all platforms",
-          alreadyPosted: true
+      if (postRecord) {
+        const allPosted = channelsToCheck.every(ch => {
+          if (ch === "facebook") return !!postRecord.postedFacebook;
+          if (ch === "youtube") return !!postRecord.postedYoutube;
+          if (ch === "tiktok") return !!postRecord.postedTiktok;
+          if (ch === "reddit") return !!postRecord.postedReddit;
+          return false;
         });
+        if (allPosted) {
+          return res.status(400).json({
+            success: false,
+            error: `This video has already been posted to: ${channelsToCheck.join(", ")}`,
+            alreadyPosted: true
+          });
+        }
       }
 
-      const result = await postVideoToPostiz(id);
+      const result = await postVideoToPostiz(id, targetChannels);
 
       res.json({
         success: true,
-        message: "Video posted to Facebook, YouTube, TikTok, and Reddit successfully",
+        message: `Posted to: ${result.succeeded.join(", ")}` + (result.failed.length > 0 ? ` | Failed: ${result.failed.join("; ")}` : ""),
         video: {
           id: id,
           title: result.projectTitle,
           url: result.videoUrl
         },
-        postId: result.postId
+        postId: result.postId,
+        channelResults: result.channelResults,
+        succeeded: result.succeeded,
+        failed: result.failed
       });
     } catch (error) {
       console.error("[POSTIZ] Admin post error:", error);
@@ -12214,25 +12173,46 @@ Format your response as JSON:
   });
 
   // Cron endpoint for auto-posting videos to social media
+  // Accepts optional query param ?channels=facebook,youtube,tiktok,reddit (comma-separated)
+  // If omitted, posts to all channels.
   app.post("/api/cron/auto-post-to-social", async (req, res) => {
     try {
-      console.log("[AUTO-POST] Starting auto-post job at", new Date().toISOString());
+      // Parse optional channels filter from query string
+      const channelsParam = (req.query.channels as string | undefined);
+      const targetChannels: PostChannel[] | undefined = channelsParam
+        ? channelsParam.split(",").map(c => c.trim().toLowerCase()).filter(c => ALL_CHANNELS.includes(c as PostChannel)) as PostChannel[]
+        : undefined;
 
-      // Get all completed videos that haven't been posted yet
+      const channelLabel = targetChannels && targetChannels.length > 0
+        ? targetChannels.join(", ")
+        : "all";
+
+      console.log(`[AUTO-POST] Starting auto-post job at ${new Date().toISOString()} (channels: ${channelLabel})`);
+
       const allProjects = await storage.getAllProjects();
       const completedVideos = allProjects.filter(p =>
         p.isCompleted &&
         p.finalVideoUrl &&
-        p.isPublic !== false // Only include public videos (true or undefined for backwards compatibility)
+        p.isPublic !== false
       );
 
       console.log(`[AUTO-POST] Found ${completedVideos.length} completed videos`);
 
-      // Check which ones haven't been posted to Facebook, YouTube, TikTok, and Reddit yet
+      // Determine which channels to check for "unposted" status
+      const channelsToCheck = targetChannels && targetChannels.length > 0 ? targetChannels : [...ALL_CHANNELS];
+
       const unpostedVideos = [];
       for (const video of completedVideos) {
         const postRecord = await storage.getPostizPostByProjectId(video.id);
-        if (!postRecord || !postRecord.postedFacebook || !postRecord.postedYoutube || !postRecord.postedTiktok || !postRecord.postedReddit) {
+        const needsPosting = channelsToCheck.some(ch => {
+          if (!postRecord) return true;
+          if (ch === "facebook") return !postRecord.postedFacebook;
+          if (ch === "youtube") return !postRecord.postedYoutube;
+          if (ch === "tiktok") return !postRecord.postedTiktok;
+          if (ch === "reddit") return !postRecord.postedReddit;
+          return false;
+        });
+        if (needsPosting) {
           unpostedVideos.push(video);
         }
       }
@@ -12247,26 +12227,27 @@ Format your response as JSON:
         });
       }
 
-      // Sort by creation date DESC and get the first one
       const videoToPost = unpostedVideos.sort((a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )[0];
 
       console.log(`[AUTO-POST] Selected video to post: ${videoToPost.id} - ${videoToPost.title}`);
 
-      // Use the helper function to post
-      const result = await postVideoToPostiz(videoToPost.id);
+      const result = await postVideoToPostiz(videoToPost.id, targetChannels);
 
       res.json({
         success: true,
-        message: "Video posted to Facebook, YouTube, TikTok, and Reddit successfully",
+        message: `Posted to: ${result.succeeded.join(", ")}` + (result.failed.length > 0 ? ` | Failed: ${result.failed.join("; ")}` : ""),
         posted: 1,
         video: {
           id: videoToPost.id,
           title: result.projectTitle,
           url: result.videoUrl
         },
-        postId: result.postId
+        postId: result.postId,
+        channelResults: result.channelResults,
+        succeeded: result.succeeded,
+        failed: result.failed
       });
 
     } catch (error) {
