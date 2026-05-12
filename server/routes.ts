@@ -11797,6 +11797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY;
+    const POSTIZ_HOST_URL = (process.env.POSTIZ_HOST_URL || "https://api.postiz.com").replace(/\/+$/, '');
     const FACEBOOK_CHANNEL_ID = "cmgi638zj005ulb0yf9dlmz4g";
     const YOUTUBE_CHANNEL_ID = "cmgheacv20174lb0yszfbkfrg";
     const TIKTOK_CHANNEL_ID = "cmgi2xrxq0036lb0ykwos7wny";
@@ -11953,7 +11954,7 @@ Format your response as JSON:
       contentType: 'video/mp4'
     });
 
-    const uploadResponse = await nodeFetch("https://api.postiz.com/public/v1/upload", {
+    const uploadResponse = await nodeFetch(`${POSTIZ_HOST_URL}/public/v1/upload`, {
       method: "POST",
       headers: {
         "Authorization": POSTIZ_API_KEY,
@@ -12046,7 +12047,7 @@ Format your response as JSON:
     console.log(`[POSTIZ] Creating post for Facebook, YouTube, TikTok...`);
     console.log(`[POSTIZ] Post body:`, JSON.stringify(postBody, null, 2));
 
-    const postResponse = await fetch("https://api.postiz.com/public/v1/posts", {
+    const postResponse = await fetch(`${POSTIZ_HOST_URL}/public/v1/posts`, {
       method: "POST",
       headers: {
         "Authorization": POSTIZ_API_KEY,
@@ -12119,7 +12120,7 @@ Format your response as JSON:
 
       console.log(`[POSTIZ] Reddit post body:`, JSON.stringify(redditPostBody, null, 2));
 
-      const redditResponse = await fetch("https://api.postiz.com/public/v1/posts", {
+      const redditResponse = await fetch(`${POSTIZ_HOST_URL}/public/v1/posts`, {
         method: "POST",
         headers: {
           "Authorization": POSTIZ_API_KEY,
