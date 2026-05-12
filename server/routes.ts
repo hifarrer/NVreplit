@@ -11798,10 +11798,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY;
     const POSTIZ_HOST_URL = (process.env.POSTIZ_HOST_URL || "https://api.postiz.com").replace(/\/+$/, '');
-    const FACEBOOK_CHANNEL_ID = "cmgi638zj005ulb0yf9dlmz4g";
-    const YOUTUBE_CHANNEL_ID = "cmgheacv20174lb0yszfbkfrg";
-    const TIKTOK_CHANNEL_ID = "cmgi2xrxq0036lb0ykwos7wny";
-    const REDDIT_CHANNEL_ID = "cmkzpyncb00sant0yy54mt640";
+    const FACEBOOK_CHANNEL_ID = process.env.POSTIZ_FACEBOOK_CHANNEL_ID || "";
+    const YOUTUBE_CHANNEL_ID = process.env.POSTIZ_YOUTUBE_CHANNEL_ID || "";
+    const TIKTOK_CHANNEL_ID = process.env.POSTIZ_TIKTOK_CHANNEL_ID || "";
+    const REDDIT_CHANNEL_ID = process.env.POSTIZ_REDDIT_CHANNEL_ID || "";
 
     if (!POSTIZ_API_KEY) {
       throw new Error("POSTIZ_API_KEY not configured");
