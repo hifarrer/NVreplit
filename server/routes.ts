@@ -12172,6 +12172,57 @@ Format your response as JSON:
     }
   });
 
+  // Health check for self-hosted Postiz instance
+  app.get("/api/cron/postiz-health", async (req, res) => {
+    const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY;
+    const POSTIZ_HOST_URL = (process.env.POSTIZ_HOST_URL || "https://api.postiz.com").replace(/\/+$/, '');
+
+    if (!POSTIZ_API_KEY) {
+      return res.json({ success: false, error: "POSTIZ_API_KEY not configured" });
+    }
+
+    const checks: Record<string, any> = { host: POSTIZ_HOST_URL, timestamp: new Date().toISOString() };
+
+    // Test 1: Basic connectivity (GET the API root or a lightweight endpoint)
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const start = Date.now();
+      const resp = await fetch(`${POSTIZ_HOST_URL}/public/v1/posts?page=1`, {
+        method: "GET",
+        headers: { "Authorization": POSTIZ_API_KEY, "Content-Type": "application/json" },
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+      checks.api = { status: resp.status, ok: resp.ok, latencyMs: Date.now() - start };
+
+      if (resp.ok) {
+        const body = await resp.text();
+        try { checks.api.body = JSON.parse(body); } catch { checks.api.body = body.substring(0, 500); }
+      } else {
+        checks.api.body = (await resp.text()).substring(0, 500);
+      }
+    } catch (err: any) {
+      checks.api = { error: err.message || String(err), code: err.code || null };
+    }
+
+    // Test 2: DNS/TCP connectivity to the host
+    try {
+      const url = new URL(POSTIZ_HOST_URL);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const start = Date.now();
+      const resp = await fetch(`${url.protocol}//${url.host}`, { method: "HEAD", signal: controller.signal });
+      clearTimeout(timeout);
+      checks.connectivity = { status: resp.status, latencyMs: Date.now() - start };
+    } catch (err: any) {
+      checks.connectivity = { error: err.message || String(err), code: err.code || null };
+    }
+
+    const healthy = checks.api?.ok === true;
+    res.status(healthy ? 200 : 503).json({ success: healthy, checks });
+  });
+
   // Cron endpoint for auto-posting videos to social media
   // Accepts optional query param ?channels=facebook,youtube,tiktok,reddit (comma-separated)
   // If omitted, posts to all channels.
