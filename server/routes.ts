@@ -12175,7 +12175,7 @@ Format your response as JSON:
   // Cron endpoint for auto-posting videos to social media
   // Accepts optional query param ?channels=facebook,youtube,tiktok,reddit (comma-separated)
   // If omitted, posts to all channels.
-  app.post("/api/cron/auto-post-to-social", async (req, res) => {
+  app.get("/api/cron/auto-post-to-social", async (req, res) => {
     try {
       // Parse optional channels filter from query string
       const channelsParam = (req.query.channels as string | undefined);
