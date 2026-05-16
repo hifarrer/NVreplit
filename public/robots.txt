@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
 
+LLMS: https://neonvideo.ai/llms.txt
+LLMS-Full: https://neonvideo.ai/llms-full.txt
+
 Sitemap: https://neonvideo.ai/sitemap.xml

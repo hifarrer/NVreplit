@@ -9,6 +9,7 @@ import { Link, useLocation } from "wouter";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 import { useAuth } from "@/hooks/use-auth";
 import { SiTiktok, SiFacebook, SiYoutube } from "react-icons/si";
+import { Helmet } from "react-helmet-async";
 
 const heroVideoHlsUrl =
   "https://vz-ec5a04eb-243.b-cdn.net/8938b165-4976-4c71-b56d-ef1d834fb568/playlist.m3u8";
@@ -24,6 +25,74 @@ interface FeaturedVideo {
   streamThumbnailUrl?: string | null;
   streamEmbedUrl?: string | null;
 }
+
+const homepageJsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://neonvideo.ai/#organization",
+      name: "NeonVideo.ai",
+      url: "https://neonvideo.ai/",
+      logo: "https://neonvideo.ai/favicon.ico",
+      sameAs: [
+        "https://www.tiktok.com/@neonvideoai",
+        "https://www.facebook.com/neonvideoai",
+        "https://www.youtube.com/@NeonVideoAI",
+      ],
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://neonvideo.ai/#website",
+      url: "https://neonvideo.ai/",
+      name: "NeonVideo.ai",
+      publisher: {
+        "@id": "https://neonvideo.ai/#organization",
+      },
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://neonvideo.ai/#software",
+      name: "NeonVideo.ai",
+      applicationCategory: "MultimediaApplication",
+      operatingSystem: "Web",
+      url: "https://neonvideo.ai/",
+      description:
+        "AI video platform for creating music videos, story videos, lyric videos, video shorts, captions, video upscales, prompt-based video edits, and background removal.",
+      offers: {
+        "@type": "Offer",
+        url: "https://neonvideo.ai/plans",
+        priceCurrency: "USD",
+      },
+      featureList: [
+        "AI music video generation",
+        "Character video generation",
+        "Story video generation",
+        "Lyric video generation",
+        "Long-form AI video generation",
+        "Video captions",
+        "Video upscaling",
+        "AI video editing",
+        "Video background removal",
+        "Public API",
+      ],
+      documentation: "https://neonvideo.ai/docs.md",
+      softwareHelp: "https://neonvideo.ai/api-docs",
+    },
+    {
+      "@type": "WebAPI",
+      "@id": "https://neonvideo.ai/#api",
+      name: "NeonVideo.ai Public API",
+      url: "https://neonvideo.ai/openapi.json",
+      documentation: "https://neonvideo.ai/docs.md",
+      provider: {
+        "@id": "https://neonvideo.ai/#organization",
+      },
+      description:
+        "API for creating AI videos and running NeonVideo video tools including captions, upscaling, AI video editing, and background removal.",
+    },
+  ],
+};
 
 export default function LandingPage() {
   const [, navigate] = useLocation();
@@ -79,6 +148,11 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background/95 to-background overflow-x-hidden">
+      <Helmet>
+        <script type="application/ld+json">
+          {JSON.stringify(homepageJsonLd)}
+        </script>
+      </Helmet>
       {/* Header */}
       <header className="border-b border-border/50 bg-card/30 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">

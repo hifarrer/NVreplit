@@ -1,0 +1,54 @@
+# NeonVideo.ai
+
+> AI video, AI music video, character video, captioning, video editing, and creator tooling platform.
+
+Base URL: https://neonvideo.ai
+
+Primary references:
+- Full AI-readable reference: https://neonvideo.ai/llms-full.txt
+- Markdown docs: https://neonvideo.ai/docs.md
+- Markdown examples: https://neonvideo.ai/examples.md
+- Markdown pricing: https://neonvideo.ai/pricing.md
+- OpenAPI spec: https://neonvideo.ai/openapi.json
+- Human API docs: https://neonvideo.ai/api-docs
+- Pricing page: https://neonvideo.ai/plans
+
+## Video creation options
+
+- Pro Mode: full music video workflow with character customization, scene customization, character singing, and editing.
+- Simple Mode: prompt-first music video workflow with optional audio URL and reference image.
+- Single Prompt: creates music, character, scenes, and a video from one prompt.
+- Seamless Loop Video: creates a loop video for an uploaded or linked song.
+- Instrumental: music-only visual video without character lip sync.
+- Lyric: creates lyric-focused videos with TikTok-style captions.
+- Music Video Shorts: 12-second prompt-based short video generation.
+- Story Video: scripted narrative videos with characters, narration, scene images, audio, and final video generation.
+- All Purpose / Long Format Video: long-form video flow not limited to short clips.
+- Scene Guided: scene-by-scene video generation with control over frames.
+- Motion Control: transfers motion from a source video onto a reference image.
+- Swap: replaces a person, object, or background using a reference image.
+- Reimagine: transforms a source video into a new visual style while preserving audio.
+
+## Current character/art style presets
+
+Realistic Cinematic; Realistic Natural; 3D Animated; 3D Toon; Anime Clean Cel; Anime Realistic; Black and White; Cartoon; Clay; Comic; Cyberpunk; Digital Painting; Fantasy; Futuristic; Goth; Toy Blocks; Manga; Miniature Toy; Oil Painting; Pixelated; Psychodelic; Punk; Retro; Sketch; Steampunk; Watercolor; Ultra Surreal; 1960; 1970; 1980.
+
+Legacy/simple style keys used by some endpoints: `3d`, `radiant`, `hyperrealistic`, `realistic`, `anime`, `cartoon`.
+
+Caption style keys: `plain-white`, `yellow-bg`, `pink-bg`, `blue-bg`, `red-bg`.
+
+## Stable public API endpoints
+
+Authentication uses `Authorization: Bearer YOUR_API_TOKEN`. API access requires a paid NeonVideo plan unless otherwise noted.
+
+- `POST /api/v1/auth/token` - generate a long-lived API token from an authenticated session token.
+- `POST /api/v1/videos` - create an AI video job from a prompt, optional `image_url`, optional `audio_url`, aspect ratio, duration, and captions flag.
+- `GET /api/v1/videos/{id}/status` - poll video generation status and retrieve the completed video URL.
+- `POST /api/v1/tools/add-captions` - add generated captions to a public video URL.
+- `POST /api/v1/tools/video-upscaler` - upscale a public video URL to 1080p, 2k, or 4k.
+- `POST /api/v1/tools/ai-video-edition` - edit a public video URL using a text prompt.
+- `POST /api/v1/tools/video-background-remover` - remove the background from a public video URL.
+
+## Agent guidance
+
+Use `openapi.json` for machine-readable request and response shapes. Use `docs.md` for narrative documentation, `examples.md` for curl workflows, and `pricing.md` for plan and credit guidance. Prefer `/api/v1/*` for external integrations; other `/api/*` routes are primarily used by the web app.

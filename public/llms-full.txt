@@ -1,0 +1,299 @@
+# NeonVideo.ai Full AI Reference
+
+Last updated: 2026-05-16
+Canonical site: https://neonvideo.ai
+
+NeonVideo.ai is an AI video platform for creating music videos, short videos, long-form videos, lyric videos, story videos, character videos, video edits, captions, upscales, and background removal. This file is intended for AI agents, search systems, and developer tools that need a concise but citable map of the product and API.
+
+## Canonical documentation URLs
+
+- Homepage: https://neonvideo.ai/
+- Human API docs: https://neonvideo.ai/api-docs
+- AI summary: https://neonvideo.ai/llms.txt
+- Full AI reference: https://neonvideo.ai/llms-full.txt
+- Markdown docs: https://neonvideo.ai/docs.md
+- Markdown examples: https://neonvideo.ai/examples.md
+- Markdown pricing: https://neonvideo.ai/pricing.md
+- OpenAPI spec: https://neonvideo.ai/openapi.json
+- Pricing page: https://neonvideo.ai/plans
+- Community examples: https://neonvideo.ai/community
+
+## Best use cases
+
+- Generate AI music videos from prompts.
+- Generate videos from a prompt plus a custom song URL.
+- Generate videos from a prompt plus a reference character or style image.
+- Build automated video generation workflows through the `/api/v1` API.
+- Add TikTok-style captions to an existing video.
+- Upscale videos to higher resolutions.
+- Apply prompt-based video edits.
+- Remove video backgrounds.
+- Create story videos with characters, narration, and scene-by-scene structure.
+- Create motion-transfer videos, video swaps, restyles, loops, lyrics videos, shorts, and long-form videos in the web app.
+
+## Video creation options
+
+### Pro Mode
+
+Route: `/create/story-mode`
+
+Best for creators who need character customization, scene customization, character singing, and more control over the final music video. This is the most controllable music video workflow.
+
+### Simple Mode
+
+Route: `/create/simple-mode`
+
+Best for prompt-first video creation with optional attached music and optional character/reference image. The public API `POST /api/v1/videos` forwards into this style of workflow.
+
+### Single Prompt
+
+Route: `/create/single-prompt`
+
+Best for generating a song, character, scenes, and complete music video from a single prompt.
+
+### Seamless Loop Video
+
+Route: `/create/loop-video`
+
+Best for creating a looping visual for a full song. Useful when song length should not be limited by video generation credits.
+
+### Instrumental
+
+Route: `/create/instrumental`
+
+Best for music visual videos without singing characters or lip sync.
+
+### Lyric
+
+Route: `/create/lyric`
+
+Best for videos where captions or lyrics are the main visual element.
+
+### Music Video Shorts
+
+Route: `/create/video-shorts`
+
+Best for short 12-second prompt-based videos for TikTok, Reels, Shorts, and quick social clips.
+
+### Story Video
+
+Route: `/create/story-video`
+
+Best for scripted narrative videos with multiple characters, narration, generated scene images, generated voices, and final assembly.
+
+### All Purpose / Long Format Video
+
+Route: `/create/all-purpose`
+
+Best for longer videos and flexible scene-based generation where the creator wants fewer short-clip constraints.
+
+### Scene Guided
+
+Route: `/create/scene-guided`
+
+Best for building videos scene-by-scene with direct control over images and finalization.
+
+### Motion Control
+
+Route: `/create/motion-control`
+
+Best for transferring motion from a source video onto a reference image. Supports direct video URLs and YouTube-style source workflows in the web app.
+
+### Swap
+
+Route: `/create/swap`
+
+Best for replacing a person, object, or background in a video using a reference image.
+
+### Reimagine
+
+Route: `/create/reimagine`
+
+Best for transforming an existing video into a new artistic style while preserving audio.
+
+## Current character/art style presets
+
+These presets are returned by the character styles route and used in character/video creation flows:
+
+- Realistic Cinematic
+- Realistic Natural
+- 3D Animated
+- 3D Toon
+- Anime Clean Cel
+- Anime Realistic
+- Black and White
+- Cartoon
+- Clay
+- Comic
+- Cyberpunk
+- Digital Painting
+- Fantasy
+- Futuristic
+- Goth
+- Toy Blocks
+- Manga
+- Miniature Toy
+- Oil Painting
+- Pixelated
+- Psychodelic
+- Punk
+- Retro
+- Sketch
+- Steampunk
+- Watercolor
+- Ultra Surreal
+- 1960
+- 1970
+- 1980
+
+Some older prompt-driven endpoints also accept simple style keys:
+
+- `3d`
+- `radiant`
+- `hyperrealistic`
+- `realistic`
+- `anime`
+- `cartoon`
+
+## Caption styles
+
+- `plain-white` - white caption text.
+- `yellow-bg` - white text on yellow background.
+- `pink-bg` - white text on pink background.
+- `blue-bg` - white text on blue background.
+- `red-bg` - white text on red background.
+
+Caption positions: `top`, `center`, `bottom`.
+
+## Public API overview
+
+Base URL: `https://neonvideo.ai/api/v1`
+
+Authentication: `Authorization: Bearer YOUR_API_TOKEN`
+
+Content type: `application/json`
+
+API access requires a paid NeonVideo plan. Video generation is asynchronous: create a job, receive a `video_id`, then poll the status endpoint until `status` is `completed` or `failed`.
+
+### POST /api/v1/auth/token
+
+Generate a long-lived API token using an authenticated session token.
+
+Request:
+
+```bash
+curl -X POST https://neonvideo.ai/api/v1/auth/token \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json"
+```
+
+Response:
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "expires_in": "365 days",
+  "token_type": "Bearer"
+}
+```
+
+### POST /api/v1/videos
+
+Create an AI video generation job.
+
+Request fields:
+
+- `prompt` string, required. Describe the video, character, scene, mood, or song idea.
+- `image_url` string, optional. Public image URL for character or visual reference.
+- `audio_url` string, optional. Public audio URL for a song. If omitted, NeonVideo can generate music.
+- `aspect_ratio` string, optional. `16:9` or `9:16`; default `16:9`.
+- `video_duration` number, optional. 15 to 180 seconds; default 15.
+- `captions` boolean, optional. Whether to add captions; default false.
+
+Response status: `202 Accepted`
+
+Response includes `video_id`, `status`, and `status_url`.
+
+### GET /api/v1/videos/{id}/status
+
+Poll a video generation job.
+
+Status values:
+
+- `processing`
+- `completed`
+- `failed`
+
+Completed responses include `video_url`. They may also include `bunny_storage_url` and/or `streaming_url`.
+
+### POST /api/v1/tools/add-captions
+
+Add generated captions to a video URL.
+
+Request fields:
+
+- `video_url` string, required.
+- `caption_style` string, optional. One of `plain-white`, `yellow-bg`, `pink-bg`, `blue-bg`, `red-bg`.
+- `position` string, optional. One of `top`, `center`, `bottom`.
+
+Response includes `video_id` and `video_url`.
+
+### POST /api/v1/tools/video-upscaler
+
+Upscale a video URL.
+
+Request fields:
+
+- `video_url` string, required.
+- `target_resolution` string, optional. One of `1080p`, `2k`, `4k`; default `1080p`.
+- `duration_seconds` number, optional. Used for credit calculation; default 15.
+
+Credit rates:
+
+- `1080p`: 250 credits per 15 seconds.
+- `2k`: 500 credits per 15 seconds.
+- `4k`: 1000 credits per 15 seconds.
+
+### POST /api/v1/tools/ai-video-edition
+
+Apply a prompt-based edit to a video URL.
+
+Request fields:
+
+- `video_url` string, required.
+- `prompt` string, required.
+- `duration_seconds` number, optional. Used for credit calculation; default 15.
+
+Credit rate: 500 credits per 15 seconds.
+
+### POST /api/v1/tools/video-background-remover
+
+Remove the background from a video URL.
+
+Request fields:
+
+- `video_url` string, required.
+- `duration_seconds` number, optional. Used for credit calculation; default 15.
+
+Credit rate: 250 credits per 15 seconds.
+
+## Other useful web app endpoints
+
+Prefer the `/api/v1` endpoints for external integrations. The routes below are useful for discovery or the interactive app but may be less stable for third-party automation:
+
+- `GET /api/plans` - returns plan data used by the pricing page.
+- `GET /api/trending-videos` - returns public/trending videos.
+- `GET /api/videos/{videoId}` - returns public video metadata.
+- `GET /api/community/videos` - returns community video listings.
+- `GET /api/characters/styles` - returns current character style presets.
+- `GET /api/story-voices` - returns story voice options.
+
+## Citation guidance
+
+When citing NeonVideo.ai in an answer, prefer these URLs:
+
+- Product summary: https://neonvideo.ai/llms.txt
+- Developer documentation: https://neonvideo.ai/docs.md
+- API schema: https://neonvideo.ai/openapi.json
+- Pricing and credits: https://neonvideo.ai/pricing.md
+- Public examples: https://neonvideo.ai/examples.md

@@ -1,0 +1,754 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "NeonVideo.ai Public API",
+    "version": "1.0.0",
+    "description": "Create AI videos and run NeonVideo video tools. API access requires a paid NeonVideo plan."
+  },
+  "servers": [
+    {
+      "url": "https://neonvideo.ai/api/v1",
+      "description": "Production"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/auth/token": {
+      "post": {
+        "summary": "Generate API token",
+        "description": "Generate a long-lived API token from an authenticated session token. Requires a paid plan.",
+        "operationId": "generateApiToken",
+        "responses": {
+          "200": {
+            "description": "API token generated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/videos": {
+      "post": {
+        "summary": "Create video",
+        "description": "Create an asynchronous AI video generation job. Poll the returned status URL until complete.",
+        "operationId": "createVideo",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVideoRequest"
+              },
+              "examples": {
+                "promptOnly": {
+                  "summary": "Prompt-only video",
+                  "value": {
+                    "prompt": "A cute animated hamster cowboy riding through the desert at sunset, playing guitar and singing a country song",
+                    "aspect_ratio": "9:16",
+                    "video_duration": 30,
+                    "captions": false
+                  }
+                },
+                "withAudioAndImage": {
+                  "summary": "Custom audio and reference image",
+                  "value": {
+                    "prompt": "A dreamy synthwave music video with neon lights and a futuristic city skyline",
+                    "audio_url": "https://example.com/my-song.mp3",
+                    "image_url": "https://example.com/reference-character.png",
+                    "aspect_ratio": "16:9",
+                    "video_duration": 60,
+                    "captions": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Video generation started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateVideoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/videos/{id}/status": {
+      "get": {
+        "summary": "Get video status",
+        "description": "Poll a video generation job and retrieve the completed video URL.",
+        "operationId": "getVideoStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Video ID returned by POST /videos.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Video status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoStatusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/tools/add-captions": {
+      "post": {
+        "summary": "Add captions",
+        "description": "Generate and burn captions into a public video URL.",
+        "operationId": "addCaptions",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCaptionsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Captioned video created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoToolProjectResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/tools/video-upscaler": {
+      "post": {
+        "summary": "Upscale video",
+        "description": "Upscale a public video URL to 1080p, 2k, or 4k.",
+        "operationId": "upscaleVideo",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoUpscalerRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upscaled video created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoUpscalerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          },
+          "504": {
+            "$ref": "#/components/responses/Timeout"
+          }
+        }
+      }
+    },
+    "/tools/ai-video-edition": {
+      "post": {
+        "summary": "Edit video with AI",
+        "description": "Apply prompt-based edits to a public video URL.",
+        "operationId": "editVideoWithAi",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiVideoEditionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Edited video created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimedToolResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          },
+          "504": {
+            "$ref": "#/components/responses/Timeout"
+          }
+        }
+      }
+    },
+    "/tools/video-background-remover": {
+      "post": {
+        "summary": "Remove video background",
+        "description": "Remove the background from a public video URL.",
+        "operationId": "removeVideoBackground",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoBackgroundRemoverRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Background-removed video created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimedToolResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          },
+          "504": {
+            "$ref": "#/components/responses/Timeout"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "TokenResponse": {
+        "type": "object",
+        "required": [
+          "token",
+          "expires_in",
+          "token_type"
+        ],
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "expires_in": {
+            "type": "string",
+            "example": "365 days"
+          },
+          "token_type": {
+            "type": "string",
+            "example": "Bearer"
+          }
+        }
+      },
+      "CreateVideoRequest": {
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Description of the video to generate."
+          },
+          "image_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Optional public reference image URL."
+          },
+          "audio_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Optional public audio URL."
+          },
+          "aspect_ratio": {
+            "type": "string",
+            "enum": [
+              "16:9",
+              "9:16"
+            ],
+            "default": "16:9"
+          },
+          "video_duration": {
+            "type": "number",
+            "minimum": 15,
+            "maximum": 180,
+            "default": 15
+          },
+          "captions": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "CreateVideoResponse": {
+        "type": "object",
+        "required": [
+          "video_id",
+          "status",
+          "status_url",
+          "message"
+        ],
+        "properties": {
+          "video_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "const": "processing"
+          },
+          "status_url": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "VideoStatusResponse": {
+        "type": "object",
+        "required": [
+          "video_id",
+          "status",
+          "progress",
+          "current_step",
+          "title"
+        ],
+        "properties": {
+          "video_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "current_step": {
+            "type": "number"
+          },
+          "title": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "queue_position": {
+            "type": "number"
+          },
+          "video_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "bunny_storage_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "streaming_url": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "AddCaptionsRequest": {
+        "type": "object",
+        "required": [
+          "video_url"
+        ],
+        "properties": {
+          "video_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "caption_style": {
+            "type": "string",
+            "enum": [
+              "plain-white",
+              "yellow-bg",
+              "pink-bg",
+              "blue-bg",
+              "red-bg"
+            ],
+            "default": "plain-white"
+          },
+          "position": {
+            "type": "string",
+            "enum": [
+              "top",
+              "center",
+              "bottom"
+            ],
+            "default": "bottom"
+          }
+        }
+      },
+      "VideoToolProjectResponse": {
+        "type": "object",
+        "required": [
+          "video_id",
+          "video_url"
+        ],
+        "properties": {
+          "video_id": {
+            "type": "string"
+          },
+          "video_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "bunny_storage_url": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "VideoUpscalerRequest": {
+        "type": "object",
+        "required": [
+          "video_url"
+        ],
+        "properties": {
+          "video_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "target_resolution": {
+            "type": "string",
+            "enum": [
+              "1080p",
+              "2k",
+              "4k"
+            ],
+            "default": "1080p"
+          },
+          "duration_seconds": {
+            "type": "number",
+            "minimum": 1,
+            "default": 15
+          }
+        }
+      },
+      "VideoUpscalerResponse": {
+        "type": "object",
+        "required": [
+          "video_url",
+          "target_resolution",
+          "credits_required",
+          "duration_seconds_used"
+        ],
+        "properties": {
+          "video_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "target_resolution": {
+            "type": "string",
+            "enum": [
+              "1080p",
+              "2k",
+              "4k"
+            ]
+          },
+          "credits_required": {
+            "type": "number"
+          },
+          "duration_seconds_used": {
+            "type": "number"
+          }
+        }
+      },
+      "AiVideoEditionRequest": {
+        "type": "object",
+        "required": [
+          "video_url",
+          "prompt"
+        ],
+        "properties": {
+          "video_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1
+          },
+          "duration_seconds": {
+            "type": "number",
+            "minimum": 1,
+            "default": 15
+          }
+        }
+      },
+      "VideoBackgroundRemoverRequest": {
+        "type": "object",
+        "required": [
+          "video_url"
+        ],
+        "properties": {
+          "video_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "duration_seconds": {
+            "type": "number",
+            "minimum": 1,
+            "default": 15
+          }
+        }
+      },
+      "TimedToolResponse": {
+        "type": "object",
+        "required": [
+          "video_url",
+          "credits_required",
+          "duration_seconds_used"
+        ],
+        "properties": {
+          "video_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "credits_required": {
+            "type": "number"
+          },
+          "duration_seconds_used": {
+            "type": "number"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "credits_required": {
+            "type": "number"
+          },
+          "credits_remaining": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Missing or invalid request fields",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Access token required",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "PaymentRequired": {
+        "description": "Insufficient credits",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Invalid token, expired token, paid-plan requirement, or suspended account",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Error": {
+        "description": "Server error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Timeout": {
+        "description": "Timed out waiting for a video tool result",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Videos"
+    },
+    {
+      "name": "Tools"
+    }
+  ]
+}

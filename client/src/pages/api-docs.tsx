@@ -6,6 +6,7 @@ import { Link } from "wouter";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { useAuth } from "@/hooks/use-auth";
+import { Helmet } from "react-helmet-async";
 
 function CodeBlock({ children }: { children: string }) {
   return (
@@ -39,6 +40,27 @@ function ParamRow({ name, type, required, defaultVal, description }: {
   );
 }
 
+const apiDocsJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  headline: "NeonVideo.ai API Documentation",
+  description:
+    "Developer documentation for the NeonVideo.ai public API, including AI video generation, captions, video upscaling, AI video editing, and background removal.",
+  url: "https://neonvideo.ai/api-docs",
+  mainEntityOfPage: "https://neonvideo.ai/api-docs",
+  about: {
+    "@type": "WebAPI",
+    name: "NeonVideo.ai Public API",
+    url: "https://neonvideo.ai/openapi.json",
+    documentation: "https://neonvideo.ai/docs.md",
+  },
+  isPartOf: {
+    "@type": "WebSite",
+    name: "NeonVideo.ai",
+    url: "https://neonvideo.ai/",
+  },
+};
+
 export default function ApiDocsPage() {
   const { user } = useAuth();
   const baseUrl = "https://neonvideo.ai";
@@ -46,6 +68,11 @@ export default function ApiDocsPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <Helmet>
+        <script type="application/ld+json">
+          {JSON.stringify(apiDocsJsonLd)}
+        </script>
+      </Helmet>
       <NavigationHeader />
 
       <main className="container mx-auto px-4 py-8 flex-1">
