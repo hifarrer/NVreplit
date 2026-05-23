@@ -8,6 +8,7 @@ import { isFreePlanUser } from "@/lib/plan-utils";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { FreePlanVideoUpsellParagraph } from "@/components/free-plan-video-upsell";
+import { ResponsiveFinalVideo } from "@/components/responsive-final-video";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -779,9 +780,7 @@ export default function CreateImageStory() {
                   <Card>
                     <CardContent className="p-6">
                       <h2 className="text-xl font-semibold mb-4 text-center">Your Image Story is Ready</h2>
-                      <div className="rounded-lg overflow-hidden bg-black">
-                        <video src={finalVideoUrl} controls className="w-full max-h-[560px]" autoPlay />
-                      </div>
+                      <ResponsiveFinalVideo src={finalVideoUrl} />
                     </CardContent>
                   </Card>
                   <div className="flex flex-col sm:flex-row gap-3">
