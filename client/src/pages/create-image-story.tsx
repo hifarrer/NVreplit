@@ -67,6 +67,8 @@ const videoProgressSteps = [
   { key: "image_story_complete", label: "Finalizing..." },
 ];
 
+const terminalErrorSteps = new Set(["image_story_assets_error", "image_story_error"]);
+
 export default function CreateImageStory() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -164,13 +166,24 @@ export default function CreateImageStory() {
       setCurrentStep(3);
       refreshUser();
     }
+    if (!p.finalVideoUrl && p.generationStatus === "generating") {
+      setGenerationFailed(null);
+      if (Number(p.currentStep) >= 3) {
+        setCurrentStep(3);
+        setIsGeneratingVideo(true);
+        setIsGeneratingAssets(false);
+      } else if (Number(p.currentStep) === 2) {
+        setCurrentStep(2);
+        setIsGeneratingAssets(true);
+      }
+    }
     if (p.generationStatus === "assets_completed") {
       setIsGeneratingAssets(false);
     }
     if (p.generationStatus === "failed") {
       setIsGeneratingAssets(false);
       setIsGeneratingVideo(false);
-      const latestError = [...(logs ?? [])].reverse().find((log) => log.status === "error");
+      const latestError = [...(logs ?? [])].reverse().find((log) => log.status === "error" && terminalErrorSteps.has(log.step));
       setGenerationFailed(latestError?.message || "Image Story generation failed.");
     }
   }, [logs, refreshUser, script.length]);
@@ -199,13 +212,24 @@ export default function CreateImageStory() {
     const assetsDone = logs.some((log) => log.step === "image_story_assets_complete" && log.status === "completed");
     if (assetsDone) setIsGeneratingAssets(false);
 
-    const latestError = [...logs].reverse().find((log) => log.status === "error");
+    const currentGenerationStartedAt = projectData?.generationStartedAt
+      ? new Date(projectData.generationStartedAt).getTime()
+      : 0;
+    const latestError = [...logs].reverse().find((log) => {
+      if (log.status !== "error" || !terminalErrorSteps.has(log.step)) return false;
+      if (currentStep === 2 && log.step !== "image_story_assets_error") return false;
+      if (currentStep === 3 && log.step !== "image_story_error") return false;
+      if (!currentGenerationStartedAt) return true;
+
+      const logTime = new Date(log.createdAt).getTime();
+      return Number.isFinite(logTime) && logTime >= currentGenerationStartedAt - 1000;
+    });
     if (latestError && !finalVideoUrl) {
       setIsGeneratingAssets(false);
       setIsGeneratingVideo(false);
       setGenerationFailed(latestError.message);
     }
-  }, [finalVideoUrl, logs, projectId, queryClient, refreshUser]);
+  }, [currentStep, finalVideoUrl, logs, projectData?.generationStartedAt, projectId, queryClient, refreshUser]);
 
   const playVoicePreview = useCallback((previewUrl: string) => {
     const audio = new Audio(previewUrl);
