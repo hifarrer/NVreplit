@@ -8,7 +8,6 @@ import { isFreePlanUser } from "@/lib/plan-utils";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { FreePlanVideoUpsellParagraph } from "@/components/free-plan-video-upsell";
-import { ResponsiveFinalVideo } from "@/components/responsive-final-video";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -77,7 +76,6 @@ export default function CreateImageStory() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const editLoadedRef = useRef(false);
-  const completionHandledRef = useRef(false);
 
   const urlParams = new URLSearchParams(window.location.search);
   const editProjectId = urlParams.get("edit");
@@ -115,10 +113,6 @@ export default function CreateImageStory() {
     if (voiceOptions.length === 0) return;
     setVoiceId((current) => (voiceOptions.some((v) => v.id === current) ? current : voiceOptions[0].id));
   }, [voiceOptions]);
-
-  useEffect(() => {
-    completionHandledRef.current = false;
-  }, [projectId]);
 
   const assetsComplete = script.length > 0 &&
     sceneImages.length >= script.length &&
@@ -171,7 +165,7 @@ export default function CreateImageStory() {
       setGenerationFailed(null);
       setCurrentStep(3);
     }
-    if (!p.finalVideoUrl && p.generationStatus === "generating") {
+    if (!finalVideoUrl && !p.finalVideoUrl && p.generationStatus === "generating") {
       setGenerationFailed(null);
       if (Number(p.currentStep) >= 3) {
         setCurrentStep(3);
@@ -185,12 +179,12 @@ export default function CreateImageStory() {
     if (p.generationStatus === "assets_completed") {
       setIsGeneratingAssets(false);
     }
-    if (p.generationStatus === "failed") {
+    if (!finalVideoUrl && p.generationStatus === "failed") {
       setIsGeneratingAssets(false);
       setIsGeneratingVideo(false);
       setGenerationFailed("Image Story generation failed.");
     }
-  }, [script.length]);
+  }, [finalVideoUrl, script.length]);
 
   useEffect(() => {
     if (!projectData || !projectId) return;
@@ -201,16 +195,6 @@ export default function CreateImageStory() {
 
   useEffect(() => {
     if (!logs?.length) return;
-    const completionLog = [...logs].reverse().find((log) => log.step === "image_story_complete");
-    const completedUrl = completionLog?.metadata?.finalVideoUrl;
-    if (completedUrl && !finalVideoUrl) {
-      setFinalVideoUrl(completedUrl);
-      setIsGeneratingVideo(false);
-      setGenerationFailed(null);
-      setCurrentStep(3);
-      return;
-    }
-
     const assetsDone = logs.some((log) => log.step === "image_story_assets_complete" && log.status === "completed");
     if (assetsDone) setIsGeneratingAssets(false);
 
@@ -232,20 +216,6 @@ export default function CreateImageStory() {
       setGenerationFailed(latestError.message);
     }
   }, [currentStep, finalVideoUrl, logs, projectData?.generationStartedAt]);
-
-  useEffect(() => {
-    if (!finalVideoUrl || completionHandledRef.current) return;
-    completionHandledRef.current = true;
-    queryClient.setQueryData([`/api/projects/${projectId}`], (current: any) => current ? {
-      ...current,
-      finalVideoUrl,
-      isCompleted: true,
-      generationStatus: "completed",
-    } : current);
-    refreshUser().catch((error) => {
-      console.warn("Image Story user refresh failed after completion:", error);
-    });
-  }, [finalVideoUrl, projectId, queryClient, refreshUser]);
 
   const playVoicePreview = useCallback((previewUrl: string) => {
     const audio = new Audio(previewUrl);
@@ -795,7 +765,14 @@ export default function CreateImageStory() {
                   <Card>
                     <CardContent className="p-6">
                       <h2 className="text-xl font-semibold mb-4 text-center">Your Image Story is Ready</h2>
-                      <ResponsiveFinalVideo src={finalVideoUrl} />
+                      <div className="rounded-lg overflow-hidden bg-black">
+                        <video
+                          src={finalVideoUrl}
+                          controls
+                          className="w-full max-h-[500px]"
+                          autoPlay
+                        />
+                      </div>
                     </CardContent>
                   </Card>
                   <div className="flex flex-col sm:flex-row gap-3">
