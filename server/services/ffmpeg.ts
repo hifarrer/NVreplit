@@ -673,6 +673,7 @@ export async function mergeImageAudio(
     console.log("Audio clips:", audioUrls.length);
     console.log("Transition:", transitionEffect);
     console.log("Dimensions:", dimensions);
+    console.log("Zoom effect:", true);
 
     const response = await fetchWithRetry(MERGE_IMAGE_AUDIO_URL, {
       method: "POST",
@@ -686,6 +687,7 @@ export async function mergeImageAudio(
         transition_effect: transitionEffect,
         transition_duration: transitionDuration,
         dimensions,
+        zoom_effect: true,
         async: true,
       }),
     });
