@@ -5,8 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Settings, Shield, Loader2, CheckCircle, CreditCard, AlertCircle, Database, Download } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Settings, Shield, Loader2, CheckCircle, CreditCard, AlertCircle, Database, Download, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+type SocialPosterProvider = "postiz" | "postfast";
 
 export function SiteSettings() {
   const { toast } = useToast();
@@ -15,6 +18,7 @@ export function SiteSettings() {
   const [stripePublishableKey, setStripePublishableKey] = useState("");
   const [stripeSecretKey, setStripeSecretKey] = useState("");
   const [stripeWebhookSecret, setStripeWebhookSecret] = useState("");
+  const [socialPosterProvider, setSocialPosterProvider] = useState<SocialPosterProvider>("postiz");
   const [isDownloadingBackup, setIsDownloadingBackup] = useState(false);
   
   // Fetch Stripe settings
@@ -31,6 +35,25 @@ export function SiteSettings() {
       return res.json();
     },
   });
+
+  // Fetch social poster settings
+  const { data: socialPosterSettings } = useQuery({
+    queryKey: ["/api/admin/social-poster-settings"],
+    queryFn: async () => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch("/api/admin/social-poster-settings", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) throw new Error("Failed to fetch social poster settings");
+      return res.json() as Promise<{
+        socialPosterProvider: SocialPosterProvider;
+        postfastConfigured: boolean;
+        postizConfigured: boolean;
+      }>;
+    },
+  });
   
   // Update form when settings are loaded
   useEffect(() => {
@@ -40,6 +63,12 @@ export function SiteSettings() {
       setStripeWebhookSecret(stripeSettings.stripeWebhookSecret || "");
     }
   }, [stripeSettings]);
+
+  useEffect(() => {
+    if (socialPosterSettings?.socialPosterProvider) {
+      setSocialPosterProvider(socialPosterSettings.socialPosterProvider);
+    }
+  }, [socialPosterSettings]);
   
   // Update Stripe settings mutation
   const updateStripeSettingsMutation = useMutation({
@@ -60,6 +89,39 @@ export function SiteSettings() {
       toast({
         title: "Success",
         description: "Stripe settings updated successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update social poster settings mutation
+  const updateSocialPosterSettingsMutation = useMutation({
+    mutationFn: async (settings: { socialPosterProvider: SocialPosterProvider }) => {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch("/api/admin/social-poster-settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(settings),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to update social poster settings");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Social poster settings updated successfully",
       });
     },
     onError: (error) => {
@@ -397,6 +459,86 @@ export function SiteSettings() {
                 </>
               ) : (
                 "Save Stripe Settings"
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Social Posting Settings */}
+      <Card className="bg-black/30 border-purple-500/20">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center">
+            <Share2 className="h-5 w-5 mr-2" />
+            Social Posting
+          </CardTitle>
+          <CardDescription className="text-gray-300">
+            Configure the provider used by automatic social posting jobs
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!socialPosterSettings ? null : socialPosterProvider === "postfast" && !socialPosterSettings.postfastConfigured ? (
+            <Alert className="border-yellow-500/50 bg-yellow-500/10">
+              <AlertCircle className="h-4 w-4 text-yellow-400" />
+              <AlertDescription className="text-yellow-400">
+                PostFast is selected but the API key is not configured.
+              </AlertDescription>
+            </Alert>
+          ) : socialPosterProvider === "postiz" && !socialPosterSettings.postizConfigured ? (
+            <Alert className="border-yellow-500/50 bg-yellow-500/10">
+              <AlertCircle className="h-4 w-4 text-yellow-400" />
+              <AlertDescription className="text-yellow-400">
+                Postiz is selected but the API key is not configured.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert className="border-green-500/50 bg-green-500/10">
+              <CheckCircle className="h-4 w-4 text-green-400" />
+              <AlertDescription className="text-green-400">
+                {socialPosterProvider === "postfast" ? "PostFast" : "Postiz"} is configured for social posting.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="grid gap-4 max-w-md">
+            <div className="space-y-2">
+              <Label htmlFor="socialPosterProvider" className="text-white">
+                Social Poster Provider
+              </Label>
+              <Select
+                value={socialPosterProvider}
+                onValueChange={(value) => setSocialPosterProvider(value as SocialPosterProvider)}
+              >
+                <SelectTrigger
+                  id="socialPosterProvider"
+                  className="bg-gray-800/50 border-gray-600 text-white"
+                  data-testid="select-social-poster-provider"
+                >
+                  <SelectValue placeholder="Select provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="postiz">Postiz</SelectItem>
+                  <SelectItem value="postfast">PostFast</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-400">
+                PostFast currently posts TikTok videos through connected NeonVideo accounts.
+              </p>
+            </div>
+
+            <Button
+              onClick={() => updateSocialPosterSettingsMutation.mutate({ socialPosterProvider })}
+              disabled={updateSocialPosterSettingsMutation.isPending}
+              className="bg-purple-600 hover:bg-purple-700"
+              data-testid="button-save-social-poster-settings"
+            >
+              {updateSocialPosterSettingsMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Social Posting Settings"
               )}
             </Button>
           </div>

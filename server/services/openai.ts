@@ -824,11 +824,11 @@ MULTI-CHARACTER LIPSYNC (critical when two named characters appear together in t
     const canonicalNames = hasNarrator ? ["Narrator", ...characterNames] : [...characterNames];
     const canonicalLookup = new Map(canonicalNames.map((n) => [n.trim().toLowerCase(), n]));
 
-    function fixCharacterName(raw: string | undefined): string {
+    const fixCharacterName = (raw: string | undefined): string => {
       if (!raw) return "";
       const key = raw.trim().toLowerCase();
       return canonicalLookup.get(key) ?? raw.trim();
-    }
+    };
 
     for (const scene of scenes) {
       scene.character = fixCharacterName(scene.character);
@@ -867,6 +867,93 @@ MULTI-CHARACTER LIPSYNC (critical when two named characters appear together in t
   } catch (error) {
     console.error("[Story Script] Generation error:", error);
     throw new Error("Failed to generate story script: " + (error as Error).message);
+  }
+}
+
+export interface ImageStorySceneOutput {
+  id: number;
+  audio: string;
+  image_prompt: string;
+}
+
+export interface ImageStoryScriptOutput {
+  reference_image_prompt: string;
+  scenes: ImageStorySceneOutput[];
+}
+
+export async function generateImageStoryScript(
+  storyPrompt: string,
+  durationSeconds: number,
+): Promise<ImageStoryScriptOutput> {
+  try {
+    const sceneCount = Math.ceil(durationSeconds / 5);
+    const systemPrompt = `You are a professional writer for short narrated image stories. Generate a JSON object for a video made from still images and voiceover.
+
+CRITICAL CONSTRAINTS:
+- The target video length is ${durationSeconds} seconds.
+- Each scene represents about 5 seconds of the final video.
+- Generate EXACTLY ${sceneCount} scenes.
+- Each scene needs one short audio narration line that fits within about 5 seconds: 8-18 words, never more than 20 words.
+- Include one reference_image_prompt that creates the consistent main character/style reference for the entire story.
+- Each scene needs one detailed image_prompt for still image generation. The image prompt should describe the visual scene only, with consistent characters, setting, style, lighting, and composition.
+- Do not include markdown.
+- Output ONLY a JSON object with keys "reference_image_prompt" and "scenes".
+
+Response shape:
+{"reference_image_prompt":"Detailed visual reference prompt for the main character/style.","scenes":[{"id":1,"audio":"Short narration line.","image_prompt":"Detailed still image prompt."}]}`;
+
+    console.log(`[Image Story] Generating ${sceneCount} scenes for "${storyPrompt}" (${durationSeconds}s)`);
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Generate an image story about: ${storyPrompt}` },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.8,
+      max_tokens: 8000,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("No content returned from OpenAI");
+    }
+
+    const parsed = JSON.parse(content);
+    const referenceImagePrompt =
+      typeof parsed.reference_image_prompt === "string" && parsed.reference_image_prompt.trim()
+        ? parsed.reference_image_prompt.trim()
+        : `Consistent visual reference for an image story about ${storyPrompt}. Show the main subject clearly, cinematic lighting, cohesive illustrated style.`;
+    let scenes: ImageStorySceneOutput[] = Array.isArray(parsed.scenes) ? parsed.scenes : [];
+    if (!scenes.length) {
+      throw new Error("OpenAI returned empty or invalid scenes array");
+    }
+
+    scenes = scenes.slice(0, sceneCount).map((scene, index) => ({
+      id: index + 1,
+      audio: typeof scene.audio === "string" && scene.audio.trim()
+        ? scene.audio.trim()
+        : `Scene ${index + 1} continues the story with a vivid moment.`,
+      image_prompt: typeof scene.image_prompt === "string" && scene.image_prompt.trim()
+        ? scene.image_prompt.trim()
+        : storyPrompt,
+    }));
+
+    while (scenes.length < sceneCount) {
+      const prev = scenes[scenes.length - 1];
+      scenes.push({
+        id: scenes.length + 1,
+        audio: prev?.audio || "The story continues with a memorable visual moment.",
+        image_prompt: prev?.image_prompt || storyPrompt,
+      });
+    }
+
+    console.log(`[Image Story] Generated ${scenes.length} scenes`);
+    return { reference_image_prompt: referenceImagePrompt, scenes };
+  } catch (error) {
+    console.error("[Image Story] Script generation error:", error);
+    throw new Error("Failed to generate image story script: " + (error as Error).message);
   }
 }
 

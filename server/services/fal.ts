@@ -1768,6 +1768,159 @@ export async function generateSingleSceneImage(
   });
 }
 
+function extractWavespeedOutputImage(statusResult: any): string | undefined {
+  const outputs = statusResult?.data?.outputs;
+  if (Array.isArray(outputs) && outputs.length > 0 && typeof outputs[0] === "string") {
+    return outputs[0];
+  }
+  const output = statusResult?.data?.output;
+  if (Array.isArray(output) && typeof output[0] === "string") {
+    return output[0];
+  }
+  if (typeof output === "string") {
+    return output;
+  }
+  if (typeof statusResult?.data?.image === "string") {
+    return statusResult.data.image;
+  }
+  return undefined;
+}
+
+async function submitAndPollWavespeedImage(
+  label: string,
+  endpoint: string,
+  body: Record<string, unknown>,
+): Promise<string> {
+  const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+  if (!WAVESPEED_API_KEY) {
+    throw new Error("WAVESPEED_API_KEY environment variable is required");
+  }
+
+  console.log(`[${label}] Submitting image generation: ${endpoint}`);
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`${label} submission failed: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  if (result.code && result.code !== 200) {
+    throw new Error(`${label} API error: ${result.message || "Unknown error"}`);
+  }
+
+  const requestId = result.data?.id || result.id;
+  if (!requestId) {
+    console.error(`[${label}] No request ID in response:`, result);
+    throw new Error(`No request ID received from ${label}`);
+  }
+
+  let attempts = 0;
+  const maxAttempts = 180;
+  while (attempts < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    const statusResponse = await fetch(
+      `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+      { headers: { Authorization: `Bearer ${WAVESPEED_API_KEY}` } },
+    );
+
+    if (!statusResponse.ok) {
+      const errorText = await statusResponse.text();
+      throw new Error(`${label} status check failed: ${statusResponse.status} - ${errorText}`);
+    }
+
+    const statusResult = await statusResponse.json();
+    const status = statusResult?.data?.status || statusResult?.status;
+    if (status === "completed") {
+      const imageUrl = extractWavespeedOutputImage(statusResult);
+      if (!imageUrl) {
+        throw new Error(`${label} completed without image output`);
+      }
+      return imageUrl;
+    }
+    if (status === "failed") {
+      const errMsg = statusResult?.data?.error || statusResult?.error || "Unknown error";
+      throw new Error(`${label} failed: ${typeof errMsg === "string" ? errMsg : JSON.stringify(errMsg)}`);
+    }
+
+    attempts++;
+  }
+
+  throw new Error(`${label} generation timed out`);
+}
+
+async function storeGeneratedSceneImage(remoteUrl: string): Promise<string> {
+  const { downloadAndStoreImage } = await import("./imageStorage");
+  const storedImage = await downloadAndStoreImage(remoteUrl, "scenes");
+  return storedImage.storedUrl;
+}
+
+async function generateImageStoryTextImage(prompt: string, aspectRatio: string): Promise<string> {
+  try {
+    const imageUrl = await submitAndPollWavespeedImage(
+      "nano-banana-2/text-to-image-fast",
+      "https://api.wavespeed.ai/api/v3/google/nano-banana-2/text-to-image-fast",
+      {
+        aspect_ratio: aspectRatio,
+        enable_base64_output: false,
+        enable_sync_mode: false,
+        output_format: "jpeg",
+        prompt,
+        resolution: "1k",
+      },
+    );
+    return await storeGeneratedSceneImage(imageUrl);
+  } catch (primaryError) {
+    console.warn(
+      "[Image Story] nano-banana-2/text-to-image-fast failed, falling back to bytedance/seedream-v4.5:",
+      (primaryError as Error).message,
+    );
+    const fallbackUrl = await submitAndPollWavespeedImage(
+      "bytedance/seedream-v4.5",
+      "https://api.wavespeed.ai/api/v3/bytedance/seedream-v4.5",
+      {
+        enable_base64_output: false,
+        enable_sync_mode: false,
+        prompt,
+        size: seedreamImageToImageSizeForAspectRatio(aspectRatio),
+      },
+    );
+    return await storeGeneratedSceneImage(fallbackUrl);
+  }
+}
+
+export async function generateImageStoryReferenceImage(
+  prompt: string,
+  aspectRatio: string = "16:9",
+): Promise<string> {
+  return withGenerationApiRetries("generateImageStoryReferenceImage", async () => {
+    return await generateImageStoryTextImage(prompt, aspectRatio);
+  });
+}
+
+export async function generateImageStorySceneImage(
+  prompt: string,
+  referenceImageUrls: string[],
+  aspectRatio: string = "16:9",
+): Promise<string> {
+  return withGenerationApiRetries("generateImageStorySceneImage", async () => {
+    const refs = referenceImageUrls.map((u) => u.trim()).filter(Boolean);
+    if (refs.length > 0) {
+      const publicUrls = await Promise.all(refs.map((u) => ensurePublicImageUrl(u, 86400)));
+      const resultUrl = await submitAndPollSeedreamV45EditForRegenerate(publicUrls, prompt, aspectRatio);
+      return await storeGeneratedSceneImage(resultUrl);
+    }
+    return await generateImageStoryTextImage(prompt, aspectRatio);
+  });
+}
+
 /**
  * Generate scene images using sequential batch generation (seedream-v4.5/edit-sequential)
  * This generates multiple images in a single API call

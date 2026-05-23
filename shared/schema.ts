@@ -131,6 +131,8 @@ export const projects = pgTable("projects", {
   storyAudioUrlsRight: jsonb("story_audio_urls_right").$type<string[]>(),
   storySceneImages: jsonb("story_scene_images").$type<string[]>(),
   storyScenePrompts: jsonb("story_scene_prompts").$type<string[]>(),
+  imageStoryReferenceImages: jsonb("image_story_reference_images").$type<string[]>(),
+  imageStoryTransition: text("image_story_transition"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

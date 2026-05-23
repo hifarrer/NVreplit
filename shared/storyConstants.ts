@@ -200,3 +200,44 @@ export function getStoryVideoGenerationCredits(durationSeconds: number): number 
   );
   return Math.ceil(d / 30) * STORY_VIDEO_CREDITS_PER_30_SECONDS;
 }
+
+export const IMAGE_STORY_DURATION_MIN = 10;
+export const IMAGE_STORY_DURATION_MAX = 240;
+export const IMAGE_STORY_CREDITS_PER_10_SECONDS = 200;
+
+export const IMAGE_STORY_TRANSITIONS = [
+  "none",
+  "fade",
+  "wipeleft",
+  "wiperight",
+  "wipeup",
+  "wipedown",
+  "slideleft",
+  "slideright",
+  "slideup",
+  "slidedown",
+  "circlecrop",
+  "rectcrop",
+  "distance",
+  "fadeblack",
+  "fadewhite",
+  "radial",
+  "smoothleft",
+  "smoothright",
+  "smoothup",
+  "smoothdown",
+] as const;
+
+export type ImageStoryTransition = (typeof IMAGE_STORY_TRANSITIONS)[number];
+
+export function isImageStoryTransition(value: unknown): value is ImageStoryTransition {
+  return typeof value === "string" && (IMAGE_STORY_TRANSITIONS as readonly string[]).includes(value);
+}
+
+export function getImageStoryGenerationCredits(durationSeconds: number): number {
+  const d = Math.max(
+    IMAGE_STORY_DURATION_MIN,
+    Math.min(IMAGE_STORY_DURATION_MAX, Math.floor(Number(durationSeconds)) || IMAGE_STORY_DURATION_MIN),
+  );
+  return Math.ceil(d / 10) * IMAGE_STORY_CREDITS_PER_10_SECONDS;
+}

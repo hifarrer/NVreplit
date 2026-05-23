@@ -31,6 +31,7 @@ interface CompletedVideo {
   isPublic?: boolean;
   aspectRatio?: string;
   projectType?: string;
+  toolUsed?: string | null;
   mux?: {
     playbackId: string | null;
     assetStatus: string | null;
@@ -92,7 +93,9 @@ export default function MyVideosPage() {
 
   const handleEditVideo = (video: CompletedVideo) => {
     const ts = Date.now();
-    if (video.projectType === "story_video") {
+    if (video.toolUsed === "image_story") {
+      setLocation(`/create/image-story?edit=${video.id}&t=${ts}`);
+    } else if (video.projectType === "story_video") {
       setLocation(`/create/story-video?edit=${video.id}&t=${ts}`);
     } else {
       setLocation(`/create/story-mode?edit=${video.id}&t=${ts}`);

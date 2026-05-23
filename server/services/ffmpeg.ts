@@ -623,6 +623,98 @@ const NEONVIDEO_MERGE_URL = process.env.FFMPEG_NEONVIDEO_MERGE_URL || "https://f
 
 // Generic merge_videos endpoint (no outro). Used for loop-video and any 2+ video merge without outro.
 const MERGE_VIDEOS_URL = process.env.FFMPEG_MERGE_VIDEOS_URL || `${FFMPEG_API_BASE}/api/merge_videos`;
+const MERGE_IMAGE_AUDIO_URL = process.env.FFMPEG_MERGE_IMAGE_AUDIO_URL || `${FFMPEG_API_BASE}/api/merge_image_audio`;
+
+export interface MergeImageAudioResult {
+  download_url: string;
+  filename: string;
+}
+
+async function pollMergeImageAudioStatus(statusUrl: string): Promise<MergeImageAudioResult> {
+  const maxAttempts = 180;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    const response = await fetchWithRetry(statusUrl, {
+      method: "GET",
+      headers: { "X-API-Key": FFMPEG_API_KEY },
+    });
+    if (!response.ok) {
+      console.warn(`[FFMPEG] merge_image_audio status poll ${attempt + 1} returned ${response.status}`);
+      continue;
+    }
+    const result = await response.json();
+    const downloadUrl = result.download_url || result.result?.download_url || result.data?.download_url;
+    if (downloadUrl) {
+      return { download_url: downloadUrl, filename: result.filename || result.result?.filename || "image-story.mp4" };
+    }
+    const status = String(result.status || result.state || result.data?.status || "").toLowerCase();
+    if (status === "failed" || status === "error") {
+      throw new Error(result.message || result.error || "merge_image_audio job failed");
+    }
+  }
+  throw new Error("merge_image_audio timed out");
+}
+
+export async function mergeImageAudio(
+  imageUrls: string[],
+  audioUrls: string[],
+  transitionEffect: string,
+  dimensions: string,
+  transitionDuration = 0.75,
+): Promise<MergeImageAudioResult> {
+  return withGenerationApiRetries("mergeImageAudio", async () => {
+    if (imageUrls.length === 0 || audioUrls.length === 0 || imageUrls.length !== audioUrls.length) {
+      throw new Error("mergeImageAudio requires matching non-empty image_urls and audio_urls arrays");
+    }
+
+    console.log("=== FFMPEG MERGE IMAGE AUDIO ===");
+    console.log("Endpoint:", MERGE_IMAGE_AUDIO_URL);
+    console.log("Images:", imageUrls.length);
+    console.log("Audio clips:", audioUrls.length);
+    console.log("Transition:", transitionEffect);
+    console.log("Dimensions:", dimensions);
+
+    const response = await fetchWithRetry(MERGE_IMAGE_AUDIO_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": FFMPEG_API_KEY,
+      },
+      body: JSON.stringify({
+        image_urls: imageUrls,
+        audio_urls: audioUrls,
+        transition_effect: transitionEffect,
+        transition_duration: transitionDuration,
+        dimensions,
+        async: true,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`FFMPEG merge_image_audio error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    const downloadUrl = result.download_url || result.result?.download_url || result.data?.download_url;
+    if (downloadUrl) {
+      return { download_url: downloadUrl, filename: result.filename || result.result?.filename || "image-story.mp4" };
+    }
+
+    const statusUrl = result.status_url || result.progress_url || result.data?.status_url || result.data?.progress_url;
+    if (statusUrl) {
+      return await pollMergeImageAudioStatus(statusUrl);
+    }
+
+    const jobId = result.job_id || result.jobId || result.id || result.data?.job_id || result.data?.id;
+    if (jobId) {
+      const statusFromJob = new URL(`/api/job/${jobId}/status`, MERGE_IMAGE_AUDIO_URL).toString();
+      return await pollMergeImageAudioStatus(statusFromJob);
+    }
+
+    throw new Error(result.message || result.error || "merge_image_audio returned no download or status URL");
+  });
+}
 
 async function mergeVideosInternal(
   videoUrls: string[],

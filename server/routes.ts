@@ -17,6 +17,11 @@ import {
   STORY_DURATION_MIN,
   STORY_VIDEO_CREDITS_PER_30_SECONDS,
   getStoryVideoGenerationCredits,
+  IMAGE_STORY_CREDITS_PER_10_SECONDS,
+  IMAGE_STORY_DURATION_MAX,
+  IMAGE_STORY_DURATION_MIN,
+  getImageStoryGenerationCredits,
+  isImageStoryTransition,
 } from "@shared/storyConstants";
 import { defaultSubtitleStyle, isSubtitleStyle } from "@shared/subtitleStyles";
 import { defaultGoogleFont, isGoogleFont } from "@shared/googleFonts";
@@ -26,15 +31,15 @@ import {
   isAllPurposeAspectRatio,
 } from "@shared/allPurposeAspect";
 import { z } from "zod";
-import { generateLyrics, generateLyricsWithTitle, generateSongTitle, generateScenePrompts, generateInstrumentalScenePrompts, generateLyricVideoScenePrompts, splitLyricsIntoSections, openai, transcribeAudio, generateStoryScript, generateAllPurposeScenePrompts } from "./services/openai";
+import { generateLyrics, generateLyricsWithTitle, generateSongTitle, generateScenePrompts, generateInstrumentalScenePrompts, generateLyricVideoScenePrompts, splitLyricsIntoSections, openai, transcribeAudio, generateStoryScript, generateImageStoryScript, generateAllPurposeScenePrompts } from "./services/openai";
 import { ObjectStorageService, objectStorageClient } from "./objectStorage";
 import { generateSongWithElevenLabs } from "./services/elevenlabs";
 import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, generateInstrumentalSong } from "./services/minimax";
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
-import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateAllPurposeWan27TextToImageMany, generateAlbumCoverSeedreamV5Lite, generateAiImageEdit, collectStoryCharacterReferenceImageUrls } from "./services/fal";
+import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateImageStoryReferenceImage, generateImageStorySceneImage, generateAllPurposeWan27TextToImageMany, generateAlbumCoverSeedreamV5Lite, generateAiImageEdit, collectStoryCharacterReferenceImageUrls } from "./services/fal";
 import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio, generateAllPurposeVideoClip, generateMotionControlVideo, generatePixverseSwapVideo, generateLucyRestyleVideo, editImageNanoBanana2, generateSceneGuidedVideoClip, type PixverseSwapMode, type MotionControlKlingTier } from "./services/wavespeed";
-import { splitAudio, splitAudioByParts, mergeVideos, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop, trimVideo, youtubeToMp4, extractAudioMp3, convertToTiktokPortrait, getVideoAspectFromUrl } from "./services/ffmpeg";
+import { splitAudio, splitAudioByParts, mergeVideos, mergeImageAudio, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop, trimVideo, youtubeToMp4, extractAudioMp3, convertToTiktokPortrait, getVideoAspectFromUrl } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
 import { resolveUrlWithImageKitFallback } from "./services/imagekit";
@@ -3413,6 +3418,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  const SOCIAL_POSTER_PROVIDERS = ["postiz", "postfast"] as const;
+  type SocialPosterProvider = typeof SOCIAL_POSTER_PROVIDERS[number];
+
+  function getPostFastApiKey() {
+    return process.env.POSTFAST_API_KEY || process.env.PostFast_API_KEY || "";
+  }
+
+  function getPostizApiKey() {
+    return process.env.POSTIZ_API_KEY || "";
+  }
+
+  async function getSocialPosterProvider(): Promise<SocialPosterProvider> {
+    const configuredProvider = await storage.getSetting("social_poster_provider");
+    return configuredProvider === "postfast" ? "postfast" : "postiz";
+  }
+
+  // Get social poster settings
+  app.get("/api/admin/social-poster-settings", authenticateAdmin, async (req, res) => {
+    try {
+      const socialPosterProvider = await getSocialPosterProvider();
+      res.json({
+        socialPosterProvider,
+        postfastConfigured: !!getPostFastApiKey(),
+        postizConfigured: !!getPostizApiKey()
+      });
+    } catch (error) {
+      console.error("Get social poster settings error:", error);
+      res.status(500).json({ error: "Failed to get social poster settings" });
+    }
+  });
+
+  // Update social poster settings
+  app.post("/api/admin/social-poster-settings", authenticateAdmin, async (req, res) => {
+    try {
+      const { socialPosterProvider } = req.body;
+
+      if (!SOCIAL_POSTER_PROVIDERS.includes(socialPosterProvider)) {
+        return res.status(400).json({
+          error: `socialPosterProvider must be one of: ${SOCIAL_POSTER_PROVIDERS.join(", ")}`
+        });
+      }
+
+      await storage.setSetting("social_poster_provider", socialPosterProvider, false);
+
+      const ipAddress = getClientIpAddress(req) || "Unknown";
+      const userAgent = req.headers["user-agent"] || "Unknown";
+      emailService.sendAdminSettingsChangeNotification({
+        settingName: "Social Poster Provider",
+        ipAddress,
+        userAgent,
+        details: `Changed provider to: ${socialPosterProvider}`
+      }).catch(err => console.error("Failed to send admin notification email:", err));
+
+      res.json({ success: true, message: "Social poster settings updated successfully" });
+    } catch (error) {
+      console.error("Update social poster settings error:", error);
+      res.status(500).json({ error: "Failed to update social poster settings" });
+    }
+  });
+
   // Public endpoint to get active plans
   app.get("/api/plans", async (req, res) => {
     try {
@@ -5219,18 +5284,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Silently handle parse errors for old data
             }
           }
+          if (!thumbnailUrl && Array.isArray(p.storySceneImages) && p.storySceneImages.length > 0) {
+            thumbnailUrl = p.storySceneImages[0] || null;
+          }
+          if (!thumbnailUrl && Array.isArray(p.sceneImages) && p.sceneImages.length > 0) {
+            thumbnailUrl = p.sceneImages[0] || null;
+          }
 
           return {
             id: p.id,
             title: p.title || p.audioPrompt || "Untitled Video",
             videoUrl: p.finalVideoUrl,
             thumbnailUrl,
-            sceneImages: p.sceneImages || [],
+            sceneImages: p.sceneImages || p.storySceneImages || [],
             createdAt: p.createdAt,
             updatedAt: p.updatedAt,
             isPublic: p.isPublic !== false,
             aspectRatio: p.aspectRatio || "16:9",
             projectType: p.projectType || "music_video",
+            toolUsed: p.toolUsed || null,
             mux: {
               playbackId: p.muxPlaybackId || null,
               assetStatus: p.muxAssetStatus || null,
@@ -11780,6 +11852,289 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const ALL_CHANNELS = ["facebook", "youtube", "tiktok", "reddit"] as const;
   type PostChannel = typeof ALL_CHANNELS[number];
 
+  function createTiktokPostContent() {
+    const TIKTOK_HASHTAG_POOL = [
+      "#aimusic", "#newmusic", "#aimusicvideo", "#fypsounds", "#fyp",
+      "#aigeneratedart", "#aivideo", "#viralsong", "#musicdiscovery", "#newmusicalert"
+    ];
+    const tiktokHashtags = [...TIKTOK_HASHTAG_POOL]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 5)
+      .join(" ");
+    return `Create your Videos Now!\n\n${tiktokHashtags}`;
+  }
+
+  async function resolveProjectVideoUrl(project: Project, logPrefix: string) {
+    const videoUrl = project.finalVideoUrl;
+    if (!videoUrl) {
+      throw new Error("Video must have a final video URL");
+    }
+
+    const objStorage = new ObjectStorageService();
+
+    try {
+      const resolvedUrl = await resolveUrlWithImageKitFallback(videoUrl, storage);
+
+      if (resolvedUrl && resolvedUrl.startsWith("http")) {
+        console.log(`[${logPrefix}] Using ImageKit URL for video: ${resolvedUrl.substring(0, 50)}...`);
+        return resolvedUrl;
+      }
+
+      try {
+        const signedUrl = await objStorage.getSignedUrlForPath(videoUrl, 3600);
+        console.log(`[${logPrefix}] Generated signed URL for video`);
+        return signedUrl;
+      } catch (signedUrlError) {
+        console.error(`[${logPrefix}] Failed to generate signed URL:`, signedUrlError);
+        const baseUrl = "https://neonvideo.ai";
+        return videoUrl.startsWith("http") ? videoUrl : `${baseUrl}${videoUrl}`;
+      }
+    } catch (error) {
+      console.error(`[${logPrefix}] Failed to resolve video URL:`, error);
+      const baseUrl = "https://neonvideo.ai";
+      return videoUrl.startsWith("http") ? videoUrl : `${baseUrl}${videoUrl}`;
+    }
+  }
+
+  async function downloadProjectVideo(project: Project, logPrefix: string) {
+    const fullVideoUrl = await resolveProjectVideoUrl(project, logPrefix);
+    console.log(`[${logPrefix}] Video URL for upload: ${fullVideoUrl}`);
+    console.log(`[${logPrefix}] Downloading video from object storage...`);
+
+    const videoResponse = await fetch(fullVideoUrl);
+    if (!videoResponse.ok) {
+      throw new Error(`Failed to download video: ${videoResponse.status}`);
+    }
+
+    const videoBuffer = await videoResponse.arrayBuffer();
+    console.log(`[${logPrefix}] Downloaded video (${videoBuffer.byteLength} bytes)`);
+    return { fullVideoUrl, videoBuffer };
+  }
+
+  function getPostFastArrayPayload(payload: any) {
+    const candidates = [
+      payload,
+      payload?.data,
+      payload?.urls,
+      payload?.uploadUrls,
+      payload?.signedUrls,
+      payload?.signedUploadUrls,
+      payload?.files,
+      payload?.items,
+      payload?.accounts,
+    ];
+
+    for (const candidate of candidates) {
+      if (Array.isArray(candidate)) {
+        return candidate;
+      }
+    }
+
+    if (payload && typeof payload === "object") {
+      return [payload];
+    }
+
+    return [];
+  }
+
+  function getPostFastUploadUrl(upload: any) {
+    return upload?.signedUrl || upload?.uploadUrl || upload?.url || upload?.putUrl;
+  }
+
+  function getPostFastUploadKey(upload: any) {
+    return upload?.key || upload?.fileKey || upload?.path;
+  }
+
+  function getPostFastPostId(payload: any) {
+    return payload?.id
+      || payload?.data?.id
+      || payload?.data?.[0]?.id
+      || payload?.posts?.[0]?.id
+      || payload?.[0]?.id
+      || null;
+  }
+
+  async function postVideoToPostFast(projectId: string, channels?: PostChannel[]) {
+    const targetChannels = channels && channels.length > 0 ? channels : ["tiktok"];
+    const unsupportedChannels = targetChannels.filter(channel => channel !== "tiktok");
+
+    if (unsupportedChannels.length > 0) {
+      throw new Error(`PostFast posting currently supports TikTok only. Unsupported channels: ${unsupportedChannels.join(", ")}`);
+    }
+
+    console.log(`[POSTFAST] Starting post for project ${projectId} to channels: ${targetChannels.join(", ")}`);
+
+    const project = await storage.getProject(projectId);
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    if (!project.isCompleted || !project.finalVideoUrl) {
+      throw new Error("Video must be completed with a final video URL");
+    }
+
+    const existingPost = await storage.getPostizPostByProjectId(projectId);
+    if (existingPost?.postedTiktok) {
+      throw new Error("Video has already been posted to: tiktok");
+    }
+
+    const POSTFAST_API_KEY = getPostFastApiKey();
+    const POSTFAST_HOST_URL = "https://api.postfa.st";
+
+    if (!POSTFAST_API_KEY) {
+      throw new Error("POSTFAST_API_KEY not configured");
+    }
+
+    const { videoBuffer } = await downloadProjectVideo(project, "POSTFAST");
+
+    console.log("[POSTFAST] Requesting signed upload URL...");
+    const signedUrlResponse = await fetch(`${POSTFAST_HOST_URL}/file/get-signed-upload-urls`, {
+      method: "POST",
+      headers: {
+        "pf-api-key": POSTFAST_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contentType: "video/mp4",
+        count: 1,
+      }),
+    });
+
+    const signedUrlText = await signedUrlResponse.text();
+    console.log(`[POSTFAST] Signed URL response status: ${signedUrlResponse.status}`);
+
+    if (!signedUrlResponse.ok) {
+      throw new Error(`PostFast signed upload URL error (${signedUrlResponse.status}): ${signedUrlText}`);
+    }
+
+    const signedUrlPayload = JSON.parse(signedUrlText);
+    const uploadEntry = getPostFastArrayPayload(signedUrlPayload)[0];
+    const signedUploadUrl = getPostFastUploadUrl(uploadEntry);
+    const mediaKey = getPostFastUploadKey(uploadEntry);
+
+    if (!signedUploadUrl || !mediaKey) {
+      throw new Error(`PostFast signed upload response missing upload URL or key: ${signedUrlText}`);
+    }
+
+    console.log("[POSTFAST] Uploading video to signed URL...");
+    const uploadResponse = await fetch(signedUploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "video/mp4",
+      },
+      body: Buffer.from(videoBuffer) as any,
+    });
+
+    const uploadResponseText = await uploadResponse.text();
+    console.log(`[POSTFAST] S3 upload response status: ${uploadResponse.status}`);
+
+    if (!uploadResponse.ok) {
+      throw new Error(`PostFast S3 upload error (${uploadResponse.status}): ${uploadResponseText}`);
+    }
+
+    console.log("[POSTFAST] Fetching social accounts...");
+    const accountsResponse = await fetch(`${POSTFAST_HOST_URL}/social-media/my-social-accounts`, {
+      method: "GET",
+      headers: {
+        "pf-api-key": POSTFAST_API_KEY,
+      },
+    });
+
+    const accountsResponseText = await accountsResponse.text();
+    console.log(`[POSTFAST] Accounts response status: ${accountsResponse.status}`);
+
+    if (!accountsResponse.ok) {
+      throw new Error(`PostFast accounts error (${accountsResponse.status}): ${accountsResponseText}`);
+    }
+
+    const accountsPayload = JSON.parse(accountsResponseText);
+    const accounts = getPostFastArrayPayload(accountsPayload);
+    const neonVideoTikTokAccount = accounts.find((account: any) => {
+      const platform = String(account?.platform || "").toUpperCase();
+      const connectionStatus = String(account?.connectionStatus || "").toUpperCase();
+      const displayName = String(account?.displayName || "").toLowerCase();
+      const platformUsername = String(account?.platformUsername || "").toLowerCase();
+      return platform === "TIKTOK"
+        && connectionStatus === "CONNECTED"
+        && (displayName.includes("neonvideo") || platformUsername.includes("neonvideo"));
+    });
+
+    if (!neonVideoTikTokAccount?.id) {
+      throw new Error("No connected PostFast TikTok account found with neonvideo in displayName or platformUsername");
+    }
+
+    const tiktokContent = createTiktokPostContent();
+    const scheduledAt = new Date(Date.now() + 60 * 1000).toISOString();
+    const postBody = {
+      posts: [
+        {
+          content: tiktokContent,
+          mediaItems: [
+            {
+              key: mediaKey,
+              type: "VIDEO",
+              sortOrder: 0,
+              coverTimestamp: "3000",
+            },
+          ],
+          scheduledAt,
+          socialMediaId: neonVideoTikTokAccount.id,
+        },
+      ],
+      controls: {
+        tiktokPrivacy: "PUBLIC",
+        tiktokAllowComments: true,
+        tiktokAllowDuet: true,
+      },
+    };
+
+    console.log(`[POSTFAST] Creating TikTok post for account ${neonVideoTikTokAccount.id}...`);
+    const postResponse = await fetch(`${POSTFAST_HOST_URL}/social-posts`, {
+      method: "POST",
+      headers: {
+        "pf-api-key": POSTFAST_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(postBody),
+    });
+
+    const postResponseText = await postResponse.text();
+    console.log(`[POSTFAST] Post response status: ${postResponse.status}`);
+    console.log("[POSTFAST] Post response:", postResponseText);
+
+    if (!postResponse.ok) {
+      throw new Error(`PostFast TikTok post error (${postResponse.status}): ${postResponseText}`);
+    }
+
+    const postResult = JSON.parse(postResponseText);
+    const postId = getPostFastPostId(postResult);
+    const dbUpdate = {
+      postedTiktok: new Date(),
+      tiktokPostId: postId,
+    };
+
+    if (existingPost) {
+      await storage.updatePostizPost(projectId, dbUpdate);
+      console.log(`[POSTFAST] Updated post record for project ${projectId}`);
+    } else {
+      await storage.createPostizPost({ projectId, ...dbUpdate });
+      console.log(`[POSTFAST] Created post record for project ${projectId}`);
+    }
+
+    return {
+      postId,
+      projectTitle: project.title,
+      videoUrl: project.finalVideoUrl,
+      provider: "postfast" as const,
+      channelResults: {
+        tiktok: { success: true, postId },
+      },
+      succeeded: ["tiktok"],
+      failed: [],
+      scheduledAt,
+    };
+  }
+
   // Helper function to post a video to Postiz
   // channels: array of channel names to post to. If empty/undefined, posts to all channels.
   async function postVideoToPostiz(projectId: string, channels?: PostChannel[]) {
@@ -11927,15 +12282,7 @@ Format your response as JSON:
 
     const content = `Create your own AI Music Videos Now! 🤩\n\n${hashtags}`;
 
-    const TIKTOK_HASHTAG_POOL = [
-      "#aimusic", "#newmusic", "#aimusicvideo", "#fypsounds", "#fyp",
-      "#aigeneratedart", "#aivideo", "#viralsong", "#musicdiscovery", "#newmusicalert"
-    ];
-    const tiktokHashtags = [...TIKTOK_HASHTAG_POOL]
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 5)
-      .join(" ");
-    const tiktokContent = `Create your Videos Now! 🤩\n\n${tiktokHashtags}`;
+    const tiktokContent = createTiktokPostContent();
 
     console.log(`[POSTIZ] Posting to [${targetChannels.join(", ")}] for project: ${project.title}`);
     console.log(`[POSTIZ] Video URL for upload: ${fullVideoUrl}`);
@@ -12111,10 +12458,36 @@ Format your response as JSON:
       postId: firstPostId,
       projectTitle: project.title,
       videoUrl: project.finalVideoUrl,
+      provider: "postiz" as const,
       channelResults: results,
       succeeded,
       failed
     };
+  }
+
+  function parsePostChannels(channelsParam: string | undefined): PostChannel[] | undefined {
+    return channelsParam
+      ? channelsParam.split(",").map(c => c.trim().toLowerCase()).filter(c => ALL_CHANNELS.includes(c as PostChannel)) as PostChannel[]
+      : undefined;
+  }
+
+  function getChannelsToCheck(provider: SocialPosterProvider, targetChannels?: PostChannel[]) {
+    if (targetChannels && targetChannels.length > 0) {
+      return targetChannels;
+    }
+
+    return provider === "postfast" ? ["tiktok" as PostChannel] : [...ALL_CHANNELS];
+  }
+
+  async function postVideoToConfiguredSocialPoster(projectId: string, channels?: PostChannel[]) {
+    const provider = await getSocialPosterProvider();
+    console.log(`[SOCIAL-POST] Using provider: ${provider}`);
+
+    if (provider === "postfast") {
+      return postVideoToPostFast(projectId, channels);
+    }
+
+    return postVideoToPostiz(projectId, channels);
   }
 
   // Admin endpoint to post a specific video to social media
@@ -12124,12 +12497,11 @@ Format your response as JSON:
       const { id } = req.params;
 
       const channelsParam = (req.query.channels as string | undefined);
-      const targetChannels: PostChannel[] | undefined = channelsParam
-        ? channelsParam.split(",").map(c => c.trim().toLowerCase()).filter(c => ALL_CHANNELS.includes(c as PostChannel)) as PostChannel[]
-        : undefined;
+      const targetChannels = parsePostChannels(channelsParam);
+      const provider = await getSocialPosterProvider();
 
       // Check if already posted to all requested platforms
-      const channelsToCheck = targetChannels && targetChannels.length > 0 ? targetChannels : [...ALL_CHANNELS];
+      const channelsToCheck = getChannelsToCheck(provider, targetChannels);
       const postRecord = await storage.getPostizPostByProjectId(id);
       if (postRecord) {
         const allPosted = channelsToCheck.every(ch => {
@@ -12148,7 +12520,7 @@ Format your response as JSON:
         }
       }
 
-      const result = await postVideoToPostiz(id, targetChannels);
+      const result = await postVideoToConfiguredSocialPoster(id, targetChannels);
 
       res.json({
         success: true,
@@ -12159,12 +12531,14 @@ Format your response as JSON:
           url: result.videoUrl
         },
         postId: result.postId,
+        provider: result.provider,
         channelResults: result.channelResults,
         succeeded: result.succeeded,
-        failed: result.failed
+        failed: result.failed,
+        scheduledAt: "scheduledAt" in result ? result.scheduledAt : undefined
       });
     } catch (error) {
-      console.error("[POSTIZ] Admin post error:", error);
+      console.error("[SOCIAL-POST] Admin post error:", error);
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : String(error)
@@ -12174,20 +12548,19 @@ Format your response as JSON:
 
   // Cron endpoint for auto-posting videos to social media
   // Accepts optional query param ?channels=facebook,youtube,tiktok,reddit (comma-separated)
-  // If omitted, posts to all channels.
-  app.get("/api/cron/auto-post-to-social", async (req, res) => {
+  // If omitted, Postiz posts to all channels and PostFast posts to TikTok.
+  const handleAutoPostToSocial = async (req: any, res: any) => {
     try {
       // Parse optional channels filter from query string
       const channelsParam = (req.query.channels as string | undefined);
-      const targetChannels: PostChannel[] | undefined = channelsParam
-        ? channelsParam.split(",").map(c => c.trim().toLowerCase()).filter(c => ALL_CHANNELS.includes(c as PostChannel)) as PostChannel[]
-        : undefined;
+      const targetChannels = parsePostChannels(channelsParam);
+      const provider = await getSocialPosterProvider();
 
       const channelLabel = targetChannels && targetChannels.length > 0
         ? targetChannels.join(", ")
-        : "all";
+        : provider === "postfast" ? "tiktok" : "all";
 
-      console.log(`[AUTO-POST] Starting auto-post job at ${new Date().toISOString()} (channels: ${channelLabel})`);
+      console.log(`[AUTO-POST] Starting auto-post job at ${new Date().toISOString()} (provider: ${provider}, channels: ${channelLabel})`);
 
       const allProjects = await storage.getAllProjects();
       const completedVideos = allProjects.filter(p =>
@@ -12199,7 +12572,7 @@ Format your response as JSON:
       console.log(`[AUTO-POST] Found ${completedVideos.length} completed videos`);
 
       // Determine which channels to check for "unposted" status
-      const channelsToCheck = targetChannels && targetChannels.length > 0 ? targetChannels : [...ALL_CHANNELS];
+      const channelsToCheck = getChannelsToCheck(provider, targetChannels);
 
       const unpostedVideos = [];
       for (const video of completedVideos) {
@@ -12233,7 +12606,7 @@ Format your response as JSON:
 
       console.log(`[AUTO-POST] Selected video to post: ${videoToPost.id} - ${videoToPost.title}`);
 
-      const result = await postVideoToPostiz(videoToPost.id, targetChannels);
+      const result = await postVideoToConfiguredSocialPoster(videoToPost.id, targetChannels);
 
       res.json({
         success: true,
@@ -12245,9 +12618,11 @@ Format your response as JSON:
           url: result.videoUrl
         },
         postId: result.postId,
+        provider: result.provider,
         channelResults: result.channelResults,
         succeeded: result.succeeded,
-        failed: result.failed
+        failed: result.failed,
+        scheduledAt: "scheduledAt" in result ? result.scheduledAt : undefined
       });
 
     } catch (error) {
@@ -12257,7 +12632,10 @@ Format your response as JSON:
         error: error instanceof Error ? error.message : String(error)
       });
     }
-  });
+  };
+
+  app.get("/api/cron/auto-post-to-social", handleAutoPostToSocial);
+  app.post("/api/cron/auto-post-to-social", handleAutoPostToSocial);
 
   // Middleware to extract token from URL query and set as Authorization header
   function extractTokenFromUrl(req: any, res: any, next: any) {
@@ -17656,6 +18034,666 @@ Do not add markdown. Return JSON only.`,
       res.status(500).json({ error: (e as Error).message });
     }
   });
+
+  const imageStoryDimensionsForAspectRatio = (aspectRatio: string | null | undefined): string =>
+    aspectRatio === "3:4" ? "720x960" : "1280x720";
+
+  const storeImageStoryAudioOnBunny = async (
+    projectId: string,
+    remoteUrl: string,
+    fileLabel: string,
+  ): Promise<string> => {
+    if (!isBunnyConfigured()) return remoteUrl;
+    try {
+      const audioResponse = await fetch(remoteUrl);
+      if (!audioResponse.ok) return remoteUrl;
+      const buffer = Buffer.from(await audioResponse.arrayBuffer());
+      const fileName = `image-story-${projectId}-${fileLabel}-${Date.now()}.mp3`;
+      const bunnyResult = await uploadAudio(fileName, buffer);
+      return bunnyResult.url;
+    } catch (e) {
+      console.warn(`[Image Story] Bunny audio upload failed (${fileLabel}), using original URL`, e);
+      return remoteUrl;
+    }
+  };
+
+  app.post(
+    "/api/image-story/upload-reference",
+    authenticateToken,
+    sceneImageUpload.single("image"),
+    async (req: any, res) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({ error: "Image file is required" });
+        }
+
+        const processedImageBuffer = await sharp(req.file.buffer)
+          .rotate()
+          .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
+          .jpeg({ quality: 92 })
+          .toBuffer();
+
+        const filename = `${crypto.randomUUID()}.jpg`;
+        let imageUrl: string;
+        if (isBunnyConfigured("imageScenes")) {
+          const bunnyResult = await uploadSceneImage(filename, processedImageBuffer);
+          imageUrl = bunnyResult.url;
+        } else {
+          const imagePath = `scenes/${filename}`;
+          const objectStorageService = new ObjectStorageService();
+          const privateObjectDir = objectStorageService.getPrivateObjectDir();
+          const fullPath = `${privateObjectDir}/${imagePath}`;
+          const pathParts = fullPath.startsWith("/") ? fullPath.slice(1).split("/") : fullPath.split("/");
+          const bucketName = pathParts[0];
+          const objectName = pathParts.slice(1).join("/");
+          const bucket = objectStorageClient.bucket(bucketName);
+          const file = bucket.file(objectName);
+          await file.save(processedImageBuffer, {
+            metadata: {
+              contentType: "image/jpeg",
+              metadata: {
+                category: "image-story-references",
+                uploadedAt: new Date().toISOString(),
+                userId: req.user.userId,
+              },
+            },
+          });
+          imageUrl = `/objects/${imagePath}`;
+        }
+
+        res.json({ imageUrl });
+      } catch (error) {
+        console.error("[Image Story] Reference upload error:", error);
+        res.status(500).json({ error: "Failed to upload reference image" });
+      }
+    },
+  );
+
+  app.post("/api/image-story/generate-script", authenticateToken, async (req: any, res) => {
+    try {
+      const { storyPrompt, duration, voiceId, referenceImages, transition, aspectRatio, addSubtitles } = req.body;
+
+      if (!storyPrompt || typeof storyPrompt !== "string") {
+        return res.status(400).json({ error: "storyPrompt is required" });
+      }
+
+      const durationSec = Math.max(
+        IMAGE_STORY_DURATION_MIN,
+        Math.min(IMAGE_STORY_DURATION_MAX, Number(duration) || 60),
+      );
+      const normalizedTransition = isImageStoryTransition(transition) ? transition : "fade";
+      const normalizedAspectRatio = aspectRatio === "3:4" ? "3:4" : "16:9";
+      const refs = Array.isArray(referenceImages)
+        ? referenceImages.map((u: unknown) => (typeof u === "string" ? u.trim() : "")).filter(Boolean)
+        : [];
+
+      const scriptOutput = await generateImageStoryScript(storyPrompt, durationSec);
+      const scenes = scriptOutput.scenes;
+      const storyScript = scenes.map((scene) => ({
+        id: scene.id,
+        character: "Narrator",
+        audio: scene.audio,
+        scene_description: scene.image_prompt,
+      }));
+      const imagePrompts = scenes.map((scene) => scene.image_prompt);
+
+      const project = await storage.createProject({
+        userId: req.user.userId,
+        title: storyPrompt.substring(0, 80),
+        description: storyPrompt,
+        projectType: "story_video",
+        toolUsed: "image_story",
+        storyPrompt,
+        storyDuration: durationSec,
+        storyNarrator: true,
+        storyNarratorVoice: voiceId || STORY_DEFAULT_NARRATOR_VOICE,
+        storyScript,
+        storyScenePrompts: imagePrompts,
+        imageStoryReferenceImages: refs,
+        imageStoryTransition: normalizedTransition,
+        aspectRatio: normalizedAspectRatio,
+        addSubtitles: !!addSubtitles,
+        currentStep: 2,
+      } as any);
+
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "image_story_script",
+        message: `Image Story script generated with ${scenes.length} scenes`,
+        status: "completed",
+        metadata: { sceneCount: scenes.length, referenceImagePrompt: scriptOutput.reference_image_prompt },
+      });
+
+      res.json({
+        projectId: project.id,
+        script: storyScript,
+        imagePrompts,
+        referenceImagePrompt: scriptOutput.reference_image_prompt,
+      });
+    } catch (error) {
+      console.error("[Image Story] Script generation error:", error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post("/api/image-story/:id/update-script", authenticateToken, async (req: any, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project || project.userId !== req.user.userId || project.toolUsed !== "image_story") {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      const { script, imagePrompts, transition, addSubtitles } = req.body;
+      if (!Array.isArray(script)) {
+        return res.status(400).json({ error: "script must be an array" });
+      }
+
+      const existingPrompts = (project.storyScenePrompts || []) as string[];
+      const nextPrompts = Array.isArray(imagePrompts)
+        ? imagePrompts.map((prompt: unknown, index: number) =>
+            typeof prompt === "string" && prompt.trim()
+              ? prompt.trim()
+              : existingPrompts[index] || project.storyPrompt || "",
+          )
+        : script.map((scene: any, index: number) =>
+            typeof scene.scene_description === "string" && scene.scene_description.trim()
+              ? scene.scene_description.trim()
+              : existingPrompts[index] || project.storyPrompt || "",
+          );
+      const sanitizedScript = script.map((scene: any, index: number) => ({
+        id: index + 1,
+        character: "Narrator",
+        audio: typeof scene.audio === "string" ? scene.audio.trim() : "",
+        scene_description: nextPrompts[index] || "",
+      }));
+
+      await storage.updateProject(project.id, {
+        storyScript: sanitizedScript,
+        storyScenePrompts: nextPrompts.slice(0, sanitizedScript.length),
+        imageStoryTransition: isImageStoryTransition(transition) ? transition : project.imageStoryTransition || "fade",
+        addSubtitles: !!addSubtitles,
+      } as any);
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Image Story] Script update error:", error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  const getImageStoryScriptAndPrompts = (project: Project) => {
+    const rawScript = Array.isArray(project.storyScript)
+      ? (project.storyScript as { id?: number; character?: string; audio?: string; scene_description?: string }[])
+      : [];
+    const storyScript = rawScript.map((scene, index) => ({
+      id: typeof scene.id === "number" ? scene.id : index + 1,
+      character: "Narrator",
+      audio: typeof scene.audio === "string" ? scene.audio : "",
+      scene_description: typeof scene.scene_description === "string" ? scene.scene_description : "",
+    }));
+    const storedPrompts = Array.isArray(project.storyScenePrompts)
+      ? (project.storyScenePrompts as string[])
+      : [];
+    const imagePrompts = storyScript.map((scene, index) => {
+      const prompt = storedPrompts[index] || scene.scene_description || project.storyPrompt || project.description || "cinematic story scene";
+      return prompt.trim();
+    });
+    return { storyScript, imagePrompts };
+  };
+
+  const buildImageStoryReferencePrompt = (project: Project, imagePrompts: string[]) =>
+    [
+      `Create a reusable visual reference image for an image story about: ${project.storyPrompt || project.description || project.title}.`,
+      "Show the main character, setting, and art direction clearly. No text, no captions, no watermark.",
+      imagePrompts[0] ? `Style anchor: ${imagePrompts[0]}` : "",
+    ].filter(Boolean).join(" ");
+
+  const ensureImageStoryReferenceImages = async (
+    project: Project,
+    imagePrompts: string[],
+  ): Promise<string[]> => {
+    const refs = Array.isArray(project.imageStoryReferenceImages)
+      ? (project.imageStoryReferenceImages as string[]).map((u) => u.trim()).filter(Boolean)
+      : [];
+    if (refs.length > 0) return refs;
+
+    await storage.addGenerationLog({
+      projectId: project.id,
+      step: "image_story_reference",
+      message: "Creating reference image...",
+      status: "started",
+    });
+    const referencePrompt = buildImageStoryReferencePrompt(project, imagePrompts);
+    const referenceUrl = await generateImageStoryReferenceImage(referencePrompt, project.aspectRatio === "3:4" ? "3:4" : "16:9");
+    await storage.updateProject(project.id, { imageStoryReferenceImages: [referenceUrl] } as any);
+    await storage.addGenerationLog({
+      projectId: project.id,
+      step: "image_story_reference",
+      message: "Reference image ready",
+      status: "completed",
+      metadata: { imageUrl: referenceUrl, referencePrompt },
+    });
+    return [referenceUrl];
+  };
+
+  app.post("/api/image-story/:id/generate-assets", authenticateToken, async (req: any, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project || project.userId !== req.user.userId || project.toolUsed !== "image_story") {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (!Array.isArray(project.storyScript) || project.storyScript.length === 0) {
+        return res.status(400).json({ error: "No image story script found" });
+      }
+      if (project.generationStatus === "generating") {
+        return res.status(409).json({ error: "Image Story assets are already being generated" });
+      }
+
+      await storage.updateProject(project.id, {
+        generationStatus: "generating",
+        generationStartedAt: new Date(),
+        generationTimeoutAt: new Date(Date.now() + 30 * 60 * 1000),
+        currentStep: 2,
+      });
+
+      res.json({ status: "generating", projectId: project.id });
+
+      (async () => {
+        try {
+          const { storyScript, imagePrompts } = getImageStoryScriptAndPrompts(project);
+          const aspectRatio = project.aspectRatio === "3:4" ? "3:4" : "16:9";
+          const voiceId = project.storyNarratorVoice || STORY_DEFAULT_NARRATOR_VOICE;
+          const nextScript = storyScript.map((scene, index) => ({
+            ...scene,
+            id: index + 1,
+            character: "Narrator",
+            scene_description: imagePrompts[index] || "",
+          }));
+          await storage.updateProject(project.id, {
+            storyScript: nextScript,
+            storyScenePrompts: imagePrompts,
+          });
+
+          const referenceImages = await ensureImageStoryReferenceImages(project, imagePrompts);
+          const audioUrls = [...(((project.storyAudioUrls || []) as string[]))];
+          const imageUrls = [...(((project.storySceneImages || []) as string[]))];
+          while (audioUrls.length < storyScript.length) audioUrls.push("");
+          while (imageUrls.length < storyScript.length) imageUrls.push("");
+
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "image_story_audio",
+            message: "Creating narration audio...",
+            status: "started",
+          });
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "image_story_images",
+            message: "Generating scene images from references...",
+            status: "started",
+          });
+
+          const audioTasks = storyScript.map(async (scene, index) => {
+            if (audioUrls[index]) return;
+            const rawAudio = await generateStoryAudio(scene.audio, voiceId);
+            const storedAudio = await storeImageStoryAudioOnBunny(project.id, rawAudio, `scene-${index + 1}`);
+            audioUrls[index] = storedAudio;
+            await storage.updateProject(project.id, { storyAudioUrls: [...audioUrls] });
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "image_story_audio",
+              message: `Generated narration ${index + 1}/${storyScript.length}`,
+              status: "progress",
+              metadata: { sceneIndex: index + 1, sceneCount: storyScript.length, audioUrl: storedAudio },
+            });
+          });
+
+          const imageTasks = imagePrompts.map(async (prompt, index) => {
+            if (imageUrls[index]) return;
+            const imageUrl = await generateImageStorySceneImage(prompt || project.storyPrompt || "cinematic story scene", referenceImages, aspectRatio);
+            imageUrls[index] = imageUrl;
+            await storage.updateProject(project.id, { storySceneImages: [...imageUrls] });
+            await storage.addGenerationLog({
+              projectId: project.id,
+              step: "image_story_images",
+              message: `Generated image ${index + 1}/${imagePrompts.length}`,
+              status: "progress",
+              metadata: { sceneIndex: index + 1, sceneCount: imagePrompts.length, imageUrl },
+            });
+          });
+
+          const results = await Promise.allSettled([...audioTasks, ...imageTasks]);
+          const failed = results.find((result) => result.status === "rejected");
+          if (failed) {
+            throw new Error(failed.reason instanceof Error ? failed.reason.message : String(failed.reason));
+          }
+          if (audioUrls.some((u) => !u) || imageUrls.some((u) => !u)) {
+            throw new Error("Image Story assets are incomplete");
+          }
+
+          await storage.updateProject(project.id, {
+            storyAudioUrls: audioUrls,
+            storySceneImages: imageUrls,
+            generationStatus: "assets_completed",
+          });
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "image_story_audio",
+            message: `Generated ${audioUrls.length}/${storyScript.length} audio files`,
+            status: "completed",
+          });
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "image_story_images",
+            message: `Generated ${imageUrls.length}/${storyScript.length} scene images`,
+            status: "completed",
+          });
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "image_story_assets_complete",
+            message: "Image Story assets are ready",
+            status: "completed",
+          });
+        } catch (error) {
+          console.error("[Image Story] Asset generation error:", error);
+          await storage.updateProject(project.id, { generationStatus: "failed" });
+          await storage.addGenerationLog({
+            projectId: project.id,
+            step: "image_story_assets_error",
+            message: `Image Story assets failed: ${(error as Error).message}`,
+            status: "error",
+          });
+        }
+      })();
+    } catch (error) {
+      console.error("[Image Story] Generate assets error:", error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post("/api/image-story/:id/regenerate-scene-image/:sceneIndex", authenticateToken, async (req: any, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project || project.userId !== req.user.userId || project.toolUsed !== "image_story") {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.generationStatus === "generating") {
+        return res.status(409).json({ error: "Image Story generation is already in progress" });
+      }
+      const sceneIndex = parseInt(req.params.sceneIndex, 10);
+      const { storyScript, imagePrompts } = getImageStoryScriptAndPrompts(project);
+      if (sceneIndex < 0 || sceneIndex >= storyScript.length) {
+        return res.status(400).json({ error: "Invalid scene index" });
+      }
+
+      const prompt = typeof req.body.prompt === "string" && req.body.prompt.trim()
+        ? req.body.prompt.trim()
+        : imagePrompts[sceneIndex];
+      imagePrompts[sceneIndex] = prompt;
+      const nextScript = storyScript.map((scene, index) =>
+        index === sceneIndex ? { ...scene, scene_description: prompt } : scene,
+      );
+      const referenceImages = await ensureImageStoryReferenceImages(project, imagePrompts);
+      const imageUrl = await generateImageStorySceneImage(prompt, referenceImages, project.aspectRatio === "3:4" ? "3:4" : "16:9");
+      const imageUrls = [...(((project.storySceneImages || []) as string[]))];
+      while (imageUrls.length < storyScript.length) imageUrls.push("");
+      imageUrls[sceneIndex] = imageUrl;
+
+      await storage.updateProject(project.id, {
+        storyScript: nextScript,
+        storyScenePrompts: imagePrompts,
+        storySceneImages: imageUrls,
+      });
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "image_story_regenerate_image",
+        message: `Scene ${sceneIndex + 1} image regenerated`,
+        status: "completed",
+        metadata: { sceneIndex: sceneIndex + 1, imageUrl },
+      });
+      res.json({ imageUrl, sceneIndex });
+    } catch (error) {
+      console.error("[Image Story] Regenerate image error:", error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post("/api/image-story/:id/regenerate-scene-audio/:sceneIndex", authenticateToken, async (req: any, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project || project.userId !== req.user.userId || project.toolUsed !== "image_story") {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.generationStatus === "generating") {
+        return res.status(409).json({ error: "Image Story generation is already in progress" });
+      }
+      const sceneIndex = parseInt(req.params.sceneIndex, 10);
+      const { storyScript } = getImageStoryScriptAndPrompts(project);
+      if (sceneIndex < 0 || sceneIndex >= storyScript.length) {
+        return res.status(400).json({ error: "Invalid scene index" });
+      }
+
+      const audio = typeof req.body.audio === "string" ? req.body.audio.trim() : "";
+      if (!audio) {
+        return res.status(400).json({ error: "Audio script is required" });
+      }
+      const voiceId = project.storyNarratorVoice || STORY_DEFAULT_NARRATOR_VOICE;
+      const rawAudio = await generateStoryAudio(audio, voiceId);
+      const audioUrl = await storeImageStoryAudioOnBunny(project.id, rawAudio, `scene-${sceneIndex + 1}`);
+      const nextScript = storyScript.map((scene, index) =>
+        index === sceneIndex ? { ...scene, audio } : scene,
+      );
+      const audioUrls = [...(((project.storyAudioUrls || []) as string[]))];
+      while (audioUrls.length < storyScript.length) audioUrls.push("");
+      audioUrls[sceneIndex] = audioUrl;
+
+      await storage.updateProject(project.id, {
+        storyScript: nextScript,
+        storyAudioUrls: audioUrls,
+      });
+      await storage.addGenerationLog({
+        projectId: project.id,
+        step: "image_story_regenerate_audio",
+        message: `Scene ${sceneIndex + 1} audio regenerated`,
+        status: "completed",
+        metadata: { sceneIndex: sceneIndex + 1, audioUrl },
+      });
+      res.json({ audioUrl, sceneIndex });
+    } catch (error) {
+      console.error("[Image Story] Regenerate audio error:", error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  const handleImageStoryGenerateVideo = async (req: any, res: any) => {
+    try {
+      let project = await storage.getProject(req.params.id);
+      if (!project || project.userId !== req.user.userId || project.toolUsed !== "image_story") {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.generationStatus === "generating") {
+        return res.status(409).json({ error: "Image Story generation is already in progress" });
+      }
+      if (isImageStoryTransition(req.body?.transition) || typeof req.body?.addSubtitles === "boolean") {
+        project = await storage.updateProject(project.id, {
+          imageStoryTransition: isImageStoryTransition(req.body?.transition) ? req.body.transition : project.imageStoryTransition || "fade",
+          addSubtitles: typeof req.body?.addSubtitles === "boolean" ? req.body.addSubtitles : !!project.addSubtitles,
+        } as any) || project;
+      }
+
+      const { storyScript, imagePrompts } = getImageStoryScriptAndPrompts(project);
+      const audioUrls = Array.isArray(project.storyAudioUrls) ? (project.storyAudioUrls as string[]) : [];
+      const imageUrls = Array.isArray(project.storySceneImages) ? (project.storySceneImages as string[]) : [];
+      if (
+        storyScript.length === 0 ||
+        imageUrls.length !== storyScript.length ||
+        audioUrls.length !== storyScript.length ||
+        imageUrls.some((u) => !u) ||
+        audioUrls.some((u) => !u)
+      ) {
+        return res.status(400).json({ error: "All scene images and audio must be generated before creating the video" });
+      }
+
+      await storage.updateProject(project.id, {
+        storyScenePrompts: imagePrompts,
+        storyScript: storyScript.map((scene, index) => ({
+          ...scene,
+          id: index + 1,
+          character: "Narrator",
+          scene_description: imagePrompts[index] || "",
+        })),
+      });
+
+      const durationSec = Math.max(
+        IMAGE_STORY_DURATION_MIN,
+        Math.min(IMAGE_STORY_DURATION_MAX, Number(project.storyDuration) || IMAGE_STORY_DURATION_MIN),
+      );
+      const credits = getImageStoryGenerationCredits(durationSec);
+      const canAfford = await storage.canUserAffordCredits(project.userId, credits);
+      if (!canAfford) {
+        const creditsRemaining = await storage.getUserCreditsRemaining(project.userId);
+        return res.status(402).json({
+          error: `Insufficient credits. This Image Story (${durationSec}s) costs ${credits} credits (${IMAGE_STORY_CREDITS_PER_10_SECONDS} per 10 seconds).`,
+          creditsRequired: credits,
+          creditsRemaining,
+        });
+      }
+      const deducted = await storage.deductUserCredits(project.userId, credits);
+      if (!deducted) {
+        const creditsRemaining = await storage.getUserCreditsRemaining(project.userId);
+        return res.status(402).json({ error: `Insufficient credits. This Image Story costs ${credits} credits.`, creditsRequired: credits, creditsRemaining });
+      }
+
+      const generationId = nanoid();
+      await storage.updateProject(project.id, {
+        generationId,
+        generationStatus: "generating",
+        generationStartedAt: new Date(),
+        generationTimeoutAt: new Date(Date.now() + 30 * 60 * 1000),
+        currentStep: 3,
+      });
+
+      res.json({ status: "generating", projectId: project.id, generationId, creditsCharged: credits });
+
+      (async () => {
+        try {
+          const transition = isImageStoryTransition(project!.imageStoryTransition)
+            ? project!.imageStoryTransition
+            : "fade";
+          const aspectRatio = project!.aspectRatio === "3:4" ? "3:4" : "16:9";
+          const dimensions = imageStoryDimensionsForAspectRatio(aspectRatio);
+
+          await storage.addGenerationLog({
+            projectId: project!.id,
+            step: "image_story_merge",
+            message: "Assembling image story...",
+            status: "started",
+          });
+          const mergeResult = await mergeImageAudio(imageUrls, audioUrls, transition, dimensions, 0.75);
+          let finalVideoUrl = mergeResult.download_url;
+
+          if (isBunnyConfigured() && finalVideoUrl) {
+            try {
+              const finalResponse = await fetch(finalVideoUrl);
+              if (finalResponse.ok) {
+                const buffer = Buffer.from(await finalResponse.arrayBuffer());
+                const fileName = `image-story-${project!.id}-final-${Date.now()}.mp4`;
+                const bunnyResult = await uploadToBunnyStorage("final", fileName, buffer);
+                finalVideoUrl = bunnyResult.url;
+              }
+            } catch (uploadErr) {
+              console.warn("[Image Story] Bunny final upload failed, using merge URL", uploadErr);
+            }
+          }
+          await storage.addGenerationLog({
+            projectId: project!.id,
+            step: "image_story_merge",
+            message: "Image story assembled",
+            status: "completed",
+          });
+
+          if (project!.addSubtitles) {
+            try {
+              await storage.addGenerationLog({
+                projectId: project!.id,
+                step: "image_story_captions",
+                message: "Adding captions...",
+                status: "started",
+              });
+              const { addTikTokCaptions } = await import("./services/ffmpegCaptions");
+              const captionResult = await addTikTokCaptions({
+                videoUrl: finalVideoUrl,
+                subtitleStyle: project!.subtitleStyle === "classic" || !project!.subtitleStyle ? "yellow-bg" : project!.subtitleStyle,
+                language: "auto",
+                aspectRatio,
+                position: project!.captionPosition || "bottom",
+                maxCharsPerLine: 50,
+                maxLines: 1,
+              });
+              finalVideoUrl = captionResult.download_url;
+              if (isBunnyConfigured()) {
+                const capResponse = await fetch(captionResult.download_url);
+                if (capResponse.ok) {
+                  const capBuffer = Buffer.from(await capResponse.arrayBuffer());
+                  const capFileName = `image-story-${project!.id}-captioned-${Date.now()}.mp4`;
+                  const capBunny = await uploadToBunnyStorage("final", capFileName, capBuffer);
+                  finalVideoUrl = capBunny.url;
+                }
+              }
+              await storage.addGenerationLog({
+                projectId: project!.id,
+                step: "image_story_captions",
+                message: "Captions added",
+                status: "completed",
+              });
+            } catch (capErr) {
+              console.warn("[Image Story] Caption step failed, keeping uncaptioned final:", capErr);
+              await storage.addGenerationLog({
+                projectId: project!.id,
+                step: "image_story_captions",
+                message: `Captions skipped: ${(capErr as Error).message}`,
+                status: "warning",
+              });
+            }
+          }
+
+          await storage.updateProject(project!.id, {
+            finalVideoUrl,
+            isCompleted: true,
+            currentStep: 5,
+            generationStatus: "completed",
+          });
+          await storage.addGenerationLog({
+            projectId: project!.id,
+            step: "image_story_complete",
+            message: "Image Story is ready!",
+            status: "completed",
+            metadata: { finalVideoUrl },
+          });
+
+          try {
+            await createMuxAssetForVideo(project!.id, finalVideoUrl);
+          } catch (muxErr) {
+            console.warn("[Image Story] MUX asset creation failed:", muxErr);
+          }
+        } catch (error) {
+          console.error("[Image Story] Video generation error:", error);
+          await storage.updateProject(project!.id, { generationStatus: "failed" });
+          await storage.addGenerationLog({
+            projectId: project!.id,
+            step: "image_story_error",
+            message: `Image Story video failed: ${(error as Error).message}`,
+            status: "error",
+          });
+        }
+      })();
+    } catch (error) {
+      console.error("[Image Story] Generate video error:", error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  };
+
+  app.post("/api/image-story/:id/generate-video", authenticateToken, handleImageStoryGenerateVideo);
+  app.post("/api/image-story/:id/generate", authenticateToken, handleImageStoryGenerateVideo);
 
   app.post("/api/story-video/generate-script", authenticateToken, async (req: any, res) => {
     try {

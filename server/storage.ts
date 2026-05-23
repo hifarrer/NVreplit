@@ -575,6 +575,8 @@ export class MemStorage implements IStorage {
       storyAudioUrlsRight: insertProject.storyAudioUrlsRight || null,
       storySceneImages: insertProject.storySceneImages || null,
       storyScenePrompts: insertProject.storyScenePrompts || null,
+      imageStoryReferenceImages: insertProject.imageStoryReferenceImages || null,
+      imageStoryTransition: insertProject.imageStoryTransition || null,
       createdAt: now,
       updatedAt: now
     };

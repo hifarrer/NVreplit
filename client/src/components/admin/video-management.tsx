@@ -462,7 +462,7 @@ export function VideoManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/videos"] });
       toast({
         title: "Posted Successfully",
-        description: "Video has been posted to Facebook, YouTube, and TikTok via Postiz.",
+        description: "Video has been posted to the configured social channels.",
       });
     },
     onError: (error) => {
@@ -763,7 +763,7 @@ export function VideoManagement() {
                             className="border-blue-500/30 text-blue-300 hover:bg-blue-600/20"
                             disabled={postToSocialMutation.isPending}
                             data-testid={`post-to-social-${video.id}`}
-                            title="Post to Facebook via Postiz"
+                            title="Post to social media"
                           >
                             <Share2 className="h-4 w-4" />
                           </Button>

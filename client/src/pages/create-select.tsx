@@ -209,19 +209,26 @@ export default function CreateSelect() {
                 onClick={() => handleModeClick(mode)}
               >
                 <div className="relative aspect-[3/4] overflow-hidden bg-muted">
-                  {"imageUrl" in mode && mode.imageUrl ? (
-                    <img
-                      src={mode.imageUrl}
-                      alt={mode.title}
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                  ) : "videoUrl" in mode && mode.videoUrl ? (
-                    <MuxAnimatedPreview
-                      hlsUrl={mode.videoUrl}
-                      className="absolute inset-0"
-                      alt={mode.title}
-                    />
-                  ) : null}
+                  {(() => {
+                    const imageUrl = (mode as { imageUrl?: unknown }).imageUrl;
+                    if (typeof imageUrl === "string") {
+                      return (
+                        <img
+                          src={imageUrl}
+                          alt={mode.title}
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
+                      );
+                    }
+
+                    return "videoUrl" in mode && mode.videoUrl ? (
+                      <MuxAnimatedPreview
+                        hlsUrl={mode.videoUrl}
+                        className="absolute inset-0"
+                        alt={mode.title}
+                      />
+                    ) : null;
+                  })()}
                   {!mode.available && (
                     <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
                       <span className="text-muted-foreground text-sm font-medium">
@@ -267,6 +274,35 @@ export default function CreateSelect() {
               <CardContent className="p-4 sm:p-6 pt-2">
                 <p className="text-center text-foreground text-sm sm:text-base font-medium">
                   Story Video
+                </p>
+              </CardContent>
+            </Card>
+            <Card
+              className="overflow-hidden border border-border hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.5),0_0_30px_rgba(236,72,153,0.3),0_0_45px_rgba(236,72,153,0.2)] cursor-pointer transition-all"
+              onClick={() => navigate("/create/image-story")}
+            >
+              <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+                <div className="absolute inset-0 grid grid-cols-2 grid-rows-3 gap-1 p-2 bg-background">
+                  {[
+                    "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=500&q=80",
+                    "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=500&q=80",
+                    "https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=500&q=80",
+                    "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=500&q=80",
+                    "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=500&q=80",
+                    "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=500&q=80",
+                  ].map((src, index) => (
+                    <img key={index} src={src} alt="" className="h-full w-full object-cover rounded-sm" />
+                  ))}
+                </div>
+              </div>
+              <div className="px-4 sm:px-6 pt-3 pb-2">
+                <p className="text-center text-pink-500 text-xs sm:text-sm">
+                  Cheap narrated videos from AI-generated still images
+                </p>
+              </div>
+              <CardContent className="p-4 sm:p-6 pt-2">
+                <p className="text-center text-foreground text-sm sm:text-base font-medium">
+                  Image Story
                 </p>
               </CardContent>
             </Card>
