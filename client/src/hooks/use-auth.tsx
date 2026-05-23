@@ -3,7 +3,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { User, Plan } from '@shared/schema';
 
 // Extended user type that includes credit and plan information from API
-interface AuthUser extends User {
+interface AuthUser extends Omit<User, 'createdAt'> {
   creditsRemaining?: number;
   createdAt?: string | Date;
   plan?: {
@@ -62,15 +62,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('Fetched user data:', userData); // Debug log
         setUser(userData);
         setToken(authToken);
-      } else {
+      } else if (response.status === 401 || response.status === 403) {
         // Token is invalid, remove it
         localStorage.removeItem('auth_token');
         setToken(null);
+        setUser(null);
+      } else {
+        console.warn('User refresh failed without invalidating token:', response.status, response.statusText);
       }
     } catch (error) {
-      console.error('Token verification failed:', error);
-      localStorage.removeItem('auth_token');
-      setToken(null);
+      console.warn('User refresh failed; keeping existing auth token:', error);
+      // Network/browser resource failures do not mean the token is invalid.
+      // Keep the current auth state so transient fetch errors do not log users out.
     } finally {
       setIsLoading(false);
     }
@@ -139,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshUser = async (providedToken?: string) => {
-    const tokenToUse = providedToken || token;
+    const tokenToUse = providedToken || token || localStorage.getItem('auth_token');
     if (tokenToUse) {
       await verifyToken(tokenToUse);
     }

@@ -77,6 +77,7 @@ export default function CreateImageStory() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const editLoadedRef = useRef(false);
+  const completionHandledRef = useRef(false);
 
   const urlParams = new URLSearchParams(window.location.search);
   const editProjectId = urlParams.get("edit");
@@ -114,6 +115,10 @@ export default function CreateImageStory() {
     if (voiceOptions.length === 0) return;
     setVoiceId((current) => (voiceOptions.some((v) => v.id === current) ? current : voiceOptions[0].id));
   }, [voiceOptions]);
+
+  useEffect(() => {
+    completionHandledRef.current = false;
+  }, [projectId]);
 
   const assetsComplete = script.length > 0 &&
     sceneImages.length >= script.length &&
@@ -165,7 +170,6 @@ export default function CreateImageStory() {
       setIsGeneratingVideo(false);
       setGenerationFailed(null);
       setCurrentStep(3);
-      refreshUser();
     }
     if (!p.finalVideoUrl && p.generationStatus === "generating") {
       setGenerationFailed(null);
@@ -184,10 +188,9 @@ export default function CreateImageStory() {
     if (p.generationStatus === "failed") {
       setIsGeneratingAssets(false);
       setIsGeneratingVideo(false);
-      const latestError = [...(logs ?? [])].reverse().find((log) => log.status === "error" && terminalErrorSteps.has(log.step));
-      setGenerationFailed(latestError?.message || "Image Story generation failed.");
+      setGenerationFailed("Image Story generation failed.");
     }
-  }, [logs, refreshUser, script.length]);
+  }, [script.length]);
 
   useEffect(() => {
     if (!projectData || !projectId) return;
@@ -205,8 +208,6 @@ export default function CreateImageStory() {
       setIsGeneratingVideo(false);
       setGenerationFailed(null);
       setCurrentStep(3);
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
-      refreshUser();
       return;
     }
 
@@ -230,7 +231,21 @@ export default function CreateImageStory() {
       setIsGeneratingVideo(false);
       setGenerationFailed(latestError.message);
     }
-  }, [currentStep, finalVideoUrl, logs, projectData?.generationStartedAt, projectId, queryClient, refreshUser]);
+  }, [currentStep, finalVideoUrl, logs, projectData?.generationStartedAt]);
+
+  useEffect(() => {
+    if (!finalVideoUrl || completionHandledRef.current) return;
+    completionHandledRef.current = true;
+    queryClient.setQueryData([`/api/projects/${projectId}`], (current: any) => current ? {
+      ...current,
+      finalVideoUrl,
+      isCompleted: true,
+      generationStatus: "completed",
+    } : current);
+    refreshUser().catch((error) => {
+      console.warn("Image Story user refresh failed after completion:", error);
+    });
+  }, [finalVideoUrl, projectId, queryClient, refreshUser]);
 
   const playVoicePreview = useCallback((previewUrl: string) => {
     const audio = new Audio(previewUrl);
