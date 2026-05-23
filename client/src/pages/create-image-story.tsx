@@ -439,6 +439,9 @@ export default function CreateImageStory() {
                       <span>10s</span>
                       <span>4min</span>
                     </div>
+                    <p className="text-sm font-medium text-muted-foreground mt-2">
+                      Credits Required to Generate Video: {creditsRequired.toLocaleString()}
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

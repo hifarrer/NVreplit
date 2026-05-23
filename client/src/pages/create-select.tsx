@@ -282,18 +282,11 @@ export default function CreateSelect() {
               onClick={() => navigate("/create/image-story")}
             >
               <div className="relative aspect-[3/4] overflow-hidden bg-muted">
-                <div className="absolute inset-0 grid grid-cols-2 grid-rows-3 gap-1 p-2 bg-background">
-                  {[
-                    "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=500&q=80",
-                    "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=500&q=80",
-                    "https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=500&q=80",
-                    "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=500&q=80",
-                    "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=500&q=80",
-                    "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=500&q=80",
-                  ].map((src, index) => (
-                    <img key={index} src={src} alt="" className="h-full w-full object-cover rounded-sm" />
-                  ))}
-                </div>
+                <MuxAnimatedPreview
+                  hlsUrl="https://stream.mux.com/cgpasm2YUC6hr7jvo7MQYYigoSc2zMZxZFEkVNXVc5g.m3u8?redundant_streams=true"
+                  className="absolute inset-0"
+                  alt="Image Story"
+                />
               </div>
               <div className="px-4 sm:px-6 pt-3 pb-2">
                 <p className="text-center text-pink-500 text-xs sm:text-sm">
