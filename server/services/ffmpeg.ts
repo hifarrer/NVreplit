@@ -623,7 +623,7 @@ const NEONVIDEO_MERGE_URL = process.env.FFMPEG_NEONVIDEO_MERGE_URL || "https://f
 
 // Generic merge_videos endpoint (no outro). Used for loop-video and any 2+ video merge without outro.
 const MERGE_VIDEOS_URL = process.env.FFMPEG_MERGE_VIDEOS_URL || `${FFMPEG_API_BASE}/api/merge_videos`;
-const MERGE_IMAGE_AUDIO_URL = process.env.FFMPEG_MERGE_IMAGE_AUDIO_URL || `${FFMPEG_API_BASE}/api/merge_image_audio`;
+const MERGE_IMAGE_AUDIO_URL = process.env.FFMPEG_MERGE_IMAGE_AUDIO_URL || "https://www.ffmpegapi.net/api/merge_image_audio";
 
 export interface MergeImageAudioResult {
   download_url: string;
@@ -675,21 +675,23 @@ export async function mergeImageAudio(
     console.log("Dimensions:", dimensions);
     console.log("Zoom effect:", true);
 
+    const requestBody = {
+      image_urls: imageUrls,
+      audio_urls: audioUrls,
+      transition_effect: transitionEffect,
+      transition_duration: transitionDuration,
+      dimensions,
+      zoom_effect: true,
+      async: true,
+    };
+
     const response = await fetchWithRetry(MERGE_IMAGE_AUDIO_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-API-Key": FFMPEG_API_KEY,
       },
-      body: JSON.stringify({
-        image_urls: imageUrls,
-        audio_urls: audioUrls,
-        transition_effect: transitionEffect,
-        transition_duration: transitionDuration,
-        dimensions,
-        zoom_effect: true,
-        async: true,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
