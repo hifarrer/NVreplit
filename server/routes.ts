@@ -38,7 +38,7 @@ import { generateSongWithMinimax, generateSingleSong, calculateVideoSegments, ge
 import { generateSong as generateSongWithKie, getTimestampedLyrics, convertTimestampedLyricsToASS, storeSubtitleFile } from "./services/kie";
 import { nanoid } from "nanoid";
 import { generateCharacterImage, generateCharacterImages, generateCharacterImageToImage, generateSceneImages, generateSingleSceneImage, generateSceneImagesFromText, generateImageStoryReferenceImage, generateImageStorySceneImage, generateAllPurposeWan27TextToImageMany, generateAlbumCoverSeedreamV5Lite, generateAiImageEdit, collectStoryCharacterReferenceImageUrls } from "./services/fal";
-import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio, generateAllPurposeVideoClip, generateMotionControlVideo, generatePixverseSwapVideo, generateLucyRestyleVideo, editImageNanoBanana2, generateSceneGuidedVideoClip, type PixverseSwapMode, type MotionControlKlingTier } from "./services/wavespeed";
+import { generateAllVideoSegments, generateAllVideoSegmentsDynamic, enhanceImageHyperReal, generateVideoSegment, generateInfinitetalkMultiVideoSegment, generateImageFromText, generateVideoFromImage, generateVideoFromImageLoop, generateVideoFromImageTransition, generateStoryAudio, generateAllPurposeVideoClip, generateMotionControlVideo, generatePixverseSwapVideo, generateLucyRestyleVideo, editImageNanoBanana2, generateSceneGuidedVideoClip, type PixverseSwapMode, type MotionControlKlingTier, type VideoQuality } from "./services/wavespeed";
 import { splitAudio, splitAudioByParts, mergeVideos, mergeImageAudio, pictureInPicture, getWatermarkUrl, getLastFrameImage, getFirstFrameImage, videoLoop, trimVideo, youtubeToMp4, extractAudioMp3, convertToTiktokPortrait, getVideoAspectFromUrl } from "./services/ffmpeg";
 import { VideoQueueService } from "./services/videoQueue";
 import { downloadAndStoreImage } from "./services/imageStorage";
@@ -4752,7 +4752,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Calculate credits needed for partial regeneration (500 credits per modified scene)
       const CREDITS_PER_SCENE = 500;
-      const creditsRequired = modifiedSceneIndices.length * CREDITS_PER_SCENE;
+      const modelCreditMultiplier = providedVideoQuality === "seedance-v2" ? 2 : 1;
+      const creditsRequired = modifiedSceneIndices.length * CREDITS_PER_SCENE * modelCreditMultiplier;
 
       // Check if user has enough credits
       const canAfford = await storage.canUserAffordCredits(userId, creditsRequired);
@@ -9020,7 +9021,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Determine model based on lipsync setting
       const useLipsync = lipsync === true || lipsync === "true";
       const model: "infinitetalk" | "seedance" = useLipsync ? "infinitetalk" : "seedance";
-      const quality = (videoQuality || project.videoQuality || "quick") as "quick" | "medium" | "premium";
+      const quality = (videoQuality || project.videoQuality || "quick") as VideoQuality;
 
       console.log(`Regenerating scene ${sceneIndexNum + 1} video: model=${model}, quality=${quality}, duration=${segmentDuration}s`);
 
@@ -9223,7 +9224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update scene prompts (for edited prompts without regeneration)
   app.post("/api/projects/:id/update-scenes", async (req, res) => {
     try {
-      const { scenes } = req.body;
+      const { scenes, videoQuality } = req.body;
 
       if (!scenes || !Array.isArray(scenes)) {
         return res.status(400).json({ error: "Scenes array is required" });
@@ -9238,10 +9239,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const scenePrompts = scenes.map((scene: any) => scene.prompt);
       const sceneImages = scenes.map((scene: any) => scene.imageUrl);
 
+      const videoQualityUpdate =
+        typeof videoQuality === "string"
+          ? { videoQuality: videoQuality === "seedance-v2" ? "seedance-v2" : "quick" }
+          : {};
+
       // Update the project with the new scene data
       await storage.updateProject(req.params.id, {
         scenePrompts: scenePrompts,
-        sceneImages: sceneImages
+        sceneImages: sceneImages,
+        ...videoQualityUpdate,
       });
 
       console.log(`Updated scene data for project ${req.params.id}`);
@@ -9370,10 +9377,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const units = Math.ceil(audioDuration / 15);
         const baseCredits = units * 1000; // 1000 credits per 15-second block
 
-        // Add extra credits based on video quality
         const projectVideoQuality = (project as any).videoQuality || "quick";
-        const qualityCost = projectVideoQuality === "medium" ? 1000 : projectVideoQuality === "premium" ? 2000 : 0;
-        VIDEO_GENERATION_CREDITS = baseCredits + qualityCost;
+        if (projectVideoQuality === "seedance-v2") {
+          VIDEO_GENERATION_CREDITS = baseCredits * 2;
+        } else {
+          // Add extra credits based on legacy video quality options
+          const qualityCost = projectVideoQuality === "medium" ? 1000 : projectVideoQuality === "premium" ? 2000 : 0;
+          VIDEO_GENERATION_CREDITS = baseCredits + qualityCost;
+        }
       }
 
       // Check if user has enough credits for video generation
@@ -9908,10 +9919,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           const videoQuality = (project as any).videoQuality || "quick";
 
-          // CRITICAL: Filter out last segment if it's less than 4 seconds for seedance model (quick quality)
+          // CRITICAL: Filter out last segment if it's less than 4 seconds for seedance models
           // Seedance v1.5 Pro requires minimum 4 seconds duration
           // This prevents API errors when the last segment is too short
-          if (videoQuality === "quick" && !isInstrumental && audioUrls.length > 0 && segmentDurations.length > 0) {
+          if ((videoQuality === "quick" || videoQuality === "seedance-v2") && !isInstrumental && audioUrls.length > 0 && segmentDurations.length > 0) {
             const lastSegmentDuration = segmentDurations[segmentDurations.length - 1];
             if (lastSegmentDuration < 4) {
               console.log(`⚠️ Last segment duration (${lastSegmentDuration}s) is less than 4 seconds minimum for seedance - removing it`);
@@ -10186,7 +10197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               let filteredSegmentDurations = segmentDurations;
               let filteredNumberOfScenes = numberOfScenes;
 
-              if (videoQuality === "quick" && segmentDurations.length > 0) {
+              if ((videoQuality === "quick" || videoQuality === "seedance-v2") && segmentDurations.length > 0) {
                 const lastSegmentDuration = segmentDurations[segmentDurations.length - 1];
                 if (lastSegmentDuration < 4) {
                   console.log(`⚠️ Last segment duration (${lastSegmentDuration}s) is less than 4 seconds minimum for seedance - removing it`);

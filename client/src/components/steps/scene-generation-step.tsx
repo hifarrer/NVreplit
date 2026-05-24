@@ -2,6 +2,14 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import {
   Dialog,
@@ -24,7 +32,7 @@ import { CameraAngleModal } from "@/components/modals/camera-angle-modal";
 import { SceneTimeline } from "@/components/scene-timeline";
 import { StepCircles } from "@/components/ui/step-circles";
 
-type VideoQuality = "quick" | "medium" | "premium";
+type VideoQuality = "quick" | "medium" | "premium" | "seedance-v2";
 
 interface SceneGenerationStepProps {
   projectId: string;
@@ -47,6 +55,9 @@ interface SceneGenerationStepProps {
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+
+const normalizeProModeVideoQuality = (value?: string): VideoQuality =>
+  value === "seedance-v2" ? "seedance-v2" : "quick";
 
 // Helper for logging with timestamps
 const logSceneGeneration = (message: string, data?: any) => {
@@ -108,8 +119,12 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       ? initialSceneOrder 
       : scenes.map((_, index) => index)
   );
-  // Video quality is always "quick" (seedance-v1.5-pro/image-to-video-fast)
-  const videoQuality: VideoQuality = "quick";
+  const [videoQuality, setVideoQuality] = useState<VideoQuality>(() =>
+    normalizeProModeVideoQuality(initialVideoQuality),
+  );
+  useEffect(() => {
+    setVideoQuality(normalizeProModeVideoQuality(initialVideoQuality));
+  }, [projectId, initialVideoQuality]);
   const [progress, setProgress] = useState(0);
   const progressRef = useRef(0);
   
@@ -803,7 +818,11 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
         )
       );
       setRegeneratingVideoScenes(prev => prev.filter(i => i !== sceneIndex));
-      setRegeneratedVideoScenes(prev => new Set([...prev, sceneIndex]));
+      setRegeneratedVideoScenes(prev => {
+        const next = new Set(prev);
+        next.add(sceneIndex);
+        return next;
+      });
       toast({
         title: "Success",
         description: `Scene ${sceneIndex + 1} video regenerated!`,
@@ -952,7 +971,8 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       }
       
       const response = await apiRequest("POST", `/api/projects/${projectId}/update-scenes`, {
-        scenes
+        scenes,
+        videoQuality,
       });
       return response.json();
     },
@@ -1025,8 +1045,9 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   // Calculate credit cost for video regeneration (video generation only, no song cost)
   const calculateRegenerationCost = () => {
     if (!audioDuration) return 0;
-    // Video generation: 1000 credits per 30 seconds
-    const baseCost = Math.ceil(audioDuration / 30) * 1000;
+    // Server billing: 1000 credits per 15 seconds for the default model.
+    const baseCost = Math.ceil(audioDuration / 15) * 1000;
+    if (videoQuality === "seedance-v2") return baseCost * 2;
     // Add extra credits based on video quality
     const qualityCost = videoQuality === "medium" ? 1000 : videoQuality === "premium" ? 2000 : 0;
     return baseCost + qualityCost;
@@ -1035,7 +1056,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
   // Calculate credit cost for partial regeneration (only modified scenes)
   const calculatePartialRegenerationCost = () => {
     // 500 credits per modified scene video
-    return modifiedSceneIndices.length * 500;
+    return modifiedSceneIndices.length * (videoQuality === "seedance-v2" ? 1000 : 500);
   };
 
   // Get video quality extra credits display
@@ -1043,6 +1064,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
     switch (videoQuality) {
       case "medium": return "+1000 credits";
       case "premium": return "+2000 credits";
+      case "seedance-v2": return "2x credits";
       default: return "";
     }
   };
@@ -1145,6 +1167,28 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
               <p className="text-sm text-muted-foreground">
                 <span className="text-primary font-medium">All scenes are ready!</span> You can proceed to create your video, or optionally customize the scenes above.
               </p>
+            </div>
+            <div className="bg-muted/30 border border-border rounded-lg p-4 mb-6" data-testid="ai-video-model-selector">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 sm:items-end">
+                <div className="space-y-2">
+                  <Label htmlFor="pro-mode-ai-video-model">AI model</Label>
+                  <Select value={videoQuality} onValueChange={(value) => setVideoQuality(value as VideoQuality)}>
+                    <SelectTrigger id="pro-mode-ai-video-model" className="w-full sm:w-80" data-testid="select-ai-video-model">
+                      <SelectValue placeholder="Select AI model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="quick">Good(default)-seedance-v1.5</SelectItem>
+                      <SelectItem value="seedance-v2">Premium-seedance-v2.0</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {audioDuration && (
+                  <p className="text-sm text-muted-foreground sm:text-right" data-testid="ai-video-model-credit-cost">
+                    Estimated video cost: {calculateRegenerationCost().toLocaleString()} credits
+                    {getVideoQualityExtraCredits() ? ` (${getVideoQualityExtraCredits()})` : ""}
+                  </p>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8" data-testid="generated-scenes">
             {generatedScenes.map((scene, index) => (

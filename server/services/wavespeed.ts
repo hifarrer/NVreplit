@@ -128,7 +128,7 @@ export function segmentHasLyrics(
 const SAFE_FALLBACK_PROMPT = "the character dances gracefully";
 
 // Video quality type for different AI models
-export type VideoQuality = "quick" | "medium" | "premium";
+export type VideoQuality = "quick" | "medium" | "premium" | "seedance-v2";
 
 // Internal function that generates a single video segment attempt
 async function generateVideoSegmentInternal(
@@ -168,8 +168,8 @@ async function generateVideoSegmentInternal(
     let minDuration: number;
     let maxDuration: number;
 
-    if (videoQuality === "quick") {
-      // Seedance v1.5 Pro requires minimum 4 seconds
+    if (videoQuality === "quick" || videoQuality === "seedance-v2") {
+      // Seedance image-to-video models require minimum 4 seconds
       minDuration = 4;
       maxDuration = 12;
     } else {
@@ -196,6 +196,24 @@ async function generateVideoSegmentInternal(
           seed: -1,
         };
         break;
+      case "seedance-v2": {
+        // Seedance v2.0 Turbo - premium Pro Mode image-to-video option
+        const seedanceDuration = Math.min(maxDuration, Math.max(6, roundedDuration));
+        if (seedanceDuration !== roundedDuration) {
+          console.log(`Seedance v2.0 duration: ${roundedDuration}s -> ${seedanceDuration}s (minimum 6s for this model)`);
+        }
+        endpoint = "https://api.wavespeed.ai/api/v3/bytedance/seedance-2.0-fast/image-to-video-turbo";
+        requestBody = {
+          aspect_ratio: aspectRatio,
+          duration: seedanceDuration,
+          enable_web_search: false,
+          generate_audio: false,
+          image: imageUrl,
+          prompt: prompt,
+          resolution: "720p",
+        };
+        break;
+      }
       case "medium":
         // Alibaba Wan 2.5 - Medium quality with 480p resolution (supports lipsync)
         endpoint = "https://api.wavespeed.ai/api/v3/alibaba/wan-2.5/image-to-video";
