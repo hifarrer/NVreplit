@@ -1068,6 +1068,11 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
       default: return "";
     }
   };
+
+  const videoGenerationCreditCost = calculateRegenerationCost();
+  const videoGenerationCreditLabel =
+    videoGenerationCreditCost > 0 ? ` (${videoGenerationCreditCost.toLocaleString()} credits)` : "";
+  const videoGenerationButtonLabel = `${isEditMode ? "Re-generate Music Video" : "Generate Music Video"}${videoGenerationCreditLabel}`;
   
   // Mutation to regenerate only modified scene videos and merge
   const partialRegenerateMutation = useMutation({
@@ -1476,7 +1481,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                 >
                   <i className="fas fa-video mr-2"></i>
                   {regenerateVideoMutation.isPending ? "Regenerating..." : 
-                   saveScenesMutation.isPending ? "Saving..." : "Re-generate Music Video"}
+                   saveScenesMutation.isPending ? "Saving..." : videoGenerationButtonLabel}
                   {modifiedSceneIndices.length > 0 && (
                     <span className="ml-2 text-xs font-normal opacity-90">({modifiedSceneIndices.length} modified)</span>
                   )}
@@ -1492,7 +1497,7 @@ export function SceneGenerationStep({ projectId, audioDuration, audioUrl, audioL
                 <i className="fas fa-video mr-2"></i>
                 {regenerateVideoMutation.isPending ? "Regenerating..." : 
                  saveScenesMutation.isPending ? "Saving..." : 
-                 isEditMode ? "Re-generate Music Video" : "Generate Music Video"}
+                 videoGenerationButtonLabel}
                 {modifiedSceneIndices.length > 0 && (
                   <span className="ml-2 text-xs font-normal opacity-90">({modifiedSceneIndices.length} modified)</span>
                 )}
