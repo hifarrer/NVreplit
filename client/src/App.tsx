@@ -44,6 +44,8 @@ import CreateSwap from "@/pages/create-swap";
 import CreateReimagine from "@/pages/create-reimagine";
 import CreateSceneGuided from "@/pages/create-scene-guided";
 import BlogPage from "@/pages/blog";
+import NewsPage from "@/pages/news";
+import NewsArticlePage from "@/pages/news-article";
 import BestAIMusicGenerator2025 from "@/pages/blog-post-best-ai-music-generator";
 import Version201Release from "@/pages/blog-post-version-2-0-1";
 import Version211Release from "@/pages/blog-post-version-2-1-1";
@@ -142,6 +144,8 @@ function AppRouter() {
         <Route path="/terms" component={TermsPage} />
         <Route path="/contact" component={ContactPage} />
         <Route path="/blog" component={BlogPage} />
+        <Route path="/news" component={NewsPage} />
+        <Route path="/news/:slug" component={NewsArticlePage} />
         <Route path="/best-ai-music-generator" component={BestAIMusicGenerator} />
         <Route path="/best-ai-music-generator-2025" component={BestAIMusicGenerator2025} />
         <Route path="/version-2-0-1-release" component={Version201Release} />

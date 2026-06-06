@@ -289,8 +289,15 @@ app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Serve static files from public directory for generated audio files
-app.use(express.static("public"));
+// Serve static files from public directory for generated audio files.
+// Let /sitemap.xml fall through to the dynamic sitemap route registered later.
+const publicStaticMiddleware = express.static("public");
+app.use((req, res, next) => {
+  if (req.path === "/sitemap.xml") {
+    return next();
+  }
+  return publicStaticMiddleware(req, res, next);
+});
 
 app.use((req, res, next) => {
   const start = Date.now();

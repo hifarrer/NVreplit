@@ -9,7 +9,7 @@ import fs from "fs";
 import { Readable } from "stream";
 import sharp from "sharp";
 import { storage } from "./storage";
-import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema, insertPlanSchema, insertReferralSchema, type Plan, type InsertPlan, type Project } from "@shared/schema";
+import { insertProjectSchema, insertGenerationLogSchema, insertUserSchema, insertSavedCharacterSchema, insertPlanSchema, insertReferralSchema, type Plan, type InsertPlan, type Project, type NewsArticle } from "@shared/schema";
 import {
   STORY_DEFAULT_NARRATOR_VOICE,
   STORY_DEFAULT_CHARACTER_VOICE_POOL,
@@ -56,6 +56,7 @@ import { checkProfanity, getCategoryMessage, validateCharacterGenerationPrompt }
 import { getJWKS, initializeOAuthKeys } from "./services/oauth";
 import { resolveLoopVideoTheme } from "./services/loopVideoThemes";
 import { lookupCountryFromIp } from "./services/ipGeo";
+import { NEWS_ARTICLE_TOPICS, generateNewsArticleForTopic } from "./services/newsArticles";
 
 // Content moderation API for user-uploaded images
 const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
@@ -4312,17 +4313,187 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+  function serializeNewsArticle(article: NewsArticle) {
+    return {
+      id: article.id,
+      slug: article.slug,
+      title: article.title,
+      excerpt: article.excerpt,
+      content: article.content,
+      metaTitle: article.metaTitle,
+      metaDescription: article.metaDescription,
+      keywords: article.keywords,
+      toolId: article.toolId,
+      toolName: article.toolName,
+      publishedAt: article.publishedAt,
+      updatedAt: article.updatedAt,
+      url: `/news/${article.slug}`,
+    };
+  }
+
+  function escapeXml(value: string): string {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+
+  async function resolveUniqueNewsSlug(baseSlug: string): Promise<string> {
+    let slug = baseSlug;
+    let suffix = 2;
+    while (await storage.getNewsArticleBySlug(slug)) {
+      slug = `${baseSlug}-${suffix}`;
+      suffix += 1;
+    }
+    return slug;
+  }
+
+  app.get("/api/news", async (_req, res) => {
+    try {
+      const articles = await storage.getPublishedNewsArticles();
+      res.json({
+        articles: articles.map((article) => {
+          const serialized = serializeNewsArticle(article);
+          return {
+            id: serialized.id,
+            slug: serialized.slug,
+            title: serialized.title,
+            excerpt: serialized.excerpt,
+            metaTitle: serialized.metaTitle,
+            metaDescription: serialized.metaDescription,
+            keywords: serialized.keywords,
+            toolId: serialized.toolId,
+            toolName: serialized.toolName,
+            publishedAt: serialized.publishedAt,
+            updatedAt: serialized.updatedAt,
+            url: serialized.url,
+          };
+        }),
+      });
+    } catch (error) {
+      console.error("[NEWS] Error listing articles:", error);
+      res.status(500).json({ error: "Failed to load news articles" });
+    }
+  });
+
+  app.get("/api/news/:slug", async (req, res) => {
+    try {
+      const article = await storage.getNewsArticleBySlug(req.params.slug);
+      if (!article) {
+        return res.status(404).json({ error: "News article not found" });
+      }
+      res.json({ article: serializeNewsArticle(article) });
+    } catch (error) {
+      console.error("[NEWS] Error loading article:", error);
+      res.status(500).json({ error: "Failed to load news article" });
+    }
+  });
+
+  app.get("/api/cron/generate-news-articles", async (req, res) => {
+    try {
+      const cronSecret = req.query.secret || req.headers["x-cron-secret"];
+      const expectedSecret = process.env.CRON_SECRET;
+
+      if (!expectedSecret || cronSecret !== expectedSecret) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const requestedLimit = Number.parseInt(String(req.query.limit ?? "1"), 10);
+      const limit = Math.max(1, Math.min(10, Number.isFinite(requestedLimit) ? requestedLimit : 1));
+      const baseUrl = process.env.FRONTEND_URL || "https://neonvideo.ai";
+      const existingArticles = await storage.getPublishedNewsArticles();
+      const generated: { id: string; toolId: string; title: string; slug: string; url: string }[] = [];
+      const skipped: { toolId: string; reason: string; slug?: string; error?: string }[] = [];
+
+      for (const topic of NEWS_ARTICLE_TOPICS) {
+        if (generated.length >= limit) break;
+
+        const existingForTool = await storage.getPublishedNewsArticleByToolId(topic.id);
+        if (existingForTool) {
+          skipped.push({ toolId: topic.id, reason: "already_published", slug: existingForTool.slug });
+          continue;
+        }
+
+        try {
+          const generatedArticle = await generateNewsArticleForTopic(
+            topic,
+            [...existingArticles.map((article) => article.title), ...generated.map((article) => article.title)],
+          );
+          const slug = await resolveUniqueNewsSlug(generatedArticle.slug);
+          const article = await storage.createNewsArticle({
+            slug,
+            title: generatedArticle.title,
+            excerpt: generatedArticle.excerpt,
+            content: generatedArticle.content,
+            metaTitle: generatedArticle.metaTitle,
+            metaDescription: generatedArticle.metaDescription,
+            keywords: generatedArticle.keywords,
+            toolId: topic.id,
+            toolName: topic.name,
+            status: "published",
+            publishedAt: new Date(),
+          });
+
+          generated.push({
+            id: article.id,
+            toolId: article.toolId,
+            title: article.title,
+            slug: article.slug,
+            url: `${baseUrl}/news/${article.slug}`,
+          });
+        } catch (error) {
+          console.error(`[NEWS] Failed to generate article for ${topic.id}:`, error);
+          skipped.push({
+            toolId: topic.id,
+            reason: "generation_failed",
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        requestedLimit: limit,
+        generatedCount: generated.length,
+        generated,
+        skipped,
+        remainingTopics: Math.max(0, NEWS_ARTICLE_TOPICS.length - existingArticles.length - generated.length),
+      });
+    } catch (error) {
+      console.error("[NEWS] Cron generation error:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to generate news articles",
+      });
+    }
+  });
+
   // Serve sitemap.xml
   app.get("/sitemap.xml", async (req, res) => {
     try {
-      const path = await import("path");
-      const fs = await import("fs");
       const sitemapPath = path.join(process.cwd(), "public", "sitemap.xml");
 
       if (fs.existsSync(sitemapPath)) {
+        const staticSitemap = fs.readFileSync(sitemapPath, "utf8");
+        const newsArticles = await storage.getPublishedNewsArticles();
+        const newsEntries = newsArticles.map((article) => {
+          const lastmod = new Date(article.publishedAt).toISOString().slice(0, 10);
+          return `  <url>
+    <loc>${escapeXml(`https://neonvideo.ai/news/${article.slug}`)}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>`;
+        }).join("\n\n");
+        const sitemap = newsEntries
+          ? staticSitemap.replace("</urlset>", `${newsEntries}\n</urlset>`)
+          : staticSitemap;
+
         res.setHeader('Content-Type', 'application/xml');
-        res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
-        res.sendFile(sitemapPath);
+        res.setHeader('Cache-Control', 'public, max-age=300');
+        res.send(sitemap);
       } else {
         res.status(404).send('Sitemap not found');
       }

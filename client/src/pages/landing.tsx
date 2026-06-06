@@ -597,6 +597,11 @@ export default function LandingPage() {
                   Blog
                 </Button>
               </Link>
+              <Link href="/news">
+                <Button variant="link" size="sm" className="text-muted-foreground hover:text-foreground">
+                  News
+                </Button>
+              </Link>
               <div className="flex items-center space-x-4 ml-4 border-l border-border/50 pl-4">
                 <a
                   href="https://www.tiktok.com/@neonvideoai"

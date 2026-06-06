@@ -296,6 +296,27 @@ export const postizPosts = pgTable("postiz_posts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const newsArticles = pgTable("news_articles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  excerpt: text("excerpt").notNull(),
+  content: text("content").notNull(),
+  metaTitle: text("meta_title").notNull(),
+  metaDescription: text("meta_description").notNull(),
+  keywords: jsonb("keywords").notNull().$type<string[]>(),
+  toolId: text("tool_id").notNull(),
+  toolName: text("tool_name").notNull(),
+  status: text("status").default("published").notNull(),
+  publishedAt: timestamp("published_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  publishedToolUnique: uniqueIndex("news_articles_published_tool_unique")
+    .on(table.toolId)
+    .where(sql`${table.status} = 'published'`),
+}));
+
 // OAuth 2.1 tables for external API access
 export const oauthClients = pgTable("oauth_clients", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -482,6 +503,12 @@ export const insertPostizPostSchema = createInsertSchema(postizPosts).omit({
   createdAt: true,
 });
 
+export const insertNewsArticleSchema = createInsertSchema(newsArticles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertOauthClientSchema = createInsertSchema(oauthClients).omit({
   id: true,
   createdAt: true,
@@ -561,6 +588,8 @@ export type InsertAffiliatePayout = z.infer<typeof insertAffiliatePayoutSchema>;
 export type AffiliatePayout = typeof affiliatePayouts.$inferSelect;
 export type InsertPostizPost = z.infer<typeof insertPostizPostSchema>;
 export type PostizPost = typeof postizPosts.$inferSelect;
+export type InsertNewsArticle = typeof newsArticles.$inferInsert;
+export type NewsArticle = typeof newsArticles.$inferSelect;
 export type InsertOauthClient = z.infer<typeof insertOauthClientSchema>;
 export type OauthClient = typeof oauthClients.$inferSelect;
 export type InsertOauthAuthorizationCode = z.infer<typeof insertOauthAuthorizationCodeSchema>;

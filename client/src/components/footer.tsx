@@ -47,6 +47,9 @@ export function Footer() {
             <Link href="/blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog">
               Blog
             </Link>
+            <Link href="/news" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-news">
+              News
+            </Link>
             <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Privacy Policy
             </Link>

@@ -107,6 +107,13 @@
     <priority>0.8</priority>
   </url>
 
+  <url>
+    <loc>https://neonvideo.ai/news</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
   <!-- Blog Post: Version 3.0 Release -->
   <url>
     <loc>https://neonvideo.ai/version-3-0-release</loc>

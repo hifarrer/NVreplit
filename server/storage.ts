@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, type OauthClient, type InsertOauthClient, type OauthAuthorizationCode, type InsertOauthAuthorizationCode, type OauthAccessToken, type InsertOauthAccessToken, type BannedUser, type InsertBannedUser, type GiftSubscription, type InsertGiftSubscription, type GreetingCard, type InsertGreetingCard, type CouponCode, type InsertCouponCode, type CouponRedemption, type InsertCouponRedemption, type ImagekitBackup, type InsertImagekitBackup, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts, oauthClients, oauthAuthorizationCodes, oauthAccessTokens, bannedUsers, giftSubscriptions, greetingCards, couponCodes, couponRedemptions, imagekitBackups } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, type NewsArticle, type InsertNewsArticle, type OauthClient, type InsertOauthClient, type OauthAuthorizationCode, type InsertOauthAuthorizationCode, type OauthAccessToken, type InsertOauthAccessToken, type BannedUser, type InsertBannedUser, type GiftSubscription, type InsertGiftSubscription, type GreetingCard, type InsertGreetingCard, type CouponCode, type InsertCouponCode, type CouponRedemption, type InsertCouponRedemption, type ImagekitBackup, type InsertImagekitBackup, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts, newsArticles, oauthClients, oauthAuthorizationCodes, oauthAccessTokens, bannedUsers, giftSubscriptions, greetingCards, couponCodes, couponRedemptions, imagekitBackups } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -241,6 +241,12 @@ export interface IStorage {
   updatePostizPost(projectId: string, updates: Partial<PostizPost>): Promise<PostizPost | undefined>;
   getAllProjects(): Promise<Project[]>;
 
+  // News article methods
+  createNewsArticle(article: InsertNewsArticle): Promise<NewsArticle>;
+  getPublishedNewsArticles(): Promise<NewsArticle[]>;
+  getNewsArticleBySlug(slug: string): Promise<NewsArticle | undefined>;
+  getPublishedNewsArticleByToolId(toolId: string): Promise<NewsArticle | undefined>;
+
   // OAuth methods
   createOauthClient(client: InsertOauthClient): Promise<OauthClient>;
   getOauthClient(clientId: string): Promise<OauthClient | undefined>;
@@ -304,6 +310,7 @@ export class MemStorage implements IStorage {
   private affiliateSignupsStorage: Map<string, AffiliateSignup>;
   private affiliateEarningsStorage: Map<string, AffiliateEarning>;
   private affiliatePayoutsStorage: Map<string, AffiliatePayout>;
+  private newsArticlesStorage: Map<string, NewsArticle>;
   private bannedUsersStorage: Map<string, BannedUser>;
   private giftSubscriptionsStorage: Map<string, GiftSubscription>;
   private imagekitBackupsStorage: Map<string, ImagekitBackup>;
@@ -325,6 +332,7 @@ export class MemStorage implements IStorage {
     this.affiliateSignupsStorage = new Map();
     this.affiliateEarningsStorage = new Map();
     this.affiliatePayoutsStorage = new Map();
+    this.newsArticlesStorage = new Map();
     this.bannedUsersStorage = new Map();
     this.giftSubscriptionsStorage = new Map();
     this.imagekitBackupsStorage = new Map();
@@ -1600,6 +1608,46 @@ export class MemStorage implements IStorage {
   async getAllProjects(): Promise<Project[]> {
     return Array.from(this.projects.values()).sort((a, b) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  async createNewsArticle(insertArticle: InsertNewsArticle): Promise<NewsArticle> {
+    const now = new Date();
+    const article: NewsArticle = {
+      id: randomUUID(),
+      slug: insertArticle.slug,
+      title: insertArticle.title,
+      excerpt: insertArticle.excerpt,
+      content: insertArticle.content,
+      metaTitle: insertArticle.metaTitle,
+      metaDescription: insertArticle.metaDescription,
+      keywords: insertArticle.keywords,
+      toolId: insertArticle.toolId,
+      toolName: insertArticle.toolName,
+      status: insertArticle.status ?? "published",
+      publishedAt: insertArticle.publishedAt ?? now,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.newsArticlesStorage.set(article.id, article);
+    return article;
+  }
+
+  async getPublishedNewsArticles(): Promise<NewsArticle[]> {
+    return Array.from(this.newsArticlesStorage.values())
+      .filter((article) => article.status === "published")
+      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  }
+
+  async getNewsArticleBySlug(slug: string): Promise<NewsArticle | undefined> {
+    return Array.from(this.newsArticlesStorage.values()).find(
+      (article) => article.slug === slug && article.status === "published",
+    );
+  }
+
+  async getPublishedNewsArticleByToolId(toolId: string): Promise<NewsArticle | undefined> {
+    return Array.from(this.newsArticlesStorage.values()).find(
+      (article) => article.toolId === toolId && article.status === "published",
     );
   }
 
@@ -3531,6 +3579,60 @@ export class DbStorage implements IStorage {
     } catch (error) {
       console.error("Error getting all projects:", error);
       return [];
+    }
+  }
+
+  async createNewsArticle(insertArticle: InsertNewsArticle): Promise<NewsArticle> {
+    try {
+      const result = await this.db
+        .insert(newsArticles)
+        .values(insertArticle)
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error creating news article:", error);
+      throw error;
+    }
+  }
+
+  async getPublishedNewsArticles(): Promise<NewsArticle[]> {
+    try {
+      return await this.db
+        .select()
+        .from(newsArticles)
+        .where(eq(newsArticles.status, "published"))
+        .orderBy(desc(newsArticles.publishedAt));
+    } catch (error) {
+      console.error("Error getting published news articles:", error);
+      return [];
+    }
+  }
+
+  async getNewsArticleBySlug(slug: string): Promise<NewsArticle | undefined> {
+    try {
+      const result = await this.db
+        .select()
+        .from(newsArticles)
+        .where(and(eq(newsArticles.slug, slug), eq(newsArticles.status, "published")))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error getting news article by slug:", error);
+      return undefined;
+    }
+  }
+
+  async getPublishedNewsArticleByToolId(toolId: string): Promise<NewsArticle | undefined> {
+    try {
+      const result = await this.db
+        .select()
+        .from(newsArticles)
+        .where(and(eq(newsArticles.toolId, toolId), eq(newsArticles.status, "published")))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error getting news article by tool id:", error);
+      return undefined;
     }
   }
 
