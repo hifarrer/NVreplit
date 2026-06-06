@@ -4391,15 +4391,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/cron/generate-news-articles", async (req, res) => {
+  app.get("/api/cron/generate-news-articles", extractTokenFromUrl, authenticateToken, async (req: any, res) => {
     try {
-      const cronSecret = req.query.secret || req.headers["x-cron-secret"];
-      const expectedSecret = process.env.CRON_SECRET;
-
-      if (!expectedSecret || cronSecret !== expectedSecret) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-
       const requestedLimit = Number.parseInt(String(req.query.limit ?? "1"), 10);
       const limit = Math.max(1, Math.min(10, Number.isFinite(requestedLimit) ? requestedLimit : 1));
       const baseUrl = process.env.FRONTEND_URL || "https://neonvideo.ai";
