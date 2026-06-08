@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Helmet } from "react-helmet-async";
 import { Link } from "wouter";
-import { Calendar, Newspaper, ArrowRight } from "lucide-react";
+import { Calendar, Newspaper, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { NavigationHeader } from "@/components/navigation-header";
 import { Footer } from "@/components/footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +20,14 @@ interface NewsArticleCard {
 
 interface NewsResponse {
   articles: NewsArticleCard[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasPreviousPage: boolean;
+    hasNextPage: boolean;
+  };
 }
 
 function formatDate(value: string) {
@@ -30,11 +39,14 @@ function formatDate(value: string) {
 }
 
 export default function NewsPage() {
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
   const { data, isLoading, error } = useQuery<NewsResponse>({
-    queryKey: ["/api/news"],
+    queryKey: [`/api/news?page=${page}&limit=${pageSize}`],
   });
 
   const articles = data?.articles ?? [];
+  const pagination = data?.pagination;
 
   return (
     <>
@@ -123,6 +135,36 @@ export default function NewsPage() {
                 </Card>
               ))}
             </div>
+
+            {pagination && pagination.totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-10 border-t border-purple-500/20 pt-6">
+                <div className="text-sm text-gray-400">
+                  Page {pagination.page} of {pagination.totalPages}
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    className="border-purple-500/30 bg-black/30 text-white hover:bg-purple-950/40"
+                    disabled={!pagination.hasPreviousPage}
+                    onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
+                    data-testid="button-news-previous"
+                  >
+                    <ChevronLeft className="mr-2 h-4 w-4" />
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="border-purple-500/30 bg-black/30 text-white hover:bg-purple-950/40"
+                    disabled={!pagination.hasNextPage}
+                    onClick={() => setPage((currentPage) => currentPage + 1)}
+                    data-testid="button-news-next"
+                  >
+                    Next
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </main>
 

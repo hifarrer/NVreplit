@@ -4352,9 +4352,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/news", async (_req, res) => {
     try {
+      const page = Math.max(1, Number.parseInt(String(_req.query.page ?? "1"), 10) || 1);
+      const limit = Math.max(1, Math.min(24, Number.parseInt(String(_req.query.limit ?? "10"), 10) || 10));
       const articles = await storage.getPublishedNewsArticles();
+      const total = articles.length;
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      const safePage = Math.min(page, totalPages);
+      const start = (safePage - 1) * limit;
+      const paginatedArticles = articles.slice(start, start + limit);
+
       res.json({
-        articles: articles.map((article) => {
+        articles: paginatedArticles.map((article) => {
           const serialized = serializeNewsArticle(article);
           return {
             id: serialized.id,
@@ -4371,6 +4379,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             url: serialized.url,
           };
         }),
+        pagination: {
+          page: safePage,
+          limit,
+          total,
+          totalPages,
+          hasPreviousPage: safePage > 1,
+          hasNextPage: safePage < totalPages,
+        },
       });
     } catch (error) {
       console.error("[NEWS] Error listing articles:", error);
