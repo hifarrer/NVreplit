@@ -24,6 +24,7 @@ import ReferralsPage from "@/pages/referrals";
 import AffiliatesPage from "@/pages/affiliates";
 import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
+import RefundsPage from "@/pages/refunds";
 import ContactPage from "@/pages/contact";
 import NeonSinglePrompt from "@/pages/neon-single-prompt";
 import CreateSelect from "@/pages/create-select";
@@ -142,6 +143,7 @@ function AppRouter() {
         <Route path="/payment-success" component={() => <ProtectedRoute component={PaymentSuccessPage} />} />
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/terms" component={TermsPage} />
+        <Route path="/refunds" component={RefundsPage} />
         <Route path="/contact" component={ContactPage} />
         <Route path="/blog" component={BlogPage} />
         <Route path="/news" component={NewsPage} />
