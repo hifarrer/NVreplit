@@ -56,7 +56,7 @@ import { checkProfanity, getCategoryMessage, validateCharacterGenerationPrompt }
 import { getJWKS, initializeOAuthKeys } from "./services/oauth";
 import { resolveLoopVideoTheme } from "./services/loopVideoThemes";
 import { lookupCountryFromIp } from "./services/ipGeo";
-import { NEWS_ARTICLE_TOPICS, generateNewsArticleForTopic } from "./services/newsArticles";
+import { NEWS_ARTICLE_TOPICS, buildRecurringNewsArticleTopic, generateNewsArticleForTopic, type NewsArticleTopic } from "./services/newsArticles";
 
 // Content moderation API for user-uploaded images
 const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
@@ -4413,18 +4413,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = Math.max(1, Math.min(10, Number.isFinite(requestedLimit) ? requestedLimit : 1));
       const baseUrl = process.env.FRONTEND_URL || "https://neonvideo.ai";
       const existingArticles = await storage.getPublishedNewsArticles();
+      const existingToolIds = new Set(existingArticles.map((article) => article.toolId));
       const generated: { id: string; toolId: string; title: string; slug: string; url: string }[] = [];
       const skipped: { toolId: string; reason: string; slug?: string; error?: string }[] = [];
+      let skippedRecurringAlreadyPublished = 0;
 
-      for (const topic of NEWS_ARTICLE_TOPICS) {
-        if (generated.length >= limit) break;
-
-        const existingForTool = await storage.getPublishedNewsArticleByToolId(topic.id);
-        if (existingForTool) {
-          skipped.push({ toolId: topic.id, reason: "already_published", slug: existingForTool.slug });
-          continue;
-        }
-
+      const generateAndStoreArticle = async (topic: NewsArticleTopic) => {
         try {
           const generatedArticle = await generateNewsArticleForTopic(
             topic,
@@ -4452,6 +4446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             slug: article.slug,
             url: `${baseUrl}/news/${article.slug}`,
           });
+          existingToolIds.add(topic.id);
         } catch (error) {
           console.error(`[NEWS] Failed to generate article for ${topic.id}:`, error);
           skipped.push({
@@ -4460,7 +4455,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
             error: error instanceof Error ? error.message : String(error),
           });
         }
+      };
+
+      for (const topic of NEWS_ARTICLE_TOPICS) {
+        if (generated.length >= limit) break;
+
+        const existingForTool = await storage.getPublishedNewsArticleByToolId(topic.id);
+        if (existingForTool) {
+          skipped.push({ toolId: topic.id, reason: "already_published", slug: existingForTool.slug });
+          continue;
+        }
+
+        await generateAndStoreArticle(topic);
       }
+
+      for (let sequence = 1; generated.length < limit && sequence <= 500; sequence += 1) {
+        for (const baseTopic of NEWS_ARTICLE_TOPICS) {
+          if (generated.length >= limit) break;
+
+          const recurringTopic = buildRecurringNewsArticleTopic(baseTopic, sequence);
+          if (existingToolIds.has(recurringTopic.id)) {
+            skippedRecurringAlreadyPublished += 1;
+            continue;
+          }
+
+          await generateAndStoreArticle(recurringTopic);
+        }
+      }
+
+      const remainingBaseTopics = NEWS_ARTICLE_TOPICS.filter((topic) => !existingToolIds.has(topic.id)).length;
 
       res.json({
         success: true,
@@ -4468,7 +4491,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         generatedCount: generated.length,
         generated,
         skipped,
-        remainingTopics: Math.max(0, NEWS_ARTICLE_TOPICS.length - existingArticles.length - generated.length),
+        remainingTopics: remainingBaseTopics,
+        remainingBaseTopics,
+        recurringArticlesEnabled: true,
+        skippedRecurringAlreadyPublished,
       });
     } catch (error) {
       console.error("[NEWS] Cron generation error:", error);

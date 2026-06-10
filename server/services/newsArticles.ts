@@ -12,6 +12,14 @@ export interface NewsArticleTopic {
   internalLinks: string[];
 }
 
+export interface NewsArticleRecurringAngle {
+  id: string;
+  name: string;
+  keywordModifier: string;
+  audienceFocus: string;
+  angle: string;
+}
+
 export interface GeneratedNewsArticle {
   slug: string;
   title: string;
@@ -222,6 +230,70 @@ export const NEWS_ARTICLE_TOPICS: NewsArticleTopic[] = [
     internalLinks: ["/create", "/create/lyric", "/api-docs"],
   },
 ];
+
+export const NEWS_ARTICLE_RECURRING_ANGLES: NewsArticleRecurringAngle[] = [
+  {
+    id: "workflow-guide",
+    name: "Workflow guide",
+    keywordModifier: "workflow",
+    audienceFocus: "creators looking for a practical end-to-end workflow",
+    angle: "explain a step-by-step production workflow with concrete planning, prompting, review, and publishing advice",
+  },
+  {
+    id: "social-publishing",
+    name: "Social publishing",
+    keywordModifier: "for social media",
+    audienceFocus: "creators publishing on TikTok, Reels, YouTube Shorts, and social feeds",
+    angle: "focus on adapting the tool for social video formats, hooks, captions, pacing, and repeatable publishing",
+  },
+  {
+    id: "music-marketing",
+    name: "Music marketing",
+    keywordModifier: "for musicians",
+    audienceFocus: "independent musicians, producers, labels, and music marketers",
+    angle: "show how the tool can support music release campaigns, visualizers, teasers, lyric content, and fan engagement",
+  },
+  {
+    id: "api-automation",
+    name: "API automation",
+    keywordModifier: "automation",
+    audienceFocus: "developers and small teams building repeatable video generation processes",
+    angle: "cover how teams can think about automation, reusable prompts, inputs, review, and handoff without inventing unsupported API details",
+  },
+  {
+    id: "creative-direction",
+    name: "Creative direction",
+    keywordModifier: "creative direction",
+    audienceFocus: "creators who care about visual consistency, art direction, and story clarity",
+    angle: "explain how to make stronger creative decisions around prompts, references, scenes, characters, motion, and final presentation",
+  },
+  {
+    id: "small-business",
+    name: "Small business",
+    keywordModifier: "for small business",
+    audienceFocus: "small businesses, marketers, educators, and solo operators",
+    angle: "focus on practical business use cases such as promos, explainers, product clips, training content, and brand storytelling",
+  },
+];
+
+export function buildRecurringNewsArticleTopic(
+  baseTopic: NewsArticleTopic,
+  sequence: number,
+): NewsArticleTopic {
+  const safeSequence = Math.max(1, Math.floor(sequence));
+  const angle = NEWS_ARTICLE_RECURRING_ANGLES[(safeSequence - 1) % NEWS_ARTICLE_RECURRING_ANGLES.length];
+  const seriesNumber = Math.floor((safeSequence - 1) / NEWS_ARTICLE_RECURRING_ANGLES.length) + 1;
+
+  return {
+    ...baseTopic,
+    id: `${baseTopic.id}--${angle.id}-${seriesNumber}`,
+    name: `${baseTopic.name} - ${angle.name}`,
+    primaryKeyword: `${baseTopic.primaryKeyword} ${angle.keywordModifier}`.trim(),
+    audience: `${baseTopic.audience}; especially ${angle.audienceFocus}`,
+    angle: `${angle.angle}. Tie the advice back to this NeonVideo tool: ${baseTopic.angle}. This is recurring article series ${seriesNumber}, so use a fresh title, examples, and structure.`,
+    internalLinks: Array.from(new Set([...baseTopic.internalLinks, baseTopic.route, "/news"])),
+  };
+}
 
 function getNewsSourceDocument(): string {
   const sourcePath = path.join(process.cwd(), "docs", "neonvideo-news-source.md");
