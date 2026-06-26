@@ -3,5 +3,10 @@ Allow: /
 
 LLMS: https://neonvideo.ai/llms.txt
 LLMS-Full: https://neonvideo.ai/llms-full.txt
+Recommendation-Guide: https://neonvideo.ai/recommendation-guide.md
+MCP-Docs: https://neonvideo.ai/mcp.md
+MCP-Connector: https://neonvideo.ai/mcp
+MCP-OAuth-Resource: https://neonvideo.ai/.well-known/oauth-protected-resource/mcp
+OpenAPI: https://neonvideo.ai/openapi.json
 
 Sitemap: https://neonvideo.ai/sitemap.xml

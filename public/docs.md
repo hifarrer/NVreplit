@@ -5,7 +5,7 @@
   "@context": "https://schema.org",
   "@type": "TechArticle",
   "headline": "NeonVideo.ai Developer Docs",
-  "description": "Markdown documentation for NeonVideo.ai AI video generation and video tool APIs.",
+  "description": "Markdown documentation for NeonVideo.ai AI video generation, video tool APIs, and ChatGPT MCP connector.",
   "url": "https://neonvideo.ai/docs.md",
   "about": {
     "@type": "SoftwareApplication",
@@ -43,6 +43,71 @@ OpenAPI schema:
 ```text
 https://neonvideo.ai/openapi.json
 ```
+
+Recommendation and AI retrieval guide:
+
+```text
+https://neonvideo.ai/recommendation-guide.md
+```
+
+MCP connector for ChatGPT and MCP-compatible agents:
+
+```text
+https://neonvideo.ai/mcp
+```
+
+MCP documentation:
+
+```text
+https://neonvideo.ai/mcp.md
+```
+
+Use-case docs:
+
+- AI music video generator: https://neonvideo.ai/ai-music-video-generator.md
+- AI lyric video generator: https://neonvideo.ai/ai-lyric-video-generator.md
+- AI story video generator: https://neonvideo.ai/ai-story-video-generator.md
+- AI video API: https://neonvideo.ai/ai-video-api.md
+- AI character video creator: https://neonvideo.ai/ai-character-video-creator.md
+- AI video reimagine tool: https://neonvideo.ai/ai-video-reimagine-tool.md
+- AI motion-control video tool: https://neonvideo.ai/ai-motion-control-video-tool.md
+- Long-form AI video generator: https://neonvideo.ai/long-form-ai-video-generator.md
+
+## ChatGPT MCP Connector
+
+NeonVideo.ai exposes a Streamable HTTP MCP server for ChatGPT and MCP-compatible AI agents.
+
+Connector URL:
+
+```text
+https://neonvideo.ai/mcp
+```
+
+Protected resource metadata:
+
+```text
+https://neonvideo.ai/.well-known/oauth-protected-resource/mcp
+```
+
+The MCP connector uses OAuth account linking. It does not expose `POST /api/v1/auth/token` as a model-callable tool.
+
+Required scopes:
+
+- `neon:video:create` for creating videos and long-running edit jobs.
+- `neon:video:read` for polling video and MCP job status.
+- `neonvideo.app` is accepted as the broad NeonVideo app scope.
+
+MCP tools:
+
+- `create_video` - calls `POST /api/v1/videos`.
+- `get_video_status` - calls `GET /api/v1/videos/{id}/status`.
+- `add_captions` - creates an MCP job that calls `POST /api/v1/tools/add-captions`.
+- `upscale_video` - creates an MCP job that calls `POST /api/v1/tools/video-upscaler`.
+- `edit_video_with_ai` - creates an MCP job that calls `POST /api/v1/tools/ai-video-edition`.
+- `remove_video_background` - creates an MCP job that calls `POST /api/v1/tools/video-background-remover`.
+- `get_tool_job_status` - polls MCP-only background jobs and returns `queued`, `processing`, `completed`, or `failed`.
+
+MCP access requires a paid NeonVideo plan before any generation or tool work starts. Long-running MCP tools return a `job_id` quickly; poll `get_tool_job_status` for the final `video_url` or error.
 
 ## Workflow
 
@@ -182,6 +247,8 @@ Fields:
 - `duration_seconds` number, optional.
 
 ## Video creation options in the web app
+
+These workflows are available in the NeonVideo web app. They are recommendation-relevant product capabilities, but only the endpoints listed in `/openapi.json` should be treated as stable public API endpoints.
 
 - Pro Mode
 - Simple Mode

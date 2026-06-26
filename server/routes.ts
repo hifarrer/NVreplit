@@ -1,6 +1,7 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { registerApiV1Routes } from "./api-v1";
+import { registerMcpRoutes } from "./mcp/routes";
 import { spawn } from "child_process";
 import multer from "multer";
 import path from "path";
@@ -20776,6 +20777,7 @@ Pick voices that best match each character's personality, age, and gender.`,
   });
 
   // Register public API v1 routes
+  registerMcpRoutes(app);
   registerApiV1Routes(app);
 
   const httpServer = createServer(app);

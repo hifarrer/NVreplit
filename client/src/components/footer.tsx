@@ -50,6 +50,12 @@ export function Footer() {
             <Link href="/news" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-news">
               News
             </Link>
+            <Link href="/api-docs" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-api-docs-footer">
+              API Docs
+            </Link>
+            <a href="/recommendation-guide.md" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-ai-guide-footer">
+              AI Guide
+            </a>
             <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Privacy Policy
             </Link>

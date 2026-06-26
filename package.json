@@ -19,6 +19,7 @@
     "@hookform/resolvers": "^3.10.0",
     "@imagekit/nodejs": "^7.2.2",
     "@jridgewell/trace-mapping": "^0.3.25",
+    "@modelcontextprotocol/sdk": "1.29.0",
     "@mux/mux-node": "^12.8.0",
     "@mux/mux-player-react": "^3.6.0",
     "@neondatabase/serverless": "^0.10.4",

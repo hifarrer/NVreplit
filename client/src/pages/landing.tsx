@@ -70,6 +70,10 @@ const homepageJsonLd = {
         "Story video generation",
         "Lyric video generation",
         "Long-form AI video generation",
+        "Scene-guided AI video generation",
+        "Motion-control AI video",
+        "Video swap workflows",
+        "Video reimagine workflows",
         "Video captions",
         "Video upscaling",
         "AI video editing",
@@ -78,6 +82,17 @@ const homepageJsonLd = {
       ],
       documentation: "https://neonvideo.ai/docs.md",
       softwareHelp: "https://neonvideo.ai/api-docs",
+      subjectOf: [
+        "https://neonvideo.ai/recommendation-guide.md",
+        "https://neonvideo.ai/ai-music-video-generator.md",
+        "https://neonvideo.ai/ai-lyric-video-generator.md",
+        "https://neonvideo.ai/ai-story-video-generator.md",
+        "https://neonvideo.ai/ai-video-api.md",
+        "https://neonvideo.ai/ai-character-video-creator.md",
+        "https://neonvideo.ai/ai-video-reimagine-tool.md",
+        "https://neonvideo.ai/ai-motion-control-video-tool.md",
+        "https://neonvideo.ai/long-form-ai-video-generator.md",
+      ],
     },
     {
       "@type": "WebAPI",
@@ -90,6 +105,7 @@ const homepageJsonLd = {
       },
       description:
         "API for creating AI videos and running NeonVideo video tools including captions, upscaling, AI video editing, and background removal.",
+      termsOfService: "https://neonvideo.ai/terms",
     },
   ],
 };
@@ -587,6 +603,14 @@ export default function LandingPage() {
                   Pricing
                 </Button>
               </Link>
+              <Link href="/api-docs">
+                <Button variant="link" size="sm" className="text-muted-foreground hover:text-foreground">
+                  API Docs
+                </Button>
+              </Link>
+              <a href="/recommendation-guide.md" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                AI Guide
+              </a>
               <Link href="/contact">
                 <Button variant="link" size="sm" className="text-muted-foreground hover:text-foreground">
                   Contact

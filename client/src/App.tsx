@@ -135,7 +135,7 @@ function AppRouter() {
         <Route path="/profile" component={() => <ProtectedRoute component={ProfilePage} />} />
         <Route path="/referrals" component={() => <ProtectedRoute component={ReferralsPage} />} />
         <Route path="/affiliates" component={() => <ProtectedRoute component={AffiliatesPage} />} />
-        <Route path="/api-docs" component={() => <ProtectedRoute component={ApiDocsPage} />} />
+        <Route path="/api-docs" component={ApiDocsPage} />
         <Route path="/u/:username" component={PublicProfilePage} />
         <Route path="/v/:videoId" component={VideoPage} />
         <Route path="/community" component={CommunityPage} />

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, jsonb, integer, boolean, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, jsonb, integer, boolean, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -351,6 +351,23 @@ export const oauthAccessTokens = pgTable("oauth_access_tokens", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const mcpToolJobs = pgTable("mcp_tool_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  toolName: text("tool_name").notNull(),
+  status: text("status").default("queued").notNull(),
+  requestPayload: jsonb("request_payload").notNull().$type<Record<string, unknown>>(),
+  resultPayload: jsonb("result_payload").$type<Record<string, unknown> | null>(),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userCreatedIdx: index("mcp_tool_jobs_user_created_idx").on(table.userId, table.createdAt),
+  statusIdx: index("mcp_tool_jobs_status_idx").on(table.status),
+}));
+
 // Greeting cards table for scheduled video greeting cards
 export const greetingCards = pgTable("greeting_cards", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -524,6 +541,12 @@ export const insertOauthAccessTokenSchema = createInsertSchema(oauthAccessTokens
   createdAt: true,
 });
 
+export const insertMcpToolJobSchema = createInsertSchema(mcpToolJobs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertBannedUserSchema = createInsertSchema(bannedUsers).omit({
   id: true,
   createdAt: true,
@@ -596,6 +619,8 @@ export type InsertOauthAuthorizationCode = z.infer<typeof insertOauthAuthorizati
 export type OauthAuthorizationCode = typeof oauthAuthorizationCodes.$inferSelect;
 export type InsertOauthAccessToken = z.infer<typeof insertOauthAccessTokenSchema>;
 export type OauthAccessToken = typeof oauthAccessTokens.$inferSelect;
+export type InsertMcpToolJob = typeof mcpToolJobs.$inferInsert;
+export type McpToolJob = typeof mcpToolJobs.$inferSelect;
 export type InsertGiftSubscription = z.infer<typeof insertGiftSubscriptionSchema>;
 export type GiftSubscription = typeof giftSubscriptions.$inferSelect;
 export type InsertGreetingCard = z.infer<typeof insertGreetingCardSchema>;

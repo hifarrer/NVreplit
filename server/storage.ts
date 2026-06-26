@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, type NewsArticle, type InsertNewsArticle, type OauthClient, type InsertOauthClient, type OauthAuthorizationCode, type InsertOauthAuthorizationCode, type OauthAccessToken, type InsertOauthAccessToken, type BannedUser, type InsertBannedUser, type GiftSubscription, type InsertGiftSubscription, type GreetingCard, type InsertGreetingCard, type CouponCode, type InsertCouponCode, type CouponRedemption, type InsertCouponRedemption, type ImagekitBackup, type InsertImagekitBackup, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts, newsArticles, oauthClients, oauthAuthorizationCodes, oauthAccessTokens, bannedUsers, giftSubscriptions, greetingCards, couponCodes, couponRedemptions, imagekitBackups } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type GenerationLog, type InsertGenerationLog, type SavedCharacter, type InsertSavedCharacter, type Plan, type InsertPlan, type VideoQueue, type InsertVideoQueue, type Song, type InsertSong, type VideoGenerationConfig, type InsertVideoGenerationConfig, type VideoLike, type InsertVideoLike, type VideoComment, type InsertVideoComment, type Referral, type InsertReferral, type Affiliate, type InsertAffiliate, type AffiliateSignup, type InsertAffiliateSignup, type AffiliateEarning, type InsertAffiliateEarning, type AffiliatePayout, type InsertAffiliatePayout, type PostizPost, type InsertPostizPost, type NewsArticle, type InsertNewsArticle, type OauthClient, type InsertOauthClient, type OauthAuthorizationCode, type InsertOauthAuthorizationCode, type OauthAccessToken, type InsertOauthAccessToken, type McpToolJob, type InsertMcpToolJob, type BannedUser, type InsertBannedUser, type GiftSubscription, type InsertGiftSubscription, type GreetingCard, type InsertGreetingCard, type CouponCode, type InsertCouponCode, type CouponRedemption, type InsertCouponRedemption, type ImagekitBackup, type InsertImagekitBackup, users, projects, generationLogs, savedCharacters, plans, videoQueue, songs, videoGenerationConfig, appSettings, videoLikes, videoComments, referrals, affiliates, affiliateSignups, affiliateEarnings, affiliatePayouts, postizPosts, newsArticles, oauthClients, oauthAuthorizationCodes, oauthAccessTokens, mcpToolJobs, bannedUsers, giftSubscriptions, greetingCards, couponCodes, couponRedemptions, imagekitBackups } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -257,6 +257,11 @@ export interface IStorage {
   getOauthAccessToken(token: string): Promise<OauthAccessToken | undefined>;
   deleteExpiredOauthTokens(): Promise<void>;
 
+  // MCP tool job methods
+  createMcpToolJob(job: InsertMcpToolJob): Promise<McpToolJob>;
+  getMcpToolJob(id: string): Promise<McpToolJob | undefined>;
+  updateMcpToolJob(id: string, updates: Partial<McpToolJob>): Promise<McpToolJob | undefined>;
+
   // Banned user methods
   isEmailBanned(email: string): Promise<boolean>;
   banUser(email: string, bannedBy: string, reason?: string): Promise<void>;
@@ -311,6 +316,7 @@ export class MemStorage implements IStorage {
   private affiliateEarningsStorage: Map<string, AffiliateEarning>;
   private affiliatePayoutsStorage: Map<string, AffiliatePayout>;
   private newsArticlesStorage: Map<string, NewsArticle>;
+  private mcpToolJobsStorage: Map<string, McpToolJob>;
   private bannedUsersStorage: Map<string, BannedUser>;
   private giftSubscriptionsStorage: Map<string, GiftSubscription>;
   private imagekitBackupsStorage: Map<string, ImagekitBackup>;
@@ -333,6 +339,7 @@ export class MemStorage implements IStorage {
     this.affiliateEarningsStorage = new Map();
     this.affiliatePayoutsStorage = new Map();
     this.newsArticlesStorage = new Map();
+    this.mcpToolJobsStorage = new Map();
     this.bannedUsersStorage = new Map();
     this.giftSubscriptionsStorage = new Map();
     this.imagekitBackupsStorage = new Map();
@@ -464,6 +471,11 @@ export class MemStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<boolean> {
+    this.mcpToolJobsStorage.forEach((job, jobId) => {
+      if (job.userId === id) {
+        this.mcpToolJobsStorage.delete(jobId);
+      }
+    });
     return this.users.delete(id);
   }
 
@@ -1683,6 +1695,43 @@ export class MemStorage implements IStorage {
     throw new Error("OAuth not supported in MemStorage - use DbStorage");
   }
 
+  async createMcpToolJob(insertJob: InsertMcpToolJob): Promise<McpToolJob> {
+    const now = new Date();
+    const job: McpToolJob = {
+      id: randomUUID(),
+      userId: insertJob.userId,
+      toolName: insertJob.toolName,
+      status: insertJob.status ?? "queued",
+      requestPayload: insertJob.requestPayload,
+      resultPayload: insertJob.resultPayload ?? null,
+      errorMessage: insertJob.errorMessage ?? null,
+      startedAt: insertJob.startedAt ?? null,
+      completedAt: insertJob.completedAt ?? null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.mcpToolJobsStorage.set(job.id, job);
+    return job;
+  }
+
+  async getMcpToolJob(id: string): Promise<McpToolJob | undefined> {
+    return this.mcpToolJobsStorage.get(id);
+  }
+
+  async updateMcpToolJob(id: string, updates: Partial<McpToolJob>): Promise<McpToolJob | undefined> {
+    const existing = this.mcpToolJobsStorage.get(id);
+    if (!existing) {
+      return undefined;
+    }
+    const updated: McpToolJob = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.mcpToolJobsStorage.set(id, updated);
+    return updated;
+  }
+
   // Banned user methods
   async isEmailBanned(email: string): Promise<boolean> {
     for (const bannedUser of this.bannedUsersStorage.values()) {
@@ -2065,8 +2114,11 @@ export class DbStorage implements IStorage {
         // 8. Delete affiliate records that reference this user (signup_user_id)
         await tx.delete(affiliateEarnings).where(eq(affiliateEarnings.signupUserId, id));
         await tx.delete(affiliateSignups).where(eq(affiliateSignups.signupUserId, id));
+
+        // 9. Delete MCP tool jobs for this user
+        await tx.delete(mcpToolJobs).where(eq(mcpToolJobs.userId, id));
         
-        // 9. Finally, delete the user
+        // 10. Finally, delete the user
         const result = await tx.delete(users).where(eq(users.id, id)).returning({ id: users.id });
         return result.length > 0;
       });
@@ -3740,6 +3792,51 @@ export class DbStorage implements IStorage {
         .where(sql`${oauthAuthorizationCodes.expiresAt} < NOW()`);
     } catch (error) {
       console.error("Error deleting expired OAuth tokens:", error);
+    }
+  }
+
+  async createMcpToolJob(job: InsertMcpToolJob): Promise<McpToolJob> {
+    try {
+      const result = await this.db
+        .insert(mcpToolJobs)
+        .values(job)
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error creating MCP tool job:", error);
+      throw error;
+    }
+  }
+
+  async getMcpToolJob(id: string): Promise<McpToolJob | undefined> {
+    try {
+      const result = await this.db
+        .select()
+        .from(mcpToolJobs)
+        .where(eq(mcpToolJobs.id, id))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error getting MCP tool job:", error);
+      return undefined;
+    }
+  }
+
+  async updateMcpToolJob(id: string, updates: Partial<McpToolJob>): Promise<McpToolJob | undefined> {
+    try {
+      const { id: _id, createdAt: _createdAt, ...allowedUpdates } = updates;
+      const result = await this.db
+        .update(mcpToolJobs)
+        .set({
+          ...allowedUpdates,
+          updatedAt: new Date(),
+        })
+        .where(eq(mcpToolJobs.id, id))
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error updating MCP tool job:", error);
+      return undefined;
     }
   }
 

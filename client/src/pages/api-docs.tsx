@@ -45,7 +45,7 @@ const apiDocsJsonLd = {
   "@type": "TechArticle",
   headline: "NeonVideo.ai API Documentation",
   description:
-    "Developer documentation for the NeonVideo.ai public API, including AI video generation, captions, video upscaling, AI video editing, and background removal.",
+    "Developer documentation for the NeonVideo.ai public API and MCP connector, including AI video generation, captions, video upscaling, AI video editing, and background removal.",
   url: "https://neonvideo.ai/api-docs",
   mainEntityOfPage: "https://neonvideo.ai/api-docs",
   about: {
@@ -53,6 +53,11 @@ const apiDocsJsonLd = {
     name: "NeonVideo.ai Public API",
     url: "https://neonvideo.ai/openapi.json",
     documentation: "https://neonvideo.ai/docs.md",
+    potentialAction: {
+      "@type": "InteractAction",
+      target: "https://neonvideo.ai/mcp",
+      name: "Connect NeonVideo.ai MCP server",
+    },
   },
   isPartOf: {
     "@type": "WebSite",
@@ -90,7 +95,7 @@ export default function ApiDocsPage() {
               <h1 className="text-3xl font-bold gradient-text">API Documentation</h1>
             </div>
             <p className="text-muted-foreground">
-              Create AI-generated music videos programmatically using the NeonVideo API.
+              Create AI-generated music videos programmatically using the NeonVideo API or connect NeonVideo to ChatGPT with MCP.
             </p>
             {!isPaid && (
               <div className="mt-4 p-4 rounded-lg border border-amber-500/30 bg-amber-500/5">
@@ -127,6 +132,107 @@ export default function ApiDocsPage() {
                     <p className="font-medium mb-1">Content Type</p>
                     <code className="text-primary">application/json</code>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* MCP Connector */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  ChatGPT MCP Connector
+                </CardTitle>
+                <CardDescription>
+                  Streamable HTTP MCP endpoint for ChatGPT and MCP-compatible agents
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  NeonVideo exposes an MCP server so ChatGPT and other MCP clients can discover NeonVideo tools,
+                  link a user's account with OAuth, and create or edit videos without manually pasting API tokens.
+                  The MCP server calls the same stable <code className="bg-muted px-1 rounded">/api/v1</code> backend used by this REST API.
+                </p>
+
+                <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <p className="font-medium mb-1">MCP Connector URL</p>
+                    <code className="text-primary break-all">{baseUrl}/mcp</code>
+                  </div>
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <p className="font-medium mb-1">OAuth Resource Metadata</p>
+                    <code className="text-primary break-all">{baseUrl}/.well-known/oauth-protected-resource/mcp</code>
+                  </div>
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <p className="font-medium mb-1">Machine-Readable MCP Docs</p>
+                    <code className="text-primary break-all">{baseUrl}/mcp.md</code>
+                  </div>
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <p className="font-medium mb-1">Auth Model</p>
+                    <code className="text-primary">OAuth account linking</code>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-medium">Available MCP tools</h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="border-b border-border">
+                          <th className="py-2 pr-4 text-sm font-medium text-muted-foreground">Tool</th>
+                          <th className="py-2 pr-4 text-sm font-medium text-muted-foreground">Scope</th>
+                          <th className="py-2 text-sm font-medium text-muted-foreground">Purpose</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b border-border">
+                          <td className="py-3 pr-4 font-mono text-sm text-primary">create_video</td>
+                          <td className="py-3 pr-4 font-mono text-sm">neon:video:create</td>
+                          <td className="py-3 text-sm">Start a video generation job.</td>
+                        </tr>
+                        <tr className="border-b border-border">
+                          <td className="py-3 pr-4 font-mono text-sm text-primary">get_video_status</td>
+                          <td className="py-3 pr-4 font-mono text-sm">neon:video:read</td>
+                          <td className="py-3 text-sm">Poll a generated video's status and final URL.</td>
+                        </tr>
+                        <tr className="border-b border-border">
+                          <td className="py-3 pr-4 font-mono text-sm text-primary">add_captions</td>
+                          <td className="py-3 pr-4 font-mono text-sm">neon:video:create</td>
+                          <td className="py-3 text-sm">Queue captions for an existing public video URL.</td>
+                        </tr>
+                        <tr className="border-b border-border">
+                          <td className="py-3 pr-4 font-mono text-sm text-primary">upscale_video</td>
+                          <td className="py-3 pr-4 font-mono text-sm">neon:video:create</td>
+                          <td className="py-3 text-sm">Queue video upscaling to 1080p, 2k, or 4k.</td>
+                        </tr>
+                        <tr className="border-b border-border">
+                          <td className="py-3 pr-4 font-mono text-sm text-primary">edit_video_with_ai</td>
+                          <td className="py-3 pr-4 font-mono text-sm">neon:video:create</td>
+                          <td className="py-3 text-sm">Queue a prompt-based edit for an existing video URL.</td>
+                        </tr>
+                        <tr className="border-b border-border">
+                          <td className="py-3 pr-4 font-mono text-sm text-primary">remove_video_background</td>
+                          <td className="py-3 pr-4 font-mono text-sm">neon:video:create</td>
+                          <td className="py-3 text-sm">Queue background removal for an existing video URL.</td>
+                        </tr>
+                        <tr className="border-b border-border">
+                          <td className="py-3 pr-4 font-mono text-sm text-primary">get_tool_job_status</td>
+                          <td className="py-3 pr-4 font-mono text-sm">neon:video:read</td>
+                          <td className="py-3 text-sm">Poll MCP-only background jobs returned by long-running tools.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t">
+                  <h4 className="font-medium">Agent guidance</h4>
+                  <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-2">
+                    <li>Use the connector URL when creating a ChatGPT connector: <code className="bg-muted px-1 rounded">{baseUrl}/mcp</code>.</li>
+                    <li>Use OAuth account linking for MCP. Do not expose <code className="bg-muted px-1 rounded">POST /api/v1/auth/token</code> as an MCP tool.</li>
+                    <li>Long-running MCP tools return a <code className="bg-muted px-1 rounded">job_id</code>; poll <code className="bg-muted px-1 rounded">get_tool_job_status</code> until the status is <code className="bg-muted px-1 rounded">completed</code> or <code className="bg-muted px-1 rounded">failed</code>.</li>
+                    <li>Use the REST API and OpenAPI schema for direct server-to-server integrations.</li>
+                  </ul>
                 </div>
               </CardContent>
             </Card>
