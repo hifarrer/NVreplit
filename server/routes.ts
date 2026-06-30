@@ -1244,6 +1244,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).send("Invalid client_id");
       }
 
+      // First-party clients (e.g. the NeonVideo editor at editor.neonvideo.ai)
+      // are trusted and skip the Authorize/Deny consent screen: the page below
+      // auto-approves silently when the user is logged in, or sends them to login
+      // first and then auto-approves. Only client_ids explicitly listed in
+      // TRUSTED_OAUTH_CLIENT_IDS are trusted — all others see the normal consent
+      // page. The auto-approval still goes through POST /oauth/authorize, which
+      // enforces redirect_uri/PKCE, so consent-skipping doesn't weaken security.
+      const trustedClientIds = (process.env.TRUSTED_OAUTH_CLIENT_IDS ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const isTrusted = trustedClientIds.includes(client_id as string);
+
       // Serve an HTML page that will handle the authorization with JWT token
       res.send(`
         <!DOCTYPE html>
@@ -1292,14 +1305,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           <script>
             const token = localStorage.getItem('auth_token');
             const params = new URLSearchParams(window.location.search);
-            
+            const IS_TRUSTED = ${isTrusted};
+
             if (!token) {
-              document.getElementById('content').innerHTML = \`
-                <div class="error">You must be logged in to authorize applications.</div>
-                <div class="buttons">
-                  <button onclick="window.location.href='/auth?redirect=' + encodeURIComponent(window.location.href)">Login</button>
-                </div>
-              \`;
+              if (IS_TRUSTED) {
+                // Trusted first-party client: send the user to login, then return
+                // here to auto-approve. No consent prompt is shown.
+                window.location.href = '/auth?redirect=' + encodeURIComponent(window.location.href);
+              } else {
+                document.getElementById('content').innerHTML = \`
+                  <div class="error">You must be logged in to authorize applications.</div>
+                  <div class="buttons">
+                    <button onclick="window.location.href='/auth?redirect=' + encodeURIComponent(window.location.href)">Login</button>
+                  </div>
+                \`;
+              }
+            } else if (IS_TRUSTED) {
+              // Trusted first-party client + logged in: approve silently and bounce
+              // straight back to the application — no Authorize/Deny window.
+              document.getElementById('content').innerHTML = '<div class="loading">Connecting…</div>';
+              authorize();
             } else {
               document.getElementById('content').innerHTML = \`
                 <h1>Authorize Application</h1>
@@ -1318,7 +1343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 </div>
               \`;
             }
-            
+
             async function authorize() {
               try {
                 const response = await fetch('/oauth/authorize', {

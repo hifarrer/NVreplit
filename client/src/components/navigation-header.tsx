@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Home as HomeIcon, Music, Video, User, LogOut, Menu, ChevronDown, HelpCircle, Gift, Users, Code } from "lucide-react";
+import { Home as HomeIcon, Music, Video, User, LogOut, Menu, ChevronDown, HelpCircle, Gift, Users, Code, Clapperboard } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import logoImage from "@assets/neonlogo_1756693683433.png";
 import { convertAvatarUrlToImageKit } from "@/lib/utils";
@@ -23,17 +23,29 @@ export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
   const [, navigate] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const navItems = [
+  const navItems: Array<{
+    href: string;
+    label: string;
+    icon: JSX.Element;
+    page: string;
+    external?: boolean;
+  }> = [
     { href: "/create", label: "Create", icon: <HomeIcon className="h-4 w-4" />, page: "home" },
     { href: "/my-songs", label: "Songs", icon: <Music className="h-4 w-4" />, page: "songs" },
     { href: "/my-videos", label: "Videos", icon: <Video className="h-4 w-4" />, page: "videos" },
     { href: "/characters", label: "Characters", icon: <User className="h-4 w-4" />, page: "characters" },
+    { href: "https://editor.neonvideo.ai", label: "Video Editor", icon: <Clapperboard className="h-4 w-4" />, page: "editor", external: true },
     { href: "/community", label: "Community", icon: <Users className="h-4 w-4" />, page: "community" },
     { href: "/plans", label: "Plans", icon: <i className="fas fa-crown h-4 w-4"></i>, page: "plans" },
   ];
 
   const handleNavClick = (href: string) => {
     navigate(href);
+    setMobileMenuOpen(false);
+  };
+
+  const handleExternalClick = (href: string) => {
+    window.open(href, "_blank", "noopener,noreferrer");
     setMobileMenuOpen(false);
   };
 
@@ -54,19 +66,37 @@ export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
             
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center space-x-2 xl:space-x-4">
-              {navItems.map((item) => (
-                <Link key={item.page} href={item.href}>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    disabled={currentPage === item.page}
-                    className={currentPage === item.page ? "text-foreground" : "text-muted-foreground hover:text-foreground"}
+              {navItems.map((item) =>
+                item.external ? (
+                  <a
+                    key={item.page}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    <span className="mr-1">{item.icon}</span>
-                    {item.label}
-                  </Button>
-                </Link>
-              ))}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <span className="mr-1">{item.icon}</span>
+                      {item.label}
+                    </Button>
+                  </a>
+                ) : (
+                  <Link key={item.page} href={item.href}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={currentPage === item.page}
+                      className={currentPage === item.page ? "text-foreground" : "text-muted-foreground hover:text-foreground"}
+                    >
+                      <span className="mr-1">{item.icon}</span>
+                      {item.label}
+                    </Button>
+                  </Link>
+                )
+              )}
             </nav>
           </div>
           
@@ -158,7 +188,11 @@ export function NavigationHeader({ currentPage }: NavigationHeaderProps) {
                       key={item.page}
                       variant={currentPage === item.page ? "secondary" : "ghost"}
                       className="justify-start w-full"
-                      onClick={() => handleNavClick(item.href)}
+                      onClick={() =>
+                        item.external
+                          ? handleExternalClick(item.href)
+                          : handleNavClick(item.href)
+                      }
                     >
                       <span className="mr-3">{item.icon}</span>
                       {item.label}
