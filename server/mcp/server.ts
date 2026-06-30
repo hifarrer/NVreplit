@@ -16,6 +16,13 @@ type ToolExtra = RequestHandlerExtra<ServerRequest, ServerNotification>;
 
 const CREATE_SCOPE = ["neon:video:create"];
 const READ_SCOPE = ["neon:video:read"];
+const QUEUED_JOB_OUTPUT_SCHEMA = {
+  job_id: z.string(),
+  status: z.literal("queued"),
+  tool_name: z.string(),
+  poll_tool: z.literal("get_tool_job_status"),
+  message: z.string(),
+};
 
 function compactPayload<T extends Record<string, unknown>>(payload: T): Record<string, unknown> {
   return Object.fromEntries(
@@ -31,14 +38,17 @@ function okResult(structuredContent: Record<string, unknown>, text: string): Cal
 }
 
 function errorResult(message: string, structuredContent: Record<string, unknown> = {}, meta?: Record<string, unknown>): CallToolResult {
+  const errorMeta = Object.keys(structuredContent).length
+    ? { "neonvideo/error": { message, ...structuredContent } }
+    : {};
+
   return {
     isError: true,
     content: [{ type: "text", text: message }],
-    structuredContent: {
-      error: message,
-      ...structuredContent,
+    _meta: {
+      ...errorMeta,
+      ...meta,
     },
-    _meta: meta,
   };
 }
 
@@ -94,6 +104,7 @@ function toolConfig(options: {
   title: string;
   description: string;
   inputSchema: Record<string, z.ZodTypeAny>;
+  outputSchema: Record<string, z.ZodTypeAny>;
   requiredScopes: string[];
   invoking: string;
   invoked: string;
@@ -109,6 +120,7 @@ function toolConfig(options: {
     title: options.title,
     description: options.description,
     inputSchema: options.inputSchema,
+    outputSchema: options.outputSchema,
     annotations: options.annotations,
     securitySchemes,
     _meta: toolMeta(options.requiredScopes, options.invoking, options.invoked),
@@ -182,6 +194,12 @@ export function createNeonVideoMcpServer(): McpServer {
         video_duration: z.number().int().min(15).max(180).optional().describe("Video length in seconds."),
         captions: z.boolean().optional().describe("Whether to add captions."),
       },
+      outputSchema: {
+        video_id: z.string(),
+        status: z.string(),
+        status_url: z.string(),
+        message: z.string(),
+      },
       requiredScopes: CREATE_SCOPE,
       invoking: "Creating video",
       invoked: "Video queued",
@@ -219,6 +237,18 @@ export function createNeonVideoMcpServer(): McpServer {
       description: "Get the generation status and final URL for a NeonVideo video owned by the connected user.",
       inputSchema: {
         video_id: z.string().min(1).describe("The NeonVideo video/project id."),
+      },
+      outputSchema: {
+        video_id: z.string(),
+        status: z.enum(["processing", "completed", "failed"]),
+        progress: z.number(),
+        current_step: z.number(),
+        title: z.string(),
+        video_url: z.string().optional(),
+        bunny_storage_url: z.string().optional(),
+        streaming_url: z.string().optional(),
+        queue_position: z.number().optional(),
+        message: z.string().optional(),
       },
       requiredScopes: READ_SCOPE,
       invoking: "Checking status",
@@ -259,6 +289,7 @@ export function createNeonVideoMcpServer(): McpServer {
         caption_style: z.string().min(1).optional().describe("Optional caption style."),
         position: z.enum(["top", "center", "bottom"]).optional().describe("Caption position."),
       },
+      outputSchema: QUEUED_JOB_OUTPUT_SCHEMA,
       requiredScopes: CREATE_SCOPE,
       invoking: "Queueing captions",
       invoked: "Captions queued",
@@ -294,6 +325,7 @@ export function createNeonVideoMcpServer(): McpServer {
         target_resolution: z.enum(["1080p", "2k", "4k"]).optional().describe("Target output resolution."),
         duration_seconds: z.number().positive().optional().describe("Video duration used for credit calculation."),
       },
+      outputSchema: QUEUED_JOB_OUTPUT_SCHEMA,
       requiredScopes: CREATE_SCOPE,
       invoking: "Queueing upscale",
       invoked: "Upscale queued",
@@ -329,6 +361,7 @@ export function createNeonVideoMcpServer(): McpServer {
         prompt: z.string().min(1).describe("Edit instruction."),
         duration_seconds: z.number().positive().optional().describe("Video duration used for credit calculation."),
       },
+      outputSchema: QUEUED_JOB_OUTPUT_SCHEMA,
       requiredScopes: CREATE_SCOPE,
       invoking: "Queueing edit",
       invoked: "Edit queued",
@@ -363,6 +396,7 @@ export function createNeonVideoMcpServer(): McpServer {
         video_url: z.string().min(1).describe("Source video URL."),
         duration_seconds: z.number().positive().optional().describe("Video duration used for credit calculation."),
       },
+      outputSchema: QUEUED_JOB_OUTPUT_SCHEMA,
       requiredScopes: CREATE_SCOPE,
       invoking: "Queueing background removal",
       invoked: "Background removal queued",
@@ -395,6 +429,18 @@ export function createNeonVideoMcpServer(): McpServer {
       description: "Poll the status and final output for an MCP-only NeonVideo tool job.",
       inputSchema: {
         job_id: z.string().min(1).describe("MCP tool job id returned by a long-running tool."),
+      },
+      outputSchema: {
+        job_id: z.string(),
+        tool_name: z.string(),
+        status: z.enum(["queued", "processing", "completed", "failed"]),
+        created_at: z.string(),
+        updated_at: z.string(),
+        started_at: z.string().optional(),
+        completed_at: z.string().optional(),
+        result: z.record(z.unknown()).optional(),
+        video_url: z.string().optional(),
+        error: z.string().optional(),
       },
       requiredScopes: READ_SCOPE,
       invoking: "Checking job",

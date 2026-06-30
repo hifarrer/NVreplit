@@ -1050,6 +1050,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  app.get("/.well-known/oauth-authorization-server", (req, res) => {
+    const baseUrl = process.env.FRONTEND_URL || 'https://neonvideo.ai';
+    res.json({
+      issuer: baseUrl,
+      authorization_endpoint: `${baseUrl}/oauth/authorize`,
+      token_endpoint: `${baseUrl}/oauth/token`,
+      registration_endpoint: `${baseUrl}/oauth/register`,
+      jwks_uri: `${baseUrl}/.well-known/jwks.json`,
+      scopes_supported: ["neonvideo.app", "neon:video:create", "neon:video:read"],
+      response_types_supported: ["code"],
+      grant_types_supported: ["authorization_code"],
+      code_challenge_methods_supported: ["S256"],
+      token_endpoint_auth_methods_supported: ["none"],
+    });
+  });
+
   app.get("/.well-known/openid-configuration", (req, res) => {
     const baseUrl = process.env.FRONTEND_URL || 'https://neonvideo.ai';
     res.json({

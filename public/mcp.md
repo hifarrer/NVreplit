@@ -20,6 +20,12 @@ OAuth authorization server:
 https://neonvideo.ai
 ```
 
+OAuth authorization server metadata:
+
+```text
+https://neonvideo.ai/.well-known/oauth-authorization-server
+```
+
 Human API docs:
 
 ```text
@@ -65,6 +71,41 @@ Paid-plan requirement:
 - Free-plan users receive a paid-plan error before generation or tool work starts.
 
 Do not call or expose `POST /api/v1/auth/token` as an MCP tool. OAuth account linking handles MCP authentication.
+
+## Test In ChatGPT Developer Mode
+
+1. Deploy the MCP server and database migration to the public production environment.
+2. In ChatGPT, open **Settings -> Apps & Connectors -> Advanced settings** and enable Developer Mode.
+3. Return to **Settings -> Apps & Connectors**, select **Create**, and enter:
+   - Name: `NeonVideo`
+   - Description: `Create and edit AI videos in the connected NeonVideo account. Use for prompt-to-video generation, status checks, captions, upscaling, AI video edits, and background removal.`
+   - Connector URL: `https://www.neonvideo.ai/mcp`
+4. Complete NeonVideo OAuth account linking with a paid test account.
+5. Confirm ChatGPT discovers exactly these tools:
+   - `create_video`
+   - `get_video_status`
+   - `add_captions`
+   - `upscale_video`
+   - `edit_video_with_ai`
+   - `remove_video_background`
+   - `get_tool_job_status`
+6. Open a new chat, add NeonVideo from the **+ -> More** menu, and run the test prompts below.
+
+Recommended test prompts:
+
+- `Use NeonVideo to create a 15-second 9:16 video of a glowing futuristic city at night. Do not add captions.`
+- `Check the NeonVideo status for video ID <video_id>.`
+- `Use NeonVideo to add captions to this public video URL: <video_url>. Put the captions at the bottom.`
+- `Check the NeonVideo tool job <job_id> and tell me whether it completed or failed.`
+
+Expected behavior:
+
+- The first protected tool call starts OAuth account linking.
+- Creation and editing tools require `neon:video:create`.
+- Status tools require `neon:video:read`.
+- A free-plan account receives a paid-plan error before work starts.
+- Long-running editing tools return `job_id`; ChatGPT polls `get_tool_job_status`.
+- Video creation consumes NeonVideo credits, so use the shortest supported duration during acceptance testing.
 
 ## MCP Tools
 

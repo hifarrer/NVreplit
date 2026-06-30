@@ -35,6 +35,7 @@ export function registerMcpRoutes(app: Express) {
       authorization_servers: [baseUrl],
       scopes_supported: [...MCP_SCOPES],
       bearer_methods_supported: ["header"],
+      resource_documentation: `${baseUrl}/mcp.md`,
     });
   });
 

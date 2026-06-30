@@ -164,6 +164,10 @@ export default function ApiDocsPage() {
                     <code className="text-primary break-all">{baseUrl}/.well-known/oauth-protected-resource/mcp</code>
                   </div>
                   <div className="p-3 bg-muted/50 rounded-lg">
+                    <p className="font-medium mb-1">OAuth Server Metadata</p>
+                    <code className="text-primary break-all">{baseUrl}/.well-known/oauth-authorization-server</code>
+                  </div>
+                  <div className="p-3 bg-muted/50 rounded-lg">
                     <p className="font-medium mb-1">Machine-Readable MCP Docs</p>
                     <code className="text-primary break-all">{baseUrl}/mcp.md</code>
                   </div>
@@ -223,6 +227,17 @@ export default function ApiDocsPage() {
                       </tbody>
                     </table>
                   </div>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t">
+                  <h4 className="font-medium">Test in ChatGPT Developer Mode</h4>
+                  <ol className="list-decimal pl-5 text-sm text-muted-foreground space-y-2">
+                    <li>Open ChatGPT Settings, then Apps &amp; Connectors, then Advanced settings, and enable Developer Mode.</li>
+                    <li>Create a connector named <strong>NeonVideo</strong> with <code className="bg-muted px-1 rounded">{baseUrl}/mcp</code>.</li>
+                    <li>Complete OAuth account linking with a paid NeonVideo test account.</li>
+                    <li>Confirm the seven tools above are discovered, then add NeonVideo to a new chat from the composer&apos;s app menu.</li>
+                    <li>Start with a 15-second test video, save the returned <code className="bg-muted px-1 rounded">video_id</code>, and poll it with <code className="bg-muted px-1 rounded">get_video_status</code>.</li>
+                  </ol>
                 </div>
 
                 <div className="space-y-3 pt-4 border-t">
