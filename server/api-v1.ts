@@ -1,7 +1,16 @@
 import type { Express } from "express";
 import jwt from "jsonwebtoken";
+import multer from "multer";
 import { storage } from "./storage";
-import { isBunnyUrl } from "./services/bunny";
+import {
+  isBunnyUrl,
+  isBunnyConfigured,
+  uploadClipVideo,
+  uploadReferenceImage,
+  deleteBunnyFileByPublicUrlIfConfigured,
+} from "./services/bunny";
+import { moderateImageContent } from "./services/moderation";
+import { generateImageFromText, generateVideoFromImage } from "./services/wavespeed";
 import { VideoQueueService } from "./services/videoQueue";
 import { defaultSubtitleStyle, isSubtitleStyle } from "@shared/subtitleStyles";
 
@@ -777,6 +786,201 @@ export function registerApiV1Routes(app: Express) {
       console.error("[API-V1] Video Background Remover tool error:", error);
       res.status(500).json({
         error: error instanceof Error ? error.message : "Failed to run Video Background Remover",
+      });
+    }
+  });
+
+  // ─── Upload Reference Image ────────────────────────────────────────
+  // Accepts a multipart image, stores it on Bunny CDN and moderates it.
+  // Used by the OpenCut editor chat so uploaded images become public URLs
+  // that image-to-video models can fetch.
+  const referenceImageUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_req: any, file: any, cb: any) => {
+      const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+      if (allowed.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error("Only JPEG, PNG and WebP images are allowed"));
+      }
+    },
+  });
+
+  function handleReferenceImageUpload(req: any, res: any, next: any) {
+    referenceImageUpload.single("image")(req, res, (err: any) => {
+      if (!err) return next();
+      if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+        return res.status(413).json({ error: "Image must be 10 MB or smaller" });
+      }
+      return res.status(400).json({ error: err.message || "Invalid image upload" });
+    });
+  }
+
+  app.post("/api/v1/uploads/image", extractTokenFromUrl, authenticateToken, requirePaidUser, handleReferenceImageUpload, async (req: any, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    try {
+      const userId = req.user.userId;
+
+      if (!req.file) {
+        return res.status(400).json({ error: "The 'image' file field is required" });
+      }
+      if (!isBunnyConfigured("imageScenes")) {
+        return res.status(500).json({ error: "Image upload is not configured" });
+      }
+
+      const ext = req.file.mimetype === "image/png" ? "png"
+        : req.file.mimetype === "image/webp" ? "webp"
+          : "jpg";
+
+      console.log(`[API-V1] Reference image upload from user ${userId} (${(req.file.size / 1024).toFixed(0)} KB, ${req.file.mimetype})`);
+
+      const { url } = await uploadReferenceImage(userId, ext, req.file.buffer);
+
+      const moderation = await moderateImageContent(url);
+      if (!moderation.safe) {
+        await deleteBunnyFileByPublicUrlIfConfigured(url).catch((deleteError) => {
+          console.error("[API-V1] Failed to delete rejected reference image:", deleteError);
+        });
+        if (moderation.error) {
+          return res.status(503).json({ error: moderation.error });
+        }
+        const details = moderation.violations.length > 0
+          ? ` Detected: ${moderation.violations.join(", ")}.`
+          : "";
+        return res.status(400).json({
+          error: `This image cannot be used because it violates our content policy.${details}`
+        });
+      }
+
+      res.json({ image_url: url });
+    } catch (error) {
+      console.error("[API-V1] Reference image upload error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to upload image",
+      });
+    }
+  });
+
+  // ─── Video Tools: Generate Clip ─────────────────────────────────────
+  // Short AI clip (6-12s) via Wavespeed seedance image-to-video. Text-only
+  // requests first generate a seed image (nano-banana-2), matching the
+  // Video Shorts pipeline. Synchronous like the other tools endpoints.
+  app.post("/api/v1/tools/generate-clip", extractTokenFromUrl, authenticateToken, requirePaidUser, async (req: any, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    try {
+      const {
+        prompt: promptInput,
+        image_url: imageUrlInput,
+        aspect_ratio: requestedAspectRatio,
+        duration: requestedDuration,
+      } = req.body;
+      const userId = req.user.userId;
+
+      if (!promptInput || typeof promptInput !== "string" || !promptInput.trim()) {
+        return res.status(400).json({
+          error: "The 'prompt' field is required and must be a non-empty string"
+        });
+      }
+      const prompt = promptInput.trim();
+
+      const validAspectRatios = ["16:9", "9:16"];
+      const aspectRatio = validAspectRatios.includes(requestedAspectRatio) ? requestedAspectRatio : "16:9";
+
+      const durationRaw = typeof requestedDuration === "number" ? requestedDuration : Number(requestedDuration);
+      const duration = Number.isFinite(durationRaw)
+        ? Math.max(6, Math.min(12, Math.round(durationRaw)))
+        : 10;
+
+      let imageUrl: string | undefined;
+      if (imageUrlInput !== undefined && imageUrlInput !== null && imageUrlInput !== "") {
+        if (typeof imageUrlInput !== "string") {
+          return res.status(400).json({ error: "'image_url' must be a string URL" });
+        }
+        let parsedImageUrl: URL;
+        try {
+          parsedImageUrl = new URL(imageUrlInput);
+        } catch {
+          return res.status(400).json({ error: "'image_url' must be a valid URL" });
+        }
+        if (parsedImageUrl.protocol !== "https:") {
+          return res.status(400).json({ error: "'image_url' must be an https URL" });
+        }
+        imageUrl = imageUrlInput;
+      }
+
+      const CLIP_CREDITS = 250;
+      const canAfford = await storage.canUserAffordCredits(userId, CLIP_CREDITS);
+      if (!canAfford) {
+        const creditsRemaining = await storage.getUserCreditsRemaining(userId);
+        return res.status(402).json({
+          error: "Insufficient credits for clip generation",
+          credits_required: CLIP_CREDITS,
+          credits_remaining: creditsRemaining,
+        });
+      }
+
+      const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY || "";
+      if (!WAVESPEED_API_KEY) {
+        return res.status(500).json({ error: "Clip generation service is not configured" });
+      }
+
+      console.log(`[API-V1] Generate clip request from user ${userId}: prompt="${prompt.substring(0, 80)}...", duration=${duration}s, aspect=${aspectRatio}, image=${imageUrl ? "yes" : "no"}`);
+
+      // Images from our own upload endpoint are already moderated; check
+      // any other externally supplied URL before feeding it to the model.
+      if (imageUrl && !isBunnyUrl(imageUrl)) {
+        const moderation = await moderateImageContent(imageUrl);
+        if (!moderation.safe) {
+          if (moderation.error) {
+            return res.status(503).json({ error: moderation.error });
+          }
+          const details = moderation.violations.length > 0
+            ? ` Detected: ${moderation.violations.join(", ")}.`
+            : "";
+          return res.status(400).json({
+            error: `This image cannot be used because it violates our content policy.${details}`
+          });
+        }
+      }
+
+      const seedImageUrl = imageUrl ?? await generateImageFromText(prompt, aspectRatio);
+      const wavespeedVideoUrl = await generateVideoFromImage(seedImageUrl, prompt, aspectRatio, duration);
+
+      // Wavespeed output URLs expire after ~7 days and are not on the
+      // editor's CDN allowlist, so persistence to Bunny is required.
+      let finalVideoUrl: string;
+      try {
+        const videoResponse = await fetch(wavespeedVideoUrl);
+        if (!videoResponse.ok) {
+          throw new Error(`Failed to download generated clip (${videoResponse.status})`);
+        }
+        const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+        const uploaded = await uploadClipVideo(userId, videoBuffer);
+        finalVideoUrl = uploaded.url;
+      } catch (storeError) {
+        console.error("[API-V1] Failed to persist generated clip to Bunny:", storeError);
+        return res.status(500).json({ error: "Failed to store generated clip" });
+      }
+
+      const creditDeducted = await storage.deductUserCredits(userId, CLIP_CREDITS);
+      if (!creditDeducted) {
+        console.error("[API-V1] Failed to deduct credits after clip generation");
+      } else {
+        console.log(`[API-V1] Deducted ${CLIP_CREDITS} credits for clip generation from user ${userId}`);
+      }
+
+      res.json({
+        video_url: finalVideoUrl,
+        duration_seconds: duration,
+        aspect_ratio: aspectRatio,
+        credits_required: CLIP_CREDITS,
+        source_image_url: seedImageUrl,
+      });
+    } catch (error) {
+      console.error("[API-V1] Generate clip tool error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to generate clip",
       });
     }
   });

@@ -204,6 +204,29 @@ export async function uploadSceneVideo(
 }
 
 /**
+ * Upload a generated clip video buffer to Bunny Storage (final videos folder).
+ */
+export async function uploadClipVideo(
+  userId: string,
+  buffer: Buffer,
+): Promise<{ url: string; storagePath: string }> {
+  const fileName = `clip_${userId}_${Date.now()}.mp4`;
+  return uploadToBunnyStorage("final", fileName, buffer);
+}
+
+/**
+ * Upload a user-provided reference image buffer to Bunny Storage (imageScenes folder).
+ */
+export async function uploadReferenceImage(
+  userId: string,
+  ext: string,
+  buffer: Buffer,
+): Promise<{ url: string; storagePath: string }> {
+  const fileName = `clipref_${userId}_${Date.now()}.${ext}`;
+  return uploadToBunnyStorage("imageScenes", fileName, buffer);
+}
+
+/**
  * Upload a character image buffer to Bunny Storage (characters folder).
  */
 export async function uploadCharacterImage(
