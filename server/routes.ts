@@ -1084,29 +1084,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
               align-items: center;
               min-height: 100vh;
               margin: 0;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              background: #000000;
+              color: #f5f5f5;
             }
             .container {
-              background: white;
+              background: #0a0a0a;
               padding: 2rem;
+              border: 1px solid rgba(255, 255, 255, 0.08);
               border-radius: 8px;
-              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+              box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
               max-width: 400px;
               width: 100%;
             }
-            h1 { margin-top: 0; color: #333; font-size: 1.5rem; }
-            .client-info { background: #f3f4f6; padding: 1rem; border-radius: 4px; margin: 1rem 0; }
+            h1 { margin-top: 0; color: #ffffff; font-size: 1.5rem; }
+            .client-info { background: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 4px; margin: 1rem 0; color: #f5f5f5; }
             .scopes { list-style: none; padding: 0; }
-            .scopes li { padding: 0.5rem 0; border-bottom: 1px solid #e5e7eb; }
+            .scopes li { padding: 0.5rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
             .scopes li:last-child { border-bottom: none; }
             .buttons { display: flex; gap: 1rem; margin-top: 1.5rem; }
             button { flex: 1; padding: 0.75rem; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }
-            .authorize { background: #667eea; color: white; }
-            .authorize:hover { background: #5568d3; }
-            .deny { background: #e5e7eb; color: #333; }
-            .deny:hover { background: #d1d5db; }
-            .error { color: #dc2626; padding: 1rem; background: #fee2e2; border-radius: 4px; margin: 1rem 0; }
-            .loading { text-align: center; color: #666; }
+            .authorize { background: #ff0080; color: white; }
+            .authorize:hover { background: #e60073; }
+            .deny { background: rgba(255, 255, 255, 0.1); color: #f5f5f5; }
+            .deny:hover { background: rgba(255, 255, 255, 0.18); }
+            .error { color: #fca5a5; padding: 1rem; background: rgba(220, 38, 38, 0.15); border-radius: 4px; margin: 1rem 0; }
+            .loading { text-align: center; color: #a3a3a3; }
           </style>
         </head>
         <body>
