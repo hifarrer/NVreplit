@@ -319,7 +319,19 @@ export function registerApiV1Routes(app: Express) {
       }
 
       if (status === 'failed') {
-        response.message = 'Video generation failed. Please try again.';
+        // Surface the real failure reason from the generation logs so API
+        // consumers (e.g. the editor's AI chat) can explain it to the user.
+        let failureMessage = 'Video generation failed. Please try again.';
+        try {
+          const logs = await storage.getGenerationLogs(id);
+          const errorLog = [...logs].reverse().find((log) => log.status === 'error');
+          if (errorLog?.message) {
+            failureMessage = errorLog.message;
+          }
+        } catch (logError) {
+          console.error('[API-V1] Failed to read generation logs for failure message:', logError);
+        }
+        response.message = failureMessage;
       }
 
       res.json(response);

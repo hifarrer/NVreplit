@@ -14524,6 +14524,13 @@ Do not add markdown. Return JSON only.`,
           }
         } catch (error) {
           console.error("[SIMPLE-MODE] Error:", error);
+          // Mark the project failed so status polls (e.g. /api/v1/videos/:id/status)
+          // report the failure instead of "processing" forever.
+          await storage.updateProject(project.id, {
+            generationStatus: "failed",
+          } as any).catch((updateError) => {
+            console.error("[SIMPLE-MODE] Failed to mark project as failed:", updateError);
+          });
           await storage.addGenerationLog({
             projectId: project.id,
             step: "video_generation",
