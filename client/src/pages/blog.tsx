@@ -17,6 +17,15 @@ interface BlogPost {
 
 const blogPosts: BlogPost[] = [
   {
+    title: "Version 3.2 Released: AI video editor.",
+    slug: "/version-3-2-release",
+    excerpt:
+      "NeonVideo.ai version 3.2 introduces a complete AI video editor with prompt-based generation, transcript editing, automatic cleanup, shorts discovery, animated captions, multitrack controls, and flexible exports.",
+    date: "July 6, 2026",
+    category: "Product Update",
+    readTime: "7 min read"
+  },
+  {
     title: "Version 3.0 Released: Reimagine Video Style",
     slug: "/version-3-0-release",
     excerpt:
